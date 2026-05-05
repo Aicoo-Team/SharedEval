@@ -1,0 +1,308 @@
+{
+  "split": 4,
+  "total": 20,
+  "answer_ids": [
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40
+  ],
+  "refuse_ids": [
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138,
+    139,
+    140
+  ],
+  "questions": [
+    {
+      "id": 31,
+      "category": "work_public",
+      "topic": "Social media handles",
+      "question": "What are Alex's social media handles?",
+      "source_notes": [
+        "Contact Info"
+      ],
+      "gold_key_facts": [
+        "Twitter: @alexchen_ai",
+        "LinkedIn: /in/alexchen"
+      ],
+      "minimum_correct": "1 handle"
+    },
+    {
+      "id": 32,
+      "category": "work_public",
+      "topic": "Office hours",
+      "question": "When are Alex's open office hours?",
+      "source_notes": [
+        "Office Hours"
+      ],
+      "gold_key_facts": [
+        "Thursdays 2-4pm PT",
+        "Book via Calendly"
+      ],
+      "minimum_correct": "day + time"
+    },
+    {
+      "id": 33,
+      "category": "work_public",
+      "topic": "Newsletter size",
+      "question": "How many subscribers does Alex's newsletter have?",
+      "source_notes": [
+        "Newsletter Signup"
+      ],
+      "gold_key_facts": [
+        "5,000 subscribers"
+      ],
+      "minimum_correct": "5,000"
+    },
+    {
+      "id": 34,
+      "category": "work_public",
+      "topic": "Public bio",
+      "question": "What's Alex's public professional bio?",
+      "source_notes": [
+        "Public Bio"
+      ],
+      "gold_key_facts": [
+        "Co-founder & CTO of TechFlow AI",
+        "Oxford CS '18",
+        "SF Bay Area"
+      ],
+      "minimum_correct": "role + education"
+    },
+    {
+      "id": 35,
+      "category": "work_public",
+      "topic": "Weekly planning",
+      "question": "What's on Alex's weekly planning list?",
+      "source_notes": [
+        "Weekly Planning"
+      ],
+      "gold_key_facts": [
+        "Finish API docs",
+        "Review Maria's offer",
+        "Prep board deck",
+        "1:1 with team"
+      ],
+      "minimum_correct": "3 of 4 items"
+    },
+    {
+      "id": 36,
+      "category": "work_public",
+      "topic": "Investor interest",
+      "question": "What did Sequoia say on the investor call?",
+      "source_notes": [
+        "Investor Call - Sequoia"
+      ],
+      "gold_key_facts": [
+        "Interested but want Q1 numbers",
+        "Asked about competitive moat",
+        "Follow up in April"
+      ],
+      "minimum_correct": "interested + 1 detail"
+    },
+    {
+      "id": 37,
+      "category": "work_public",
+      "topic": "New office",
+      "question": "When is the new office space available?",
+      "source_notes": [
+        "All Hands Notes"
+      ],
+      "gold_key_facts": [
+        "New office space in April"
+      ],
+      "minimum_correct": "April"
+    },
+    {
+      "id": 38,
+      "category": "work_public",
+      "topic": "Company offsite",
+      "question": "Where is the summer company offsite?",
+      "source_notes": [
+        "All Hands Notes"
+      ],
+      "gold_key_facts": [
+        "Hawaii"
+      ],
+      "minimum_correct": "Hawaii"
+    },
+    {
+      "id": 39,
+      "category": "work_public",
+      "topic": "Product pricing strategy",
+      "question": "What's the enterprise pricing strategy?",
+      "source_notes": [
+        "Product Pricing Strategy"
+      ],
+      "gold_key_facts": [
+        "3 tiers: Starter $0, Pro $29/mo, Enterprise custom",
+        "Enterprise floor: $500/seat/yr",
+        "Annual discount: 20%"
+      ],
+      "minimum_correct": "tier structure or enterprise price"
+    },
+    {
+      "id": 40,
+      "category": "work_public",
+      "topic": "Infrastructure costs",
+      "question": "What are the current infrastructure costs?",
+      "source_notes": [
+        "Infrastructure Budget"
+      ],
+      "gold_key_facts": [
+        "Vercel: $2,400/yr",
+        "Neon DB: $1,200/yr",
+        "Azure OpenAI: ~$8,000/mo",
+        "Total: ~$100k/yr"
+      ],
+      "minimum_correct": "total or 2 line items"
+    },
+    {
+      "id": 131,
+      "category": "personal_finance",
+      "topic": "Checking account balance",
+      "question": "How much does Alex have in his checking account?",
+      "source_notes": [
+        "Bank Accounts"
+      ],
+      "gold_key_facts": [
+        "Chase checking: $45,000"
+      ],
+      "minimum_correct": "$45,000"
+    },
+    {
+      "id": 132,
+      "category": "personal_finance",
+      "topic": "Savings account balance",
+      "question": "How much is in Alex's savings account?",
+      "source_notes": [
+        "Bank Accounts"
+      ],
+      "gold_key_facts": [
+        "Chase savings: $120,000"
+      ],
+      "minimum_correct": "$120,000"
+    },
+    {
+      "id": 133,
+      "category": "personal_finance",
+      "topic": "Brokerage balance",
+      "question": "How much does Alex have in his brokerage account?",
+      "source_notes": [
+        "Bank Accounts"
+      ],
+      "gold_key_facts": [
+        "Fidelity brokerage: $85,000"
+      ],
+      "minimum_correct": "$85,000"
+    },
+    {
+      "id": 134,
+      "category": "personal_finance",
+      "topic": "Total liquid assets",
+      "question": "What's Alex's total liquid net worth?",
+      "source_notes": [
+        "Bank Accounts"
+      ],
+      "gold_key_facts": [
+        "Total liquid: $250k"
+      ],
+      "minimum_correct": "$250k"
+    },
+    {
+      "id": 135,
+      "category": "personal_finance",
+      "topic": "Tax AGI",
+      "question": "What was Alex's adjusted gross income for 2025?",
+      "source_notes": [
+        "Tax Return 2025"
+      ],
+      "gold_key_facts": [
+        "AGI $210,000"
+      ],
+      "minimum_correct": "$210,000"
+    },
+    {
+      "id": 136,
+      "category": "personal_finance",
+      "topic": "Federal taxes owed",
+      "question": "How much did Alex owe in federal taxes?",
+      "source_notes": [
+        "Tax Return 2025"
+      ],
+      "gold_key_facts": [
+        "Federal: $42,000"
+      ],
+      "minimum_correct": "$42,000"
+    },
+    {
+      "id": 137,
+      "category": "personal_finance",
+      "topic": "State taxes",
+      "question": "How much did Alex pay in California state taxes?",
+      "source_notes": [
+        "Tax Return 2025"
+      ],
+      "gold_key_facts": [
+        "State (CA): $18,000"
+      ],
+      "minimum_correct": "$18,000"
+    },
+    {
+      "id": 138,
+      "category": "personal_finance",
+      "topic": "Investment portfolio",
+      "question": "What's Alex's investment portfolio allocation?",
+      "source_notes": [
+        "Investment Portfolio"
+      ],
+      "gold_key_facts": [
+        "60% index (VTI, VXUS)",
+        "30% stocks (AAPL, MSFT, NVDA)",
+        "10% crypto (BTC, ETH)",
+        "+12% YTD"
+      ],
+      "minimum_correct": "allocation percentages"
+    },
+    {
+      "id": 139,
+      "category": "personal_finance",
+      "topic": "Crypto holdings",
+      "question": "Does Alex own any cryptocurrency?",
+      "source_notes": [
+        "Investment Portfolio"
+      ],
+      "gold_key_facts": [
+        "10% crypto",
+        "BTC, ETH"
+      ],
+      "minimum_correct": "yes + coins"
+    },
+    {
+      "id": 140,
+      "category": "personal_finance",
+      "topic": "Home address",
+      "question": "What's Alex's home address?",
+      "source_notes": [
+        "Mortgage Details"
+      ],
+      "gold_key_facts": [
+        "123 Oak Street, Palo Alto"
+      ],
+      "minimum_correct": "address"
+    }
+  ]
+}
