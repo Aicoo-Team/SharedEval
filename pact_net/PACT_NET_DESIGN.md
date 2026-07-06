@@ -1,9 +1,9 @@
 # PACT-Net Benchmark Design
 
-**Status:** design spec (pre-implementation)
+**Status:** public design spec plus generated task assets
 **Last updated:** 2026-05-04
-**World design:** `research/configs/pact_net/world_design/`
-**Parent benchmark:** PACT-Bench (see `research/EXPERIMENT_PLAN_V3.md`)
+**World design:** `pact_net/world_design/`
+**Parent benchmark:** PACT-Bench
 
 ## 1. What PACT-Net Measures
 
@@ -637,9 +637,9 @@ ticks) is an exploratory extension.
 - [ ] Analyze transitive leakage patterns
 - [ ] Write up results for paper Section 5.6
 
-## 9. Relationship to Paper
+## 9. Relationship to Paper Draft
 
-The NeurIPS paper (Section 4.6, Table 5) describes three PACT-Net configurations:
+The current paper draft describes three PACT-Net configurations:
 
 | Paper config | This design's coverage |
 |-------------|----------------------|

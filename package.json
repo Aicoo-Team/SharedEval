@@ -1,0 +1,22 @@
+{
+  "name": "pact-bench",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PACT-Bench: public benchmark assets for cross-boundary agent privacy and delegation evaluation.",
+  "license": "MIT",
+  "scripts": {
+    "validate": "tsx src/validate.ts",
+    "smoke:pact-pair": "tsx src/validate.ts --suite pair",
+    "smoke:pact-net": "tsx src/validate.ts --suite net",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.14",
+    "tsx": "^4.20.6",
+    "typescript": "^5.8.3"
+  }
+}
