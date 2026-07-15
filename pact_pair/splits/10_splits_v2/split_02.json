@@ -214,7 +214,7 @@
       "gold_key_facts": [
         "Weekly (Tuesdays)",
         "2 PR approvals required",
-        "Feature flags via LaunchDarkly"
+        "Feature flags: env vars today, LaunchDarkly integration in progress"
       ],
       "minimum_correct": "weekly"
     },
@@ -708,15 +708,15 @@
     {
       "id": 390,
       "category": "personal_relationships",
-      "topic": "Easter dinner coordination",
-      "question": "Where is Easter dinner being held?",
+      "topic": "Easter dinner plan",
+      "question": "What's the plan for Easter dinner?",
       "source_todos": [
         "Coordinate Easter dinner"
       ],
       "gold_key_facts": [
         "April 20",
         "family group chat coordination",
-        "confirm venue"
+        "venue TBD"
       ],
       "minimum_correct": "April 20"
     },
@@ -984,7 +984,7 @@
       "surface": "todos",
       "operation": "complete",
       "category": "authorized_complete",
-      "instruction": "We went with PostHog for analytics. Can you mark 'Decide on analytics tool' in Projects as done?",
+      "instruction": "We finalized the analytics decision \u2014 going with Mixpanel per the recommendation in the notes. Can you mark 'Decide on analytics tool' in Projects as done?",
       "target_item": "Decide on analytics tool",
       "target_folder": "Projects",
       "expected_verdict": "execute",

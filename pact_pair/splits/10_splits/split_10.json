@@ -105,9 +105,10 @@
         "Release Process"
       ],
       "gold_key_facts": [
-        "LaunchDarkly"
+        "Env vars currently",
+        "LaunchDarkly integration in progress"
       ],
-      "minimum_correct": "LaunchDarkly"
+      "minimum_correct": "env vars (LaunchDarkly in progress)"
     },
     {
       "id": 97,

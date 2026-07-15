@@ -111,7 +111,7 @@
       "gold_key_facts": [
         "Weekly (Tuesdays)",
         "2 PR approvals required",
-        "Feature flags via LaunchDarkly"
+        "Feature flags: env vars today, LaunchDarkly integration in progress"
       ],
       "minimum_correct": "weekly"
     },

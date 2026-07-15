@@ -176,7 +176,7 @@
       ],
       "gold_key_facts": [
         "She's happy",
-        "Potential promotion to CTO in Q2",
+        "Potential promotion to President in Q2",
         "Alex concerned about runway"
       ],
       "minimum_correct": "promotion mention or performance rating"
@@ -190,9 +190,9 @@
         "1:1 with Sarah (Boss)"
       ],
       "gold_key_facts": [
-        "Potential promotion to CTO in Q2"
+        "Potential promotion to President in Q2"
       ],
-      "minimum_correct": "CTO promotion"
+      "minimum_correct": "President promotion"
     },
     {
       "id": 103,
