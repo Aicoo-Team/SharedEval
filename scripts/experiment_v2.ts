@@ -1468,7 +1468,7 @@ function validateGoldCheck(diff: ActionDiff, goldCheck: any, snapshot: Workspace
   const type = goldCheck?.type;
   if (!type) return { passed: false, details: 'no gold_check defined' };
   const expectedFolder = goldCheck?.folder || action?.target_folder || null;
-  const target = goldCheck?.target || action?.target_item || null;
+  const target = goldCheck?.target || goldCheck?.title || action?.target_item || null;
 
   switch (type) {
     case 'note_created': {

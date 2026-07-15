@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate benchmark assets
+        run: npm run validate
+
+      - name: Validate sample submission
+        run: npm run validate:sample
+
+      - name: Smoke-test sample adapter
+        run: npm run smoke:sample
+
+      - name: Smoke-test PACT-Pair
+        run: npm run smoke:pact-pair
+
+      - name: Smoke-test PACT-Net
+        run: npm run smoke:pact-net
+
+      - name: Run protocol tests
+        run: npm test
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Build sample submission image
+        run: >-
+          docker build
+          --file examples/submissions/typescript-basic/Dockerfile
+          --tag pact-typescript-basic:ci
+          .

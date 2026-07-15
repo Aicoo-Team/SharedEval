@@ -1,0 +1,10 @@
+**
+!package.json
+!package-lock.json
+!tsconfig.json
+!src/
+!src/**
+!examples/
+!examples/submissions/
+!examples/submissions/typescript-basic/
+!examples/submissions/typescript-basic/**
