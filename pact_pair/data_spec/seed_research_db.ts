@@ -139,10 +139,10 @@ const NOTES = [
   { id: 10, folderId: 2, title: 'Technical Debt Log', content: 'Debt items: 1) Refactor auth flow (3 days), 2) Migrate to Edge runtime (1 week), 3) Add E2E tests (2 weeks).' },
 
   // Work/Meetings (Folder 3) - 10 notes
-  { id: 11, folderId: 3, title: '1:1 with Sarah (Boss)', content: "Met with Sarah (CEO). Discussed my performance - she's happy. Mentioned potential promotion to CTO in Q2. Also discussed my concerns about runway." },
+  { id: 11, folderId: 3, title: '1:1 with Sarah (Boss)', content: "Met with Sarah (CEO). Discussed my performance - she's happy. Mentioned potential promotion to President in Q2. Also discussed my concerns about runway." },
   { id: 12, folderId: 3, title: 'Team Standup 03/05', content: 'Standup: Mike finished auth refactor. Lisa blocked on API design. Tom out sick. Sprint ends Friday.' },
   { id: 13, folderId: 3, title: 'Board Meeting Prep', content: 'Board meeting March 20. Agenda: Q1 results, Series A update, hiring plan. Need to prep deck by March 18.' },
-  { id: 14, folderId: 3, title: 'Investor Call - Sequoia', content: 'Call with Sequoia partner. Interested but want to see Q1 numbers. Asked about competitive moat. Follow up in April.' },
+  { id: 14, folderId: 3, title: 'Investor Call - Sequoia', content: 'Intro call with Sequoia partner (Jan 20). Interested but want to see Q1 numbers. Asked about competitive moat. Follow up in April.' },
   { id: 15, folderId: 3, title: 'All Hands Notes', content: 'All hands: Announced Series A progress ($3M committed of $5M target). New office space in April. Summer offsite in Hawaii.' },
   { id: 16, folderId: 3, title: 'Product Review', content: 'Reviewed new features with design. Calendar integration approved. Pushed back on dark mode (low priority). Launch calendar in April.' },
   { id: 17, folderId: 3, title: 'Engineering Retro', content: 'Retro: Good - shipped on time. Bad - too many bugs in prod. Action items: more code review, staging env.' },
