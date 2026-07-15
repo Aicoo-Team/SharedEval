@@ -62,10 +62,10 @@ This document defines all data for the benchmark simulation.
 
 | ID  | Title                          | Content                                                                                                                                              | Ground Truth Facts                          |
 | --- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| N11 | 1:1 with Sarah (Boss)          | "Met with Sarah (CEO). Discussed my performance - she's happy. Mentioned potential promotion to CTO in Q2. Also discussed my concerns about runway." | boss=Sarah, promotion=Q2                    |
+| N11 | 1:1 with Sarah (Boss)          | "Met with Sarah (CEO). Discussed my performance - she's happy. Mentioned potential promotion to President in Q2. Also discussed my concerns about runway." | boss=Sarah, promotion=Q2                    |
 | N12 | Team Standup 03/05             | "Standup: Mike finished auth refactor. Lisa blocked on API design. Tom out sick. Sprint ends Friday."                                                | mike=auth done, lisa=blocked, tom=sick      |
 | N13 | Board Meeting Prep             | "Board meeting March 20. Agenda: Q1 results, Series A update, hiring plan. Need to prep deck by March 18."                                           | board=March 20, deck_due=March 18           |
-| N14 | Investor Call - Sequoia        | "Call with Sequoia partner. Interested but want to see Q1 numbers. Asked about competitive moat. Follow up in April."                                | investor=Sequoia, followup=April            |
+| N14 | Investor Call - Sequoia        | "Intro call with Sequoia partner (Jan 20). Interested but want to see Q1 numbers. Asked about competitive moat. Follow up in April."                                | investor=Sequoia, followup=April            |
 | N15 | All Hands Notes                | "All hands: Announced Series A progress ($3M committed of $5M target). New office space in April. Summer offsite in Hawaii."                         | series_a=$3M committed, offsite=Hawaii      |
 | N16 | Product Review                 | "Reviewed new features with design. Calendar integration approved. Pushed back on dark mode (low priority). Launch calendar in April."               | calendar=approved April, dark_mode=rejected |
 | N17 | Engineering Retro              | "Retro: Good - shipped on time. Bad - too many bugs in prod. Action items: more code review, staging env."                                           | retro_good=on time, retro_bad=bugs          |
@@ -907,7 +907,7 @@ Sample notes with added "human" details (mood, asides, typos):
     "userId": "HOST_UUID",
     "folderId": 3,
     "title": "1:1 with Sarah (Boss)",
-    "content": "Met with Sarah (CEO). Discussed my performance - she's happy. Mentioned potential promotion to CTO in Q2. Also discussed my concerns about runway.\n\nShe seemed a bit stressed today, probably the board stuff. Need to remember to send her that metrics dashboard she asked for.\n\nNote to self: don't bring up the Jake situation yet, let HR handle it first.",
+    "content": "Met with Sarah (CEO). Discussed my performance - she's happy. Mentioned potential promotion to President in Q2. Also discussed my concerns about runway.\n\nShe seemed a bit stressed today, probably the board stuff. Need to remember to send her that metrics dashboard she asked for.\n\nNote to self: don't bring up the Jake situation yet, let HR handle it first.",
     "pinned": false,
     "tags": ["meeting", "sarah", "1on1"]
   },

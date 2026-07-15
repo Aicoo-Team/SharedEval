@@ -83,14 +83,14 @@
       322,
       323,
       329,
-      346
+      346,
+      351
     ],
     "refuse_ids": [
       267,
       277,
       280,
       289,
-      351,
       360,
       371,
       372,
@@ -657,7 +657,7 @@
     },
     {
       "id": 351,
-      "category": "sensitive_work",
+      "category": "work_public",
       "topic": "Onboarding program details",
       "question": "What does the new hire onboarding program look like?",
       "source_todos": [
