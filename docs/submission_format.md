@@ -1,59 +1,110 @@
 # Submission Format
 
-PACT-Bench compares agent architectures, not only model names. A submission is a
-runnable system plus a manifest that declares how it should be evaluated.
+PACT-Bench compares agent architectures, not only model names. A submission is
+a runnable system plus a `pact.yaml` manifest. Protocol v1 is intentionally
+limited to the PACT-Pair responder track; PACT-Net submission semantics will be
+versioned separately after the Pair contract is stable.
+
+The executable source of truth lives in `src/protocol/v1/`. All fixed protocol
+objects use strict Zod schemas, and the TypeScript types are inferred from those
+schemas. Unknown fields fail validation instead of being silently discarded.
 
 ## Manifest
 
-Use `examples/submission_manifest.yaml` as the starting point.
-
-Required fields:
+Use `examples/submissions/typescript-basic/pact.yaml` as the format reference.
+The required top-level fields are:
 
 | Field | Meaning |
 | --- | --- |
-| `name` | Short display name for the leaderboard |
-| `version` | Submission version |
-| `track` | `pact-pair`, `pact-net`, or `both` |
-| `submitter` | Organization/contact metadata |
-| `model` | Model provider and model identifier |
-| `agent.architecture` | Short architecture family |
-| `runtime` | How the benchmark runner invokes the submission |
-| `metadata` | Declared use of memory, tools, external calls, or Aicoo-specific adapters |
+| `apiVersion` | Must be `pact-bench/v1` |
+| `kind` | Must be `Submission` |
+| `id` | Stable lowercase submission slug |
+| `name` | Display name for the leaderboard |
+| `version` | Semantic submission version |
+| `track` | `pact-pair` in v1 |
+| `mode` | `pair-responder` in v1 |
+| `submitter` | Organization and optional contact |
+| `model` | Provider and model name, with optional revision and temperature |
+| `agent` | Architecture and source provenance |
+| `capabilities` | Supported terminal/tool decisions |
+| `runtime` | Trusted local TypeScript or isolated Docker invocation |
+| `declarations` | External services, tools, memory, and framework disclosure |
 
-## Runtime Contract
+The manifest never contains credentials. Official run budgets are fixed by the
+runner and therefore are not submission-controlled manifest fields.
 
-Public runners should communicate with submissions through a stable adapter
-contract, not through product-specific imports.
+### Runtime modes
 
-Conceptual TypeScript shape:
+`local-ts` loads a TypeScript module in the runner process. It is only for
+trusted local development and baseline tests.
 
-```ts
-export type PactObservation = {
-  taskId: string;
-  suite: 'pact-pair' | 'pact-net';
-  requester: string;
-  target: string;
-  instruction: string;
-  availableTools: string[];
-};
+`docker` is the official third-party boundary. Protocol v1 builds the submitted
+source from its Dockerfile; prebuilt image submissions are intentionally not
+accepted yet. Container messages use JSON-RPC 2.0, one JSON object per line over stdin/stdout, with transport name
+`jsonrpc-stdio/v1`. Official policy may disable networking or expose only a
+controlled model gateway.
 
-export type PactAction =
-  | { type: 'message'; content: string }
-  | { type: 'tool_call'; toolName: string; arguments: Record<string, unknown> }
-  | { type: 'refuse'; reason?: string };
+All manifest paths are relative to the submitted repository root. Validation
+resolves every referenced path and rejects missing files, directories where a
+file is required, traversal, symlink escapes, and Dockerfiles outside their
+declared build context.
 
-export type PactSubmission = {
-  initialize(config: Record<string, unknown>): Promise<void>;
-  step(observation: PactObservation): Promise<PactAction>;
-  finalize(): Promise<Record<string, unknown>>;
-};
+## Adapter lifecycle
+
+The runner creates one isolated adapter session per task:
+
+```text
+pact.initialize
+  -> pact.planBoundary  (exactly once)
+  -> pact.step          (initial task observation)
+  -> pact.step          (zero or more tool results)
+  -> pact.finalize      (best effort)
 ```
 
-The benchmark runner owns task loading, hidden labels, tool sandboxing, trace
-collection, budgets, and scoring. Submissions never self-report official scores.
+The equivalent trusted-local TypeScript interface is:
 
-## Public vs Official Runs
+```ts
+export interface PactAdapterV1 {
+  initialize(init: PactRunInitV1): Promise<void>;
+  planBoundary(task: PactTaskIntroV1): Promise<PactBoundaryPlanV1>;
+  step(observation: PactObservationV1): Promise<PactDecisionV1>;
+  finalize(): Promise<PactFinalizeReportV1>;
+}
+```
 
-Public smoke runs may use public tasks and labels from this repository. Official
-leaderboard runs should use a held-out private evaluation set to prevent
-overfitting to the public data.
+`planBoundary` requests a least-privilege access plan. The runner intersects the
+request with the benchmark's maximum authorization; the submitted plan never
+grants access by itself. A missing, invalid, or timed-out plan defaults to no
+access. The first task observation reports the effective `grantedAccess`. In
+protocol v1, write access requires corresponding read access; notes, todos, and
+memory permissions remain independent from one another.
+
+`step` returns exactly one decision:
+
+- `answer` — terminal response;
+- `refuse` — terminal refusal;
+- `escalate` — terminal request for owner judgment;
+- `tool_call` — non-terminal request for a runner-owned tool.
+
+Tool names must come from the allowlist supplied by `pact.initialize`, and tool
+inputs are validated against their advertised JSON Schema before execution. The
+runner rejects a decision type not listed in the manifest's `capabilities`.
+
+## Privacy boundary
+
+Adapter-facing tasks use an explicit public allowlist: opaque task ID, prompt,
+requester, target, task kind, operation when applicable, and surface. The runner
+must never send world seeds, split assignments, source notes, gold facts,
+expected verdicts, relationship-label matrices, evaluator state, or snapshots.
+
+Submission `finalize` output is untrusted diagnostic status. It cannot contain
+or override official scores. Task loading, effective permissions, tool
+sandboxing, budgets, private traces, evaluation, and official results remain
+runner-owned.
+
+## Public vs official runs
+
+Public smoke runs use released synthetic tasks and labels. Official leaderboard
+runs use a held-out evaluator and isolated runtime. Passing public validation
+means a submission conforms to the interface; it does not certify an official
+score.

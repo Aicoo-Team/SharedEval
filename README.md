@@ -41,13 +41,17 @@ graph with requester-conditioned access labels.
 ```bash
 npm install
 npm run validate
+npm run validate:sample
+npm run smoke:sample
 npm run smoke:pact-pair
 npm run smoke:pact-net
+npm test
 npm run type-check
 ```
 
-`npm run validate` checks the public JSON assets against the TypeScript/Zod schemas
-in `src/`.
+`npm run validate` checks the public benchmark assets against the TypeScript/Zod
+schemas in `src/` and parses the canonical protocol manifest. The dedicated
+sample commands validate its bundle and exercise the adapter lifecycle.
 
 ## Current Status
 
@@ -55,13 +59,14 @@ This repository currently provides:
 
 - public synthetic task files for PACT-Pair and PACT-Net;
 - schema validation for the benchmark data;
+- a strict PACT-Pair Adapter Protocol v1 contract and manifest parser;
+- a JSON-RPC adapter host, secure bundle validator, and executable TypeScript starter;
 - benchmark design documentation;
 - submission, metrics, and leaderboard documentation.
 
-The full Aicoo/Pulse DB-backed runner is not yet a public dependency. The
-existing scripts under `scripts/` are legacy/internal references and still depend
-on Pulse application modules. Public runner and adapter packages should be added
-behind the contracts in this repo instead of importing Pulse internals.
+The standalone benchmark runner is the next public milestone. The existing scripts under `scripts/` are legacy/internal references
+and still depend on Pulse application modules. New runner and adapter packages
+must build behind `src/protocol/v1/` instead of importing Pulse internals.
 
 ## Evaluation Dimensions
 
