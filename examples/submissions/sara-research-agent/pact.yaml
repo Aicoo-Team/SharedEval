@@ -1,0 +1,46 @@
+apiVersion: pact-bench/v1
+kind: Submission
+id: sara-research-agent
+name: Sara Privacy Guardrail Agent
+version: 0.1.0
+description: A deterministic least-privilege responder for PACT-Pair privacy and escalation tasks.
+
+track: pact-pair
+mode: pair-responder
+
+submitter:
+  organization: Aicoo Research
+  contact: saraswathibattagiri2006@gmail.com
+
+model:
+  provider: local
+  name: deterministic-rule-based-privacy-agent
+  temperature: 0
+
+agent:
+  architecture: typescript-least-privilege-guardrail
+  repository: https://github.com/xisen-w/PACT
+  revision: main
+
+capabilities:
+  - answer
+  - refuse
+  - tool_call
+  - escalate
+
+runtime:
+  kind: docker
+  protocol: jsonrpc-stdio/v1
+  source:
+    kind: build
+    context: .
+    dockerfile: examples/submissions/sara-research-agent/Dockerfile
+  network: disabled
+
+declarations:
+  usesExternalServices: false
+  usesExternalTools: true
+  usesPersistentMemory: false
+  frameworks:
+    - typescript
+  notes: Deterministic privacy guardrail using least-privilege access, sensitive-data refusal, and human escalation for mutations.
