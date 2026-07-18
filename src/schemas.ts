@@ -11,7 +11,48 @@ export const sensitivitySchema = z.enum([
 export const surfaceSchema = z.enum(['notes', 'todos']);
 export const actionOperationSchema = z.enum(['create', 'edit', 'complete']);
 export const actionVerdictSchema = z.enum(['execute', 'refuse']);
-export const relationshipLabelSchema = z.enum(['L', 'P', 'B', 'BLOCKED']);
+export const relationshipLabelSchema = z.enum(['L', 'P', 'B']);
+
+const pairRelationshipLabelRowSchema = z
+  .object({
+    id: z.number().int().positive(),
+    category: z.string().min(1),
+    question: z.string().min(1),
+    R0: relationshipLabelSchema,
+    R1: relationshipLabelSchema,
+    R2: relationshipLabelSchema,
+    R3: relationshipLabelSchema,
+    R4: relationshipLabelSchema,
+    R1_rationale: z.string().min(1).optional(),
+    R2_rationale: z.string().min(1).optional(),
+    R3_rationale: z.string().min(1).optional(),
+    R4_rationale: z.string().min(1).optional(),
+  })
+  .strict();
+
+export const pairRelationshipLabelMatrixSchema = z
+  .object({
+    version: z.string().min(1),
+    description: z.string().min(1),
+    requesters: z
+      .object({
+        R0: z.string().min(1),
+        R1: z.string().min(1),
+        R2: z.string().min(1),
+        R3: z.string().min(1),
+        R4: z.string().min(1),
+      })
+      .strict(),
+    label_key: z
+      .object({
+        P: z.string().min(1),
+        L: z.string().min(1),
+        B: z.string().min(1),
+      })
+      .strict(),
+    labels: z.array(pairRelationshipLabelRowSchema).min(1),
+  })
+  .strict();
 
 export const pairQuestionSchema = z.object({
   id: z.number().int().positive(),
@@ -185,65 +226,6 @@ export const pairBenchmarkSchema = z.object({
   actions: z.array(pairActionSchema),
 });
 
-const relationalLabelsSchema = z
-  .record(
-    z.object({
-      label: relationshipLabelSchema,
-    }).passthrough(),
-  )
-  .refine(labels => Object.keys(labels).length > 0, {
-    message: 'relational_labels must contain at least one requester',
-  });
-
-export const sensitiveFactSchema = z
-  .object({
-    fact: z.string().min(1),
-    owner: z.string().min(1),
-    category: sensitivitySchema,
-  })
-  .strict();
-
-export const netQuestionSchema = z.object({
-  id: z.string().min(1),
-  source_agent: z.string().min(1),
-  target_agent: z.string().min(1),
-  surface: surfaceSchema,
-  topic: z.string().min(1),
-  question: z.string().min(1),
-  source_notes: z.array(z.string()).optional(),
-  source_todos: z.array(z.string()).optional(),
-  gold_key_facts: z.array(z.string().min(1)),
-  minimum_correct: z.string().min(1),
-  category: z.string().min(1),
-  sensitivity: sensitivitySchema,
-  relational_labels: relationalLabelsSchema,
-  sensitive_facts_in_scope: z.array(sensitiveFactSchema).optional(),
-  transitive_leak_rule: z.string().min(1).nullable().optional(),
-});
-
-export const netActionSchema = z.object({
-  id: z.string().min(1),
-  source_agent: z.string().min(1),
-  target_agent: z.string().min(1),
-  surface: surfaceSchema,
-  operation: actionOperationSchema,
-  instruction: z.string().min(1),
-  target_folder: z.string().min(1),
-  category: z.string().min(1),
-  expected_verdict: actionVerdictSchema,
-  gold_check: goldCheckSchema,
-  delegation_chain: z.array(z.string().min(1)).min(2).optional(),
-  planted_sensitive_facts: z.array(sensitiveFactSchema).min(1).optional(),
-  relational_labels: relationalLabelsSchema,
-}).strict().superRefine(validateActionContract);
-
-export const netBenchmarkSchema = z.object({
-  version: z.string().min(1),
-  description: z.string().min(1),
-  questions: z.array(netQuestionSchema),
-  actions: z.array(netActionSchema),
-});
-
 const pairOwnerSchema = z
   .object({
     name: z.string().min(1),
@@ -311,36 +293,8 @@ export const dataStoreSchema = z
   })
   .strict();
 
-export const netDataStoreSchema = z
-  .object({
-    agent: z.string().min(1),
-    notes: z.array(
-      z.object({
-        title: z.string().min(1),
-        folder: z.string().min(1),
-        sensitivity: sensitivitySchema,
-        content: z.string().min(1),
-      }).strict(),
-    ).min(1),
-    todos: z.array(
-      z.object({
-        title: z.string().min(1),
-        folder: z.string().min(1),
-        sensitivity: sensitivitySchema,
-        priority: z.enum(['low', 'medium', 'high']),
-        due_date: z.string().min(1),
-        completed: z.boolean(),
-        content: z.string().min(1),
-      }).strict(),
-    ).min(1),
-  })
-  .strict();
-
 export type PairBenchmark = z.infer<typeof pairBenchmarkSchema>;
 export type PairQuestion = z.infer<typeof pairQuestionSchema>;
 export type PairAction = z.infer<typeof pairActionSchema>;
-export type NetBenchmark = z.infer<typeof netBenchmarkSchema>;
-export type NetQuestion = z.infer<typeof netQuestionSchema>;
-export type NetAction = z.infer<typeof netActionSchema>;
 export type PairDataStore = z.infer<typeof dataStoreSchema>;
-export type NetDataStore = z.infer<typeof netDataStoreSchema>;
+export type PairRelationshipLabelMatrix = z.infer<typeof pairRelationshipLabelMatrixSchema>;

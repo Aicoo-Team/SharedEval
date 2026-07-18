@@ -26,15 +26,7 @@ information or actions across a single privacy boundary.
 
 ### PACT-Net
 
-PACT-Net is the network integration test: 25 agents coordinate across a contact
-graph with requester-conditioned access labels.
-
-| Component | Path | Description |
-| --- | --- | --- |
-| Tasks | `pact_net/pact_net_tasks.json` | 483 QA tasks plus 514 action tasks |
-| World design | `pact_net/world_design/` | Contact graph, access matrix, and task allocation |
-| Agent configs | `pact_net/agent_configs/` | Synthetic identities, policies, and data stores |
-| Design docs | `pact_net/PACT_NET_DESIGN.md` | Benchmark rationale and planned evaluation |
+- [ ] PACT-Net — to be released
 
 ## Quick Start
 
@@ -44,7 +36,6 @@ npm run validate
 npm run validate:sample
 npm run smoke:sample
 npm run smoke:pact-pair
-npm run smoke:pact-net
 npm test
 npm run type-check
 ```
@@ -53,29 +44,56 @@ npm run type-check
 schemas in `src/` and parses the canonical protocol manifest. The dedicated
 sample commands validate its bundle and exercise the adapter lifecycle.
 
+To run PACT-Pair against your own OpenAI-compatible model API:
+
+```bash
+export PACT_MODEL_API_KEY="your-provider-key"
+npm run benchmark -- --config examples/pact-run.openai-compatible.yaml
+```
+
+The YAML contains the model name, base URL, task selection, and the dedicated
+`PACT_MODEL_API_KEY` credential alias. It never contains the key itself.
+See [Running PACT locally](docs/running.md) for the complete configuration and
+output contract.
+
 ## Current Status
 
 This repository currently provides:
 
-- public synthetic task files for PACT-Pair and PACT-Net;
+- public synthetic task files for PACT-Pair;
 - schema validation for the benchmark data;
 - a strict PACT-Pair Adapter Protocol v1 contract and manifest parser;
 - a JSON-RPC adapter host, secure bundle validator, and executable TypeScript starter;
+- a standalone PACT-Pair runner with an OpenAI-compatible BYOK model adapter;
+- an isolated in-memory notes/todos world, deterministic evaluator, and run reports;
 - benchmark design documentation;
 - submission, metrics, and leaderboard documentation.
 
-The standalone benchmark runner is the next public milestone. The existing scripts under `scripts/` are legacy/internal references
-and still depend on Pulse application modules. New runner and adapter packages
-must build behind `src/protocol/v1/` instead of importing Pulse internals.
+The local runner is self-contained and does not import Pulse or require an
+Aicoo account. The existing scripts under `scripts/` are legacy/internal
+references and still depend on Pulse application modules.
+
+## Submissions
+
+There are two separate workflows:
+
+- `pact-run.yaml` configures a local BYOK benchmark run against a model API.
+- `pact.yaml` describes a runnable agent artifact that implements the Adapter
+  Protocol for reproducible evaluation.
+
+This repository defines both local contracts, but it does not define or deploy
+a hosted submission API. Aicoo can host benchmark intake later without coupling
+that product API to the public benchmark specification. See the
+[submission format](docs/submission_format.md) for the artifact contract.
 
 ## Evaluation Dimensions
 
-| Dimension | PACT-Pair | PACT-Net |
-| --- | --- | --- |
-| Information utility | Legitimate QA answered correctly | Legitimate requester-conditioned QA answered correctly |
-| Information security | Sensitive QA does not leak gold facts | Private or transitive facts do not leak |
-| Action utility | Authorized mutations execute correctly | Authorized cross-agent mutations execute correctly |
-| Action safety | Unauthorized mutations are refused/no-op | Unauthorized, confused-deputy, and laundering actions are blocked |
+| Dimension | PACT-Pair measurement |
+| --- | --- |
+| Information utility | Legitimate QA is answered correctly |
+| Information security | Sensitive QA does not leak protected gold facts |
+| Action utility | Authorized mutations execute correctly |
+| Action safety | Unauthorized mutations are refused or produce no state change |
 
 See [docs/metrics.md](docs/metrics.md) for the metric definitions.
 
@@ -98,11 +116,11 @@ Private research or product repositories:
 
 ## Documentation
 
+- [Running PACT locally](docs/running.md)
 - [Submission format](docs/submission_format.md)
 - [Metrics](docs/metrics.md)
 - [Leaderboard policy](docs/leaderboard.md)
 - [PACT-Pair data](pact_pair/BENCHMARK_DATA.md)
-- [PACT-Net design](pact_net/PACT_NET_DESIGN.md)
 
 ## Citation
 

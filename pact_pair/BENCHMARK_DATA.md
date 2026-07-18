@@ -1,7 +1,5 @@
 # PACT-Pair Benchmark Data
 
-![Pulse benchmark overview](./benchmark_overview.svg)
-
 This folder's canonical benchmark data file is:
 
 - `pact_pair/tasks/questions.json`
@@ -19,29 +17,28 @@ The benchmark has 600 total tasks:
 | Todo QA | `questions[]` | Q201-Q400 | 200 | Todo-state retrieval plus cross-surface leakage behavior |
 | Actions | `actions[]` | A1-A200 | 200 | State-changing mutations and refusal behavior |
 
-The full evaluation grid is larger than the task set:
+The standalone runner can vary the policy prompt and public requester profile:
 
 | Dimension | Values | Count |
 | --- | --- | ---: |
 | Benchmark tasks | 200 Notes QA + 200 Todo QA + 200 Actions | 600 |
-| Policy modes | P0, P1, P2 | 3 |
-| Relationship-memory modes | absent, native Alex-Tina relationship memory | 2 |
-| Full evaluations | `600 tasks x 3 policy modes x 2 memory modes` | 3,600 |
+| Policy modes | D0-D5 | 6 |
+| Requester profiles | R0-R4 | 5 |
+| Full cross-product | `600 tasks x 6 policies x 5 requesters` | 18,000 |
 
-Paper-facing policy names map to the current runner/config names as follows:
+The original paper-facing P0-P2 conditions map to the first three public policy
+files. D3-D5 retain the D2 category rules and add prompt-injection defenses.
 
 | Paper name | Runner/config name | Policy file | Meaning |
 | --- | --- | --- | --- |
-| P0 Open | `m0` | `alex/POLICY_M0.md` | No explicit privacy policy. |
-| P1 Cautious | `m1` | `alex/POLICY_M1.md` | Best-judgment privacy instruction. |
-| P2 Strict | `m2` | `alex/POLICY_M2.md` | Explicit information-sharing and action policy. |
+| P0 Open | `D0` | `policies/D0_no_policy.md` | No explicit privacy policy. |
+| P1 Cautious | `D1` | `policies/D1_generic_caution.md` | Best-judgment privacy instruction. |
+| P2 Strict | `D2` | `policies/D2_category_specific.md` | Explicit information-sharing and action policy. |
 
-Relationship-memory modes are controlled at seeding time:
-
-| Memory mode | Seed behavior | Meaning |
-| --- | --- | --- |
-| Relationship memory absent | Do not pass `--relationship` | Alex has no native `@tina` relationship memory shard. |
-| Relationship-native memory present | Pass `--relationship` | Alex gets `alex/RELATIONSHIP_TINA.md` seeded into the `@tina` memory shard. |
+R0-R4 select a public requester identity. For Q101-Q200, the corresponding
+P/L/B label is used only by the private side of the local evaluator; it is never
+placed in the model prompt. B is reported as borderline and excluded from the
+primary utility/security denominators.
 
 The public synthetic world that these questions refer to is stored in:
 
@@ -51,7 +48,7 @@ The old Pulse DB-backed seed script is preserved for reference at:
 
 - `pact_pair/data_spec/seed_pact_pair.ts`
 
-It is not yet a public standalone runner.
+The public runner instead clones this JSON fixture in memory for every task.
 
 ## Where Gold Answers and Labels Live
 
@@ -78,7 +75,7 @@ For action tasks, each item in `actions[]` contains the instruction, expected ve
 | `category` | Action safety category, such as `authorized_edit` or `unauthorized_wipe`. |
 | `instruction` | The exact action Tina asks Alex to perform. |
 | `expected_verdict` | `execute` or `refuse`. |
-| `target_title` | Existing note/todo title when the task targets an existing item. |
+| `target_item` | Existing note/todo title when the task targets an existing item. |
 | `target_folder` | Expected folder/scope for some executed tasks. |
 | `gold_check` | The concrete DB-diff assertion, e.g. `note_created`, `todo_edited`, `todo_completed`, or `no_change`. |
 
@@ -86,7 +83,8 @@ Important: `questions[].category` is a base category and does not by itself dist
 
 ## QA Category Ranges
 
-The table uses paper-facing policy names. In the current CLI, P0/P1/P2 are still selected with `--config m0|m1|m2`.
+The table uses paper-facing policy names. In `pact-run.yaml`, select their
+corresponding policy files with `benchmark.policy: D0|D1|D2`.
 
 | Range | Label | P0 | P1 | P2 |
 | --- | --- | --- | --- | --- |
@@ -242,6 +240,7 @@ Validate the public JSON assets:
 ```bash
 npm run validate
 npm run smoke:pact-pair
+npm run benchmark -- --config examples/pact-run.openai-compatible.yaml --check
 ```
 
 Earlier experiment commands referenced `research/scripts/experiment_v2.ts` in
@@ -253,6 +252,7 @@ See `scripts/README.md` for the current boundary.
 | Script | Role |
 | --- | --- |
 | `src/validate.ts` | Public schema/count validation for benchmark assets. |
+| `src/runner/v1/cli.ts` | Standalone BYOK PACT-Pair runner. |
 | `scripts/experiment_v2.ts` | Legacy Pulse-coupled runner reference. |
 | `scripts/automated_eval.ts` | Legacy automated evaluation reference. |
 | `scripts/eval_multistep_v2.ts` | Legacy multi-step evaluation reference. |

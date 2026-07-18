@@ -34,7 +34,7 @@ test('rejects unsupported tracks and unknown manifest fields', () => {
   assert.throws(() =>
     pactSubmissionManifestV1Schema.parse({
       ...validManifestV1,
-      track: 'pact-net',
+      track: 'unsupported-track',
     }),
   );
   assert.throws(() =>
