@@ -18,6 +18,12 @@ starter imports the protocol and host directly from `src/`. Once the protocol
 is released as a package, a downloadable submission template can depend on that
 package and use this directory itself as the build context.
 
-To create a submission, copy this directory on a branch, edit `pact.yaml`, and
-replace the logic in `src/adapter.ts`. Keep stdout reserved for one JSON-RPC
-response per line; diagnostic logs belong on stderr.
+To develop an adapter, copy this directory, edit `pact.yaml`, and replace the
+logic in `src/adapter.ts`. Keep stdout reserved for one JSON-RPC response per
+line; diagnostic logs belong on stderr.
+
+See [`docs/submission_format.md`](../../../docs/submission_format.md) for the
+artifact contract. This adapter manifest is separate from the BYOK local-run
+configuration documented in
+[`docs/running.md`](../../../docs/running.md); hosted intake is outside this
+repository's contract.

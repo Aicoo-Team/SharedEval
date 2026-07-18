@@ -2,8 +2,11 @@
 
 PACT-Bench compares agent architectures, not only model names. A submission is
 a runnable system plus a `pact.yaml` manifest. Protocol v1 is intentionally
-limited to the PACT-Pair responder track; PACT-Net submission semantics will be
-versioned separately after the Pair contract is stable.
+limited to the PACT-Pair responder track.
+
+This document defines the submission artifact and adapter data plane. It does
+not define a hosted intake API. Local model runs use the separate
+[`pact-run.yaml` configuration](running.md).
 
 The executable source of truth lives in `src/protocol/v1/`. All fixed protocol
 objects use strict Zod schemas, and the TypeScript types are inferred from those
@@ -32,6 +35,14 @@ The required top-level fields are:
 
 The manifest never contains credentials. Official run budgets are fixed by the
 runner and therefore are not submission-controlled manifest fields.
+
+## Submission artifact
+
+A submission artifact is a source tree containing `pact.yaml` and every file
+referenced by its runtime declaration. Pin external evaluations to an immutable
+source revision and record the resolved source and image digests. Do not put
+credentials, generated dependency directories, or private benchmark data in
+the artifact.
 
 ### Runtime modes
 
@@ -108,3 +119,19 @@ Public smoke runs use released synthetic tasks and labels. Official leaderboard
 runs use a held-out evaluator and isolated runtime. Passing public validation
 means a submission conforms to the interface; it does not certify an official
 score.
+
+## What works today
+
+From this repository root, the included starter can be checked with:
+
+```bash
+npm install
+npm run validate:sample
+npm run smoke:sample
+docker build -f examples/submissions/typescript-basic/Dockerfile -t pact-typescript-basic .
+```
+
+These commands validate the bundle, exercise the repository-local TypeScript
+sample, and prove that its Docker image builds. The standalone BYOK runner is
+documented separately in [running.md](running.md); hosted intake is outside this
+repository's contract.

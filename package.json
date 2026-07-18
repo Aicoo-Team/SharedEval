@@ -9,12 +9,12 @@
     "node": ">=18"
   },
   "scripts": {
+    "benchmark": "tsx src/runner/v1/cli.ts",
     "validate": "tsx src/validate.ts",
     "validate:sample": "tsx src/submission/v1/validate-cli.ts --root . --manifest examples/submissions/typescript-basic/pact.yaml --official",
     "smoke:sample": "tsx src/submission/v1/smoke-sample.ts",
     "smoke:pact-pair": "tsx src/validate.ts --suite pair",
-    "smoke:pact-net": "tsx src/validate.ts --suite net",
-    "test": "tsx --test tests/protocol-v1/*.test.ts",
+    "test": "tsx --test tests/protocol-v1/*.test.ts tests/runner-v1/*.test.ts",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

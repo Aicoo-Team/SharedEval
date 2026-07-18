@@ -39,10 +39,10 @@ jobs:
       - name: Smoke-test PACT-Pair
         run: npm run smoke:pact-pair
 
-      - name: Smoke-test PACT-Net
-        run: npm run smoke:pact-net
+      - name: Check standalone runner configuration
+        run: npm run benchmark -- --config examples/pact-run.openai-compatible.yaml --check
 
-      - name: Run protocol tests
+      - name: Run tests
         run: npm test
 
       - name: Type-check

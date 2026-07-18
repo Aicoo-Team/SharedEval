@@ -5,10 +5,8 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   dataStoreSchema,
-  netActionSchema,
-  netDataStoreSchema,
-  netQuestionSchema,
   pairActionSchema,
+  pairRelationshipLabelMatrixSchema,
 } from '../../src/schemas.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -17,30 +15,20 @@ test('preserves action target fields required by the evaluator', () => {
   const pair = JSON.parse(
     readFileSync(join(repoRoot, 'pact_pair/tasks/questions.json'), 'utf8'),
   ) as { actions: unknown[] };
-  const net = JSON.parse(
-    readFileSync(join(repoRoot, 'pact_net/pact_net_tasks.json'), 'utf8'),
-  ) as { actions: unknown[] };
 
   const pairAction = pairActionSchema.parse(pair.actions[0]);
-  const netAction = netActionSchema.parse(net.actions[0]);
 
   assert.equal(pairAction.target_folder, 'Shared');
   assert.equal(pairAction.target_item, null);
-  assert.equal(netAction.target_folder, 'Shared');
 });
 
 test('rejects evaluator-breaking action schema corruption', () => {
   const pair = JSON.parse(
     readFileSync(join(repoRoot, 'pact_pair/tasks/questions.json'), 'utf8'),
   ) as { actions: Array<Record<string, unknown>> };
-  const net = JSON.parse(
-    readFileSync(join(repoRoot, 'pact_net/pact_net_tasks.json'), 'utf8'),
-  ) as { actions: Array<Record<string, unknown>> };
   const { target_folder: _pairFolder, ...pairWithoutFolder } = pair.actions[0];
-  const { target_folder: _netFolder, ...netWithoutFolder } = net.actions[0];
 
   assert.throws(() => pairActionSchema.parse(pairWithoutFolder));
-  assert.throws(() => netActionSchema.parse(netWithoutFolder));
   assert.throws(() =>
     pairActionSchema.parse({
       ...pairWithoutFolder,
@@ -63,26 +51,19 @@ test('rejects evaluator-breaking action schema corruption', () => {
     ...pair.actions[0],
     target_folder: 'Work',
   }));
-  assert.throws(() => netActionSchema.parse({
-    ...net.actions[0],
-    gold_check: { type: 'no_change' },
-  }));
 });
 
 test('requires exact mutation targets for edit and completion actions', () => {
   const pair = JSON.parse(
     readFileSync(join(repoRoot, 'pact_pair/tasks/questions.json'), 'utf8'),
   ) as { actions: Array<Record<string, unknown>> };
-  const net = JSON.parse(
-    readFileSync(join(repoRoot, 'pact_net/pact_net_tasks.json'), 'utf8'),
-  ) as { actions: Array<Record<string, unknown>> };
   const pairEdit = pair.actions.find(action => action.operation === 'edit');
-  const netCompletion = net.actions.find(action => action.operation === 'complete');
+  const pairCompletion = pair.actions.find(action => action.operation === 'complete');
 
   assert.ok(pairEdit);
-  assert.ok(netCompletion);
+  assert.ok(pairCompletion);
   assert.throws(() => pairActionSchema.parse({ ...pairEdit, target_item: null }));
-  assert.equal(netActionSchema.parse(netCompletion).gold_check.type, 'todo_completed');
+  assert.equal(pairActionSchema.parse(pairCompletion).gold_check.type, 'todo_completed');
 
   const evaluatorSource = readFileSync(join(repoRoot, 'scripts/experiment_v2.ts'), 'utf8');
   assert.match(
@@ -91,16 +72,12 @@ test('requires exact mutation targets for edit and completion actions', () => {
   );
 });
 
-test('validates concrete Pair and Net datastore records', () => {
+test('validates a concrete Pair datastore record', () => {
   const pairStore = JSON.parse(
     readFileSync(join(repoRoot, 'pact_pair/data_spec/alex_data_store.json'), 'utf8'),
   );
-  const netStore = JSON.parse(
-    readFileSync(join(repoRoot, 'pact_net/agent_configs/tom_bradford/data.json'), 'utf8'),
-  );
 
   assert.doesNotThrow(() => dataStoreSchema.parse(pairStore));
-  assert.doesNotThrow(() => netDataStoreSchema.parse(netStore));
   assert.throws(() => dataStoreSchema.parse({
     version: 1,
     description: 'invalid',
@@ -110,24 +87,19 @@ test('validates concrete Pair and Net datastore records', () => {
     notes: [{}],
     todos: [{}],
   }));
-  assert.throws(() => netDataStoreSchema.parse({ agent: 'tom_bradford', notes: [{}], todos: [{}] }));
 });
 
-test('requires nonempty relational labels and typed leakage facts', () => {
-  const net = JSON.parse(
-    readFileSync(join(repoRoot, 'pact_net/pact_net_tasks.json'), 'utf8'),
-  ) as { questions: Array<Record<string, unknown>> };
-  const question = net.questions[0];
+test('validates the Pair requester-conditioned relationship labels', () => {
+  const matrix = JSON.parse(
+    readFileSync(
+      join(repoRoot, 'pact_pair/relationship_labels/relationship_label_matrix.json'),
+      'utf8',
+    ),
+  ) as { labels: Array<Record<string, unknown>> };
 
-  assert.throws(() => netQuestionSchema.parse({ ...question, relational_labels: {} }));
-  assert.throws(() => netQuestionSchema.parse({ ...question, sensitive_facts_in_scope: [null] }));
-  assert.throws(() => netQuestionSchema.parse({ ...question, transitive_leak_rule: 42 }));
-  assert.throws(() => netQuestionSchema.parse({
-    ...question,
-    sensitive_facts_in_scope: [{
-      fact: 'secret',
-      owner: 'alex_chen',
-      category: 'not_a_sensitivity',
-    }],
+  assert.equal(pairRelationshipLabelMatrixSchema.parse(matrix).labels.length, 99);
+  assert.throws(() => pairRelationshipLabelMatrixSchema.parse({
+    ...matrix,
+    labels: [{ ...matrix.labels[0], R0: 'BLOCKED' }],
   }));
 });
