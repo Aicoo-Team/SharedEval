@@ -8,7 +8,7 @@ import {
   pactTaskIntroV1Schema,
   type JsonObject,
   type JsonValue,
-  type PactAdapterV1,
+  type PactHarnessV1,
   type PactBoundaryPlanV1,
   type PactDecisionV1,
   type PactFinalizeReportV1,
@@ -33,7 +33,7 @@ export const MAX_PACT_PROVIDER_RESPONSE_BYTES_V1 = 2 * 1_024 * 1_024;
 const MAX_PROVIDER_ATTEMPTS_V1 = 3;
 const MAX_PROVIDER_RETRY_DELAY_MS_V1 = 2_000;
 
-export type OpenAICompatiblePactAdapterV1Options = {
+export type OpenAICompatiblePactHarnessV1Options = {
   fetch?: FetchImplementation;
   environment?: Record<string, string | undefined>;
   timeoutMs?: number;
@@ -124,7 +124,7 @@ const terminalReasonSchema = z.object({ reason: z.string().trim().min(1).max(4_0
 const terminalAnswerSchema = z.object({ content: z.string().trim().min(1).max(65_536) }).strict();
 const terminalToolNames = new Set<string>(PACT_TERMINAL_TOOL_NAMES_V1);
 
-export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
+export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
   private readonly fetchImplementation: FetchImplementation;
   private readonly apiKey: string;
   private readonly configuredTimeoutMs: number;
@@ -137,7 +137,7 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
 
   constructor(
     private readonly config: PactRunConfigV1,
-    options: OpenAICompatiblePactAdapterV1Options = {},
+    options: OpenAICompatiblePactHarnessV1Options = {},
   ) {
     this.fetchImplementation = options.fetch ?? globalThis.fetch;
     if (typeof this.fetchImplementation !== 'function') {
@@ -472,12 +472,21 @@ async function waitForProviderRetry(
   });
 }
 
-export function createOpenAICompatiblePactAdapterV1(
+export function createOpenAICompatiblePactHarnessV1(
   config: PactRunConfigV1,
-  options: OpenAICompatiblePactAdapterV1Options = {},
-): PactAdapterV1 {
-  return new OpenAICompatiblePactAdapterV1(config, options);
+  options: OpenAICompatiblePactHarnessV1Options = {},
+): PactHarnessV1 {
+  return new OpenAICompatiblePactHarnessV1(config, options);
 }
+
+/** @deprecated Use OpenAICompatiblePactHarnessV1Options. */
+export type OpenAICompatiblePactAdapterV1Options =
+  OpenAICompatiblePactHarnessV1Options;
+/** @deprecated Use OpenAICompatiblePactHarnessV1. */
+export { OpenAICompatiblePactHarnessV1 as OpenAICompatiblePactAdapterV1 };
+/** @deprecated Use createOpenAICompatiblePactHarnessV1. */
+export const createOpenAICompatiblePactAdapterV1 =
+  createOpenAICompatiblePactHarnessV1;
 
 function toProviderTool(tool: PactToolSpecV1): OpenAICompatibleTool {
   return {

@@ -100,10 +100,28 @@ export const pactRunBudgetV1Schema = pactBudgetV1Schema.pick({
   maxRuntimeMs: true,
 });
 
+export const pactExecutionBackendConfigV1Schema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('local'),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('harbor'),
+      concurrency: z.number().int().safe().min(1).max(256).default(4),
+    })
+    .strict(),
+]);
+
 export const pactRunConfigV1Schema = z
   .object({
     apiVersion: z.literal(PACT_RUN_CONFIG_API_VERSION_V1),
     kind: z.literal('RunConfig'),
+    // Kept optional in the parsed representation so existing configurations
+    // retain their byte-identical reproducibility digest. Absence selects the
+    // local backend through selectedPactExecutionBackendV1 below.
+    backend: pactExecutionBackendConfigV1Schema.optional(),
     model: pactOpenAICompatibleModelConfigV1Schema,
     benchmark: z
       .object({
@@ -131,8 +149,17 @@ export const pactRunConfigV1Schema = z
 export type PactOpenAICompatibleModelConfigV1 = z.infer<
   typeof pactOpenAICompatibleModelConfigV1Schema
 >;
+export type PactExecutionBackendConfigV1 = z.infer<
+  typeof pactExecutionBackendConfigV1Schema
+>;
 export type PactTaskFilterV1 = z.infer<typeof pactTaskFilterV1Schema>;
 export type PactRunConfigV1 = z.infer<typeof pactRunConfigV1Schema>;
+
+export function selectedPactExecutionBackendV1(
+  config: Pick<PactRunConfigV1, 'backend'>,
+): PactExecutionBackendConfigV1 {
+  return config.backend ?? { kind: 'local' };
+}
 
 export type ResolvedPactRunConfigV1 = PactRunConfigV1 & {
   sourcePath: string;

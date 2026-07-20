@@ -2,8 +2,14 @@
 !package.json
 !package-lock.json
 !tsconfig.json
+!tsconfig.harbor.json
 !src/
 !src/**
+!pact_pair/
+!pact_pair/**
+!harbor/
+!harbor/environment/
+!harbor/environment/Dockerfile
 !examples/
 !examples/submissions/
 !examples/submissions/typescript-basic/

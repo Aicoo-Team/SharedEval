@@ -1,4 +1,7 @@
+export * from './artifacts.js';
+export * from './backends/index.js';
 export * from './config.js';
+export * from './environment.js';
 export * from './evaluator.js';
 export * from './model-adapter.js';
 export * from './prompt.js';

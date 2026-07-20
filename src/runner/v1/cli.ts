@@ -2,6 +2,7 @@
 import {
   loadPactRunConfigV1,
   resolvePactRunModelApiKeyV1,
+  selectedPactExecutionBackendV1,
 } from './config.js';
 import { runPactPairBenchmarkV1 } from './runner.js';
 import { loadPactPairTasksV1 } from './task-loader.js';
@@ -26,6 +27,7 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
     process.stdout.write(`${JSON.stringify({
       valid: true,
       config: config.sourcePath,
+      backend: selectedPactExecutionBackendV1(config),
       model: {
         provider: config.model.provider,
         baseUrl: config.model.baseUrl,
@@ -48,8 +50,11 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
     return 0;
   }
 
-  // Fail before creating a run directory or iterating over tasks.
-  resolvePactRunModelApiKeyV1(config);
+  // The P0 Harbor parity path uses its bundled no-network scripted harness.
+  // Local/model-backed runs still fail before creating a run directory.
+  if (selectedPactExecutionBackendV1(config).kind === 'local') {
+    resolvePactRunModelApiKeyV1(config);
+  }
   const result = await runPactPairBenchmarkV1(config);
   process.stdout.write(`${JSON.stringify({
     runId: result.runId,

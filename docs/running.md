@@ -101,6 +101,26 @@ model:
 npm run benchmark -- --config pact-run.yaml --check
 ```
 
+### Optional P0 Harbor smoke backend
+
+Run configs may select an execution backend. Omitting `backend` is equivalent
+to `backend: { kind: local }`, so existing model-backed configs are unchanged.
+The initial Harbor backend is deliberately limited to a fixed six-task,
+no-network scripted parity set while the local runner remains the default:
+
+```bash
+uv tool install harbor==0.5.0
+bash scripts/verify_harbor.sh
+```
+
+The script builds the authoritative TypeScript environment as a Node image,
+runs the six tasks through Harbor's local Docker backend, and compares the
+canonical results with committed local golden artifacts. It prints `SKIP` and
+exits successfully if Docker or Harbor is unavailable. See
+`examples/pact-run.harbor-smoke.yaml` for the backend configuration. Full
+model-backed Harbor execution is deferred until the P1 agent/environment
+decomposition.
+
 ## Isolation and privacy
 
 Each task receives a fresh clone of

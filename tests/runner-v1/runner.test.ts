@@ -13,6 +13,12 @@ import type {
   PactTaskIntroV1,
 } from '../../src/protocol/v1/index.js';
 import { pactRunConfigV1Schema } from '../../src/runner/v1/config.js';
+import {
+  pactRunMetadataV1Schema,
+  pactRunSummaryV1Schema,
+  pactTaskResultV1Schema,
+  pactTraceEventV1Schema,
+} from '../../src/runner/v1/artifacts.js';
 import { PactProviderRequestErrorV1 } from '../../src/runner/v1/model-adapter.js';
 import { runPactPairBenchmarkV1 } from '../../src/runner/v1/runner.js';
 import { loadCanonicalPactPairStoreV1 } from '../../src/runner/v1/workspace.js';
@@ -37,7 +43,7 @@ test('runs the protocol lifecycle through a QA lookup and deterministic score', 
   });
 
   const result = await runPactPairBenchmarkV1(configFor(['Q1']), {
-    adapterFactory: context => {
+    harnessFactory: context => {
       assert.deepEqual(Object.keys(context).sort(), ['config', 'publicTask']);
       assert.doesNotMatch(JSON.stringify(context.publicTask), /gold_key_facts|minimum_correct/);
       return adapter;
@@ -176,6 +182,14 @@ test('redacts provider secrets and writes the documented output files', async t 
   const results = readFileSync(join(result.outputDirectory, 'results.jsonl'), 'utf8');
   const trace = readFileSync(join(result.outputDirectory, 'trace.jsonl'), 'utf8');
   const combined = `${run}${summary}${results}${trace}`;
+  pactRunMetadataV1Schema.parse(JSON.parse(run));
+  pactRunSummaryV1Schema.parse(JSON.parse(summary));
+  for (const line of results.trim().split('\n')) {
+    pactTaskResultV1Schema.parse(JSON.parse(line));
+  }
+  for (const line of trace.trim().split('\n')) {
+    pactTraceEventV1Schema.parse(JSON.parse(line));
+  }
   assert.doesNotMatch(combined, new RegExp(secret));
   assert.match(results, /\[REDACTED\]/);
   assert.doesNotMatch(

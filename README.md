@@ -65,6 +65,7 @@ This repository currently provides:
 - a strict PACT-Pair Adapter Protocol v1 contract and manifest parser;
 - a JSON-RPC adapter host, secure bundle validator, and executable TypeScript starter;
 - a standalone PACT-Pair runner with an OpenAI-compatible BYOK model adapter;
+- an opt-in six-task Harbor/Docker parity backend (local remains the default);
 - an isolated in-memory notes/todos world, deterministic evaluator, and run reports;
 - benchmark design documentation;
 - submission, metrics, and leaderboard documentation.

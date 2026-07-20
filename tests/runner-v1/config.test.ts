@@ -8,6 +8,7 @@ import {
   loadPactRunConfigV1,
   parsePactRunConfigV1Yaml,
   resolvePactRunModelApiKeyV1,
+  selectedPactExecutionBackendV1,
 } from '../../src/runner/v1/config.js';
 
 const minimalConfig = `
@@ -26,6 +27,8 @@ test('parses a strict run config and applies safe defaults', () => {
   assert.equal(config.model.baseUrl, 'https://api.example.com/v1');
   assert.equal('temperature' in config.model, false);
   assert.equal(config.model.maxOutputTokens, 4_096);
+  assert.equal(config.backend, undefined);
+  assert.deepEqual(selectedPactExecutionBackendV1(config), { kind: 'local' });
   assert.deepEqual(config.benchmark, {
     policy: 'D2',
     requester: 'R1',
@@ -40,6 +43,40 @@ test('parses a strict run config and applies safe defaults', () => {
     directory: 'runs',
     saveTraces: false,
   });
+});
+
+test('selects local by default and validates explicit backend settings', () => {
+  const local = parsePactRunConfigV1Yaml(`${minimalConfig}
+backend:
+  kind: local
+`);
+  assert.deepEqual(selectedPactExecutionBackendV1(local), { kind: 'local' });
+
+  const harbor = parsePactRunConfigV1Yaml(`${minimalConfig}
+backend:
+  kind: harbor
+`);
+  assert.deepEqual(selectedPactExecutionBackendV1(harbor), {
+    kind: 'harbor',
+    concurrency: 4,
+  });
+
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+backend:
+  kind: harbor
+  concurrency: 0
+`),
+    ZodError,
+  );
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+backend:
+  kind: local
+  concurrency: 4
+`),
+    ZodError,
+  );
 });
 
 test('rejects literal credentials and unknown config fields', () => {
