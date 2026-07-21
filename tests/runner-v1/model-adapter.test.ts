@@ -100,7 +100,7 @@ test('targets the Azure deployment URL with the api-key header', async () => {
   assert.equal(calls.length, 1);
   assert.equal(
     calls[0].url,
-    'https://contoso.openai.azure.com/openai/deployments/gpt-4o-eval/chat/completions?api-version=2024-10-21',
+    'https://contoso.openai.azure.com/openai/v1/chat/completions',
   );
   const headers = new Headers(calls[0].init?.headers);
   assert.equal(headers.get('api-key'), 'azure-test-key');
@@ -386,9 +386,8 @@ function azureConfig(overrides: Partial<PactRunConfigV1> = {}): PactRunConfigV1 
     kind: 'RunConfig',
     model: {
       provider: 'azure-openai',
-      endpoint: 'https://contoso.openai.azure.com',
+      endpoint: 'https://contoso.openai.azure.com/openai/v1',
       deployment: 'gpt-4o-eval',
-      apiVersion: '2024-10-21',
       apiKeyEnv: 'PACT_MODEL_API_KEY',
     },
     benchmark: {

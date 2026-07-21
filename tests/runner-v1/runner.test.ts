@@ -205,9 +205,8 @@ test('emits azure-openai run metadata for a local azure config', async () => {
     backend: { kind: 'local' },
     model: {
       provider: 'azure-openai',
-      endpoint: 'https://contoso.openai.azure.com',
+      endpoint: 'https://contoso.openai.azure.com/openai/v1',
       deployment: 'gpt-4o-eval',
-      apiVersion: '2024-10-21',
       apiKeyEnv: 'PACT_MODEL_API_KEY',
     },
     benchmark: { policy: 'D2', requester: 'R1', tasks: { kind: 'all', ids: ['Q1'] } },
@@ -228,9 +227,9 @@ test('emits azure-openai run metadata for a local azure config', async () => {
   });
 
   assert.ok(result.model.provider === 'azure-openai');
-  assert.equal(result.model.endpoint, 'https://contoso.openai.azure.com');
+  assert.equal(result.model.endpoint, 'https://contoso.openai.azure.com/openai/v1');
   assert.equal(result.model.deployment, 'gpt-4o-eval');
-  assert.equal(result.model.apiVersion, '2024-10-21');
+  assert.equal(result.model.apiVersion, undefined);
   assert.equal('baseUrl' in result.model, false);
   assert.doesNotMatch(JSON.stringify(result.model), /PACT_MODEL_API_KEY|api-key/);
 });
