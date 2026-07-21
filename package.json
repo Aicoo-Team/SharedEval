@@ -11,6 +11,7 @@
   "scripts": {
     "benchmark": "tsx src/runner/v1/cli.ts",
     "build:harbor": "tsc -p tsconfig.harbor.json",
+    "generate:golden": "tsx scripts/generate-golden.ts",
     "validate": "tsx src/validate.ts",
     "validate:sample": "tsx src/submission/v1/validate-cli.ts --root . --manifest examples/submissions/typescript-basic/pact.yaml --official",
     "smoke:sample": "tsx src/submission/v1/smoke-sample.ts",

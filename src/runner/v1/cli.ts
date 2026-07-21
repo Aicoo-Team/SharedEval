@@ -29,9 +29,20 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
       config: config.sourcePath,
       backend: selectedPactExecutionBackendV1(config),
       model: {
-        provider: config.model.provider,
-        baseUrl: config.model.baseUrl,
-        model: config.model.model,
+        ...(config.model.provider === 'azure-openai'
+          ? {
+              provider: config.model.provider,
+              endpoint: config.model.endpoint,
+              deployment: config.model.deployment,
+              ...(config.model.apiVersion === undefined
+                ? {}
+                : { apiVersion: config.model.apiVersion }),
+            }
+          : {
+              provider: config.model.provider,
+              baseUrl: config.model.baseUrl,
+              model: config.model.model,
+            }),
         maxOutputTokens: config.model.maxOutputTokens,
         ...(config.model.temperature === undefined
           ? {}

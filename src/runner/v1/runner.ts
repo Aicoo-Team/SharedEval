@@ -117,15 +117,7 @@ export async function runPactPairBenchmarkV1(
     runId,
     startedAt: startedAt.toISOString(),
     completedAt,
-    model: {
-      provider: runConfig.model.provider,
-      baseUrl: runConfig.model.baseUrl,
-      model: runConfig.model.model,
-      ...(runConfig.model.temperature === undefined
-        ? {}
-        : { temperature: runConfig.model.temperature }),
-      maxOutputTokens: runConfig.model.maxOutputTokens,
-    },
+    model: runMetadataModelV1(runConfig.model),
     benchmark: runConfig.benchmark,
     budget: runConfig.budget,
     configDigest: digestConfig(runConfig),
@@ -165,6 +157,29 @@ function resolveExecutionBackend(
   }
   if (selected.kind === 'local') return new LocalBackendV1();
   return new HarborBackendV1();
+}
+
+function runMetadataModelV1(model: PactRunConfigV1['model']) {
+  const temperature = model.temperature === undefined
+    ? {}
+    : { temperature: model.temperature };
+  if (model.provider === 'azure-openai') {
+    return {
+      provider: 'azure-openai' as const,
+      endpoint: model.endpoint,
+      deployment: model.deployment,
+      ...(model.apiVersion === undefined ? {} : { apiVersion: model.apiVersion }),
+      ...temperature,
+      maxOutputTokens: model.maxOutputTokens,
+    };
+  }
+  return {
+    provider: 'openai-compatible' as const,
+    baseUrl: model.baseUrl,
+    model: model.model,
+    ...temperature,
+    maxOutputTokens: model.maxOutputTokens,
+  };
 }
 
 function digestConfig(config: PactRunConfigV1): string {

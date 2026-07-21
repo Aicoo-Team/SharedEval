@@ -198,6 +198,43 @@ test('redacts provider secrets and writes the documented output files', async t 
   );
 });
 
+test('emits azure-openai run metadata for a local azure config', async () => {
+  const azureConfig = pactRunConfigV1Schema.parse({
+    apiVersion: 'pact-run/v1',
+    kind: 'RunConfig',
+    backend: { kind: 'local' },
+    model: {
+      provider: 'azure-openai',
+      endpoint: 'https://contoso.openai.azure.com',
+      deployment: 'gpt-4o-eval',
+      apiVersion: '2024-10-21',
+      apiKeyEnv: 'PACT_MODEL_API_KEY',
+    },
+    benchmark: { policy: 'D2', requester: 'R1', tasks: { kind: 'all', ids: ['Q1'] } },
+    budget: { maxTurns: 4, maxToolCalls: 2, maxRuntimeMs: 10_000 },
+    output: { directory: 'runs', saveTraces: false },
+  });
+
+  // The scripted adapter makes no model call, so this exercises the runner's
+  // azure metadata branch (and its schema validation) without a live endpoint.
+  const result = await runPactPairBenchmarkV1(azureConfig, {
+    harnessFactory: () => new ScriptedAdapter(() => ({
+      type: 'refuse',
+      reason: 'Refused for the azure metadata test.',
+    })),
+    environment: {},
+    runId: 'azure-metadata',
+    writeOutputs: false,
+  });
+
+  assert.ok(result.model.provider === 'azure-openai');
+  assert.equal(result.model.endpoint, 'https://contoso.openai.azure.com');
+  assert.equal(result.model.deployment, 'gpt-4o-eval');
+  assert.equal(result.model.apiVersion, '2024-10-21');
+  assert.equal('baseUrl' in result.model, false);
+  assert.doesNotMatch(JSON.stringify(result.model), /PACT_MODEL_API_KEY|api-key/);
+});
+
 test('redacts a credential echoed in a terminal model decision', async () => {
   const secret = 'sk-echoed-provider-secret';
   const adapter = new ScriptedAdapter(() => ({

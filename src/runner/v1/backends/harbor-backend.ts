@@ -26,6 +26,7 @@ import type {
   PactExecutionBackendRunResultV1,
   PactExecutionTaskRunV1,
 } from './execution-backend.js';
+import { mapWithConcurrencyV1 } from './concurrency.js';
 import {
   harborTaskImageName,
   materializeHarborDatasetV1,
@@ -41,6 +42,17 @@ const defaultRepositoryRoot = join(
 
 export const PACT_HARBOR_VERSION_V1 = '0.5.0' as const;
 export const PACT_HARBOR_IMAGE_V1 = 'pact-bench-harbor:p0' as const;
+
+// Bound how many `docker image tag` subprocesses run at once. Each selected
+// task gets its own task-scoped image tag, so a full-dataset selection would
+// otherwise spawn hundreds of concurrent `docker` processes.
+const HARBOR_IMAGE_TAG_CONCURRENCY_V1 = 8;
+
+// The deterministic smoke-fixture set: the tasks covered by the committed
+// pact-pair-smoke-v1 golden and the default verify_harbor.sh Docker parity
+// check. This is NO LONGER an execution allowlist — the Harbor backend
+// materializes and runs any selected PACT-Pair task (up to the full 600-task
+// dataset). It is retained only to seed fixtures and example configs.
 export const PACT_HARBOR_SMOKE_TASK_IDS_V1 = [
   'PAIR-Q1',
   'PAIR-Q101',
@@ -59,8 +71,14 @@ export type HarborBackendV1Options = {
 };
 
 /**
- * P0 coarse bridge: Harbor orchestrates one Node container per task while the
- * container runs the authoritative PactEnvironmentV1 with a scripted harness.
+ * Coarse bridge: Harbor orchestrates one Node container per selected task while
+ * the container runs the authoritative PactEnvironmentV1. Any PACT-Pair task
+ * (up to the full 600-task dataset) can be materialized and run.
+ *
+ * The in-container harness is still the deterministic no-network scripted
+ * harness (see container-entrypoint.ts); wiring a real-model harness across the
+ * container boundary is deferred P1 work pending the harness-contract (D3),
+ * transport, and networking decisions.
  */
 export class HarborBackendV1 implements ExecutionBackendV1 {
   readonly kind = 'harbor' as const;
@@ -81,17 +99,6 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
   async run(
     context: PactExecutionBackendRunContextV1,
   ): Promise<PactExecutionBackendRunResultV1> {
-    const unsupported = context.tasks.filter(task =>
-      !PACT_HARBOR_SMOKE_TASK_IDS_V1.includes(
-        task.taskId as typeof PACT_HARBOR_SMOKE_TASK_IDS_V1[number],
-      ));
-    if (unsupported.length > 0) {
-      const message = `P0 Harbor backend supports only the six-task smoke set; unsupported: ${unsupported.map(task => task.taskId).join(', ')}`;
-      return {
-        taskRuns: context.tasks.map(task => backendErrorRun(context, task, message)),
-      };
-    }
-
     const workingDirectory = await mkdtemp(join(tmpdir(), 'pact-harbor-'));
     const datasetDirectory = join(workingDirectory, 'tasks');
     const jobsDirectory = join(workingDirectory, 'jobs');
@@ -113,17 +120,21 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
         this.repositoryRoot,
         context.environment,
       );
-      await Promise.all(context.tasks.map(task => runExternalCommand(
-        this.dockerExecutable,
-        [
-          'image',
-          'tag',
-          this.imageName,
-          harborTaskImageName(this.imageName, task.taskId),
-        ],
-        this.repositoryRoot,
-        context.environment,
-      )));
+      await mapWithConcurrencyV1(
+        context.tasks,
+        HARBOR_IMAGE_TAG_CONCURRENCY_V1,
+        task => runExternalCommand(
+          this.dockerExecutable,
+          [
+            'image',
+            'tag',
+            this.imageName,
+            harborTaskImageName(this.imageName, task.taskId),
+          ],
+          this.repositoryRoot,
+          context.environment,
+        ),
+      );
       await materializeHarborDatasetV1({
         datasetDirectory,
         templateDirectory: join(this.repositoryRoot, 'harbor', 'task-template'),

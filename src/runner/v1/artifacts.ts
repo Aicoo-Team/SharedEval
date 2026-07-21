@@ -171,20 +171,41 @@ export const pactRunSummaryV1Schema = z
   })
   .strict();
 
+const openAICompatibleModelMetadataV1Schema = z
+  .object({
+    provider: z.literal('openai-compatible'),
+    baseUrl: z.string().url().max(2_048),
+    model: z.string().min(1).max(256),
+    temperature: z.number().finite().min(0).max(2).optional(),
+    maxOutputTokens: z.number().int().safe().min(1).max(65_536),
+  })
+  .strict();
+
+// Azure metadata records the resource endpoint, deployment, and api-version
+// (all non-secret). The credential never appears here — it stays in the
+// api-key header at request time only.
+const azureOpenAIModelMetadataV1Schema = z
+  .object({
+    provider: z.literal('azure-openai'),
+    endpoint: z.string().url().max(2_048),
+    deployment: z.string().min(1).max(256),
+    apiVersion: z.string().min(1).max(64).optional(),
+    temperature: z.number().finite().min(0).max(2).optional(),
+    maxOutputTokens: z.number().int().safe().min(1).max(65_536),
+  })
+  .strict();
+
+export const pactRunModelMetadataV1Schema = z.discriminatedUnion('provider', [
+  openAICompatibleModelMetadataV1Schema,
+  azureOpenAIModelMetadataV1Schema,
+]);
+
 export const pactRunMetadataV1Schema = z
   .object({
     runId: z.string().min(1).max(256),
     startedAt: z.string().datetime({ offset: true }),
     completedAt: z.string().datetime({ offset: true }),
-    model: z
-      .object({
-        provider: z.string().min(1).max(64),
-        baseUrl: z.string().url().max(2_048),
-        model: z.string().min(1).max(256),
-        temperature: z.number().finite().min(0).max(2).optional(),
-        maxOutputTokens: z.number().int().safe().min(1).max(65_536),
-      })
-      .strict(),
+    model: pactRunModelMetadataV1Schema,
     benchmark: pactRunConfigV1Schema.shape.benchmark,
     budget: pactRunBudgetV1Schema,
     configDigest: z.string().regex(/^[a-f0-9]{64}$/),

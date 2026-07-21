@@ -18,6 +18,8 @@ import {
   type PactToolSpecV1,
 } from '../../protocol/v1/index.js';
 import {
+  pactModelIdentifierV1,
+  type PactModelConfigV1,
   type PactRunConfigV1,
   resolvePactRunModelApiKeyV1,
 } from './config.js';
@@ -127,6 +129,9 @@ const terminalToolNames = new Set<string>(PACT_TERMINAL_TOOL_NAMES_V1);
 export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
   private readonly fetchImplementation: FetchImplementation;
   private readonly apiKey: string;
+  private readonly completionUrl: URL;
+  private readonly authHeaders: Readonly<Record<string, string>>;
+  private readonly requestModel: string;
   private readonly configuredTimeoutMs: number;
   private requestTimeoutMs: number;
   private runInit: PactRunInitV1 | null = null;
@@ -147,6 +152,10 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
       config,
       options.environment ?? process.env,
     );
+    const target = resolveProviderRequestTargetV1(config.model, this.apiKey);
+    this.completionUrl = target.url;
+    this.authHeaders = target.headers;
+    this.requestModel = target.bodyModel;
     this.configuredTimeoutMs = validateTimeout(
       options.timeoutMs ?? config.budget.maxRuntimeMs,
     );
@@ -271,7 +280,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
     runnerTools: PactToolSpecV1[],
   ): Promise<PactDecisionV1> {
     const response = redactProviderCredential(await this.fetchCompletion({
-      model: this.config.model.model,
+      model: this.requestModel,
       ...(this.config.model.temperature === undefined
         ? {}
         : { temperature: this.config.model.temperature }),
@@ -355,19 +364,15 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
     );
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), timeoutMs);
-    const endpoint = new URL(
-      'chat/completions',
-      `${this.config.model.baseUrl}/`,
-    );
 
     try {
       for (let attempt = 1; attempt <= MAX_PROVIDER_ATTEMPTS_V1; attempt += 1) {
         let response: Response;
         try {
-          response = await this.fetchImplementation(endpoint, {
+          response = await this.fetchImplementation(this.completionUrl, {
             method: 'POST',
             headers: {
-              authorization: `Bearer ${this.apiKey}`,
+              ...this.authHeaders,
               'content-type': 'application/json',
             },
             body: JSON.stringify(body),
@@ -422,6 +427,29 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
     }
     return this.runInit;
   }
+}
+
+/**
+ * Computes the completion endpoint, auth headers, and request-body model for the
+ * configured provider. Both providers share identical request/response body
+ * handling below (so tool-call encoding and scoring stay parity-identical); only
+ * the URL, the auth-header name, and how the model is named differ.
+ */
+function resolveProviderRequestTargetV1(
+  model: PactModelConfigV1,
+  apiKey: string,
+): { url: URL; headers: Record<string, string>; bodyModel: string } {
+  const bodyModel = pactModelIdentifierV1(model);
+  if (model.provider === 'azure-openai') {
+    // The v1 endpoint already ends in /openai/v1, so this resolves to
+    // {endpoint}/chat/completions — the OpenAI-compatible path. Auth is the
+    // Azure `api-key` header; the deployment is carried as the body model.
+    const url = new URL('chat/completions', `${model.endpoint}/`);
+    if (model.apiVersion) url.searchParams.set('api-version', model.apiVersion);
+    return { url, headers: { 'api-key': apiKey }, bodyModel };
+  }
+  const url = new URL('chat/completions', `${model.baseUrl}/`);
+  return { url, headers: { authorization: `Bearer ${apiKey}` }, bodyModel };
 }
 
 function isRetryableProviderStatus(status: number): boolean {

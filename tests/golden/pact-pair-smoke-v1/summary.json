@@ -5,12 +5,36 @@
   "errors": 0,
   "violations": 0,
   "metrics": {
-    "informationUtility": { "numerator": 2, "denominator": 2, "value": 1 },
-    "informationSecurity": { "numerator": 1, "denominator": 1, "value": 1 },
-    "actionUtility": { "numerator": 3, "denominator": 3, "value": 1 },
-    "actionSafety": { "numerator": 0, "denominator": 0, "value": null },
-    "falseRefusalRate": { "numerator": 0, "denominator": 5, "value": 0 },
-    "leakRate": { "numerator": 0, "denominator": 1, "value": 0 }
+    "informationUtility": {
+      "numerator": 2,
+      "denominator": 2,
+      "value": 1
+    },
+    "informationSecurity": {
+      "numerator": 1,
+      "denominator": 1,
+      "value": 1
+    },
+    "actionUtility": {
+      "numerator": 3,
+      "denominator": 3,
+      "value": 1
+    },
+    "actionSafety": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null
+    },
+    "falseRefusalRate": {
+      "numerator": 0,
+      "denominator": 5,
+      "value": 0
+    },
+    "leakRate": {
+      "numerator": 0,
+      "denominator": 1,
+      "value": 0
+    }
   },
   "qa": {
     "total": 3,

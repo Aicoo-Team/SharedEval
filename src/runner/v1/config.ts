@@ -69,6 +69,76 @@ export const pactOpenAICompatibleModelConfigV1Schema = z
   })
   .strict();
 
+// Azure's v1 API (an endpoint ending in `/openai/v1`) is OpenAI-compatible: the
+// deployment is named in the request body and the path is the standard
+// `/chat/completions`, so only the auth differs — an `api-key` header (Azure's
+// key auth) rather than a bearer token. The endpoint is validated on its own
+// (https-only, must end in `/openai/v1` so the resource/foundry endpoint is used
+// rather than the project endpoint or a full completions URL) and the credential
+// resolves from PACT_MODEL_API_KEY at request time, so no credential or query
+// string is ever embedded in user config, images, logs, or artifacts.
+const azureOpenAIEndpointSchema = z
+  .string()
+  .url()
+  .max(2_048)
+  .superRefine((value, context) => {
+    const url = new URL(value);
+    if (url.protocol !== 'https:') {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'must use https' });
+    }
+    if (url.username || url.password) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'must not contain credentials',
+      });
+    }
+    if (url.search || url.hash) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'must not contain a query string or fragment',
+      });
+    }
+    if (!/\/openai\/v1\/?$/.test(url.pathname)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'must be an Azure OpenAI v1 endpoint ending in /openai/v1',
+      });
+    }
+  })
+  .transform(value => value.replace(/\/+$/, ''));
+
+export const pactAzureOpenAIModelConfigV1Schema = z
+  .object({
+    provider: z.literal('azure-openai'),
+    endpoint: azureOpenAIEndpointSchema,
+    deployment: z
+      .string()
+      .trim()
+      .min(1)
+      .max(256)
+      .regex(/^[A-Za-z0-9._-]+$/, 'must be a valid Azure deployment name'),
+    // The v1 API is GA without a version. Set "preview" (or a dated preview) only
+    // if the deployment needs preview-only features; it is appended as the
+    // api-version query parameter when present.
+    apiVersion: z
+      .string()
+      .trim()
+      .regex(
+        /^(?:\d{4}-\d{2}-\d{2}(?:-preview)?|preview)$/,
+        'must be an Azure api-version, e.g. 2024-10-21 or preview',
+      )
+      .optional(),
+    apiKeyEnv: z.literal(PACT_MODEL_API_KEY_ENV_V1),
+    temperature: z.number().finite().min(0).max(2).optional(),
+    maxOutputTokens: z.number().int().safe().min(1).max(65_536).default(4_096),
+  })
+  .strict();
+
+export const pactModelConfigV1Schema = z.discriminatedUnion('provider', [
+  pactOpenAICompatibleModelConfigV1Schema,
+  pactAzureOpenAIModelConfigV1Schema,
+]);
+
 export const pactTaskFilterV1Schema = z
   .object({
     kind: z.enum(['all', 'qa', 'action']).default('all'),
@@ -122,7 +192,7 @@ export const pactRunConfigV1Schema = z
     // retain their byte-identical reproducibility digest. Absence selects the
     // local backend through selectedPactExecutionBackendV1 below.
     backend: pactExecutionBackendConfigV1Schema.optional(),
-    model: pactOpenAICompatibleModelConfigV1Schema,
+    model: pactModelConfigV1Schema,
     benchmark: z
       .object({
         policy: z.enum(['D0', 'D1', 'D2', 'D3', 'D4', 'D5']).default('D2'),
@@ -149,9 +219,22 @@ export const pactRunConfigV1Schema = z
 export type PactOpenAICompatibleModelConfigV1 = z.infer<
   typeof pactOpenAICompatibleModelConfigV1Schema
 >;
+export type PactAzureOpenAIModelConfigV1 = z.infer<
+  typeof pactAzureOpenAIModelConfigV1Schema
+>;
+export type PactModelConfigV1 = z.infer<typeof pactModelConfigV1Schema>;
 export type PactExecutionBackendConfigV1 = z.infer<
   typeof pactExecutionBackendConfigV1Schema
 >;
+
+/**
+ * The model/deployment identifier used in request bodies, run metadata, and the
+ * --check summary. For Azure the deployment name is the load-bearing identifier
+ * (the model is chosen by URL), so there is no separate `model` field.
+ */
+export function pactModelIdentifierV1(model: PactModelConfigV1): string {
+  return model.provider === 'azure-openai' ? model.deployment : model.model;
+}
 export type PactTaskFilterV1 = z.infer<typeof pactTaskFilterV1Schema>;
 export type PactRunConfigV1 = z.infer<typeof pactRunConfigV1Schema>;
 
