@@ -7,7 +7,9 @@
  * span the full PACT-Pair dataset (600 tasks), so an unbounded
  * `Promise.all(tasks.map(...))` would spawn hundreds of concurrent
  * subprocesses / filesystem operations at once. This keeps that fan-out
- * bounded without changing the per-task work or its ordering.
+ * bounded without changing the per-task work or its ordering. If one worker
+ * fails, no new items are claimed; already-running work is drained before the
+ * first error is rethrown so caller cleanup cannot race background workers.
  */
 export async function mapWithConcurrencyV1<Item, Result>(
   items: readonly Item[],
@@ -19,17 +21,28 @@ export async function mapWithConcurrencyV1<Item, Result>(
   }
   const results = new Array<Result>(items.length);
   let nextIndex = 0;
+  let failed = false;
+  let firstError: unknown;
 
   const runWorker = async (): Promise<void> => {
-    while (true) {
+    while (!failed) {
       const index = nextIndex;
       nextIndex += 1;
       if (index >= items.length) return;
-      results[index] = await worker(items[index] as Item, index);
+      try {
+        results[index] = await worker(items[index] as Item, index);
+      } catch (error) {
+        if (!failed) {
+          failed = true;
+          firstError = error;
+        }
+        return;
+      }
     }
   };
 
   const workerCount = Math.min(limit, items.length);
   await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+  if (failed) throw firstError;
   return results;
 }
