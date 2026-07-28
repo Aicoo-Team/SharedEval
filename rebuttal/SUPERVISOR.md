@@ -6,6 +6,17 @@ Claude 每小时执行一次，共 10 轮（2026-07-29 00:00 起）。Codex 并�
 
 ---
 
+## 铁律 0 — 命名空间隔离（2026-07-29 污染事故后新增）
+
+**绝不触碰其他实验正在使用的 group/UUID。** 启动或 seed 任何东西之前：
+
+1. 列出所有在跑实验的 alex/tina UUID（`ps` 读 `--alex-id`，orchestrator 的读 seed 日志）
+2. 读即将启动的 plan JSON，提取它的 groups/UUID
+3. **与任何在跑或未完成实验有重叠 → 不启动**，把冲突写进日志
+4. **seed 之前先查 DB**：该 alex UUID 下已有数据 → 停下，先弄清归属。covering seed 覆盖活数据，就是 P0/P1 policy 被两个 sweep 互相改写的根源
+
+背景：orchestrator 每个 plan 都从 3000 起编 group，**没有跨 plan 唯一性**。defender sweep 的 group 3000/3001 与 E2 的 p1/p2 撞在同一对 Alex（8bb8/8bb9）上，`setupAlexPolicy` 互相覆盖 POLICY.md，两边数据双向污染。dry-run 输出里 `group=3000` 明明白白写着，启动前没对号——这类冲突肉眼可查，必须查。
+
 ## 每轮固定动作
 
 1. **读日志尾部** — 先看 Codex 写了什么，再动手。今天已经因为不看当前状态就执行，导致重复跑一次 E4、误启四个 cell。
