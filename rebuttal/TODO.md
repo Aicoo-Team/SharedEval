@@ -71,10 +71,8 @@
 
 ### 5. E2 D1/D2 成分消融（三方点名，最救 claim）
 
-- [x] **设计已定并在跑**：P1/P2/P6/P7 的干净 2×2（short/long × generic/category-specific），60 道分层题 × 4 policy。不是原来那三个变体，TODO 旧命名作废。
-  - 2026-07-29 01:12 进度：p1 59/60、**p2 60/60**、p6 56/60、p7 55/60，剩 10 题已重启补跑
-- [ ] **新增：defender 轴**（plan `129b842dbfe9`）8 cell × 60 题，requester 固定 gpt-5-mini，defender = DeepSeek V4 / GLM 5.2 / Kimi K3 / Qwen 3.5，policy P0+P2。复用 E2 同一批 60 题，两组直接可比。**这是替代论文里被删掉的 L312 claim 的实验**，同时答 JD3a Q3
-  - 实测单题中位 145s；8 cell ÷ 并发 2 ≈ 9.7h，**大概率超出 10 小时窗口**，下轮决定是否降到 30 题/cell
+- [x] **E2 原始数据完成（2026-07-29 05:20）**：P1/P2/P6/P7 全部 **60/60**，merged 产物在 `pulse/research/runs/rebuttal/6b656e42874d_resume/policy_*/results.merged.jsonl`。待 judge pass 出消融表数字
+- [ ] **defender 轴 v2 在跑**（plan `7b99d045b3ec`，05:20 重启）：8 cell × **30 题**（E2 子集的分层前半）× 并发 3 ≈ 3.2h。v1（129b842dbfe9）因 group 复用与 E2 相互污染已归档为 `_contaminated`，8bb9 上 17 行有效数据存档未删。答 JD3a Q3 + 替代被删的 L312 claim
 - [ ] 填消融表 4 行数字 + 各 variant 词数
 - [ ] 回应 aP1N Q2、TtBh Q2、AC
 
