@@ -1,0 +1,2383 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f4f0e8">
+    <title>PACT Experiment Ledger</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --paper: oklch(96.8% 0.012 78);
+        --paper-deep: oklch(93.8% 0.018 76);
+        --sheet: oklch(98.7% 0.007 78);
+        --ink: oklch(22.5% 0.024 62);
+        --ink-soft: oklch(39% 0.025 66);
+        --muted: oklch(52% 0.022 70);
+        --faint: oklch(67% 0.018 72);
+        --line: oklch(84.5% 0.025 75);
+        --line-strong: oklch(72% 0.035 72);
+        --accent: oklch(56% 0.17 31);
+        --accent-dark: oklch(43% 0.14 31);
+        --accent-soft: oklch(92.5% 0.035 35);
+        --good: oklch(49% 0.105 153);
+        --good-soft: oklch(92.5% 0.03 153);
+        --warn: oklch(58% 0.105 79);
+        --warn-soft: oklch(93.5% 0.04 84);
+        --bad: oklch(53% 0.16 25);
+        --bad-soft: oklch(93% 0.04 25);
+        --quiet: oklch(58% 0.03 72);
+        --quiet-soft: oklch(92% 0.014 72);
+        --shadow-sm: 0 1px 1px oklch(28% 0.025 65 / 0.06);
+        --shadow-md: 0 12px 32px oklch(28% 0.025 65 / 0.08);
+        --radius-sm: 4px;
+        --radius-md: 8px;
+        --space-2xs: 0.25rem;
+        --space-xs: 0.5rem;
+        --space-sm: 0.75rem;
+        --space-md: 1rem;
+        --space-lg: 1.5rem;
+        --space-xl: 2rem;
+        --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+        --font-ui: "Avenir Next", Avenir, "Trebuchet MS", sans-serif;
+        --font-data: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+        --ease-out: cubic-bezier(0.25, 1, 0.5, 1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        min-height: 100%;
+        background: var(--paper);
+      }
+
+      body {
+        min-width: 20rem;
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        background:
+          linear-gradient(90deg, transparent 0 27px, oklch(68% 0.11 30 / 0.16) 27px 28px, transparent 28px),
+          var(--paper);
+        font-family: var(--font-ui);
+        font-size: 1rem;
+        line-height: 1.5;
+        font-kerning: normal;
+        text-rendering: optimizeLegibility;
+      }
+
+      button,
+      select,
+      input {
+        font: inherit;
+      }
+
+      button,
+      select,
+      a,
+      input {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      button:focus,
+      select:focus,
+      input:focus,
+      a:focus {
+        outline: none;
+      }
+
+      button:focus-visible,
+      select:focus-visible,
+      input:focus-visible,
+      a:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid oklch(58% 0.17 31 / 0.46);
+        outline-offset: 2px;
+      }
+
+      .skip-link {
+        position: fixed;
+        top: var(--space-sm);
+        left: var(--space-sm);
+        z-index: 100;
+        padding: var(--space-sm) var(--space-md);
+        transform: translateY(-160%);
+        color: var(--sheet);
+        background: var(--ink);
+        border-radius: var(--radius-sm);
+        font-weight: 700;
+        transition: transform 180ms var(--ease-out);
+      }
+
+      .skip-link:focus {
+        transform: translateY(0);
+      }
+
+      .shell {
+        width: min(100%, 110rem);
+        margin: 0 auto;
+        padding:
+          max(var(--space-md), env(safe-area-inset-top))
+          max(var(--space-md), env(safe-area-inset-right))
+          max(var(--space-xl), env(safe-area-inset-bottom))
+          max(calc(var(--space-xl) + 0.5rem), env(safe-area-inset-left));
+      }
+
+      .masthead {
+        display: grid;
+        gap: var(--space-lg);
+        padding: var(--space-md) 0 var(--space-lg);
+        border-bottom: 1px solid var(--line-strong);
+      }
+
+      .brand {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: var(--space-md);
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 3rem;
+        height: 3rem;
+        flex: 0 0 auto;
+        place-items: center;
+        color: var(--paper);
+        background: var(--ink);
+        border-radius: 50%;
+        font-family: var(--font-display);
+        font-size: 1.15rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+      }
+
+      .eyebrow,
+      .section-label,
+      .metric-label,
+      .control-label {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        line-height: 1.25;
+        text-transform: uppercase;
+      }
+
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: var(--space-xs);
+        margin-bottom: var(--space-2xs);
+      }
+
+      .eyebrow::after {
+        width: 2.75rem;
+        height: 1px;
+        content: "";
+        background: var(--accent);
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-family: var(--font-display);
+        font-size: 2rem;
+        font-weight: 600;
+        letter-spacing: -0.035em;
+        line-height: 1.05;
+      }
+
+      h2 {
+        font-family: var(--font-display);
+        font-size: 1.25rem;
+        font-weight: 600;
+        letter-spacing: -0.018em;
+        line-height: 1.2;
+      }
+
+      .session {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-sm);
+      }
+
+      .connection {
+        display: inline-flex;
+        min-height: 2.25rem;
+        align-items: center;
+        gap: var(--space-xs);
+        color: var(--ink-soft);
+        font-size: 0.82rem;
+        font-weight: 650;
+      }
+
+      .connection-dot,
+      .status-dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        flex: 0 0 auto;
+        background: var(--quiet);
+        border-radius: 50%;
+      }
+
+      .connection[data-state="online"] .connection-dot {
+        background: var(--good);
+      }
+
+      .connection[data-state="offline"] .connection-dot {
+        background: var(--bad);
+      }
+
+      .connection[data-state="loading"] .connection-dot {
+        background: var(--warn);
+        animation: breathe 1.4s ease-in-out infinite;
+      }
+
+      .updated-at {
+        overflow: hidden;
+        color: var(--muted);
+        font-family: var(--font-data);
+        font-size: 0.72rem;
+        font-variant-numeric: tabular-nums;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--space-sm);
+        align-items: end;
+      }
+
+      .sweep-control {
+        display: grid;
+        min-width: 0;
+        gap: var(--space-xs);
+      }
+
+      .select-wrap {
+        position: relative;
+      }
+
+      .select-wrap::after {
+        position: absolute;
+        top: 50%;
+        right: var(--space-md);
+        width: 0.48rem;
+        height: 0.48rem;
+        content: "";
+        border-right: 1.5px solid var(--ink-soft);
+        border-bottom: 1.5px solid var(--ink-soft);
+        pointer-events: none;
+        transform: translateY(-70%) rotate(45deg);
+      }
+
+      select {
+        width: 100%;
+        min-height: 2.75rem;
+        padding: 0 2.5rem 0 var(--space-sm);
+        overflow: hidden;
+        color: var(--ink);
+        background: var(--sheet);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-sm);
+        appearance: none;
+        font-family: var(--font-data);
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        transition:
+          border-color 140ms var(--ease-out),
+          box-shadow 140ms var(--ease-out);
+      }
+
+      select:hover:not(:disabled) {
+        border-color: var(--ink-soft);
+      }
+
+      select:disabled {
+        cursor: wait;
+        opacity: 0.62;
+      }
+
+      .control-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--space-xs);
+      }
+
+      .auto-toggle {
+        display: inline-flex;
+        min-height: 2.75rem;
+        align-items: center;
+        gap: var(--space-xs);
+        padding: 0 var(--space-sm);
+        color: var(--ink-soft);
+        background: var(--paper-deep);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: 0.78rem;
+        font-weight: 650;
+        white-space: nowrap;
+      }
+
+      .auto-toggle input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
+      .switch {
+        position: relative;
+        width: 2rem;
+        height: 1.125rem;
+        flex: 0 0 auto;
+        background: var(--line-strong);
+        border-radius: 99px;
+        transition: background 160ms var(--ease-out);
+      }
+
+      .switch::after {
+        position: absolute;
+        top: 0.1875rem;
+        left: 0.1875rem;
+        width: 0.75rem;
+        height: 0.75rem;
+        content: "";
+        background: var(--sheet);
+        border-radius: 50%;
+        box-shadow: var(--shadow-sm);
+        transition: transform 160ms var(--ease-out);
+      }
+
+      .auto-toggle input:checked + .switch {
+        background: var(--accent);
+      }
+
+      .auto-toggle input:checked + .switch::after {
+        transform: translateX(0.875rem);
+      }
+
+      .auto-toggle input:focus-visible + .switch {
+        outline: 3px solid oklch(58% 0.17 31 / 0.46);
+        outline-offset: 2px;
+      }
+
+      .button {
+        display: inline-flex;
+        min-height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-xs);
+        padding: 0 var(--space-md);
+        color: var(--paper);
+        background: var(--ink);
+        border: 1px solid var(--ink);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: 0.78rem;
+        font-weight: 700;
+        transition:
+          color 140ms var(--ease-out),
+          background 140ms var(--ease-out),
+          transform 100ms var(--ease-out);
+      }
+
+      .button:hover:not(:disabled) {
+        background: var(--accent-dark);
+        border-color: var(--accent-dark);
+      }
+
+      .button:active:not(:disabled) {
+        transform: translateY(1px);
+      }
+
+      .button:disabled {
+        cursor: wait;
+        opacity: 0.62;
+      }
+
+      .button-secondary {
+        color: var(--ink);
+        background: transparent;
+        border-color: var(--line-strong);
+      }
+
+      .button-secondary:hover:not(:disabled) {
+        color: var(--accent-dark);
+        background: var(--accent-soft);
+        border-color: var(--accent);
+      }
+
+      .refresh-glyph {
+        display: inline-block;
+        font-size: 1.05rem;
+        line-height: 1;
+      }
+
+      .button.is-spinning .refresh-glyph {
+        animation: spin 850ms linear infinite;
+      }
+
+      .run-note {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: var(--space-sm);
+        margin-top: var(--space-md);
+        padding: var(--space-sm) var(--space-md);
+        color: oklch(34% 0.055 72);
+        background: var(--warn-soft);
+        border: 1px solid oklch(75% 0.075 78);
+        border-radius: var(--radius-sm);
+      }
+
+      .run-note strong {
+        align-self: start;
+        padding-top: 0.1rem;
+        color: oklch(43% 0.09 70);
+        font-size: 0.7rem;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .run-note p {
+        max-width: 85ch;
+        font-size: 0.84rem;
+        line-height: 1.45;
+      }
+
+      .run-note b {
+        font-weight: 750;
+      }
+
+      .error-banner {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--space-md);
+        align-items: center;
+        margin-top: var(--space-sm);
+        padding: var(--space-sm) var(--space-md);
+        color: oklch(35% 0.1 26);
+        background: var(--bad-soft);
+        border: 1px solid oklch(72% 0.1 25);
+        border-radius: var(--radius-sm);
+        font-size: 0.84rem;
+      }
+
+      .error-banner[hidden] {
+        display: none;
+      }
+
+      .error-banner strong {
+        display: block;
+        margin-bottom: 0.1rem;
+      }
+
+      main {
+        display: grid;
+        gap: var(--space-lg);
+        padding-top: var(--space-lg);
+      }
+
+      .section-heading {
+        display: flex;
+        min-width: 0;
+        align-items: end;
+        justify-content: space-between;
+        gap: var(--space-sm);
+      }
+
+      .heading-copy {
+        display: grid;
+        min-width: 0;
+        gap: var(--space-2xs);
+      }
+
+      .heading-meta {
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      .summary-section {
+        display: grid;
+        gap: var(--space-sm);
+      }
+
+      .metric-board {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        overflow: hidden;
+        background: var(--sheet);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .metric {
+        position: relative;
+        display: grid;
+        min-width: 0;
+        min-height: 7.25rem;
+        align-content: space-between;
+        gap: var(--space-sm);
+        padding: var(--space-md);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .metric:nth-child(odd) {
+        border-inline-end: 1px solid var(--line);
+      }
+
+      .metric:last-child {
+        grid-column: 1 / -1;
+        border-bottom: 0;
+      }
+
+      .metric-index {
+        position: absolute;
+        top: var(--space-sm);
+        right: var(--space-sm);
+        color: var(--faint);
+        font-family: var(--font-data);
+        font-size: 0.62rem;
+      }
+
+      .metric-value {
+        display: block;
+        overflow: hidden;
+        font-family: var(--font-data);
+        font-size: 1.7rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 650;
+        letter-spacing: -0.055em;
+        line-height: 1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .metric-meta {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 0.72rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .metric[data-tone="good"] .metric-value {
+        color: var(--good);
+      }
+
+      .metric[data-tone="bad"] .metric-value {
+        color: var(--bad);
+      }
+
+      .workspace {
+        display: grid;
+        min-width: 0;
+        gap: var(--space-lg);
+        align-items: start;
+      }
+
+      .cells-panel,
+      .inspector {
+        min-width: 0;
+        background: var(--sheet);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .panel-header {
+        display: grid;
+        gap: var(--space-sm);
+        padding: var(--space-md);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .filter-control {
+        position: relative;
+        min-width: 0;
+      }
+
+      .filter-control::before {
+        position: absolute;
+        top: 50%;
+        left: var(--space-sm);
+        width: 0.64rem;
+        height: 0.64rem;
+        content: "";
+        border: 1.5px solid var(--muted);
+        border-radius: 50%;
+        pointer-events: none;
+        transform: translateY(-62%);
+      }
+
+      .filter-control::after {
+        position: absolute;
+        top: calc(50% + 0.25rem);
+        left: calc(var(--space-sm) + 0.55rem);
+        width: 0.35rem;
+        height: 1.5px;
+        content: "";
+        background: var(--muted);
+        pointer-events: none;
+        transform: rotate(45deg);
+        transform-origin: left center;
+      }
+
+      .filter-input {
+        width: 100%;
+        min-height: 2.5rem;
+        padding: 0 var(--space-sm) 0 2.15rem;
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        font-size: 0.82rem;
+        transition:
+          border-color 140ms var(--ease-out),
+          background 140ms var(--ease-out);
+      }
+
+      .filter-input::placeholder {
+        color: var(--muted);
+        opacity: 1;
+      }
+
+      .filter-input:hover:not(:disabled),
+      .filter-input:focus {
+        background: var(--sheet);
+        border-color: var(--line-strong);
+      }
+
+      .filter-input:disabled {
+        cursor: not-allowed;
+        opacity: 0.62;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+      }
+
+      table {
+        width: 100%;
+        min-width: 60rem;
+        border-collapse: collapse;
+        font-size: 0.78rem;
+        font-variant-numeric: tabular-nums;
+      }
+
+      th {
+        padding: 0.7rem var(--space-sm);
+        color: var(--muted);
+        background: var(--paper-deep);
+        border-bottom: 1px solid var(--line-strong);
+        font-size: 0.67rem;
+        font-weight: 750;
+        letter-spacing: 0.075em;
+        text-align: left;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      td {
+        max-width: 16rem;
+        padding: 0.78rem var(--space-sm);
+        overflow: hidden;
+        border-bottom: 1px solid var(--line);
+        color: var(--ink-soft);
+        text-overflow: ellipsis;
+        vertical-align: middle;
+      }
+
+      tbody tr {
+        transition: background 120ms var(--ease-out);
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      @media (hover: hover) {
+        tbody tr[data-cell-id]:hover {
+          background: var(--paper);
+        }
+      }
+
+      tbody tr.is-selected {
+        background: var(--accent-soft);
+      }
+
+      .cell-button {
+        display: grid;
+        width: 100%;
+        min-height: 2.5rem;
+        justify-items: start;
+        gap: 0.08rem;
+        padding: 0;
+        color: var(--ink);
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .cell-name {
+        max-width: 100%;
+        overflow: hidden;
+        font-family: var(--font-data);
+        font-size: 0.76rem;
+        font-weight: 700;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .cell-subline {
+        max-width: 100%;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 0.68rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .data-value {
+        font-family: var(--font-data);
+        font-size: 0.72rem;
+      }
+
+      .progress-cell {
+        min-width: 9.5rem;
+      }
+
+      .progress-copy {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-xs);
+        margin-bottom: 0.35rem;
+        font-family: var(--font-data);
+        font-size: 0.69rem;
+      }
+
+      .progress-copy span:last-child {
+        color: var(--muted);
+      }
+
+      progress {
+        display: block;
+        width: 100%;
+        height: 0.32rem;
+        overflow: hidden;
+        appearance: none;
+        background: var(--paper-deep);
+        border: 0;
+        border-radius: 99px;
+      }
+
+      progress::-webkit-progress-bar {
+        background: var(--paper-deep);
+        border-radius: 99px;
+      }
+
+      progress::-webkit-progress-value {
+        background: var(--accent);
+        border-radius: 99px;
+      }
+
+      progress::-moz-progress-bar {
+        background: var(--accent);
+        border-radius: 99px;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        min-height: 1.65rem;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.18rem 0.5rem;
+        color: var(--ink-soft);
+        background: var(--quiet-soft);
+        border: 1px solid var(--line);
+        border-radius: 99px;
+        font-size: 0.66rem;
+        font-weight: 750;
+        letter-spacing: 0.02em;
+        line-height: 1;
+        white-space: nowrap;
+      }
+
+      .status-badge[data-status="complete"] {
+        color: oklch(36% 0.08 153);
+        background: var(--good-soft);
+        border-color: oklch(78% 0.07 153);
+      }
+
+      .status-badge[data-status="complete"] .status-dot {
+        background: var(--good);
+      }
+
+      .status-badge[data-status="running"] {
+        color: oklch(39% 0.095 77);
+        background: var(--warn-soft);
+        border-color: oklch(78% 0.07 79);
+      }
+
+      .status-badge[data-status="running"] .status-dot {
+        background: var(--warn);
+        animation: breathe 1.4s ease-in-out infinite;
+      }
+
+      .status-badge[data-status="issue"] {
+        color: oklch(38% 0.12 25);
+        background: var(--bad-soft);
+        border-color: oklch(78% 0.07 25);
+      }
+
+      .status-badge[data-status="issue"] .status-dot {
+        background: var(--bad);
+      }
+
+      .status-badge[data-status="stopped"] {
+        color: oklch(40% 0.06 72);
+        background: var(--warn-soft);
+        border-color: oklch(80% 0.055 78);
+      }
+
+      .status-badge[data-status="stopped"] .status-dot {
+        background: var(--warn);
+      }
+
+      .status-badge[data-status="queued"] .status-dot,
+      .status-badge[data-status="unknown"] .status-dot {
+        background: var(--quiet);
+      }
+
+      .empty-table {
+        padding: var(--space-xl) var(--space-md);
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .empty-table strong {
+        display: block;
+        margin-bottom: var(--space-2xs);
+        color: var(--ink-soft);
+        font-family: var(--font-display);
+        font-size: 1rem;
+      }
+
+      .inspector {
+        overflow: hidden;
+      }
+
+      .inspector-header {
+        display: grid;
+        gap: var(--space-sm);
+        padding: var(--space-md);
+        border-bottom: 1px solid var(--line);
+      }
+
+      .inspector-heading-row {
+        display: flex;
+        min-width: 0;
+        align-items: start;
+        justify-content: space-between;
+        gap: var(--space-sm);
+      }
+
+      .inspector-title {
+        max-width: 22ch;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .raw-link {
+        display: inline-flex;
+        min-height: 2.25rem;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0 var(--space-sm);
+        color: var(--accent-dark);
+        background: var(--accent-soft);
+        border: 1px solid oklch(78% 0.07 34);
+        border-radius: var(--radius-sm);
+        font-size: 0.72rem;
+        font-weight: 750;
+        text-decoration: none;
+        transition:
+          color 140ms var(--ease-out),
+          background 140ms var(--ease-out);
+      }
+
+      .raw-link:hover {
+        color: var(--paper);
+        background: var(--accent-dark);
+      }
+
+      .raw-link[hidden] {
+        display: none;
+      }
+
+      .inspector-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--space-xs);
+        align-items: center;
+      }
+
+      .inspector-toolbar[hidden] {
+        display: none;
+      }
+
+      .rows-meta {
+        color: var(--muted);
+        font-family: var(--font-data);
+        font-size: 0.68rem;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .inspector-body {
+        min-height: 17rem;
+        max-height: 62vh;
+        overflow: auto;
+        overscroll-behavior: contain;
+      }
+
+      .inspector-state {
+        display: grid;
+        min-height: 17rem;
+        place-content: center;
+        gap: var(--space-sm);
+        padding: var(--space-xl);
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .inspector-state::before {
+        width: 2.75rem;
+        height: 3.5rem;
+        justify-self: center;
+        content: "";
+        background:
+          repeating-linear-gradient(
+            180deg,
+            transparent 0 0.54rem,
+            var(--line-strong) 0.54rem 0.59rem
+          );
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-sm);
+      }
+
+      .inspector-state strong {
+        color: var(--ink-soft);
+        font-family: var(--font-display);
+        font-size: 1.05rem;
+      }
+
+      .inspector-state p {
+        max-width: 35ch;
+        font-size: 0.8rem;
+      }
+
+      .inspector-state.is-loading::before {
+        width: 1.5rem;
+        height: 1.5rem;
+        background: transparent;
+        border: 2px solid var(--line);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 850ms linear infinite;
+      }
+
+      .inspector-state.is-error::before {
+        display: grid;
+        width: 2.5rem;
+        height: 2.5rem;
+        place-items: center;
+        content: "!";
+        color: var(--bad);
+        background: var(--bad-soft);
+        border-color: oklch(75% 0.08 25);
+        border-radius: 50%;
+        font-family: var(--font-display);
+        font-size: 1.25rem;
+        font-weight: 700;
+      }
+
+      .result-list {
+        display: grid;
+      }
+
+      .result-list[hidden] {
+        display: none;
+      }
+
+      .result-row {
+        border-bottom: 1px solid var(--line);
+      }
+
+      .result-row:last-child {
+        border-bottom: 0;
+      }
+
+      .result-row summary {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        min-height: 3rem;
+        align-items: center;
+        gap: var(--space-xs);
+        padding: var(--space-sm) var(--space-md);
+        cursor: pointer;
+        list-style: none;
+        transition: background 120ms var(--ease-out);
+      }
+
+      .result-row summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .result-row summary::before {
+        width: 0.48rem;
+        height: 0.48rem;
+        content: "";
+        border-right: 1.5px solid var(--muted);
+        border-bottom: 1.5px solid var(--muted);
+        transform: rotate(-45deg);
+        transition: transform 160ms var(--ease-out);
+      }
+
+      .result-row[open] summary::before {
+        transform: translateY(-0.15rem) rotate(45deg);
+      }
+
+      .result-row summary:hover {
+        background: var(--paper);
+      }
+
+      .result-name {
+        min-width: 0;
+        overflow: hidden;
+        font-family: var(--font-data);
+        font-size: 0.72rem;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .result-status {
+        color: var(--muted);
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .json-wrap {
+        padding: 0 var(--space-md) var(--space-md) 2.3rem;
+      }
+
+      pre {
+        max-width: 100%;
+        margin: 0;
+        padding: var(--space-sm);
+        overflow: auto;
+        color: oklch(30% 0.03 64);
+        background: var(--paper-deep);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        font-family: var(--font-data);
+        font-size: 0.68rem;
+        font-variant-ligatures: none;
+        line-height: 1.55;
+        overflow-wrap: anywhere;
+        tab-size: 2;
+        white-space: pre-wrap;
+      }
+
+      .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-sm);
+        padding: var(--space-sm) var(--space-md);
+        background: var(--paper);
+        border-top: 1px solid var(--line);
+      }
+
+      .pagination[hidden] {
+        display: none;
+      }
+
+      .page-actions {
+        display: flex;
+        gap: var(--space-xs);
+      }
+
+      .page-button {
+        min-width: 4.25rem;
+        min-height: 2.25rem;
+        padding: 0 var(--space-sm);
+        color: var(--ink-soft);
+        background: var(--sheet);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: 0.7rem;
+        font-weight: 700;
+      }
+
+      .page-button:hover:not(:disabled) {
+        color: var(--accent-dark);
+        border-color: var(--accent);
+      }
+
+      .page-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.42;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes breathe {
+        50% {
+          opacity: 0.38;
+        }
+      }
+
+      @media (min-width: 40rem) {
+        .masthead {
+          grid-template-columns: minmax(17rem, 0.75fr) minmax(26rem, 1.25fr);
+          align-items: end;
+        }
+
+        .controls {
+          grid-template-columns: minmax(15rem, 1fr) auto;
+        }
+
+        .metric-board {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+
+        .metric {
+          min-height: 7rem;
+          border-inline-end: 1px solid var(--line);
+          border-bottom: 0;
+        }
+
+        .metric:nth-child(odd) {
+          border-inline-end: 1px solid var(--line);
+        }
+
+        .metric:last-child {
+          grid-column: auto;
+          border-inline-end: 0;
+        }
+
+        .panel-header {
+          grid-template-columns: minmax(0, 1fr) minmax(12rem, 17rem);
+          align-items: center;
+        }
+      }
+
+      @media (min-width: 76rem) {
+        .workspace {
+          grid-template-columns: minmax(48rem, 1fr) minmax(23rem, 30vw);
+        }
+
+        .inspector {
+          position: sticky;
+          top: var(--space-md);
+        }
+
+        .inspector-body {
+          max-height: calc(100vh - 17.5rem);
+        }
+      }
+
+      @media (max-width: 39.99rem) {
+        body {
+          background:
+            linear-gradient(90deg, transparent 0 15px, oklch(68% 0.11 30 / 0.13) 15px 16px, transparent 16px),
+            var(--paper);
+        }
+
+        .shell {
+          padding-inline: var(--space-lg) var(--space-md);
+        }
+
+        .brand-mark {
+          width: 2.65rem;
+          height: 2.65rem;
+        }
+
+        h1 {
+          font-size: 1.65rem;
+        }
+
+        .controls {
+          grid-template-columns: 1fr;
+        }
+
+        .control-actions {
+          display: grid;
+          grid-template-columns: 1fr auto;
+        }
+
+        .auto-toggle {
+          justify-content: center;
+        }
+
+        .run-note {
+          grid-template-columns: 1fr;
+          gap: var(--space-xs);
+        }
+
+        .error-banner {
+          grid-template-columns: 1fr;
+        }
+
+        .metric-value {
+          font-size: 1.45rem;
+        }
+
+        .inspector-heading-row {
+          align-items: center;
+        }
+      }
+
+      @media (max-width: 45rem) {
+        .table-wrap {
+          overflow: visible;
+          padding: var(--space-sm);
+        }
+
+        table,
+        tbody {
+          display: block;
+          min-width: 0;
+        }
+
+        thead {
+          display: none;
+        }
+
+        tbody {
+          display: grid;
+          gap: var(--space-sm);
+        }
+
+        tbody tr {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          overflow: hidden;
+          border: 1px solid var(--line);
+          border-radius: var(--radius-sm);
+        }
+
+        tbody tr.is-selected {
+          border-color: oklch(70% 0.1 33);
+        }
+
+        td {
+          display: grid;
+          max-width: none;
+          min-width: 0;
+          gap: var(--space-2xs);
+          padding: var(--space-sm);
+          border-bottom: 1px solid var(--line);
+        }
+
+        td::before {
+          content: attr(data-label);
+          color: var(--muted);
+          font-size: 0.62rem;
+          font-weight: 750;
+          letter-spacing: 0.07em;
+          text-transform: uppercase;
+        }
+
+        td:first-child {
+          grid-column: 1 / -1;
+          background: var(--paper-deep);
+        }
+
+        td:nth-last-child(-n + 2) {
+          border-bottom: 0;
+        }
+
+        td:nth-child(odd):not(:first-child) {
+          border-inline-end: 1px solid var(--line);
+        }
+
+        .cell-button {
+          min-height: auto;
+        }
+
+        .progress-cell {
+          min-width: 0;
+        }
+
+        .empty-table {
+          display: block;
+          border: 0;
+        }
+
+        .empty-table::before {
+          content: none;
+        }
+      }
+
+      @media (pointer: coarse) {
+        .cell-button,
+        .result-row summary,
+        .page-button,
+        .raw-link {
+          min-height: 2.75rem;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to experiment data</a>
+
+    <div class="shell">
+      <header class="masthead">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">P</div>
+          <div>
+            <div class="eyebrow">PACT / rebuttal runs</div>
+            <h1>Experiment ledger</h1>
+          </div>
+        </div>
+
+        <div>
+          <div class="session">
+            <div class="connection" id="connection" data-state="loading">
+              <span class="connection-dot" aria-hidden="true"></span>
+              <span id="connectionText">Connecting</span>
+            </div>
+            <time class="updated-at" id="updatedAt">Not refreshed yet</time>
+          </div>
+
+          <div class="controls">
+            <label class="sweep-control" for="sweepSelect">
+              <span class="control-label">Sweep</span>
+              <span class="select-wrap">
+                <select id="sweepSelect" disabled aria-describedby="sweepHint">
+                  <option>Loading sweeps…</option>
+                </select>
+              </span>
+              <span class="sr-only" id="sweepHint">Choose a result sweep to inspect.</span>
+            </label>
+
+            <div class="control-actions">
+              <label class="auto-toggle">
+                <input id="autoRefresh" type="checkbox" checked>
+                <span class="switch" aria-hidden="true"></span>
+                <span>Auto · 5 s</span>
+              </label>
+              <button class="button" id="refreshButton" type="button">
+                <span class="refresh-glyph" aria-hidden="true">↻</span>
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <aside class="run-note" aria-label="Run status note">
+        <strong>Diagnostic only</strong>
+        <p>
+          <b>Partial stopped run — diagnostic only, not reportable; policies/configuration were not approved.</b>
+          The current snapshot is biased toward early Q IDs and contains no complete cell.
+        </p>
+      </aside>
+
+      <div class="error-banner" id="progressError" role="alert" hidden>
+        <div>
+          <strong>Progress data is unavailable.</strong>
+          <span id="progressErrorText">The local viewer could not read this sweep.</span>
+        </div>
+        <button class="button button-secondary" id="retryButton" type="button">Try again</button>
+      </div>
+
+      <main id="main-content">
+        <section class="summary-section" aria-labelledby="summaryTitle">
+          <div class="section-heading">
+            <div class="heading-copy">
+              <div class="section-label">Campaign snapshot</div>
+              <h2 id="summaryTitle">Recorded activity</h2>
+            </div>
+            <div class="heading-meta" id="summaryMeta">Waiting for local results</div>
+          </div>
+
+          <div class="metric-board" aria-label="Aggregate experiment metrics">
+            <article class="metric">
+              <span class="metric-index" aria-hidden="true">01</span>
+              <span class="metric-label">Tasks</span>
+              <strong class="metric-value" id="metricTasks">—</strong>
+              <span class="metric-meta" id="metricTasksMeta">Recorded / planned</span>
+            </article>
+            <article class="metric" data-tone="good">
+              <span class="metric-index" aria-hidden="true">02</span>
+              <span class="metric-label">OK</span>
+              <strong class="metric-value" id="metricOk">—</strong>
+              <span class="metric-meta" id="metricOkMeta">Successful decisions</span>
+            </article>
+            <article class="metric" data-tone="bad">
+              <span class="metric-index" aria-hidden="true">03</span>
+              <span class="metric-label">Errors</span>
+              <strong class="metric-value" id="metricErrors">—</strong>
+              <span class="metric-meta" id="metricErrorsMeta">Infrastructure failures</span>
+            </article>
+            <article class="metric">
+              <span class="metric-index" aria-hidden="true">04</span>
+              <span class="metric-label">Cost</span>
+              <strong class="metric-value" id="metricCost">—</strong>
+              <span class="metric-meta" id="metricCostMeta">Artifact-attributed USD</span>
+            </article>
+            <article class="metric">
+              <span class="metric-index" aria-hidden="true">05</span>
+              <span class="metric-label">Requests</span>
+              <strong class="metric-value" id="metricRequests">—</strong>
+              <span class="metric-meta" id="metricRequestsMeta">Logical provider calls</span>
+            </article>
+          </div>
+        </section>
+
+        <div class="workspace">
+          <section class="cells-panel" aria-labelledby="cellsTitle" aria-busy="true" id="cellsPanel">
+            <header class="panel-header">
+              <div class="heading-copy">
+                <div class="section-label">Output cells</div>
+                <h2 id="cellsTitle">Sweep matrix</h2>
+                <p class="heading-meta" id="cellsMeta">Reading result shards…</p>
+              </div>
+              <label class="filter-control">
+                <span class="sr-only">Filter cells</span>
+                <input
+                  class="filter-input"
+                  id="cellFilter"
+                  type="search"
+                  placeholder="Filter cells, policies, models…"
+                  autocomplete="off"
+                  disabled
+                >
+              </label>
+            </header>
+
+            <div class="table-wrap">
+              <table>
+                <caption class="sr-only">
+                  Experiment cells with policy, model, provider, progress, error, cost, and status details.
+                </caption>
+                <colgroup>
+                  <col style="width: 20%">
+                  <col style="width: 13%">
+                  <col style="width: 14%">
+                  <col style="width: 12%">
+                  <col style="width: 17%">
+                  <col style="width: 7%">
+                  <col style="width: 8%">
+                  <col style="width: 9%">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th scope="col">Cell</th>
+                    <th scope="col">Policy</th>
+                    <th scope="col">Model</th>
+                    <th scope="col">Provider</th>
+                    <th scope="col">Progress</th>
+                    <th scope="col">Errors</th>
+                    <th scope="col">Cost</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="cellsBody">
+                  <tr>
+                    <td class="empty-table" colspan="8">
+                      <strong>Reading the ledger</strong>
+                      Loading cell progress from the local server…
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <aside class="inspector" aria-labelledby="inspectorTitle" id="inspector">
+            <header class="inspector-header">
+              <div class="inspector-heading-row">
+                <div class="heading-copy">
+                  <div class="section-label">Result inspector</div>
+                  <h2 class="inspector-title" id="inspectorTitle">Select a cell</h2>
+                </div>
+                <a class="raw-link" id="rawLink" href="#" target="_blank" rel="noopener" hidden>
+                  Raw JSONL <span aria-hidden="true">↗</span>
+                </a>
+              </div>
+              <div class="inspector-toolbar" id="inspectorToolbar" hidden>
+                <label class="filter-control">
+                  <span class="sr-only">Filter JSON rows</span>
+                  <input
+                    class="filter-input"
+                    id="rowFilter"
+                    type="search"
+                    placeholder="Filter JSON rows…"
+                    autocomplete="off"
+                  >
+                </label>
+                <span class="rows-meta" id="rowsMeta">0 rows</span>
+              </div>
+            </header>
+
+            <div class="inspector-body" id="inspectorBody">
+              <div class="inspector-state" id="inspectorState">
+                <strong>Open a result cell</strong>
+                <p>
+                  Select a cell in the sweep matrix to inspect formatted rows or open its original JSONL file.
+                </p>
+              </div>
+              <div class="result-list" id="resultList" hidden></div>
+            </div>
+
+            <footer class="pagination" id="pagination" hidden>
+              <span class="rows-meta" id="pageMeta">Page 1 of 1</span>
+              <div class="page-actions">
+                <button class="page-button" id="previousPage" type="button">Previous</button>
+                <button class="page-button" id="nextPage" type="button">Next</button>
+              </div>
+            </footer>
+          </aside>
+        </div>
+      </main>
+    </div>
+
+    <div class="sr-only" id="liveStatus" aria-live="polite"></div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const REFRESH_INTERVAL_MS = 5000;
+        const ROWS_PER_PAGE = 20;
+
+        const elements = {
+          autoRefresh: document.querySelector("#autoRefresh"),
+          cellFilter: document.querySelector("#cellFilter"),
+          cellsBody: document.querySelector("#cellsBody"),
+          cellsMeta: document.querySelector("#cellsMeta"),
+          cellsPanel: document.querySelector("#cellsPanel"),
+          connection: document.querySelector("#connection"),
+          connectionText: document.querySelector("#connectionText"),
+          inspectorBody: document.querySelector("#inspectorBody"),
+          inspectorState: document.querySelector("#inspectorState"),
+          inspectorTitle: document.querySelector("#inspectorTitle"),
+          inspectorToolbar: document.querySelector("#inspectorToolbar"),
+          liveStatus: document.querySelector("#liveStatus"),
+          metricCost: document.querySelector("#metricCost"),
+          metricCostMeta: document.querySelector("#metricCostMeta"),
+          metricErrors: document.querySelector("#metricErrors"),
+          metricErrorsMeta: document.querySelector("#metricErrorsMeta"),
+          metricOk: document.querySelector("#metricOk"),
+          metricOkMeta: document.querySelector("#metricOkMeta"),
+          metricRequests: document.querySelector("#metricRequests"),
+          metricRequestsMeta: document.querySelector("#metricRequestsMeta"),
+          metricTasks: document.querySelector("#metricTasks"),
+          metricTasksMeta: document.querySelector("#metricTasksMeta"),
+          nextPage: document.querySelector("#nextPage"),
+          pageMeta: document.querySelector("#pageMeta"),
+          pagination: document.querySelector("#pagination"),
+          previousPage: document.querySelector("#previousPage"),
+          progressError: document.querySelector("#progressError"),
+          progressErrorText: document.querySelector("#progressErrorText"),
+          rawLink: document.querySelector("#rawLink"),
+          refreshButton: document.querySelector("#refreshButton"),
+          resultList: document.querySelector("#resultList"),
+          retryButton: document.querySelector("#retryButton"),
+          rowFilter: document.querySelector("#rowFilter"),
+          rowsMeta: document.querySelector("#rowsMeta"),
+          summaryMeta: document.querySelector("#summaryMeta"),
+          sweepSelect: document.querySelector("#sweepSelect"),
+          updatedAt: document.querySelector("#updatedAt")
+        };
+
+        const state = {
+          cells: [],
+          progressController: null,
+          resultsController: null,
+          resultPage: 1,
+          rows: [],
+          selectedCell: null,
+          selectedCellTaskCount: null,
+          selectedSweep: new URL(window.location.href).searchParams.get("sweep") || "",
+          sweeps: [],
+          timer: null
+        };
+
+        const numberFormatter = new Intl.NumberFormat(undefined, {
+          maximumFractionDigits: 0
+        });
+
+        const dateFormatter = new Intl.DateTimeFormat(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        });
+
+        function firstDefined(object, keys, fallback = undefined) {
+          if (!object || typeof object !== "object") return fallback;
+          for (const key of keys) {
+            if (object[key] !== undefined && object[key] !== null) return object[key];
+          }
+          return fallback;
+        }
+
+        function finiteNumber(value, fallback = 0) {
+          const number = Number(value);
+          return Number.isFinite(number) ? number : fallback;
+        }
+
+        function formatNumber(value) {
+          return numberFormatter.format(finiteNumber(value));
+        }
+
+        function formatCost(value) {
+          const amount = finiteNumber(value);
+          const digits = amount > 0 && amount < 1 ? 4 : 2;
+          return new Intl.NumberFormat(undefined, {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: digits,
+            maximumFractionDigits: digits
+          }).format(amount);
+        }
+
+        function formatDate(value) {
+          if (!value) return "Unknown time";
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? String(value) : dateFormatter.format(date);
+        }
+
+        function titleCase(value) {
+          return String(value || "unknown")
+            .replace(/[-_]+/g, " ")
+            .replace(/\b\w/g, (letter) => letter.toUpperCase());
+        }
+
+        function normaliseStatus(cell) {
+          const raw = String(firstDefined(cell, ["status", "state"], "")).toLowerCase();
+          if (/complete|completed|success|succeeded|done/.test(raw)) return "complete";
+          if (/running|active|in.progress|processing/.test(raw)) return "running";
+          if (/fail|error|issue/.test(raw)) return "issue";
+          if (/stop|cancel|partial|interrupt/.test(raw)) return "stopped";
+          if (/queue|pending|waiting|not.started/.test(raw)) return "queued";
+
+          const tasks = cellTaskCount(cell);
+          const planned = cellPlannedCount(cell);
+          const errors = cellErrorCount(cell);
+          if (errors > 0) return "issue";
+          if (planned > 0 && tasks >= planned) return "complete";
+          if (tasks > 0) return "stopped";
+          return "queued";
+        }
+
+        function cellId(cell) {
+          return String(firstDefined(cell, ["id", "cellId", "cell_id", "key"], ""));
+        }
+
+        function cellName(cell) {
+          return String(firstDefined(cell, ["name", "cell", "label", "cellName"], cellId(cell) || "Unnamed cell"));
+        }
+
+        function cellTaskCount(cell) {
+          const explicit = firstDefined(cell, ["tasks", "completedTasks", "completed_tasks", "completed", "done"]);
+          if (explicit !== undefined) return finiteNumber(explicit);
+          return finiteNumber(firstDefined(cell, ["ok", "successes"])) +
+            finiteNumber(firstDefined(cell, ["errors", "errorCount", "error_count", "infrastructureErrors"]));
+        }
+
+        function cellPlannedCount(cell) {
+          return finiteNumber(
+            firstDefined(cell, ["plannedTasks", "planned_tasks", "totalTasks", "total_tasks", "total"])
+          );
+        }
+
+        function cellErrorCount(cell) {
+          return finiteNumber(
+            firstDefined(cell, ["errors", "errorCount", "error_count", "infrastructureErrors"])
+          );
+        }
+
+        function cellCost(cell) {
+          return finiteNumber(firstDefined(cell, ["costUsd", "cost_usd", "cost", "artifactCostUsd"]));
+        }
+
+        function textCell(label, value, className = "") {
+          const cell = document.createElement("td");
+          cell.dataset.label = label;
+          if (className) cell.className = className;
+          cell.textContent = value;
+          cell.title = value;
+          return cell;
+        }
+
+        function setConnection(status, message) {
+          elements.connection.dataset.state = status;
+          elements.connectionText.textContent = message;
+        }
+
+        function setProgressError(message = "") {
+          const visible = Boolean(message);
+          elements.progressError.hidden = !visible;
+          elements.progressErrorText.textContent = message;
+        }
+
+        function setProgressLoading(loading, manual = false) {
+          elements.cellsPanel.setAttribute("aria-busy", String(loading));
+          elements.refreshButton.disabled = loading && manual;
+          elements.refreshButton.classList.toggle("is-spinning", loading && manual);
+          if (loading) setConnection("loading", "Refreshing");
+        }
+
+        function progressUrl() {
+          const url = new URL("/api/progress", window.location.origin);
+          if (state.selectedSweep) url.searchParams.set("sweep", state.selectedSweep);
+          return url;
+        }
+
+        function resultUrl(cell) {
+          const provided = firstDefined(cell, ["rowsUrl", "resultsUrl", "results_url"]);
+          if (provided) return new URL(String(provided), window.location.origin);
+          const url = new URL("/api/results", window.location.origin);
+          url.searchParams.set("cell", cellId(cell));
+          return url;
+        }
+
+        function rawUrl(cell) {
+          const provided = firstDefined(cell, ["rawUrl", "raw_url"]);
+          if (provided) return new URL(String(provided), window.location.origin);
+          const url = new URL("/raw", window.location.origin);
+          url.searchParams.set("cell", cellId(cell));
+          return url;
+        }
+
+        function normaliseSweeps(payload) {
+          const list = Array.isArray(payload.sweeps) ? payload.sweeps : [];
+          return list
+            .map((item) => {
+              if (typeof item === "string") return { id: item, label: item };
+              const id = String(firstDefined(item, ["id", "sweep", "sweepId", "sweep_id"], ""));
+              const kind = firstDefined(item, ["kind", "type"]);
+              const cells = firstDefined(item, ["cellCount", "cell_count"]);
+              const labelParts = [id];
+              if (kind) labelParts.push(String(kind));
+              if (cells !== undefined) labelParts.push(`${formatNumber(cells)} cells`);
+              return { ...item, id, label: labelParts.filter(Boolean).join(" · ") };
+            })
+            .filter((item) => item.id);
+        }
+
+        function renderSweepSelector() {
+          const currentValue = state.selectedSweep;
+          elements.sweepSelect.replaceChildren();
+
+          if (!state.sweeps.length) {
+            const option = document.createElement("option");
+            option.textContent = "No sweeps found";
+            option.value = "";
+            elements.sweepSelect.append(option);
+            elements.sweepSelect.disabled = true;
+            return;
+          }
+
+          const knownIds = new Set(state.sweeps.map((sweep) => sweep.id));
+          if (currentValue && !knownIds.has(currentValue)) {
+            state.sweeps.unshift({ id: currentValue, label: `${currentValue} · selected` });
+          }
+
+          for (const sweep of state.sweeps) {
+            const option = document.createElement("option");
+            option.value = sweep.id;
+            option.textContent = sweep.label;
+            option.selected = sweep.id === state.selectedSweep;
+            elements.sweepSelect.append(option);
+          }
+          elements.sweepSelect.disabled = false;
+        }
+
+        function renderSummary(payload) {
+          const summary = payload.summary || payload.aggregate || {};
+          const tasks = finiteNumber(
+            firstDefined(summary, ["tasks", "completedTasks", "completed_tasks", "completed"])
+          );
+          const planned = finiteNumber(
+            firstDefined(summary, ["plannedTasks", "planned_tasks", "totalTasks", "total_tasks", "total"])
+          );
+          const ok = finiteNumber(firstDefined(summary, ["ok", "successes", "successfulTasks"]));
+          const errors = finiteNumber(
+            firstDefined(summary, ["errors", "errorCount", "error_count", "infrastructureErrors"])
+          );
+          const cost = finiteNumber(
+            firstDefined(summary, ["costUsd", "cost_usd", "cost", "artifactCostUsd"])
+          );
+          const requests = finiteNumber(
+            firstDefined(summary, ["logicalRequests", "logical_requests", "requests", "providerRequests"])
+          );
+          const attempts = finiteNumber(
+            firstDefined(summary, ["httpAttempts", "http_attempts", "attempts"])
+          );
+          const cells = finiteNumber(firstDefined(summary, ["cells", "cellCount"]), state.cells.length);
+
+          elements.metricTasks.textContent = planned > 0
+            ? `${formatNumber(tasks)} / ${formatNumber(planned)}`
+            : formatNumber(tasks);
+          elements.metricTasksMeta.textContent = planned > 0
+            ? `${Math.min(100, (tasks / planned) * 100).toFixed(tasks && tasks < planned ? 1 : 0)}% recorded`
+            : "Recorded task outputs";
+          elements.metricOk.textContent = formatNumber(ok);
+          elements.metricOkMeta.textContent = tasks > 0
+            ? `${((ok / tasks) * 100).toFixed(1)}% of recorded tasks`
+            : "Successful decisions";
+          elements.metricErrors.textContent = formatNumber(errors);
+          elements.metricErrorsMeta.textContent = errors === 1
+            ? "1 infrastructure failure"
+            : `${formatNumber(errors)} infrastructure failures`;
+          elements.metricCost.textContent = formatCost(cost);
+          elements.metricCostMeta.textContent = "Artifact-attributed USD";
+          elements.metricRequests.textContent = formatNumber(requests);
+          elements.metricRequestsMeta.textContent = attempts > 0
+            ? `${formatNumber(attempts)} HTTP attempts`
+            : "Logical provider calls";
+          elements.summaryMeta.textContent = `${formatNumber(cells)} result ${cells === 1 ? "cell" : "cells"}`;
+        }
+
+        function createStatusBadge(cell) {
+          const status = normaliseStatus(cell);
+          const badge = document.createElement("span");
+          badge.className = "status-badge";
+          badge.dataset.status = status;
+
+          const dot = document.createElement("span");
+          dot.className = "status-dot";
+          dot.setAttribute("aria-hidden", "true");
+
+          const label = document.createElement("span");
+          const sourceStatus = firstDefined(cell, ["status", "state"]);
+          label.textContent = sourceStatus ? titleCase(sourceStatus) : titleCase(status);
+
+          badge.append(dot, label);
+          return badge;
+        }
+
+        function createProgressCell(cell) {
+          const tasks = cellTaskCount(cell);
+          const planned = cellPlannedCount(cell);
+          const denominator = planned > 0 ? planned : Math.max(tasks, 1);
+          const percent = planned > 0 ? Math.min(100, (tasks / planned) * 100) : 0;
+
+          const tableCell = document.createElement("td");
+          tableCell.className = "progress-cell";
+          tableCell.dataset.label = "Progress";
+
+          const copy = document.createElement("div");
+          copy.className = "progress-copy";
+
+          const counts = document.createElement("span");
+          counts.textContent = planned > 0
+            ? `${formatNumber(tasks)} / ${formatNumber(planned)}`
+            : `${formatNumber(tasks)} recorded`;
+
+          const percentage = document.createElement("span");
+          percentage.textContent = planned > 0 ? `${percent.toFixed(percent && percent < 100 ? 1 : 0)}%` : "—";
+          copy.append(counts, percentage);
+
+          const progress = document.createElement("progress");
+          progress.max = denominator;
+          progress.value = Math.min(tasks, denominator);
+          progress.setAttribute(
+            "aria-label",
+            planned > 0
+              ? `${formatNumber(tasks)} of ${formatNumber(planned)} tasks recorded`
+              : `${formatNumber(tasks)} tasks recorded; planned total unavailable`
+          );
+          tableCell.append(copy, progress);
+          return tableCell;
+        }
+
+        function createCellRow(cell) {
+          const id = cellId(cell);
+          const row = document.createElement("tr");
+          row.dataset.cellId = id;
+          row.classList.toggle("is-selected", Boolean(state.selectedCell && cellId(state.selectedCell) === id));
+
+          const nameCell = document.createElement("td");
+          nameCell.dataset.label = "Cell";
+          const button = document.createElement("button");
+          button.className = "cell-button";
+          button.type = "button";
+          button.setAttribute("aria-label", `Inspect ${cellName(cell)}`);
+          if (state.selectedCell && cellId(state.selectedCell) === id) {
+            button.setAttribute("aria-current", "true");
+          }
+
+          const name = document.createElement("span");
+          name.className = "cell-name";
+          name.textContent = cellName(cell);
+          const subline = document.createElement("span");
+          subline.className = "cell-subline";
+          const sublineParts = [
+            firstDefined(cell, ["taskKind", "task_kind"]),
+            firstDefined(cell, ["requester"]),
+            firstDefined(cell, ["runId", "run_id"])
+          ].filter(Boolean);
+          subline.textContent = sublineParts.join(" · ") || id;
+          button.append(name, subline);
+          nameCell.append(button);
+
+          const policy = String(firstDefined(cell, ["policy", "policyId", "policy_id", "condition"], "—"));
+          const model = String(firstDefined(cell, ["model", "modelId", "model_id", "servedModel"], "—"));
+          const provider = String(firstDefined(cell, ["provider", "providerName", "provider_name"], "—"));
+
+          const errorCell = textCell("Errors", formatNumber(cellErrorCount(cell)), "data-value");
+          if (cellErrorCount(cell) > 0) errorCell.style.color = "var(--bad)";
+
+          const statusCell = document.createElement("td");
+          statusCell.dataset.label = "Status";
+          statusCell.append(createStatusBadge(cell));
+
+          row.append(
+            nameCell,
+            textCell("Policy", policy),
+            textCell("Model", model),
+            textCell("Provider", provider),
+            createProgressCell(cell),
+            errorCell,
+            textCell("Cost", formatCost(cellCost(cell)), "data-value"),
+            statusCell
+          );
+
+          row.addEventListener("click", () => selectCell(cell));
+          return row;
+        }
+
+        function filteredCells() {
+          const query = elements.cellFilter.value.trim().toLowerCase();
+          if (!query) return state.cells;
+          return state.cells.filter((cell) => {
+            const searchable = [
+              cellId(cell),
+              cellName(cell),
+              firstDefined(cell, ["policy", "policyId", "policy_id", "condition"], ""),
+              firstDefined(cell, ["model", "modelId", "model_id", "servedModel"], ""),
+              firstDefined(cell, ["provider", "providerName", "provider_name"], ""),
+              firstDefined(cell, ["requester"], ""),
+              firstDefined(cell, ["taskKind", "task_kind"], ""),
+              firstDefined(cell, ["status", "state"], "")
+            ].join(" ").toLowerCase();
+            return searchable.includes(query);
+          });
+        }
+
+        function renderCells() {
+          const cells = filteredCells();
+          elements.cellsBody.replaceChildren();
+          elements.cellFilter.disabled = state.cells.length === 0;
+          elements.cellsMeta.textContent = elements.cellFilter.value.trim()
+            ? `${formatNumber(cells.length)} of ${formatNumber(state.cells.length)} cells shown`
+            : `${formatNumber(state.cells.length)} ${state.cells.length === 1 ? "cell" : "cells"} in this sweep`;
+
+          if (!cells.length) {
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+            cell.className = "empty-table";
+            cell.colSpan = 8;
+
+            const title = document.createElement("strong");
+            title.textContent = state.cells.length ? "No cells match this filter" : "No result cells yet";
+            const copy = document.createTextNode(
+              state.cells.length
+                ? " Clear the filter to see the full sweep."
+                : " Results will appear here after the first record is written."
+            );
+            cell.append(title, copy);
+            row.append(cell);
+            elements.cellsBody.append(row);
+            return;
+          }
+
+          const fragment = document.createDocumentFragment();
+          cells.forEach((cell) => fragment.append(createCellRow(cell)));
+          elements.cellsBody.append(fragment);
+        }
+
+        function resetInspector() {
+          if (state.resultsController) state.resultsController.abort();
+          state.rows = [];
+          state.resultPage = 1;
+          state.selectedCell = null;
+          state.selectedCellTaskCount = null;
+          elements.inspectorTitle.textContent = "Select a cell";
+          elements.rawLink.hidden = true;
+          elements.rawLink.removeAttribute("href");
+          elements.inspectorToolbar.hidden = true;
+          elements.pagination.hidden = true;
+          elements.resultList.hidden = true;
+          elements.resultList.replaceChildren();
+          elements.inspectorState.className = "inspector-state";
+          elements.inspectorState.replaceChildren();
+
+          const title = document.createElement("strong");
+          title.textContent = "Open a result cell";
+          const copy = document.createElement("p");
+          copy.textContent =
+            "Select a cell in the sweep matrix to inspect formatted rows or open its original JSONL file.";
+          elements.inspectorState.append(title, copy);
+          elements.inspectorState.hidden = false;
+        }
+
+        function showInspectorState(titleText, copyText, className = "") {
+          elements.inspectorState.className = `inspector-state${className ? ` ${className}` : ""}`;
+          elements.inspectorState.replaceChildren();
+
+          const title = document.createElement("strong");
+          title.textContent = titleText;
+          const copy = document.createElement("p");
+          copy.textContent = copyText;
+          elements.inspectorState.append(title, copy);
+          elements.inspectorState.hidden = false;
+          elements.resultList.hidden = true;
+          elements.pagination.hidden = true;
+        }
+
+        function rowSummary(row, index) {
+          const id = firstDefined(row, ["task_id", "taskId", "item_id", "itemId", "question_id", "questionId", "id"]);
+          const outcome = firstDefined(row, ["outcome"]);
+          const status = typeof outcome === "object" && outcome
+            ? firstDefined(outcome, ["status", "type"])
+            : firstDefined(row, ["status", "result", "decision"], outcome);
+          return {
+            label: id ? `${String(id)} · row ${index + 1}` : `Row ${index + 1}`,
+            status: typeof status === "string" ? titleCase(status) : "JSON"
+          };
+        }
+
+        function filteredRows() {
+          const query = elements.rowFilter.value.trim().toLowerCase();
+          if (!query) return state.rows.map((row, index) => ({ row, index }));
+          return state.rows
+            .map((row, index) => ({ row, index }))
+            .filter(({ row }) => {
+              try {
+                return JSON.stringify(row).toLowerCase().includes(query);
+              } catch {
+                return String(row).toLowerCase().includes(query);
+              }
+            });
+        }
+
+        function renderRows() {
+          const rows = filteredRows();
+          const totalPages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
+          state.resultPage = Math.min(Math.max(1, state.resultPage), totalPages);
+          const start = (state.resultPage - 1) * ROWS_PER_PAGE;
+          const visibleRows = rows.slice(start, start + ROWS_PER_PAGE);
+
+          elements.resultList.replaceChildren();
+          elements.rowsMeta.textContent = elements.rowFilter.value.trim()
+            ? `${formatNumber(rows.length)} / ${formatNumber(state.rows.length)} rows`
+            : `${formatNumber(state.rows.length)} ${state.rows.length === 1 ? "row" : "rows"}`;
+
+          if (!visibleRows.length) {
+            showInspectorState(
+              state.rows.length ? "No rows match this filter" : "This cell has no rows",
+              state.rows.length
+                ? "Try a task ID, status, decision, or another value from the JSON."
+                : "The result file exists, but it does not contain any parsed records."
+            );
+            elements.inspectorToolbar.hidden = false;
+            return;
+          }
+
+          const fragment = document.createDocumentFragment();
+          visibleRows.forEach(({ row, index }, visibleIndex) => {
+            const details = document.createElement("details");
+            details.className = "result-row";
+            if (visibleIndex === 0) details.open = true;
+
+            const summary = document.createElement("summary");
+            const descriptor = rowSummary(row, index);
+
+            const name = document.createElement("span");
+            name.className = "result-name";
+            name.textContent = descriptor.label;
+
+            const status = document.createElement("span");
+            status.className = "result-status";
+            status.textContent = descriptor.status;
+            summary.append(name, status);
+
+            const jsonWrap = document.createElement("div");
+            jsonWrap.className = "json-wrap";
+            const pre = document.createElement("pre");
+            try {
+              pre.textContent = JSON.stringify(row, null, 2);
+            } catch {
+              pre.textContent = String(row);
+            }
+            jsonWrap.append(pre);
+            details.append(summary, jsonWrap);
+            fragment.append(details);
+          });
+
+          elements.resultList.append(fragment);
+          elements.inspectorState.hidden = true;
+          elements.resultList.hidden = false;
+          elements.inspectorToolbar.hidden = false;
+          elements.pagination.hidden = rows.length <= ROWS_PER_PAGE;
+          elements.pageMeta.textContent = `Page ${formatNumber(state.resultPage)} of ${formatNumber(totalPages)}`;
+          elements.previousPage.disabled = state.resultPage <= 1;
+          elements.nextPage.disabled = state.resultPage >= totalPages;
+        }
+
+        async function loadResults(cell, options = {}) {
+          const { silent = false } = options;
+          if (!cell || !cellId(cell)) return;
+          if (state.resultsController) state.resultsController.abort();
+          const controller = new AbortController();
+          state.resultsController = controller;
+
+          if (!silent) {
+            showInspectorState("Reading JSON rows", "Parsing this cell’s result records…", "is-loading");
+            elements.inspectorToolbar.hidden = true;
+          }
+
+          try {
+            const response = await fetch(resultUrl(cell), {
+              cache: "no-store",
+              headers: { Accept: "application/json" },
+              signal: controller.signal
+            });
+            if (!response.ok) {
+              throw new Error(`The results endpoint returned HTTP ${response.status}.`);
+            }
+            const payload = await response.json();
+            if (!state.selectedCell || cellId(state.selectedCell) !== cellId(cell)) return;
+            const rows = Array.isArray(payload)
+              ? payload
+              : firstDefined(payload, ["rows", "results", "items"], []);
+            if (!Array.isArray(rows)) {
+              throw new Error("The results response did not contain a JSON row array.");
+            }
+            state.rows = rows;
+            state.resultPage = 1;
+            renderRows();
+            if (!silent) {
+              elements.liveStatus.textContent = `${formatNumber(rows.length)} rows loaded for ${cellName(cell)}.`;
+            }
+          } catch (error) {
+            if (error.name === "AbortError") return;
+            if (!silent) {
+              showInspectorState(
+                "Rows could not be loaded",
+                `${error.message || "The local results endpoint failed."} You can still open the raw JSONL file.`,
+                "is-error"
+              );
+            }
+          } finally {
+            if (state.resultsController === controller) state.resultsController = null;
+          }
+        }
+
+        function selectCell(cell) {
+          const changed = !state.selectedCell || cellId(state.selectedCell) !== cellId(cell);
+          state.selectedCell = cell;
+          state.selectedCellTaskCount = cellTaskCount(cell);
+          elements.inspectorTitle.textContent = cellName(cell);
+          elements.rawLink.href = rawUrl(cell).toString();
+          elements.rawLink.hidden = false;
+          elements.rowFilter.value = "";
+          renderCells();
+          loadResults(cell);
+
+          if (changed && window.matchMedia("(max-width: 75.99rem)").matches) {
+            elements.inspector.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+
+        function updateSelectedCellAfterRefresh() {
+          if (!state.selectedCell) return;
+          const id = cellId(state.selectedCell);
+          const current = state.cells.find((cell) => cellId(cell) === id);
+          if (!current) {
+            resetInspector();
+            return;
+          }
+
+          const previousCount = state.selectedCellTaskCount;
+          state.selectedCell = current;
+          state.selectedCellTaskCount = cellTaskCount(current);
+          elements.rawLink.href = rawUrl(current).toString();
+          if (previousCount !== state.selectedCellTaskCount) {
+            loadResults(current, { silent: true });
+          }
+        }
+
+        async function loadProgress(options = {}) {
+          const { manual = false } = options;
+          if (state.progressController) state.progressController.abort();
+          const controller = new AbortController();
+          state.progressController = controller;
+          setProgressLoading(true, manual);
+
+          try {
+            const response = await fetch(progressUrl(), {
+              cache: "no-store",
+              headers: { Accept: "application/json" },
+              signal: controller.signal
+            });
+            if (!response.ok) {
+              throw new Error(`The progress endpoint returned HTTP ${response.status}.`);
+            }
+            const payload = await response.json();
+            const cells = firstDefined(payload, ["cells"], []);
+            if (!Array.isArray(cells)) {
+              throw new Error("The progress response did not contain a cell array.");
+            }
+
+            const serverSelectedSweep = String(
+              firstDefined(payload, ["selectedSweep", "selected_sweep", "sweep"], state.selectedSweep || "")
+            );
+            state.selectedSweep = serverSelectedSweep;
+            state.sweeps = normaliseSweeps(payload);
+            state.cells = cells;
+            renderSweepSelector();
+            renderSummary(payload);
+            updateSelectedCellAfterRefresh();
+            renderCells();
+
+            const generatedAt = firstDefined(payload, ["generatedAt", "generated_at"]) || new Date().toISOString();
+            elements.updatedAt.dateTime = String(generatedAt);
+            elements.updatedAt.textContent = `Updated ${formatDate(generatedAt)}`;
+            setConnection("online", "Local viewer online");
+            setProgressError();
+            elements.cellsPanel.setAttribute("aria-busy", "false");
+
+            if (state.selectedSweep) {
+              const pageUrl = new URL(window.location.href);
+              pageUrl.searchParams.set("sweep", state.selectedSweep);
+              window.history.replaceState(null, "", pageUrl);
+            }
+            if (manual) elements.liveStatus.textContent = "Experiment progress refreshed.";
+          } catch (error) {
+            if (error.name === "AbortError") return;
+            setConnection("offline", "Local viewer offline");
+            setProgressError(
+              `${error.message || "The local server did not respond."} Check that the viewer server is running, then try again.`
+            );
+            elements.cellsPanel.setAttribute("aria-busy", "false");
+          } finally {
+            if (state.progressController === controller) state.progressController = null;
+            setProgressLoading(false, manual);
+            if (elements.progressError.hidden) setConnection("online", "Local viewer online");
+          }
+        }
+
+        function scheduleAutoRefresh() {
+          if (state.timer) window.clearInterval(state.timer);
+          state.timer = null;
+          if (!elements.autoRefresh.checked) return;
+          state.timer = window.setInterval(() => {
+            if (!document.hidden) loadProgress();
+          }, REFRESH_INTERVAL_MS);
+        }
+
+        elements.refreshButton.addEventListener("click", () => loadProgress({ manual: true }));
+        elements.retryButton.addEventListener("click", () => loadProgress({ manual: true }));
+        elements.autoRefresh.addEventListener("change", () => {
+          scheduleAutoRefresh();
+          elements.liveStatus.textContent = elements.autoRefresh.checked
+            ? "Auto-refresh enabled. Progress will update every 5 seconds."
+            : "Auto-refresh paused.";
+        });
+        elements.sweepSelect.addEventListener("change", () => {
+          state.selectedSweep = elements.sweepSelect.value;
+          elements.cellFilter.value = "";
+          resetInspector();
+          loadProgress({ manual: true });
+        });
+        elements.cellFilter.addEventListener("input", renderCells);
+        elements.rowFilter.addEventListener("input", () => {
+          state.resultPage = 1;
+          renderRows();
+        });
+        elements.previousPage.addEventListener("click", () => {
+          state.resultPage -= 1;
+          renderRows();
+          elements.inspectorBody.scrollTop = 0;
+        });
+        elements.nextPage.addEventListener("click", () => {
+          state.resultPage += 1;
+          renderRows();
+          elements.inspectorBody.scrollTop = 0;
+        });
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden && elements.autoRefresh.checked) loadProgress();
+        });
+
+        scheduleAutoRefresh();
+        loadProgress();
+      })();
+    </script>
+  </body>
+</html>
