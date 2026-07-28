@@ -12,7 +12,7 @@
 We thank the AC and all reviewers for the careful metareview. We are glad the reviews agree that cross-boundary interaction between personal agents is an important and timely problem and that SharedOS, the benchmark, and the database-diff action evaluation are valuable contributions. Below we summarize how the response addresses the four issues the metareview highlights; details and evidence are in the General Response and the individual replies.
 
 1. **"Frontier" framing.** It was intended as conceptual framing, and we agree the measured object is a set of discrete operating points. We have (a) renamed it throughout to *security–utility trade-offs across discrete operating points*, and (b) densified the point set: beyond D0/D1/D2 we now evaluate 【TODO: 7】policy packages (including four defense-prompt baselines adapted from prior agentic-safety work) across multiple models (General Response, C1).
-2. **Policy-specificity confounds.** We agree D1 vs D2 is a policy-*package* comparison. We have added a component-controlled sweep, including a length-matched generic policy, a category-names-only variant, and D2 without examples, to isolate what drives the effect (C2; interim results in the reply to aP1N Q2).
+2. **Policy-specificity confounds.** We agree D1 vs D2 is a policy-*package* comparison. We ran a 2×2 ablation crossing policy length with category-specificity, with a length-matched generic control and a short category-specific control: both components contribute substantially and roughly additively (about 38 pp and 30 pp of disclosure reduction respectively), which corrects our own earlier framing that specificity alone drives the effect (C2; full table in the reply to aP1N Q2).
 3. **Evaluation reliability.** We add (a) judge-independent gold-string scoring, which already reproduces every headline security direction, (b) a complete re-scoring of the single-step Files QA track by a different-family judge, which agrees with the original judgments on 98.3% of 1,058 items and preserves every headline rate, and (c) an independent non-author annotation study of the relationship-conditioned labels (C3, C4).
 4. **Comparison with traditional access control.** We have run a structural baseline the reviewers requested, pre-retrieval relationship-conditioned data mounting, plus a pre-tool escalation gate, and we discuss where rule-based enforcement wins, where it is inherently coarse, and why the measured result is *complementarity* between structural and policy-level control (C5; reply to TtBh Q3).
 
@@ -29,7 +29,7 @@ We thank all reviewers for their careful and constructive reviews. Reviewer aP1N
 | # | Concern (raised by) | Action | Status |
 |---|---|---|---|
 | C1 | "Frontier" too strong; too few operating points (aP1N Q1, TtBh Q4, AC) | Renamed to *trade-offs across discrete operating points*; expanded from 3 to 【TODO: 7】policy packages (D0/D1/D2 plus 4 defense baselines from prior agentic-safety work) × 【TODO: k】models | Partial results in the reply to aP1N Q1; full sweep by end of discussion |
-| C2 | D1/D2 confounds length, categories, examples (aP1N Q2, TtBh Q2, AC) | Component-controlled sweep: D1-L (length-matched generic), D1-C (category names only), D2−E (no examples), D2 | 【TODO: interim numbers】 |
+| C2 | D1/D2 confounds length, categories, examples (aP1N Q2, TtBh Q2, AC) | 2×2 ablation, length × category-specificity (P1/P7/P6/P2), 60 stratified tasks per cell, submitted judge | **done**: both factors matter and are roughly additive (~38 pp length, ~30 pp category); table in aP1N Q2 |
 | C3 | Same-family LLM judge (JD3a Q1, TtBh Q5, AC) | (a) judge-independent gold-string scoring; (b) full re-scoring of single-step Files QA by a different-family judge | (a) done (Table GR-2); (b) **done** — 1,058 items, 98.3% agreement (reply to JD3a Q1); States and multi-turn re-scoring still outstanding |
 | C4 | Labels author-designed; no independent validation (TtBh Q1, JD3a Lim., AC) | Independent annotation by 5 non-author annotators, blinded, stratified sample; κ plus disagreement analysis; labels reframed as *scenario contracts* | 【TODO: κ, disagreements】 |
 | C5 | No structural access-control baseline (TtBh Q3, JD3a Q4, AC) | Pre-retrieval relationship-conditioned mounting baseline plus pre-tool escalation gate; discussion of rule-based vs policy-reasoning trade-offs | Done (TtBh Q3, JD3a Q4) |
@@ -72,17 +72,16 @@ We thank the reviewer for recognizing the importance of the problem, the breadth
 
 ### Q2. Length-matched control separating specificity from length/content?
 
-**Agreed, this is the right control, and we ran it.** The loaded policies differ in more than specificity (22 vs 323 words; categories; examples; action rules), so the submitted claim is a policy-*package* comparison. The new sweep holds the world, tasks, and models fixed and varies one component at a time:
+**Agreed, this is the right control, and we ran it — and the result corrects our own prior framing.** The loaded policies differ in more than specificity (22 vs 323 words; categories; examples; action rules), so the submitted claim is a policy-*package* comparison. We built a 2×2 that crosses length with category-specificity, holding the world, the 60 stratified Files tasks (20 public, 40 sensitive), both agents (gpt-5-mini) and the submitted gpt-5-mini judge fixed:
 
-| Variant | Length | Categories | Examples | Files disclosure | Utility |
-|---|---|---|---|---|---|
-| D1 (submitted) | 22 w | – | – | 81.5% | 78.5% |
-| D1-L (verbose generic, length-matched) | ~320 w | – | – | 【TODO】 | 【TODO】 |
-| D1-C (plus category names only) | ~【TODO】 w | ✓ | – | 【TODO】 | 【TODO】 |
-| D2−E (D2 without examples) | ~【TODO】 w | ✓ | – | 【TODO】 | 【TODO】 |
-| D2 (submitted) | 323 w | ✓ | ✓ | 14.0% | 77.0% |
+| | Generic wording | Category-specific wording |
+|---|---|---|
+| **Short (22 w)** | P1 = submitted D1: disclosure 75.0%, utility 90.0% | P7 (new control): disclosure 42.5%, utility 90.0% |
+| **Long (323 w)** | P6 (new control): disclosure 35.0%, utility 85.0% | P2 = submitted D2: disclosure 7.5%, utility 65.0% |
 
-Interim results on 【TODO: models】indicate that length alone changes disclosure by 【TODO】, category enumeration accounts for the bulk of the reduction (【TODO】), and examples add a further 【TODO】. Under current models, explicit category enumeration rather than verbosity appears to be the dominant component; we will state the conclusion at exactly the granularity the completed sweep supports and remove the phrase "differ only in specificity."
+(n = 40 sensitive / 20 public per cell, one replication; P6/P7 are purpose-built controls, not submitted policies.)
+
+Both factors matter, and they are roughly additive: averaging over the 2×2, adding category enumeration reduces disclosure by ~30 pp, lengthening the policy by ~38 pp, with a small interaction (~5 pp). This *refutes* the simple reading that specificity alone drives the effect — a length-matched generic policy (P6) already cuts disclosure roughly in half — and equally refutes the "verbosity suffices" reading, since at matched length the category-specific package still leaks 4.7× less (7.5% vs 35.0%). The utility cost concentrates in the full D2 package (65.0% with 29/60 refusals; every other cell stays at 85–90%), so over-refusal emerges specifically from combining length with category enumeration. The revision replaces the phrase about differing only in specificity with exactly this decomposition, reported as measured on this new 60-task subset rather than folded into the original 200-task tables.
 
 ### Q3. Reconciling Tables 15 and 20
 
@@ -140,7 +139,7 @@ We sincerely thank the reviewer for the expert, access-control-informed review. 
 
 ### Q2. Cleaner policy-specificity ablation
 
-**Agreed and running.** We added a component-controlled sweep holding world, tasks, and model fixed: D1-L (length-matched verbose generic, no categories), D1-C (category names only, no examples), and D2−E (D2 without examples), against D1 and D2 (full design and interim numbers in our reply to aP1N Q2). Interim direction: length alone is near-inert; category enumeration drives most of the reduction; examples add a smaller increment 【TODO: confirm with data】. We will also remove "differ only in specificity" from the paper: the supported claim is which policy *components* move the operating point, at exactly the granularity the sweep measures. On schema overlap: we will report the D1-C cell (category names without the benchmark's examples or rules) as the direct test of whether naming the categories, rather than mirroring the benchmark schema, suffices.
+**Agreed and done.** We ran a 2×2 crossing policy length with category-specificity, holding world, tasks, agents and judge fixed (full table in our reply to aP1N Q2). The outcome corrects our own prior framing: length and category enumeration each contribute substantially (about 38 pp and 30 pp of disclosure reduction, roughly additive), so neither "specificity is what matters" nor "it is just a longer prompt" survives the data. The phrase about the policies differing only in specificity is removed from the paper accordingly. On schema overlap: the short category-specific control (P7) names the sensitive categories without the benchmark's examples or action rules, and still reduces disclosure from 75.0% to 42.5%, evidence that naming the protected categories helps in itself, though far short of the full package's 7.5%.
 
 ### Q3. Structural (non-ML) baseline
 
