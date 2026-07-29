@@ -158,14 +158,17 @@
 
 ## P2 — 写作与呈现
 
-- [ ] Figure 1 重画（字号加大 + 明确架构）— TtBh 专门提，属于"送人情"，必须真改
-- [ ] 命名统一：SharedOS=平台，PACT-Bench=套件=PACT-PAIR+PACT-NET
-- [ ] Tables 32–39 caption + 缺失的表引用修复 — JD3a formatting
-- [ ] Table 20 relabel 为 "trajectory-wide fact coverage (diagnostic)" 并移入附录
-- [ ] 全文替换 "frontier" → "trade-offs across discrete operating points"
-- [ ] 删 "differ only in specificity" / "specificity threshold"
-- [ ] 不写 "erosion of protection"，改 "opens additional disclosure channels"
-- [ ] 不承诺 "1000+ tools"，只说 MCP-compatible
+> 2026-07-29 23:1x（Claude）：除 Figure 1 外七项已在 `pulse/thesis/neurips/main.tex` 落实（**注意 thesis 是嵌套独立 git 仓库**，commit `9a3eda5` 在它自己的历史里）。验证方式全部为产物级：正则清零 + 悬空 `\ref` 为 0 + 每个 table 环境都有 caption + diff 中百分数/pp token 集合完全一致（数字零改动）。
+
+- [ ] Figure 1 重画（字号加大 + 明确架构）— TtBh 专门提，属于"送人情"，必须真改。`figures/shared_os_overview.png` 仍是 5 月 6 日的旧文件，**这是 P2 唯一剩下的活**
+- [x] 命名统一（commit 9a3eda5）：L380 段改为一次性定义 SharedOS=平台、PACT-Bench=套件=PACT-PAIR+PACT-NET；10 处 `PACT-Net` 规范为 `PACT-NET`
+- [x] Tables caption + 表引用（验证于 2026-07-29）：全部 37 个 table 环境有 caption，全仓 `\ref`→`\label` 悬空为 0。（提交版编号 32–39 对应的附录表在当前稿已重排，按内容验证）
+- [x] Table 20 义务（commit 9a3eda5）：正文只剩 5 张表、scan 类指标全在附录；multi-step aggregate 表 caption 明写 "scan-based rows are trajectory-wide fact coverage, reported as a diagnostic, not as primary utility"
+- [x] frontier 清零（commit 9a3eda5）：**含标题**（"Measuring Utility–Security Trade-offs in…"）、摘要 8 处、RQ 框、findingbox、图 caption、discussion，共 30+ 处全部改为 trade-off / operating point 措辞；仅存 `fig_frontier_*.pdf` 文件名与 `fig:frontier` label（内部标识，不可见）
+- [x] "specificity threshold" 删除（commit 9a3eda5）：L191/L197/L313 改为 category-naming effect 表述，与 E2 消融结论一致；"differ only in specificity" 原文不存在，确认无残留
+- [x] erosion 措辞（commit 9a3eda5）：findingbox、摘要、正文、附录小节题共 10 处改为 "opens additional disclosure channels" / "direct leakage stays bounded"；保留的仅有环境名 erosionbox、图文件名、`app:phase2_erosion` label（内部标识）
+- [x] "1000+ tools"（验证于 2026-07-29）：全文及变体（1,000 / thousand tools）零命中，本来就不存在
+- ⚠️ 教训（本次的测量坑）：`erosion` 里没有 `erod`（e-r-o-**s**）——用 `erod\w*` 扫会静默漏掉全部 erosion；且 thesis 是嵌套 git 仓库，从 pulse 根目录 add 会被外层 .gitignore 拒绝
 
 ---
 
