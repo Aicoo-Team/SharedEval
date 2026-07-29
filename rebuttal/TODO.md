@@ -74,7 +74,8 @@
 - [x] **E2 原始数据完成（2026-07-29 05:20）**：P1/P2/P6/P7 全部 **60/60**，merged 产物在 `pulse/research/runs/rebuttal/6b656e42874d_resume/policy_*/results.merged.jsonl`。待 judge pass 出消融表数字
 - [x] **消融表已填进 rebuttal（2026-07-29 07:15，commit d7579f2）**：judge pass（gpt-5-mini，与论文同 judge）跑完 240 行。disclosure P1 75.0 / P7 42.5 / P6 35.0 / P2 7.5；utility 90/90/85/65。**真发现：length（~38pp）与 category（~30pp）同量级且近似可加，推翻了草稿"specificity 主导"的预设**。AC 第 2 点、C2 行、aP1N Q2、TtBh Q2 四处已按数据重写
 - [x] 回应 aP1N Q2、TtBh Q2、AC —— 已写入，含全部 caveat（单 rep、新 60 题子集、P6/P7 为 draft-control 对照）
-- [ ] **defender 轴进行中**：DeepSeek P0/P2 + GLM P0/P2 由 Codex 跑（plan f1d964b29c2e，UUID 8bb8/8bb9/8bba）。Kimi/Qwen 4 格由 Claude 在 8ce4–8ce7 跑（2026-07-29 13:12 读产物：kimi-P0 20/30、kimi-P2 18/30、qwen-P2 25/30、**qwen-P0 29/30 但进程已死于 Neon CONNECTION_CLOSED，需补 1 题**）
+- [ ] **defender 轴进行中**：DeepSeek P0/P2 + GLM P0/P2 由 Codex 跑（plan f1d964b29c2e，UUID 8bb8/8bb9/8bba）。Kimi/Qwen 4 格由 Claude 在 8ce4–8ce7 跑。**2026-07-29 13:29 读产物：qwen-P0 30/30、qwen-P2 30/30 均 provenance 全valid**（定向补跑 Q130 与 Q48/Q100 后）；kimi-P0 23/30 valid、kimi-P2 17/30 valid，仍在跑
+  - ⚠️ **教训**：qwen-P2 曾显示 30/30 行，但其中 Q48/Q100 是 `Tina tick timed out after 600s`、无 responder provenance。**只数行数会把它当成完成的格子**。所有格子的完成判定必须走 provenance 校验，不能看 `wc -l`
 - [ ] **第五个模型家族已就位**：`x-ai/grok-4.3` 实测在区域可用（HTTP 200，served id 一致，且能真发 tool_calls），已注册进 `experiment-model-runtime.ts`。grok-4/grok-4-fast 已废弃返回 404。Grok P0/P2 两格在 `next_batch.sh` 里待发
 - [ ] **对角线格（双方同厂商）待发**：GLM↔GLM、DeepSeek↔DeepSeek 各 P0/P2，UUID 8d00–8d03。这是论文自己设定的"跨所有权边界"最真实形态
 - [ ] defender 8 格齐后跑 judge pass 出跨 defender 表
@@ -95,7 +96,9 @@
 
 - [x] **阻塞 bug 已修（2026-07-29 13:12，commit 6e11f6c34）**：`run_d3_relationship.ts` 的 `createModel` 走的是 `getAzureProviderConfig`，**Azure 专用**。传 OpenRouter id 时 baseURL 正则匹配不上，回落到默认 Azure resource——也就是说 `--model z-ai/glm-5.2` **根本不会跑 GLM**，但产物会全程标成 GLM。这是"CLI 参数存在 ≠ 生效"的第四例，且会**凭空捏造 RQ3 的非 OpenAI 结论**。已改为走 `resolveExperimentModelRuntime()`（按 registry 推断 provider、未知 id 直接抛错），并在开跑时打印解析后的 provenance
 - [x] **确认 E6 无需 seed group**：该脚本不走 `contact_agent`（0 匹配），自己构造模型直接扮演 Alex。此前为它 seed 的 8ce8/8ce9 两组是多余的
-- [ ] 用修好的通路跑 relationship × GLM（R0–R4），GPT-5.5 已完成
+- [x] **修复已验证跑通（2026-07-29 13:26）**：冒烟 D3 × R1 × GLM × Q101-103 打印 `provider=openai-compatible`，3 例 0 error。这行 provider 就是"没走 Azure 回落"的判据
+- [x] **跑起来才发现的第二个 bug（同日修，commit c2293b0cd）**：run id 直接拼接原始 model id，`z-ai/glm-5.2` 的斜杠把产物切成 `research/runs/d3_D3_R1_z-ai/glm-5.2_.../`，**分析脚本的扁平 `d3_*` glob 会静默漏掉整个 run**。已改为路径用 slug、`summary.json` 保留真实 id。两次冒烟已归档进 `e6_smoke_glm/artifacts/`，防止 1–3 题被当数据
+- [ ] **全量已启动（pid 46041）**：D3 × R0–R4 × Q101-200 × GLM 5.2，单进程顺序执行。这是 JD3a Q3 的第一份非 OpenAI 答案
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
 - [ ] 回应 JD3a Q3
 
