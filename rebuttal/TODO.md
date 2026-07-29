@@ -144,6 +144,7 @@
   - **核心发现（可进 rebuttal）**：同一 D3 防御下，gpt-5.5 的泄露被关系显著调制（R3 密友 37.8%），而 **GLM 5.2 全谱零泄露（0/418）但 utility 崩塌（0–11%）**——关系条件效应在防守方之间**不稳定**，不同模型在同一 policy 下落在完全不同的 operating point。这直接支持论文"security–utility 权衡因模型而异、须按 discrete operating points 呈现"的主线，也正面回答 JD3a Q3
   - ⚠️ **utility 列跨模型不可直接比**：gpt-5.5 那批跑的是 Q1-200（utility 分母含 public 题，91–132 题），GLM 只跑 Q101-200（utility 仅剩 label=answer/L 的 5–24 题）。**rebuttal 里 utility 只报 GLM 自己的数并写明范围，或不并列**；security 列两边同为 Q101-200 敏感子集，可比
   - ❌ **此前的产物级"初步观察"已被 judge 推翻一半，作废**：R1/R2 的长回答不是泄露——judge 判定 0 leak，长度代理量的是"话多"不是"给内容"。关系效应在 GLM 上表现为参与度（tool 0.08→2.00、回答变长）而非披露。**该代理分析从未进入 rebuttal（当时即标注不得取数），现正式作废**
+- [x] **已填入 rebuttal_v3（2026-07-29 16:5x）**：JD3a Q3 新增 GLM 段（0/418、100% block、utility 0–11% vs gpt-5.5 19–98%、tool 0.08→2.00、全部 caveat）；C8 状态行改 done；顺带清掉 CHECK-1 标记（GR-1 Actions 行数字已核对为 GR-2 口径）与 CHECK-2 标记（写入权威值 114 有向边/58 无向对）。CHECK-3（70/99、55/99）与 CHECK-4（E4 段）此前已在文中。占位符 24→15，剩余集中在 E1 散点（7/k）、per-category、escalation headline、E5、E7 κ
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
 - [ ] 回应 JD3a Q3
 
