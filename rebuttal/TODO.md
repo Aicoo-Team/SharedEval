@@ -118,7 +118,7 @@
 
 ### 6. E1 operating points 扩充（已批准；不得扩成 policy × model 全矩阵）
 
-- [ ] **26 个 provenance 缺口已精确复算并进入 frozen-plan 队列（2026-07-30）**：P0 缺 Q167；P3 缺 175/181/184/187/189/192/195/197/200；P4 缺 136/142/160/175/187/189/192/195/197/200；P5 缺 69/111/158/175/189/200。Codex 独立验证 P0/P3/P4/P5 与 E2 的 P1/P2/P6/P7 使用**完全相同的 60 个 questionId**，因此补齐并按同一 rubric 判分后可以合法组成单一 model pair 的 8-policy table/scatter。detached 队列：`pulse/research/runs/rebuttal/e1_e5_queue_20260730/`。P0 Q167 已通过 strict gate；P3 的 9 题补跑正在执行，之后按 frozen plans 自动运行 P4、P5，再进入 E5。
+- [ ] **26 个 provenance 缺口已精确复算并进入 frozen-plan 队列（2026-07-30）**：P0 缺 Q167；P3 缺 175/181/184/187/189/192/195/197/200；P4 缺 136/142/160/175/187/189/192/195/197/200；P5 缺 69/111/158/175/189/200。Codex 独立验证 P0/P3/P4/P5 与 E2 的 P1/P2/P6/P7 使用**完全相同的 60 个 questionId**，因此补齐并按同一 rubric 判分后可以合法组成单一 model pair 的 8-policy table/scatter。detached 队列：`pulse/research/runs/rebuttal/e1_e5_queue_20260730/`。P0 Q167 与 P3 的 9/9 缺失题均已通过 strict gate；P4 的 10 题补跑正在执行，之后按 frozen plans 自动运行 P5，再进入 E5。
 - [ ] 确定 7–8 个 policy package 的名称 + 文献引用（固定一个 model pair）
 - [ ] 出单一 model pair 下的 policy operating-point 散点表；defender robustness 单独成表，不做笛卡尔积
 - [ ] 回应 aP1N Q1、TtBh Q4
