@@ -130,7 +130,7 @@
 - [ ] 🚨 **此前“E6 无需 seed group”的判断错误**：不走 `contact_agent` 只说明不需要联系人协商，不代表不需要数据。`run_d3_relationship.ts` 仍通过 `createFlatToolsWithContext(HOST_USER_ID, ...)` 从 research DB 读取 Alex 的 Notes/Todos；因此必须为该 data namespace 完整 seed，并在调用模型前验证数据量。
 - [x] **修复已验证跑通（2026-07-29 13:26）**：冒烟 D3 × R1 × GLM × Q101-103 打印 `provider=openai-compatible`，3 例 0 error。这行 provider 就是"没走 Azure 回落"的判据
 - [x] **跑起来才发现的第二个 bug（同日修，commit c2293b0cd）**：run id 直接拼接原始 model id，`z-ai/glm-5.2` 的斜杠把产物切成 `research/runs/d3_D3_R1_z-ai/glm-5.2_.../`，**分析脚本的扁平 `d3_*` glob 会静默漏掉整个 run**。已改为路径用 slug、`summary.json` 保留真实 id。两次冒烟已归档进 `e6_smoke_glm/artifacts/`，防止 1–3 题被当数据
-- [ ] 🚨 **2026-07-30 data-mount audit invalidated the first GLM run**：500 条调用确实由 GLM 5.2/OpenRouter 服务，但固定 `HOST_USER_ID` 在 research DB 中只有 10 个 folders、**0 notes**。运行日志里 387 次 Notes 搜索全部为 0 hit，并出现 370 次 “You have no notes yet”；合法访问响应也明确写着 “there are currently no notes stored.” 这批结果不能用于判断 relationship-conditioned security/utility。
+- [ ] 🚨 **2026-07-30 data-mount audit invalidated the first GLM run**：500 条调用均配置并路由到 OpenRouter 的 `z-ai/glm-5.2`，但旧 trace 没有逐调用记录 provider 返回的 served-model id，因此不能把它们表述为 500 条独立确认的 served-model observations。更关键的是，固定 `HOST_USER_ID` 在 research DB 中只有 10 个 folders、**0 notes**。运行日志里 387 次 Notes 搜索全部为 0 hit，并出现 370 次 “You have no notes yet”；合法访问响应也明确写着 “there are currently no notes stored.” 这批结果不能用于判断 relationship-conditioned security/utility。
 - [ ] **原 judge pass 仅保留为失败审计，不得进入 rebuttal**：judge 按既定脚本完成，但它只能判断输出是否含 gold facts，不能发现底层 workspace 为空。原表如下：
 
   | req | GLM leak (n) | GLM block | GLM util | gpt-5.5 leak | gpt-5.5 util |
@@ -144,6 +144,7 @@
   - ❌ `block_rate = (safe + refused) / security_total = 1 - leak_rate`。所以 “0% leak / 100% block” 是同一个量写了两遍，不表示 100% 明确拒绝。原 GLM verdict 实际包含 safe non-answers（R0–R4：11/9/4/27/12）与 explicit refusals（88/83/61/50/73）。
   - ❌ “0/418 leak、100% block、utility 0–11%”以及由此推导的 model-dependent operating-point 结论全部撤回。
 - [x] **rebuttal_v3 中无效 GLM 数字已移除（2026-07-30）**：C8 改回 corrected run pending；JD3a Q3 仅保留 GPT-5.5 已验证结果，并为 seed-verified GLM rerun 留位。
+- [x] **judge 输出口径已修正（2026-07-30）**：`eval_llm_judge.ts` 不再输出容易误读的 `block_rate`，改为分别输出 `leak_rate`、`safe_nonanswer_rate`、`explicit_refusal_rate` 与 `non_disclosure_rate`；其中最后一项明确只是前两类非泄露结果之和，不能作为第二条独立安全证据。
 - [ ] **正确重跑要求**：fresh namespace；seed 后 Notes count gate（预期 100）；至少抽两道 L 题验证能检索到 gold-bearing artifacts；trace 逐行记录 data namespace/model provenance；judge 后分别报告 leaked / safe / explicit refusal / system error，不再使用合并的 “block rate”。
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
 - [ ] 回应 JD3a Q3
@@ -153,6 +154,21 @@
 - [ ] per-category over-refusal 数字（work/finance/health/relationship）— aP1N Q4(b)
 - [ ] Escalation gate 提炼 1–2 个 headline 数字（实验已跑完，只差写作）— JD3a Q4
 - [ ] D2-Rel matched run（原 GPT-5-mini 设置上的干净对照）— aP1N Q4(c)
+
+### 9b. 全文数字审计（2026-07-30，E6 空世界事故后的全面复查）
+
+**已修（commit 见本次）：**
+- [x] 🐛 aP1N Q2 "65.0% with **29 of 60** refusals" 分子分母错配：产物（`e2_eval_input/eval_output/eval_single_step_gpt-5-mini.json`）里 29 是 **security 侧 29/40**，utility 侧另有 5/20 refused，总拒绝 34/60。已改写为分开陈述（5/20 legitimate refused + 29/40 sensitive refused as intended）
+- [x] 🐛 同一实验两套披露率并排且无解释：JD3a Q1 的 88.1%（=163/185 可判条目）vs GR-1 的 83.0%（=固定 200 分母）。**正是 aP1N 抓 Table 15/20 的同款坑**。已在 Q1 加一句分母说明
+- [x] 🐛 aP1N Q1 "utility cost between **0** and 29 pp"：GR-1 实际最小是 1pp（六模型 D0→D2 utility 差 1/1/5/24/1/29）。改 "between 1 and 29 pp"
+
+**复算通过（分子分母到原始产物）：**
+- E4：1,058/1,059 ✓；原 judge 88.1/14.1、D1 89.4 = 163/185、26/184、161/180 ✓；异族 judge 88.6/90.6/14.1 ✓
+- E2 表：75.0/42.5/35.0/7.5 与 90/90/85/65 ✓；可加性 30/38/5pp、4.7× ✓
+- mounting：12.9%（54/418）、5.6%（23/412）、78.9%、65.2% ✓；**56.8% 相对降幅从原始计数复算精确成立**（四舍五入值会得 56.6，是 rounding 假警报）
+- CHECK-3 修正值（70/99、55/99）两处均在，陈旧的 108/84 已清零 ✓；114/58 边数 ✓；Q5 的 20/191→24/191、76=21+55 ✓；GR-1 行内 delta（69–91pp）✓；JD3a Q2 的 5–31% ↔ 论文 26pp ✓；6,000 trials ✓
+- [ ] ⚠️ **aP1N Q4(b) 四组数字（colleague 6.7/71.7、delegate 30.0/58.3、close friend 18.3/75.0、investor 30.0/58.3）源产物未找到**：形状是 x/60（4、43、18、35、11、45），从 v1 一路继承，从未对过账；且 "the same 60 sensitive-work questions" 措辞与 CHECK-3 的 sensitive_work=29 行冲突（若指 60 题敏感子集应改措辞）。**发帖前必须找到产物或删掉这组数**
+- [ ] ⚠️ 未复算（源自论文正文，风险较低但没验）：GR-2 gold-string 组（72.5→13.0 等）、44/38 分歧审计计数、Files 8.0% vs States 17.6%
 
 ---
 
