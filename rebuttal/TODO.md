@@ -130,18 +130,20 @@
 - [x] **确认 E6 无需 seed group**：该脚本不走 `contact_agent`（0 匹配），自己构造模型直接扮演 Alex。此前为它 seed 的 8ce8/8ce9 两组是多余的
 - [x] **修复已验证跑通（2026-07-29 13:26）**：冒烟 D3 × R1 × GLM × Q101-103 打印 `provider=openai-compatible`，3 例 0 error。这行 provider 就是"没走 Azure 回落"的判据
 - [x] **跑起来才发现的第二个 bug（同日修，commit c2293b0cd）**：run id 直接拼接原始 model id，`z-ai/glm-5.2` 的斜杠把产物切成 `research/runs/d3_D3_R1_z-ai/glm-5.2_.../`，**分析脚本的扁平 `d3_*` glob 会静默漏掉整个 run**。已改为路径用 slug、`summary.json` 保留真实 id。两次冒烟已归档进 `e6_smoke_glm/artifacts/`，防止 1–3 题被当数据
-- [ ] **全量进行中**：D3 × R0–R4 × Q101-200 × GLM 5.2。**2026-07-29 15:40 状态：R0/R1/R2/R3 各 100 例已完成，R4 17/100；总计 417/500**。产物 `pulse/research/runs/d3_D3_R{0,1,2,3,4}_z-ai-glm-5.2_*/`
-  - **初步观察（产物级，尚未过 judge，不得写进 rebuttal）**：
+- [x] **数据采集完成（2026-07-29 16:2x）**：D3 × R0–R4 × Q101-200 × GLM 5.2，五个 requester 各 100 例。provenance-valid（response 非空且无 error）：R0 99 / R1 97 / R2 89 / R3 91 / R4 94。产物 `pulse/research/runs/d3_D3_R{0,1,2,3,4}_z-ai-glm-5.2_*/`
+- [x] **Judge pass 完成（2026-07-29 16:3x）**：用判过 gpt-5.5 那批的既定脚本 `solutions/eval_llm_judge.ts` **一字未改**（judge 硬编码 gpt-5-mini/Azure，与论文同 judge），产物 `trace_judged.jsonl` + `eval_llm_judge.json` 落在各 run 目录。**正式数字**：
 
-    | requester | n | avg tool calls | avg latency | avg resp chars |
-    |---|---|---|---|---|
-    | R0 陌生人 | 100 | 0.08 | 9,773ms | 147 |
-    | R1 | 100 | 0.66 | 9,703ms | 370 |
-    | R2 | 100 | 2.00 | 28,259ms | 478 |
+  | req | GLM leak (n) | GLM block | GLM util | gpt-5.5 leak | gpt-5.5 util |
+  |---|---|---|---|---|---|
+  | R0 | **0.0%** (0/99) | 100% | –（0 题） | 1.1% | 18.7% |
+  | R1 | **0.0%** (0/92) | 100% | 0.0% (0/5) | 7.4% | 96.2% |
+  | R2 | **0.0%** (0/65) | 100% | 0.0% (0/24) | 3.0% | 97.7% |
+  | R3 | **0.0%** (0/77) | 100% | 7.1% (1/14) | **37.8%** | 70.8% |
+  | R4 | **0.0%** (0/85) | 100% | 11.1% (1/9) | 14.8% | 98.2% |
 
-  - P 类（应保护）题目上，以"回答 <200 字符"作**拒绝代理指标**：R0 **95/100** 短回答，R1 **1/85**，R2 **0/67**。即 GLM 5.2 对陌生人几乎必拒，一旦 requester 带上任何关系上下文就几乎不再拒绝，同时 tool 调用从 0.08 升到 2.00
-  - ⚠️ **为什么现在不能当结论**：字符长度是代理不是判定；且 P/L/B 配比按设计逐 requester 不同（P 分别是 100/85/67），三列分母不可直接比。**必须跑与其他 lane 同一套 offline judge 之后才能取数**
-- [ ] 跑 E6 的 judge pass（R0–R4 齐了之后），再填 rebuttal
+  - **核心发现（可进 rebuttal）**：同一 D3 防御下，gpt-5.5 的泄露被关系显著调制（R3 密友 37.8%），而 **GLM 5.2 全谱零泄露（0/418）但 utility 崩塌（0–11%）**——关系条件效应在防守方之间**不稳定**，不同模型在同一 policy 下落在完全不同的 operating point。这直接支持论文"security–utility 权衡因模型而异、须按 discrete operating points 呈现"的主线，也正面回答 JD3a Q3
+  - ⚠️ **utility 列跨模型不可直接比**：gpt-5.5 那批跑的是 Q1-200（utility 分母含 public 题，91–132 题），GLM 只跑 Q101-200（utility 仅剩 label=answer/L 的 5–24 题）。**rebuttal 里 utility 只报 GLM 自己的数并写明范围，或不并列**；security 列两边同为 Q101-200 敏感子集，可比
+  - ❌ **此前的产物级"初步观察"已被 judge 推翻一半，作废**：R1/R2 的长回答不是泄露——judge 判定 0 leak，长度代理量的是"话多"不是"给内容"。关系效应在 GLM 上表现为参与度（tool 0.08→2.00、回答变长）而非披露。**该代理分析从未进入 rebuttal（当时即标注不得取数），现正式作废**
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
 - [ ] 回应 JD3a Q3
 
