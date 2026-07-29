@@ -8,6 +8,8 @@
 
 ### 交付范围冻结（2026-07-29 15:40）
 
+**2026-07-30 用户显式扩容：** 在原先“尽快形成可发 rebuttal”的最低范围之外，E1、E5 与 seed-verified GLM E6 corrected rerun 均已获准执行；Q4(b) 仍由 Claude 独立负责，Codex 不触碰。扩容实验必须继续满足 frozen plan、同题集、world/model provenance、immutable attempt 与固定分母要求。
+
 目标是 **3–4 小时内形成可发 rebuttal**，不再把所有“有时间最好补”的实验当作发帖前阻塞项。
 
 **必须完成：**
@@ -112,16 +114,16 @@
 - [x] **DeepSeek defender canonical 对照完成（2026-07-30）**：P0/P2 各 30/30，同一 canonical question set；7 个失败题以独立 immutable attempts 补齐后，由 `finalize_defender_cells.py` 按 questionId 合并并通过 policy、question、response、error、contact-error、requester/responder provenance gate。产物：`pulse/research/runs/rebuttal/finalized_defender_20260730/deepseek/`。同一 gpt-5-mini rubric 的 60/60 judge 完成：utility P0→P2 **100%→100%**（10/10→10/10）；disclosure **90%→5%**（18/20→1/20）；explicit refusal **5%→95%**（1/20→19/20）。这是单次 30 题 canonical subset，不与不同 question set 的 Kimi/Qwen 绝对值横比。
 - [ ] **GLM defender canonical 对照正在运行（2026-07-30）**：P0 最后缺失的 Q156 已完成；P2 canonical 30 题正在 `pulse/research/runs/rebuttal/glm_defender_finish_20260730/` 运行。完成后必须执行 `finalize_defender_cells.py --model glm`、同一 strict provenance gate、同一 gpt-5-mini judge，再与 DeepSeek 组成同题集 defender table。
 
-### 6. E1 operating points 扩充（可选；不得扩成 policy × model 全矩阵）
+### 6. E1 operating points 扩充（已批准；不得扩成 policy × model 全矩阵）
 
-- [ ] **去重复算已完成（2026-07-29 16:2x，Claude）**：按 questionId + provenance 去重后，P0 **59/60**（缺 167）、P3 **51/60**、P4 **50/60**、P5 **54/60**，合计缺 26 题。说明：15:48 那批"外部 worker"就是 Claude 在内存恢复后重启的补跑，被 15:50 的清理终止时尚在中途（日志里的 COMPLETE 标记来自更早批次）。按冻结此项**不阻塞发帖**，不重启；散点表如用现有数据须注明各 cell 的实际 n。
+- [ ] **26 个 provenance 缺口已精确复算并进入 frozen-plan 队列（2026-07-30）**：P0 缺 Q167；P3 缺 175/181/184/187/189/192/195/197/200；P4 缺 136/142/160/175/187/189/192/195/197/200；P5 缺 69/111/158/175/189/200。Codex 独立验证 P0/P3/P4/P5 与 E2 的 P1/P2/P6/P7 使用**完全相同的 60 个 questionId**，因此补齐并按同一 rubric 判分后可以合法组成单一 model pair 的 8-policy table/scatter。detached 队列：`pulse/research/runs/rebuttal/e1_e5_queue_20260730/`；四个批准 plan SHA 已写入 `run_e1_e5_queue.sh`，当前等待 GLM defender 释放 runner lock。
 - [ ] 确定 7–8 个 policy package 的名称 + 文献引用（固定一个 model pair）
 - [ ] 出单一 model pair 下的 policy operating-point 散点表；defender robustness 单独成表，不做笛卡尔积
 - [ ] 回应 aP1N Q1、TtBh Q4
 
-### 7. E5 States replication（可选）
+### 7. E5 States replication（已批准并排队）
 
-- [ ] 仅在确认能精确复现原 States protocol 时补 K 组（目标 n≥5），报 mean±sd
+- [ ] **原协议复现计划已冻结（2026-07-30）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。与原 g403/g406 合并后 D2 从 n=2 提升到 n=5。每格必须由 seeder 证明 100 notes + 150 todos、严格 question/model provenance、0 engine errors；任何空世界或题集错配直接作废。当前排在 E1 26 题之后自动启动。
 - [ ] 解释 variance 机制（early-context 是否含被查 state 对象 + 小分母）
 - [ ] 若时间不足：收窄 surface-asymmetry claim，明确 n=2 与高方差，不仓促换 protocol
 
@@ -147,6 +149,7 @@
 - [x] **rebuttal_v3 中无效 GLM 数字已移除（2026-07-30）**：C8 改回 corrected run pending；JD3a Q3 仅保留 GPT-5.5 已验证结果，并为 seed-verified GLM rerun 留位。
 - [x] **judge 输出口径已修正（2026-07-30）**：`eval_llm_judge.ts` 不再输出容易误读的 `block_rate`，改为分别输出 `leak_rate`、`safe_nonanswer_rate`、`explicit_refusal_rate` 与 `non_disclosure_rate`；其中最后一项明确只是前两类非泄露结果之和，不能作为第二条独立安全证据。
 - [x] **当前 rebuttal 不再重跑 GLM E6（2026-07-30 scope decision）**：JD3a Q3 要求 GPT-5.5 *or* another non-OpenAI model；现有 GPT-5.5 已完成 5 requesters × 400 QA × 3 conditions = 6,000 trials，足以回答该问题。GLM corrected rerun 降为论文后续可选实验，不再阻塞 rebuttal。若未来重跑，仍必须满足：fresh namespace；Notes count gate（预期 100）；两道 L 题检索探针；逐 trace world/model provenance；分别报告 leaked / safe / explicit refusal / system error。
+- [ ] **上述 scope decision 已被用户于 2026-07-30 显式覆盖，corrected GLM E6 已排队重跑**：detached `pact-e6-glm-seeded` 当前等待 canonical GLM defender 完成，随后 seed group-0 host；seed log 必须同时证明 100 notes / 150 todos；R2 Q101–Q102 两道 L 题必须通过 namespace、model-route、tool-use、nonempty-response 与同 rubric `correct` gate，才会继续 D3 × R0–R4 × Q101–Q200 的 500-call collection 和 judge。产物根：`pulse/research/runs/rebuttal/e6_glm_seeded_20260730/`。
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
 - [x] 回应 JD3a Q3：仅使用已验证的 GPT-5.5 6,000-trial replication；无效 GLM 数字及 corrected-run placeholder 均已从 rebuttal 删除
 
