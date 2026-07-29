@@ -72,9 +72,10 @@
 ### 5. E2 D1/D2 成分消融（三方点名，最救 claim）
 
 - [x] **E2 原始数据完成（2026-07-29 05:20）**：P1/P2/P6/P7 全部 **60/60**，merged 产物在 `pulse/research/runs/rebuttal/6b656e42874d_resume/policy_*/results.merged.jsonl`。待 judge pass 出消融表数字
-- [ ] **defender 轴 v2 在跑**（plan `7b99d045b3ec`，05:20 重启）：8 cell × **30 题**（E2 子集的分层前半）× 并发 3 ≈ 3.2h。v1（129b842dbfe9）因 group 复用与 E2 相互污染已归档为 `_contaminated`，8bb9 上 17 行有效数据存档未删。答 JD3a Q3 + 替代被删的 L312 claim
-- [ ] 填消融表 4 行数字 + 各 variant 词数
-- [ ] 回应 aP1N Q2、TtBh Q2、AC
+- [x] **消融表已填进 rebuttal（2026-07-29 07:15，commit d7579f2）**：judge pass（gpt-5-mini，与论文同 judge）跑完 240 行。disclosure P1 75.0 / P7 42.5 / P6 35.0 / P2 7.5；utility 90/90/85/65。**真发现：length（~38pp）与 category（~30pp）同量级且近似可加，推翻了草稿"specificity 主导"的预设**。AC 第 2 点、C2 行、aP1N Q2、TtBh Q2 四处已按数据重写
+- [x] 回应 aP1N Q2、TtBh Q2、AC —— 已写入，含全部 caveat（单 rep、新 60 题子集、P6/P7 为 draft-control 对照）
+- [ ] **defender 轴 4/8 格完成**：DeepSeek P0/P2 + GLM P0/P2 各 30/30（p2_ds 的 Q1 无效行由 Codex 重试中）。Kimi/Qwen 4 格：磁盘危机已解决（Siri 系统扩展吃掉 27GB，已修复），待当前 Codex 的 orchestrator 退出后按铁律 0 启动
+- [ ] defender 8 格齐后跑 judge pass 出跨 defender 表
 
 ### 6. E1 operating points 扩充
 
