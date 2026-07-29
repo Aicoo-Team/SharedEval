@@ -99,7 +99,7 @@
 - [x] **E2 原始数据完成（2026-07-29 05:20）**：P1/P2/P6/P7 全部 **60/60**，merged 产物在 `pulse/research/runs/rebuttal/6b656e42874d_resume/policy_*/results.merged.jsonl`。待 judge pass 出消融表数字
 - [x] **消融表已填进 rebuttal（2026-07-29 07:15，commit d7579f2）**：judge pass（gpt-5-mini，与论文同 judge）跑完 240 行。disclosure P1 75.0 / P7 42.5 / P6 35.0 / P2 7.5；utility 90/90/85/65。**真发现：length（~38pp）与 category（~30pp）同量级且近似可加，推翻了草稿"specificity 主导"的预设**。AC 第 2 点、C2 行、aP1N Q2、TtBh Q2 四处已按数据重写
 - [x] 回应 aP1N Q2、TtBh Q2、AC —— 已写入，含全部 caveat（单 rep、新 60 题子集、P6/P7 为 draft-control 对照）
-- [ ] 🚨 **defender 轴：两条 lane 的题目子集不同，现状拼不成一张表**（2026-07-29 14:47 发现）
+- [x] 🚨 **defender 轴的题集错配已通过 canonical rerun 解决**（问题于 2026-07-29 14:47 发现；修复于 2026-07-30 完成）
   - 两边目录名都带 `qset30`，且前 10 个 id 完全一致（1,6,11,17,22,27,32,37,43,48），所以一直没被发现。**第 11 个起分叉**：
     - Claude（`or_claude_lane`）：…53,58,64,69,74,79,84,90,95,100,101,104,107,111,114,117,120,124,127,130
     - Codex（`f1d964b29c2e`）：…101,104,107,111,114,131,134,136,139,142,156,158,160,162,164,176,179,181,184,187
@@ -114,11 +114,11 @@
 - [x] **Grok 本轮不启动**：模型通路可用，但它扩大范围且不是 reviewer 要求的最低充分证据。
 - [x] **GLM/DeepSeek diagonal cells 本轮不启动**：属于后续扩展，不阻塞 rebuttal。
 - [x] **DeepSeek defender canonical 对照完成（2026-07-30）**：P0/P2 各 30/30，同一 canonical question set；7 个失败题以独立 immutable attempts 补齐后，由 `finalize_defender_cells.py` 按 questionId 合并并通过 policy、question、response、error、contact-error、requester/responder provenance gate。产物：`pulse/research/runs/rebuttal/finalized_defender_20260730/deepseek/`。同一 gpt-5-mini rubric 的 60/60 judge 完成：utility P0→P2 **100%→100%**（10/10→10/10）；disclosure **90%→5%**（18/20→1/20）；explicit refusal **5%→95%**（1/20→19/20）。这是单次 30 题 canonical subset，不与不同 question set 的 Kimi/Qwen 绝对值横比。
-- [ ] **GLM defender canonical 对照正在运行（2026-07-30）**：P0 最后缺失的 Q156 已完成；P2 canonical 30 题正在 `pulse/research/runs/rebuttal/glm_defender_finish_20260730/` 运行。完成后必须执行 `finalize_defender_cells.py --model glm`、同一 strict provenance gate、同一 gpt-5-mini judge，再与 DeepSeek 组成同题集 defender table。
+- [x] **GLM defender canonical 对照完成（2026-07-30）**：P0/P2 各 **30/30**，与 DeepSeek 使用完全相同的 canonical question set；P0 的 Q134/Q156 由 immutable retries 补齐，P2 为单一完整 attempt。`finalize_defender_cells.py --model glm` 已通过 policy、question、response、error/contact-error 与 requester/responder provenance gate；同一 gpt-5-mini rubric 的 **60/60** judge 退出码为 0。utility P0→P2 **90%→100%**（9/10→10/10）；disclosure **80%→5%**（16/20→1/20）；explicit refusal **15%→95%**（3/20→19/20）。DeepSeek/GLM 同题集表：`pulse/research/runs/rebuttal/finalized_defender_20260730/defender_table.md`。
 
 ### 6. E1 operating points 扩充（已批准；不得扩成 policy × model 全矩阵）
 
-- [ ] **26 个 provenance 缺口已精确复算并进入 frozen-plan 队列（2026-07-30）**：P0 缺 Q167；P3 缺 175/181/184/187/189/192/195/197/200；P4 缺 136/142/160/175/187/189/192/195/197/200；P5 缺 69/111/158/175/189/200。Codex 独立验证 P0/P3/P4/P5 与 E2 的 P1/P2/P6/P7 使用**完全相同的 60 个 questionId**，因此补齐并按同一 rubric 判分后可以合法组成单一 model pair 的 8-policy table/scatter。detached 队列：`pulse/research/runs/rebuttal/e1_e5_queue_20260730/`；四个批准 plan SHA 已写入 `run_e1_e5_queue.sh`，当前等待 GLM defender 释放 runner lock。
+- [ ] **26 个 provenance 缺口已精确复算并进入 frozen-plan 队列（2026-07-30）**：P0 缺 Q167；P3 缺 175/181/184/187/189/192/195/197/200；P4 缺 136/142/160/175/187/189/192/195/197/200；P5 缺 69/111/158/175/189/200。Codex 独立验证 P0/P3/P4/P5 与 E2 的 P1/P2/P6/P7 使用**完全相同的 60 个 questionId**，因此补齐并按同一 rubric 判分后可以合法组成单一 model pair 的 8-policy table/scatter。detached 队列：`pulse/research/runs/rebuttal/e1_e5_queue_20260730/`。P0 Q167 已通过 strict gate；P3 的 9 题补跑正在执行，之后按 frozen plans 自动运行 P4、P5，再进入 E5。
 - [ ] 确定 7–8 个 policy package 的名称 + 文献引用（固定一个 model pair）
 - [ ] 出单一 model pair 下的 policy operating-point 散点表；defender robustness 单独成表，不做笛卡尔积
 - [ ] 回应 aP1N Q1、TtBh Q4
@@ -151,7 +151,7 @@
 - [x] **rebuttal_v3 中无效 GLM 数字已移除（2026-07-30）**：C8 改回 corrected run pending；JD3a Q3 仅保留 GPT-5.5 已验证结果，并为 seed-verified GLM rerun 留位。
 - [x] **judge 输出口径已修正（2026-07-30）**：`eval_llm_judge.ts` 不再输出容易误读的 `block_rate`，改为分别输出 `leak_rate`、`safe_nonanswer_rate`、`explicit_refusal_rate` 与 `non_disclosure_rate`；其中最后一项明确只是前两类非泄露结果之和，不能作为第二条独立安全证据。
 - [x] **当前 rebuttal 不再重跑 GLM E6（2026-07-30 scope decision）**：JD3a Q3 要求 GPT-5.5 *or* another non-OpenAI model；现有 GPT-5.5 已完成 5 requesters × 400 QA × 3 conditions = 6,000 trials，足以回答该问题。GLM corrected rerun 降为论文后续可选实验，不再阻塞 rebuttal。若未来重跑，仍必须满足：fresh namespace；Notes count gate（预期 100）；两道 L 题检索探针；逐 trace world/model provenance；分别报告 leaked / safe / explicit refusal / system error。
-- [ ] **上述 scope decision 已被用户于 2026-07-30 显式覆盖，corrected GLM E6 已排队重跑**：detached `pact-e6-glm-seeded` 当前等待 canonical GLM defender 完成，随后 seed group-0 host；seed log 必须同时证明 100 notes / 150 todos；R2 Q101–Q102 两道 L 题必须通过 namespace、model-route、tool-use、nonempty-response 与同 rubric `correct` gate，才会继续 D3 × R0–R4 × Q101–Q200 的 500-call collection 和 judge。产物根：`pulse/research/runs/rebuttal/e6_glm_seeded_20260730/`。
+- [ ] **上述 scope decision 已被用户于 2026-07-30 显式覆盖，corrected GLM E6 正在重跑**：detached `pact-e6-glm-seeded` 已完成 seed gate（日志证明 100 notes / 150 todos；实际 probe 记录 `notes_at_start=103`）与 R2 Q101–Q102 legitimate-access gate（2/2 同 rubric correct；tool calls 2/3；非空响应；namespace 正确；requested/resolved/deployment 均为 `z-ai/glm-5.2`，provider=`openai-compatible`）。D3 × R0–R4 × Q101–Q200 的 500-call collection 已启动；完成后脚本将用既定 judge 判分。产物根：`pulse/research/runs/rebuttal/e6_glm_seeded_20260730/`。
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
 - [x] 回应 JD3a Q3：仅使用已验证的 GPT-5.5 6,000-trial replication；无效 GLM 数字及 corrected-run placeholder 均已从 rebuttal 删除
 
