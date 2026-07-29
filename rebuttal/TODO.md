@@ -91,6 +91,7 @@
 
 ### 6. E1 operating points 扩充
 
+- [ ] **P0/P3/P4/P5 × gpt-5-mini 已跑到 58/49/49/53（/60），共缺 31 题**，产物在 `pulse/research/runs/rebuttal/e1_claude_lane/policy_*/`。全部进程于 2026-07-29 14:42–14:48 因内存压力被杀，**数据完好可续跑**。续跑方式：按 provenance 复算缺失 id，用各自 `--alex-id 8c80/8c81/8c82/8c83`、`--group 3200–3203`、`>>` 追加日志，**绝不 reseed**
 - [ ] 确定 7 个 policy package 的名称 + 文献引用（v3 里 4 处 `【TODO: 7】`）
 - [ ] 出 7-policy × k-model 散点表，填 `【TODO: k】`
 - [ ] 回应 aP1N Q1、TtBh Q4
@@ -107,7 +108,18 @@
 - [x] **确认 E6 无需 seed group**：该脚本不走 `contact_agent`（0 匹配），自己构造模型直接扮演 Alex。此前为它 seed 的 8ce8/8ce9 两组是多余的
 - [x] **修复已验证跑通（2026-07-29 13:26）**：冒烟 D3 × R1 × GLM × Q101-103 打印 `provider=openai-compatible`，3 例 0 error。这行 provider 就是"没走 Azure 回落"的判据
 - [x] **跑起来才发现的第二个 bug（同日修，commit c2293b0cd）**：run id 直接拼接原始 model id，`z-ai/glm-5.2` 的斜杠把产物切成 `research/runs/d3_D3_R1_z-ai/glm-5.2_.../`，**分析脚本的扁平 `d3_*` glob 会静默漏掉整个 run**。已改为路径用 slug、`summary.json` 保留真实 id。两次冒烟已归档进 `e6_smoke_glm/artifacts/`，防止 1–3 题被当数据
-- [ ] **全量已启动（pid 46041）**：D3 × R0–R4 × Q101-200 × GLM 5.2，单进程顺序执行。这是 JD3a Q3 的第一份非 OpenAI 答案
+- [ ] **全量进行中**：D3 × R0–R4 × Q101-200 × GLM 5.2。**2026-07-29 16:0x 状态：R0/R1/R2 各 100 例已完成，R3 78/100，R4 未开始**。产物 `pulse/research/runs/d3_D3_R{0,1,2,3}_z-ai-glm-5.2_*/`
+  - **初步观察（产物级，尚未过 judge，不得写进 rebuttal）**：
+
+    | requester | n | avg tool calls | avg latency | avg resp chars |
+    |---|---|---|---|---|
+    | R0 陌生人 | 100 | 0.08 | 9,773ms | 147 |
+    | R1 | 100 | 0.66 | 9,703ms | 370 |
+    | R2 | 100 | 2.00 | 28,259ms | 478 |
+
+  - P 类（应保护）题目上，以"回答 <200 字符"作**拒绝代理指标**：R0 **95/100** 短回答，R1 **1/85**，R2 **0/67**。即 GLM 5.2 对陌生人几乎必拒，一旦 requester 带上任何关系上下文就几乎不再拒绝，同时 tool 调用从 0.08 升到 2.00
+  - ⚠️ **为什么现在不能当结论**：字符长度是代理不是判定；且 P/L/B 配比按设计逐 requester 不同（P 分别是 100/85/67），三列分母不可直接比。**必须跑与其他 lane 同一套 offline judge 之后才能取数**
+- [ ] 跑 E6 的 judge pass（R0–R4 齐了之后），再填 rebuttal
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
 - [ ] 回应 JD3a Q3
 
