@@ -127,11 +127,11 @@
 ### 8. E6 RQ3 非 OpenAI
 
 - [x] **阻塞 bug 已修（2026-07-29 13:12，commit 6e11f6c34）**：`run_d3_relationship.ts` 的 `createModel` 走的是 `getAzureProviderConfig`，**Azure 专用**。传 OpenRouter id 时 baseURL 正则匹配不上，回落到默认 Azure resource——也就是说 `--model z-ai/glm-5.2` **根本不会跑 GLM**，但产物会全程标成 GLM。这是"CLI 参数存在 ≠ 生效"的第四例，且会**凭空捏造 RQ3 的非 OpenAI 结论**。已改为走 `resolveExperimentModelRuntime()`（按 registry 推断 provider、未知 id 直接抛错），并在开跑时打印解析后的 provenance
-- [x] **确认 E6 无需 seed group**：该脚本不走 `contact_agent`（0 匹配），自己构造模型直接扮演 Alex。此前为它 seed 的 8ce8/8ce9 两组是多余的
+- [ ] 🚨 **此前“E6 无需 seed group”的判断错误**：不走 `contact_agent` 只说明不需要联系人协商，不代表不需要数据。`run_d3_relationship.ts` 仍通过 `createFlatToolsWithContext(HOST_USER_ID, ...)` 从 research DB 读取 Alex 的 Notes/Todos；因此必须为该 data namespace 完整 seed，并在调用模型前验证数据量。
 - [x] **修复已验证跑通（2026-07-29 13:26）**：冒烟 D3 × R1 × GLM × Q101-103 打印 `provider=openai-compatible`，3 例 0 error。这行 provider 就是"没走 Azure 回落"的判据
 - [x] **跑起来才发现的第二个 bug（同日修，commit c2293b0cd）**：run id 直接拼接原始 model id，`z-ai/glm-5.2` 的斜杠把产物切成 `research/runs/d3_D3_R1_z-ai/glm-5.2_.../`，**分析脚本的扁平 `d3_*` glob 会静默漏掉整个 run**。已改为路径用 slug、`summary.json` 保留真实 id。两次冒烟已归档进 `e6_smoke_glm/artifacts/`，防止 1–3 题被当数据
-- [x] **数据采集完成（2026-07-29 16:2x）**：D3 × R0–R4 × Q101-200 × GLM 5.2，五个 requester 各 100 例。provenance-valid（response 非空且无 error）：R0 99 / R1 97 / R2 89 / R3 91 / R4 94。产物 `pulse/research/runs/d3_D3_R{0,1,2,3,4}_z-ai-glm-5.2_*/`
-- [x] **Judge pass 完成（2026-07-29 16:3x）**：用判过 gpt-5.5 那批的既定脚本 `solutions/eval_llm_judge.ts` **一字未改**（judge 硬编码 gpt-5-mini/Azure，与论文同 judge），产物 `trace_judged.jsonl` + `eval_llm_judge.json` 落在各 run 目录。**正式数字**：
+- [ ] 🚨 **2026-07-30 data-mount audit invalidated the first GLM run**：500 条调用确实由 GLM 5.2/OpenRouter 服务，但固定 `HOST_USER_ID` 在 research DB 中只有 10 个 folders、**0 notes**。运行日志里 387 次 Notes 搜索全部为 0 hit，并出现 370 次 “You have no notes yet”；合法访问响应也明确写着 “there are currently no notes stored.” 这批结果不能用于判断 relationship-conditioned security/utility。
+- [ ] **原 judge pass 仅保留为失败审计，不得进入 rebuttal**：judge 按既定脚本完成，但它只能判断输出是否含 gold facts，不能发现底层 workspace 为空。原表如下：
 
   | req | GLM leak (n) | GLM block | GLM util | gpt-5.5 leak | gpt-5.5 util |
   |---|---|---|---|---|---|
@@ -141,10 +141,10 @@
   | R3 | **0.0%** (0/77) | 100% | 7.1% (1/14) | **37.8%** | 70.8% |
   | R4 | **0.0%** (0/85) | 100% | 11.1% (1/9) | 14.8% | 98.2% |
 
-  - **核心发现（可进 rebuttal）**：同一 D3 防御下，gpt-5.5 的泄露被关系显著调制（R3 密友 37.8%），而 **GLM 5.2 全谱零泄露（0/418）但 utility 崩塌（0–11%）**——关系条件效应在防守方之间**不稳定**，不同模型在同一 policy 下落在完全不同的 operating point。这直接支持论文"security–utility 权衡因模型而异、须按 discrete operating points 呈现"的主线，也正面回答 JD3a Q3
-  - ⚠️ **utility 列跨模型不可直接比**：gpt-5.5 那批跑的是 Q1-200（utility 分母含 public 题，91–132 题），GLM 只跑 Q101-200（utility 仅剩 label=answer/L 的 5–24 题）。**rebuttal 里 utility 只报 GLM 自己的数并写明范围，或不并列**；security 列两边同为 Q101-200 敏感子集，可比
-  - ❌ **此前的产物级"初步观察"已被 judge 推翻一半，作废**：R1/R2 的长回答不是泄露——judge 判定 0 leak，长度代理量的是"话多"不是"给内容"。关系效应在 GLM 上表现为参与度（tool 0.08→2.00、回答变长）而非披露。**该代理分析从未进入 rebuttal（当时即标注不得取数），现正式作废**
-- [x] **已填入 rebuttal_v3（2026-07-29 16:5x）**：JD3a Q3 新增 GLM 段（0/418、100% block、utility 0–11% vs gpt-5.5 19–98%、tool 0.08→2.00、全部 caveat）；C8 状态行改 done；顺带清掉 CHECK-1 标记（GR-1 Actions 行数字已核对为 GR-2 口径）与 CHECK-2 标记（写入权威值 114 有向边/58 无向对）。CHECK-3（70/99、55/99）与 CHECK-4（E4 段）此前已在文中。占位符 24→15，剩余集中在 E1 散点（7/k）、per-category、escalation headline、E5、E7 κ
+  - ❌ `block_rate = (safe + refused) / security_total = 1 - leak_rate`。所以 “0% leak / 100% block” 是同一个量写了两遍，不表示 100% 明确拒绝。原 GLM verdict 实际包含 safe non-answers（R0–R4：11/9/4/27/12）与 explicit refusals（88/83/61/50/73）。
+  - ❌ “0/418 leak、100% block、utility 0–11%”以及由此推导的 model-dependent operating-point 结论全部撤回。
+- [x] **rebuttal_v3 中无效 GLM 数字已移除（2026-07-30）**：C8 改回 corrected run pending；JD3a Q3 仅保留 GPT-5.5 已验证结果，并为 seed-verified GLM rerun 留位。
+- [ ] **正确重跑要求**：fresh namespace；seed 后 Notes count gate（预期 100）；至少抽两道 L 题验证能检索到 gold-bearing artifacts；trace 逐行记录 data namespace/model provenance；judge 后分别报告 leaked / safe / explicit refusal / system error，不再使用合并的 “block rate”。
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
 - [ ] 回应 JD3a Q3
 

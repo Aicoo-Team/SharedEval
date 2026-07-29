@@ -1,6 +1,6 @@
 # Rebuttal 实验监督循环 — 运行手册
 
-Claude 每小时执行一次，共 10 轮（2026-07-29 00:00 起）。Codex 并行工作在同一批代码和实验上，所以每一步都假设文件可能已被改动。
+2026-07-29 交付范围已冻结。监督目标是完成最低充分证据，不再通过增加模型或实验格扩大 scope。
 
 日志：`pulse/research/runs/rebuttal/EXPERIMENT_SUPERVISOR.log`（追加，每条署名）
 
@@ -39,8 +39,11 @@ Claude 每小时执行一次，共 10 轮（2026-07-29 00:00 起）。Codex 并�
 | cell 名以 `_q1_r1` 结尾 | 单题 smoke，**通路验证不是实验数据** |
 | manifest 状态 `running` 但无进程 | 被强杀，来不及写终止状态。数据完好可续跑 |
 | CLI 参数存在 | **不代表生效**。今天发现三个空转参数（`EXPERIMENT_MODEL`、QA track 的 `--judge-model`、我自己漏传的 `--out-dir`） |
+| leak 0% 且 utility ≈0% | **先查世界再谈结论**。E6 GLM 500 条全跑在 0 笔记的空 host 上：无密可泄的 0% 是真空结论，judge 无法发现底层 workspace 为空。启动前必须做世界探针（host 数据量 + 一道已知-good 检索题），trace 逐行记录 data namespace |
+| 行数达标 + 进程已退出 | **"完成"的样子 ≠ 完成**。qwen-P2 30 行仅 28 valid、E1-P0 60 行仅 55 valid。完成判定只认 provenance 复算 |
+| 派生指标彼此印证 | **先查是不是同义反复**。block_rate = 1 − leak_rate，"0% leak 且 100% block" 是同一个量写两遍，不构成两条证据 |
 
-**一条总原则**：任何"完成"的声明，必须来自读过的产物文件，不能来自命令返回值或叙述。
+**一条总原则**：任何"完成"的声明，必须来自读过的产物文件，不能来自命令返回值或叙述。**测量对象永远是 (model × policy × world) 三元组，三者的 provenance 都要验，今天验了前两个漏了第三个。**
 
 ---
 
@@ -50,13 +53,23 @@ Claude 每小时执行一次，共 10 轮（2026-07-29 00:00 起）。Codex 并�
 
 | 序 | 实验 | 规模 | 回应 | 状态 |
 |---|---|---|---|---|
-| 1 | **E2 policy 消融** P1/P2/P6/P7 | 4×60 | aP1N Q2、TtBh Q2、AC | 收尾中，剩 13 题 |
-| 2 | **Defender 轴** 4 模型 × P0/P2 | 8×60 = 480 | JD3a Q3；替换被删的 L312 claim | **已启动** |
-| 3 | **E6 relationship × 非 OpenAI** | R0–R4 × GLM | JD3a Q3 的关系条件部分 | 未启动 |
-| 4 | **E5 States replication** | 补至 n≥5 | JD3a Q2 | 未启动 |
-| 5 | **E1 operating points** | 7 policy × k 模型 | aP1N Q1、TtBh Q4 | 未启动，需先定 policy 名单 |
+| 1 | **E6 relationship × GLM** | R0–R4 × 100 | JD3a Q3 | **417/500，正在运行；之后需 judge** |
+| 2 | **Defender 轴最低充分版** | DeepSeek/GLM × P0/P2 × canonical 30 | 跨 responder robustness | 缺失格/失败题需 frozen-plan 补齐 |
+| 3 | **P2 写作与呈现** | 8 项 | AC + 三位 reviewers | 可与实验并行 |
+| 4 | **E2 policy 消融** | P1/P2/P6/P7 × 60 | aP1N Q2、TtBh Q2、AC | **240/240 + judge 完成** |
+| 5 | **E4 Files 异族 judge** | 1,058 responses | JD3a Q1、TtBh Q5 | **完成，98.3% agreement** |
+| 6 | **E1 operating points** | 固定 model pair × 7–8 policies | aP1N Q1、TtBh Q4 | 可选，不跑 policy × model 全矩阵 |
+| 7 | **E5 States replication** | 原 protocol 补至 n≥5 | JD3a Q2 | 可选；否则收窄 claim |
 
-**10 小时内现实的交付**：1、2 完成，3 可能完成。4、5 量太大，**不会为了凑数把没跑完的当跑完**。
+**现实 ETA**：最低充分 rebuttal 约 3–4 小时；补齐 Kimi/Qwen 约 5–7 小时；原始完整 TODO 至少 12–18 小时且 E7 无确定 ETA。
+
+## Scope freeze
+
+- 允许当前已启动的 E6 和 Qwen P2 自然完成。
+- 本轮不启动 Grok、GLM/DeepSeek diagonal cells。
+- 本轮不运行 `research/scripts/rebuttal/next_batch.sh`。
+- 不把不同 question subset、不同 attempt lineage 或非 frozen-plan 产物拼成跨模型表。
+- E4 States 改写为 limitation；multi-turn re-judge、E5、E7 均不阻塞发帖。
 
 ---
 
