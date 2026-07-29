@@ -90,7 +90,7 @@
   - provenance：1,058/1,058 由 `deepseek/deepseek-v4-flash` 实际服务（从响应体读回，非请求值）
   - 产物：`rebuttal/runs/e4_cross_family_judge.py`、`rebuttal/runs/e4/verdicts.jsonl`、`rebuttal/runs/e4/full.log`
 - [x] 已填入 `rebuttal_v3.md` 四处（General Response、C3 状态栏、JD3a Q1、TtBh Q5）
-- [x] **States 不作为待补实验**：`eval_results.json` 是 string-match 产物，**从未有过 LLM judge 基线**，无法做严格 paired judge comparison；改写为 limitation。
+- [ ] **States 异族 judge 已启动（2026-07-30；修正此前误判）**：此前只检查了 `eval_results.json`，因而错误断言 States 没有 LLM-judge 基线；权威产物 `thesis/results/layer0_single_step/ss_todo_eval_llm.json` 实际包含 g401–g406 的 1,200 条逐题 gpt-5-mini verdict。已将原始/续跑 response 按 questionId 与该产物严格配对，得到 **1,030 条可判文本**（utility 507 / security 523；m0 341 / m1 348 / m2 341）。`pact-e4-states-judge` 正用 DeepSeek V4 Flash、temperature 0 和提交 evaluator 的逐字 rubric 全量重判；产物：`PACT/rebuttal/runs/e4_states/`。完成前不得引用结果。
 - [ ] **multi-turn re-judge（可选）**：需从各 run 的 `chat_history.json` 重建全文输入；当前不阻塞发帖。
 - ⚠️ **Codex 曾重复跑过一个较弱版本**（585 抽样 + 改写 rubric），已自行撤回，其 `e4-*-600.json` 标记为 exploratory，不得进入论文
 
