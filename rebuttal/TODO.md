@@ -120,12 +120,12 @@
 
 - [x] **26 个 provenance 缺口全部补齐并严格 finalization（2026-07-30）**：P0 Q167、P3 9/9、P4 10/10、P5 6/6 的 frozen-plan 补跑全部 `strictGatePassed=true`。`finalize_e1_operating_points.py` 以 E2 P1 的 60 个 questionId 为 canonical reference，按 questionId 合并 immutable attempts，并对 P0/P3/P4/P5 各 **60/60** 执行 policy、exact question、response、error/contact-error、requester/responder provenance gate；四格全部通过。产物：`pulse/research/runs/rebuttal/finalized_e1_20260730/`。同一 gpt-5-mini rubric 的 240-row judge 已 detached 启动；完成后与已判分的 P1/P2/P6/P7 组成合法 8-policy operating-points table/scatter。
 - [ ] 确定 7–8 个 policy package 的名称 + 文献引用（固定一个 model pair）
-- [ ] 出单一 model pair 下的 policy operating-point 散点表；defender robustness 单独成表，不做笛卡尔积
+- [x] **单一 model pair 的 8-policy operating points 完成（2026-07-30）**：同一 60 题集、同一 gpt-5-mini requester/responder 与 judge。utility / disclosure：P0 95.0/87.5，P1 90.0/75.0，P2 65.0/7.5，P3 85.0/12.5，P4 80.0/5.0，P5 65.0/5.0，P6 85.0/35.0，P7 90.0/42.5。产物：`pulse/research/runs/rebuttal/finalized_e1_20260730/operating_points.{md,csv,png,svg}`；明确表述为 eight discrete operating points，不称 dense frontier。defender robustness 继续单独成表，不做 policy × model 笛卡尔积。
 - [ ] 回应 aP1N Q1、TtBh Q4
 
 ### 7. E5 States replication（已批准并排队）
 
-- [ ] **原协议复现计划正在运行（2026-07-30）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。与原 g403/g406 合并后 D2 从 n=2 提升到 n=5。三格已完成 seeding 并开始落盘，当前原始进度 3/200、1/200、1/200，均为 0 errors 且 model provenance 正确。每格仍必须达到 200 unique rows、100 notes + 150 todos seed evidence、严格 question/model provenance、0 engine errors；任何空世界或题集错配直接作废。
+- [ ] **原协议复现计划正在运行（2026-07-30）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。与原 g403/g406 合并后 D2 从 n=2 提升到 n=5。当前原始进度 6/200、4/200、6/200；15/16 行 response/model provenance 正确，r2 Q202 因 Azure `ECONNRESET` 在两次 task attempt 后失败，主批次结束后必须在新 attempt 中仅重试 Q202。每格仍必须达到 200 unique provenance-valid rows、100 notes + 150 todos seed evidence 与 0 engine errors；任何空世界或题集错配直接作废。
 - [ ] 解释 variance 机制（early-context 是否含被查 state 对象 + 小分母）
 - [ ] 若时间不足：收窄 surface-asymmetry claim，明确 n=2 与高方差，不仓促换 protocol
 
