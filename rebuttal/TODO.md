@@ -125,7 +125,7 @@
 
 ### 7. E5 States replication（已批准并排队）
 
-- [ ] **原协议复现计划正在运行（2026-07-30）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。与原 g403/g406 合并后 D2 从 n=2 提升到 n=5。当前原始进度 15/200、8/200、13/200；33/36 行 response/model provenance 正确。transient Azure failures：r1 Q207、r2 Q202/Q205，主批次结束后必须在新 attempts 中仅重试这三题。每格仍必须达到 200 unique provenance-valid rows、100 notes + 150 todos seed evidence 与 0 engine errors；任何空世界或题集错配直接作废。
+- [ ] **原协议复现计划正在运行（2026-07-30）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。与原 g403/g406 合并后 D2 从 n=2 提升到 n=5。当前原始进度 **27/200、13/200、20/200**；56/60 行 response/model provenance 正确。transient Azure failures：r1 Q207、r2 Q202/Q205、r3 Q214，主批次结束后必须在新 attempts 中仅重试这四题。每格仍必须达到 200 unique provenance-valid rows、100 notes + 150 todos seed evidence 与 0 engine errors；任何空世界或题集错配直接作废。
 - [ ] 解释 variance 机制（early-context 是否含被查 state 对象 + 小分母）
 - [ ] 若时间不足：收窄 surface-asymmetry claim，明确 n=2 与高方差，不仓促换 protocol
 
@@ -151,7 +151,7 @@
 - [x] **rebuttal_v3 中无效 GLM 数字已移除（2026-07-30）**：C8 改回 corrected run pending；JD3a Q3 仅保留 GPT-5.5 已验证结果，并为 seed-verified GLM rerun 留位。
 - [x] **judge 输出口径已修正（2026-07-30）**：`eval_llm_judge.ts` 不再输出容易误读的 `block_rate`，改为分别输出 `leak_rate`、`safe_nonanswer_rate`、`explicit_refusal_rate` 与 `non_disclosure_rate`；其中最后一项明确只是前两类非泄露结果之和，不能作为第二条独立安全证据。
 - [x] **当前 rebuttal 不再重跑 GLM E6（2026-07-30 scope decision）**：JD3a Q3 要求 GPT-5.5 *or* another non-OpenAI model；现有 GPT-5.5 已完成 5 requesters × 400 QA × 3 conditions = 6,000 trials，足以回答该问题。GLM corrected rerun 降为论文后续可选实验，不再阻塞 rebuttal。若未来重跑，仍必须满足：fresh namespace；Notes count gate（预期 100）；两道 L 题检索探针；逐 trace world/model provenance；分别报告 leaked / safe / explicit refusal / system error。
-- [ ] **上述 scope decision 已被用户于 2026-07-30 显式覆盖，corrected GLM E6 主 collection 完成，正在 judge/retry**：seed gate 与 R2 legitimate-access probe 均通过；R0–R4 各 **100/100**，全部记录 `notes_at_start=103`、固定 namespace 与 `z-ai/glm-5.2` openai-compatible provenance。usable/error：R0 100/0、R1 99/1、R2 91/9、R3 92/8、R4 96/4，共 **478 usable + 22 failed**。失败均保留在原始 attempts；不修改工具契约。既定 judge 已完成 R0–R3、R4 正在运行；judge 结束后仅对 22 个 `(requester, questionId)` failed pairs 启动 fresh immutable retries，再按 questionId/provenance 合并。
+- [ ] **上述 scope decision 已被用户于 2026-07-30 显式覆盖，corrected GLM E6 主 collection + base judge 完成，22-pair retry queue 正在运行**：seed gate 与 R2 legitimate-access probe 均通过；R0–R4 各 **100/100**，全部记录 `notes_at_start=103`、固定 namespace 与 `z-ai/glm-5.2` openai-compatible provenance。usable/error：R0 100/0、R1 99/1、R2 91/9、R3 92/8、R4 96/4，共 **478 usable + 22 failed**。同一 gpt-5-mini rubric 的 base judge 五格均 exit 0；当前 provisional 结果（错误行不进 judge 分母）为 R0 leak 1/100；R1 utility 6/6、leak 4/93；R2 utility 25/26、leak 0/65；R3 utility 15/15、leak 25/77；R4 utility 8/9、leak 10/87。`pact-e6-glm-retries` 仅对这 22 个 `(requester, questionId)` 使用 fresh immutable attempts，逐条执行 world/namespace/model/response/error/judge gates，最多 5 次；不修改工具契约、不覆盖 base artifacts。全部补齐后才按 questionId/provenance finalization 并发布正式分母。
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
 - [x] 回应 JD3a Q3：仅使用已验证的 GPT-5.5 6,000-trial replication；无效 GLM 数字及 corrected-run placeholder 均已从 rebuttal 删除
 
