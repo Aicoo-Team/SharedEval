@@ -74,8 +74,17 @@
 - [x] **E2 原始数据完成（2026-07-29 05:20）**：P1/P2/P6/P7 全部 **60/60**，merged 产物在 `pulse/research/runs/rebuttal/6b656e42874d_resume/policy_*/results.merged.jsonl`。待 judge pass 出消融表数字
 - [x] **消融表已填进 rebuttal（2026-07-29 07:15，commit d7579f2）**：judge pass（gpt-5-mini，与论文同 judge）跑完 240 行。disclosure P1 75.0 / P7 42.5 / P6 35.0 / P2 7.5；utility 90/90/85/65。**真发现：length（~38pp）与 category（~30pp）同量级且近似可加，推翻了草稿"specificity 主导"的预设**。AC 第 2 点、C2 行、aP1N Q2、TtBh Q2 四处已按数据重写
 - [x] 回应 aP1N Q2、TtBh Q2、AC —— 已写入，含全部 caveat（单 rep、新 60 题子集、P6/P7 为 draft-control 对照）
-- [ ] **defender 轴进行中**：DeepSeek P0/P2 + GLM P0/P2 由 Codex 跑（plan f1d964b29c2e，UUID 8bb8/8bb9/8bba）。Kimi/Qwen 4 格由 Claude 在 8ce4–8ce7 跑。**2026-07-29 13:29 读产物：qwen-P0 30/30、qwen-P2 30/30 均 provenance 全valid**（定向补跑 Q130 与 Q48/Q100 后）；kimi-P0 23/30 valid、kimi-P2 17/30 valid，仍在跑
-  - ⚠️ **教训**：qwen-P2 曾显示 30/30 行，但其中 Q48/Q100 是 `Tina tick timed out after 600s`、无 responder provenance。**只数行数会把它当成完成的格子**。所有格子的完成判定必须走 provenance 校验，不能看 `wc -l`
+- [ ] 🚨 **defender 轴：两条 lane 的题目子集不同，现状拼不成一张表**（2026-07-29 14:47 发现）
+  - 两边目录名都带 `qset30`，且前 10 个 id 完全一致（1,6,11,17,22,27,32,37,43,48），所以一直没被发现。**第 11 个起分叉**：
+    - Claude（`or_claude_lane`）：…53,58,64,69,74,79,84,90,95,100,101,104,107,111,114,117,120,124,127,130
+    - Codex（`f1d964b29c2e`）：…101,104,107,111,114,131,134,136,139,142,156,158,160,162,164,176,179,181,184,187
+    - **交集只有 15/30**。直接把 DeepSeek/GLM 和 Kimi/Qwen 放进同一张表 = 拿不同题目比不同模型，把 defender 身份和题目难度混在一起
+  - **每个模型自己的 P0→P2 delta 仍然有效**（同模型的两格用同一子集），坏掉的只是跨模型比较
+  - 发现方式：provenance 复算时加了 questionId 过滤，同一格从 28/30 掉到 13/30，两个数对不上才查出来
+  - **Codex 侧还不完整**：p0-deepseek 28/30（缺 6,27）、p0-glm 28/30（缺 134,156）、p2-deepseek 25/30（缺 1,11,139,158,176）、**p2-glm 在该 plan 里根本不存在** → GLM 没有 P0→P2 delta，而这正是 defender 轴要证的东西。旧 plan `7b99d045b3ec` 有一个 p2-glm52，但它属于污染后归档的那批，provenance 未确认前不能混用
+  - 这些在 8bb8/8bb9/8bba，无活进程但**未完成 = 铁律 0 的 owned**，Claude 不碰，留给 Codex
+  - **Claude 侧修法（只动自己命名空间）**：把 4 个格子各补跑 Codex 独有的 15 题（131,134,136,139,142,156,158,160,162,164,176,179,181,184,187），补完后每格覆盖两个子集的并集 ⊇ Codex 的 30 题，全部模型即可在 Codex 子集上互比。**qwen P0/P2 已启动**；kimi 两格等 8ce5 上的 Q100 重试结束（铁律 0）
+  - ⚠️ **教训（今天第 4 次）**：qwen-P2 曾显示 30/30 行、E1-P0 曾显示 60/60 行且进程已退出，都是"完成"的样子，实际分别只有 28 和 55 条 provenance-valid。**完成判定一律走 provenance 复算，绝不看 `wc -l`**
 - [ ] **第五个模型家族已就位**：`x-ai/grok-4.3` 实测在区域可用（HTTP 200，served id 一致，且能真发 tool_calls），已注册进 `experiment-model-runtime.ts`。grok-4/grok-4-fast 已废弃返回 404。Grok P0/P2 两格在 `next_batch.sh` 里待发
 - [ ] **对角线格（双方同厂商）待发**：GLM↔GLM、DeepSeek↔DeepSeek 各 P0/P2，UUID 8d00–8d03。这是论文自己设定的"跨所有权边界"最真实形态
 - [ ] defender 8 格齐后跑 judge pass 出跨 defender 表
