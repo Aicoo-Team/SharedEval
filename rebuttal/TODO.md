@@ -68,11 +68,13 @@
 - [x] **CHECK-4 已解决**：judge 确实是 gpt-5-mini（六个 offline eval 脚本全部硬编码），JD3a 说对了，不能反驳，只能承认+补异族 judge（见 E4）
 - [x] **Metric_Definition 已更正**：Lark 表现在明确写明分母固定、error/no-response 不排除且按 utility failure 计；数字未改。Kimi 三行受影响最大（82% vs 排除后 98.8%）。
 
-### 3. 非作者标注（E7）— lead time 最长
+### 3. 非作者标注（E7）— **回收完成，κ 已入 rebuttal（2026-07-30，Claude）**
 
-- [ ] 五份 CSV 发出（zip 已打好在 `annotation/outbox/`）：Sara(A) / Trishit(B) / Abhinav(C) / Hanxiang(D) / Yu Chen(E)
-- [ ] 回收后放 `annotation/filled/`，跑 `compute_agreement.py`
-- [ ] 填 v3 的三处 κ 占位：relationship P/L/B、action verdicts、QA share/protect
+- [x] 五份全部回收并通过第二轮验收（Hanxiang 的 QC 报告：抄袭指纹全净、五份采纳、数据按 7/29 交付版冻结）。产物归档 `annotation/filled/qc_round2/`（报告 + 458 行分歧表 + 100 格 majority≠gold 表，行数已核对）
+- [x] κ 已填入 v3 四处（C4 状态、JD3a limitations、TtBh Q1 含表格、TtBh Q5(iii)）：**5 人口径 QA 0.654 / REL 0.501 / ACT 0.491**，并按报告并列 4 人 external-only 敏感性口径
+- [x] ⚠️ **措辞修正**：原稿写 "5 non-author annotators"，但 D（Hanxiang）是 author-track——已改为 "four external, one project-affiliated" 并双口径报告。**发帖前请你确认这个表述**，这是诚实性问题不是风格问题
+- [x] ACT κ 未达 0.6 已如实写出，并附结构性归因（三种反向偏差 + 三个指南缺口）；100 格 majority≠gold 按"gold 冻结、仅作裁决记录"写入
+- [ ] 458 行 `adjudicated_label` 列裁决（lead/author 侧动作，不阻塞发帖）
 - [ ] 写 adjudication notes（每个 majority ≠ author 的 cell 一句话）
 
 ---
@@ -153,11 +155,11 @@
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
 - [x] 回应 JD3a Q3：仅使用已验证的 GPT-5.5 6,000-trial replication；无效 GLM 数字及 corrected-run placeholder 均已从 rebuttal 删除
 
-### 9. 补零散数字
+### 9. 补零散数字 — **全部处理完（2026-07-30，Claude）**
 
-- [ ] per-category over-refusal 数字（work/finance/health/relationship）— aP1N Q4(b)
-- [ ] Escalation gate 提炼 1–2 个 headline 数字（实验已跑完，只差写作）— JD3a Q4
-- [ ] D2-Rel matched run（原 GPT-5-mini 设置上的干净对照）— aP1N Q4(c)
+- [x] **per-category 数字已入 Q4(b)**，但用的是"全敏感项拒绝率"口径（personal 三类跨 requester 恒定 ~90-100%，sensitive_work 随 requester 波动 17pp），与 `l1_qa_eval_llm.json` byCategory 精确对账。**刻意不报 "L 项 per-category over-refusal"**：与 label matrix join 后每格分母只有 0–12，且与已发表 O-Ref 分母（含 Q201-400）不可调和——报了就是又一个双分母陷阱
+- [x] **Escalation headline 已入 JD3a Q4(ii)**（源 `research/runs/escalation/phase2_relationship/all_conditions_eval.json`，11,659 个 gate 决策）：全部 8 个条件格 pstop 87.7–94.4%；监督比例 10%→30% 把合法放行 69.8%→91.0%（gpt-5-mini）/ 67.1%→87.4%（GPT-5.5）而保护基本不动，附 4 行小表
+- [x] **D2-Rel matched run：查无产物，已改保守表述**（Q4(c) 与 C6 行均改为 "future work, not claimed"，符合 Codex 冻结报告的要求）
 
 ### 9b. 全文数字审计（2026-07-30，E6 空世界事故后的全面复查）
 
