@@ -118,14 +118,14 @@
 
 ### 6. E1 operating points 扩充（已批准；不得扩成 policy × model 全矩阵）
 
-- [ ] **26 个 provenance 缺口已精确复算并进入 frozen-plan 队列（2026-07-30）**：P0 缺 Q167；P3 缺 175/181/184/187/189/192/195/197/200；P4 缺 136/142/160/175/187/189/192/195/197/200；P5 缺 69/111/158/175/189/200。Codex 独立验证 P0/P3/P4/P5 与 E2 的 P1/P2/P6/P7 使用**完全相同的 60 个 questionId**，因此补齐并按同一 rubric 判分后可以合法组成单一 model pair 的 8-policy table/scatter。detached 队列：`pulse/research/runs/rebuttal/e1_e5_queue_20260730/`。P0 Q167、P3 9/9 与 P4 10/10 缺失题均已通过 strict gate；P5 的 6 题补跑正在执行，之后自动进入 E5。
+- [x] **26 个 provenance 缺口全部补齐并严格 finalization（2026-07-30）**：P0 Q167、P3 9/9、P4 10/10、P5 6/6 的 frozen-plan 补跑全部 `strictGatePassed=true`。`finalize_e1_operating_points.py` 以 E2 P1 的 60 个 questionId 为 canonical reference，按 questionId 合并 immutable attempts，并对 P0/P3/P4/P5 各 **60/60** 执行 policy、exact question、response、error/contact-error、requester/responder provenance gate；四格全部通过。产物：`pulse/research/runs/rebuttal/finalized_e1_20260730/`。同一 gpt-5-mini rubric 的 240-row judge 已 detached 启动；完成后与已判分的 P1/P2/P6/P7 组成合法 8-policy operating-points table/scatter。
 - [ ] 确定 7–8 个 policy package 的名称 + 文献引用（固定一个 model pair）
 - [ ] 出单一 model pair 下的 policy operating-point 散点表；defender robustness 单独成表，不做笛卡尔积
 - [ ] 回应 aP1N Q1、TtBh Q4
 
 ### 7. E5 States replication（已批准并排队）
 
-- [ ] **原协议复现计划已冻结（2026-07-30）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。与原 g403/g406 合并后 D2 从 n=2 提升到 n=5。每格必须由 seeder 证明 100 notes + 150 todos、严格 question/model provenance、0 engine errors；任何空世界或题集错配直接作废。当前排在 E1 26 题之后自动启动。
+- [ ] **原协议复现计划正在运行（2026-07-30）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。与原 g403/g406 合并后 D2 从 n=2 提升到 n=5。三格已完成 seeding 并开始落盘，当前原始进度 3/200、1/200、1/200，均为 0 errors 且 model provenance 正确。每格仍必须达到 200 unique rows、100 notes + 150 todos seed evidence、严格 question/model provenance、0 engine errors；任何空世界或题集错配直接作废。
 - [ ] 解释 variance 机制（early-context 是否含被查 state 对象 + 小分母）
 - [ ] 若时间不足：收窄 surface-asymmetry claim，明确 n=2 与高方差，不仓促换 protocol
 
