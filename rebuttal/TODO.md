@@ -125,7 +125,7 @@
 
 ### 7. E5 States replication（已批准并排队）
 
-- [ ] **原协议复现计划正在运行（2026-07-30）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。与原 g403/g406 合并后 D2 从 n=2 提升到 n=5。当前原始进度 **50/200、32/200、45/200**；117/127 行 response/model provenance 正确。transient Azure failures：r1 Q207/Q228/Q231、r2 Q202/Q205/Q214/Q224/Q230、r3 Q214/Q240，主批次结束后必须在新 attempts 中仅重试这些失败题。每格仍必须达到 200 unique provenance-valid rows、100 notes + 150 todos seed evidence 与 0 engine errors；任何空世界或题集错配直接作废。
+- [ ] **原协议复现计划正在运行（2026-07-30）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。与原 g403/g406 合并后 D2 从 n=2 提升到 n=5。当前原始进度 **55/200、36/200、51/200**；131/142 行 response/model provenance 正确。三个 seed logs 均独立确认 100 notes + 150 todos，全部非 error 行通过 policy、response、contact-error 与 requester/responder model gates。transient failures：r1 Q207/Q228/Q231/Q252、r2 Q202/Q205/Q214/Q224/Q230、r3 Q214/Q240，主批次结束后必须在新 attempts 中仅重试这些失败题。r2 当前约 5 分钟未落新行但 exact process 仍存活，先按 provider latency 监控，不误判完成或失败。每格仍必须达到 200 unique provenance-valid rows 与 0 engine errors；任何空世界或题集错配直接作废。
 - [ ] 解释 variance 机制（early-context 是否含被查 state 对象 + 小分母）
 - [ ] 若时间不足：收窄 surface-asymmetry claim，明确 n=2 与高方差，不仓促换 protocol
 
