@@ -109,7 +109,8 @@
   - ⚠️ **教训（今天第 4 次）**：qwen-P2 曾显示 30/30 行、E1-P0 曾显示 60/60 行且进程已退出，都是"完成"的样子，实际分别只有 28 和 55 条 provenance-valid。**完成判定一律走 provenance 复算，绝不看 `wc -l`**
 - [x] **Grok 本轮不启动**：模型通路可用，但它扩大范围且不是 reviewer 要求的最低充分证据。
 - [x] **GLM/DeepSeek diagonal cells 本轮不启动**：属于后续扩展，不阻塞 rebuttal。
-- [ ] DeepSeek/GLM 四格齐后跑 judge pass，输出同题集的跨 defender 表
+- [x] **DeepSeek defender canonical 对照完成（2026-07-30）**：P0/P2 各 30/30，同一 canonical question set；7 个失败题以独立 immutable attempts 补齐后，由 `finalize_defender_cells.py` 按 questionId 合并并通过 policy、question、response、error、contact-error、requester/responder provenance gate。产物：`pulse/research/runs/rebuttal/finalized_defender_20260730/deepseek/`。同一 gpt-5-mini rubric 的 60/60 judge 完成：utility P0→P2 **100%→100%**（10/10→10/10）；disclosure **90%→5%**（18/20→1/20）；explicit refusal **5%→95%**（1/20→19/20）。这是单次 30 题 canonical subset，不与不同 question set 的 Kimi/Qwen 绝对值横比。
+- [ ] **GLM defender canonical 对照正在运行（2026-07-30）**：P0 最后缺失的 Q156 已完成；P2 canonical 30 题正在 `pulse/research/runs/rebuttal/glm_defender_finish_20260730/` 运行。完成后必须执行 `finalize_defender_cells.py --model glm`、同一 strict provenance gate、同一 gpt-5-mini judge，再与 DeepSeek 组成同题集 defender table。
 
 ### 6. E1 operating points 扩充（可选；不得扩成 policy × model 全矩阵）
 
@@ -145,9 +146,9 @@
   - ❌ “0/418 leak、100% block、utility 0–11%”以及由此推导的 model-dependent operating-point 结论全部撤回。
 - [x] **rebuttal_v3 中无效 GLM 数字已移除（2026-07-30）**：C8 改回 corrected run pending；JD3a Q3 仅保留 GPT-5.5 已验证结果，并为 seed-verified GLM rerun 留位。
 - [x] **judge 输出口径已修正（2026-07-30）**：`eval_llm_judge.ts` 不再输出容易误读的 `block_rate`，改为分别输出 `leak_rate`、`safe_nonanswer_rate`、`explicit_refusal_rate` 与 `non_disclosure_rate`；其中最后一项明确只是前两类非泄露结果之和，不能作为第二条独立安全证据。
-- [ ] **正确重跑要求**：fresh namespace；seed 后 Notes count gate（预期 100）；至少抽两道 L 题验证能检索到 gold-bearing artifacts；trace 逐行记录 data namespace/model provenance；judge 后分别报告 leaked / safe / explicit refusal / system error，不再使用合并的 “block rate”。
+- [x] **当前 rebuttal 不再重跑 GLM E6（2026-07-30 scope decision）**：JD3a Q3 要求 GPT-5.5 *or* another non-OpenAI model；现有 GPT-5.5 已完成 5 requesters × 400 QA × 3 conditions = 6,000 trials，足以回答该问题。GLM corrected rerun 降为论文后续可选实验，不再阻塞 rebuttal。若未来重跑，仍必须满足：fresh namespace；Notes count gate（预期 100）；两道 L 题检索探针；逐 trace world/model provenance；分别报告 leaked / safe / explicit refusal / system error。
 - [ ] 注：区域限制，Claude/Gemini 在 OpenRouter 403；开源家族现有 DeepSeek / GLM / Kimi / Qwen / Grok 五个，JD3a 原话 "Claude **or other open-source models**" 字面已满足
-- [ ] 回应 JD3a Q3
+- [x] 回应 JD3a Q3：仅使用已验证的 GPT-5.5 6,000-trial replication；无效 GLM 数字及 corrected-run placeholder 均已从 rebuttal 删除
 
 ### 9. 补零散数字
 
