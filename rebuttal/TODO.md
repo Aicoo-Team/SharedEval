@@ -1,10 +1,31 @@
 # Rebuttal TODO
 
-2026-07-28。从 `rebuttal_v3.md` 的占位符整理（41 → 剩 23），并按 7/27–28 的新发现更新。
+2026-07-29。从 `rebuttal_v3.md` 的占位符整理，并按 7/27–29 的新发现更新。
 
 > **协作规则（因重复劳动而加）**：Claude 与 Codex 并行工作。**做完任何一项，立刻在本文件勾掉并写明产物路径**，再去做下一件。
 > E4 已经因为没有及时记录而被重复跑了一次（Codex 未先检查 `rebuttal/runs/e4/` 就重跑了一个较弱版本，浪费一轮 + 约 \$1.17）。
 > 开工前先读本文件；本文件是唯一的进度真相来源。
+
+### 交付范围冻结（2026-07-29 15:40）
+
+目标是 **3–4 小时内形成可发 rebuttal**，不再把所有“有时间最好补”的实验当作发帖前阻塞项。
+
+**必须完成：**
+
+1. E6 GLM relationship 跑完 R0–R4，并用既定 rubric 完成 judge pass。
+2. 用同一 canonical 30-question set 补齐 DeepSeek/GLM 的 P0→P2 responder 对照；所有 completion 必须过 provenance gate。
+3. 修复 responder/runtime 改动范围内唯一的 TypeScript 类型错误并重新检查。
+4. 完成 P2 的 reviewer-facing 写作与呈现修改。
+5. 将已经完成的 E2、E4 和 CHECK-1–4 数字完整填入 rebuttal。
+
+**可选，不阻塞发帖：**
+
+- Kimi/Qwen defender cells：允许当前已经启动的 Qwen P2 自然完成，但不为凑四个模型重启另外三格。
+- E1：只在一个固定 model pair 上展示 7–8 个 policy operating points；不跑 `7 policies × k models` 笛卡尔积。
+- E5 States replication、E4 multi-turn re-judge：时间不足时收窄 claim 并写明 limitation。
+- E7：外部标注回收是外部依赖，未返回时不能捏造 agreement，也不应无限期阻塞 rebuttal。
+
+**本轮明确不启动：** Grok、GLM/DeepSeek diagonal cells，以及 `next_batch.sh` 中的任何 scope-expansion cell。
 
 ---
 
@@ -43,7 +64,7 @@
   - 分类构成：sensitive_work 29、personal_finance 25、personal_health 20、personal_relationships 25
   - **必须全文替换**，涉及 TtBh Q1 和 Q3 两处。这是唯一一个 v3 里数字本身错了的地方（其余是口径问题）。
 - [x] **CHECK-4 已解决**：judge 确实是 gpt-5-mini（六个 offline eval 脚本全部硬编码），JD3a 说对了，不能反驳，只能承认+补异族 judge（见 E4）
-- [ ] **Metric_Definition 错误**（新增）：Lark 表写 "errors excluded from denominators"，实际算法是 noResponse 计入分母当失败。Kimi 三行受影响最大（82% vs 排除后 98.8%）。改描述而非改数字
+- [x] **Metric_Definition 已更正**：Lark 表现在明确写明分母固定、error/no-response 不排除且按 utility failure 计；数字未改。Kimi 三行受影响最大（82% vs 排除后 98.8%）。
 
 ### 3. 非作者标注（E7）— lead time 最长
 
@@ -65,8 +86,8 @@
   - provenance：1,058/1,058 由 `deepseek/deepseek-v4-flash` 实际服务（从响应体读回，非请求值）
   - 产物：`rebuttal/runs/e4_cross_family_judge.py`、`rebuttal/runs/e4/verdicts.jsonl`、`rebuttal/runs/e4/full.log`
 - [x] 已填入 `rebuttal_v3.md` 四处（General Response、C3 状态栏、JD3a Q1、TtBh Q5）
-- [ ] **States 无法做配对对比**：`eval_results.json` 是 string-match 产物，**从未有过 LLM judge 基线**。这本身应写进 limitations，而不是当作"待补"
-- [ ] **multi-turn 可做但需重建输入**：`10split_llm_judge.json` 有 60 runs × 20 题的 `llm_verdict`，但 `response_preview` 只截 200 字符；全文在各 run 的 `chat_history.json`，需写提取逻辑
+- [x] **States 不作为待补实验**：`eval_results.json` 是 string-match 产物，**从未有过 LLM judge 基线**，无法做严格 paired judge comparison；改写为 limitation。
+- [ ] **multi-turn re-judge（可选）**：需从各 run 的 `chat_history.json` 重建全文输入；当前不阻塞发帖。
 - ⚠️ **Codex 曾重复跑过一个较弱版本**（585 抽样 + 改写 rubric），已自行撤回，其 `e4-*-600.json` 标记为 exploratory，不得进入论文
 
 ### 5. E2 D1/D2 成分消融（三方点名，最救 claim）
@@ -83,24 +104,25 @@
   - 发现方式：provenance 复算时加了 questionId 过滤，同一格从 28/30 掉到 13/30，两个数对不上才查出来
   - **Codex 侧还不完整**：p0-deepseek 28/30（缺 6,27）、p0-glm 28/30（缺 134,156）、p2-deepseek 25/30（缺 1,11,139,158,176）、**p2-glm 在该 plan 里根本不存在** → GLM 没有 P0→P2 delta，而这正是 defender 轴要证的东西。旧 plan `7b99d045b3ec` 有一个 p2-glm52，但它属于污染后归档的那批，provenance 未确认前不能混用
   - 这些在 8bb8/8bb9/8bba，无活进程但**未完成 = 铁律 0 的 owned**，Claude 不碰，留给 Codex
-  - **Claude 侧修法（只动自己命名空间）**：把 4 个格子各补跑 Codex 独有的 15 题（131,134,136,139,142,156,158,160,162,164,176,179,181,184,187），补完后每格覆盖两个子集的并集 ⊇ Codex 的 30 题，全部模型即可在 Codex 子集上互比。**qwen P0/P2 已启动**；kimi 两格等 8ce5 上的 Q100 重试结束（铁律 0）
+  - **当前处理决定**：不再补 Claude lane 的 15 题并拼接历史尝试。必须从 frozen plan、canonical 30-question set 和 provenance-valid artifacts 得到可比较结果。
+  - **正式范围收缩为 DeepSeek/GLM 的 P0→P2 对照**。Kimi/Qwen 只作可选补充；当前已经启动的 Qwen P2 可以自然完成，但不为凑四模型重启其余三格。
   - ⚠️ **教训（今天第 4 次）**：qwen-P2 曾显示 30/30 行、E1-P0 曾显示 60/60 行且进程已退出，都是"完成"的样子，实际分别只有 28 和 55 条 provenance-valid。**完成判定一律走 provenance 复算，绝不看 `wc -l`**
-- [ ] **第五个模型家族已就位**：`x-ai/grok-4.3` 实测在区域可用（HTTP 200，served id 一致，且能真发 tool_calls），已注册进 `experiment-model-runtime.ts`。grok-4/grok-4-fast 已废弃返回 404。Grok P0/P2 两格在 `next_batch.sh` 里待发
-- [ ] **对角线格（双方同厂商）待发**：GLM↔GLM、DeepSeek↔DeepSeek 各 P0/P2，UUID 8d00–8d03。这是论文自己设定的"跨所有权边界"最真实形态
-- [ ] defender 8 格齐后跑 judge pass 出跨 defender 表
+- [x] **Grok 本轮不启动**：模型通路可用，但它扩大范围且不是 reviewer 要求的最低充分证据。
+- [x] **GLM/DeepSeek diagonal cells 本轮不启动**：属于后续扩展，不阻塞 rebuttal。
+- [ ] DeepSeek/GLM 四格齐后跑 judge pass，输出同题集的跨 defender 表
 
-### 6. E1 operating points 扩充
+### 6. E1 operating points 扩充（可选；不得扩成 policy × model 全矩阵）
 
-- [ ] **P0/P3/P4/P5 × gpt-5-mini 已跑到 58/49/49/53（/60），共缺 31 题**，产物在 `pulse/research/runs/rebuttal/e1_claude_lane/policy_*/`。全部进程于 2026-07-29 14:42–14:48 因内存压力被杀，**数据完好可续跑**。续跑方式：按 provenance 复算缺失 id，用各自 `--alex-id 8c80/8c81/8c82/8c83`、`--group 3200–3203`、`>>` 追加日志，**绝不 reseed**
-- [ ] 确定 7 个 policy package 的名称 + 文献引用（v3 里 4 处 `【TODO: 7】`）
-- [ ] 出 7-policy × k-model 散点表，填 `【TODO: k】`
+- [ ] **去重复算已完成（2026-07-29 16:2x，Claude）**：按 questionId + provenance 去重后，P0 **59/60**（缺 167）、P3 **51/60**、P4 **50/60**、P5 **54/60**，合计缺 26 题。说明：15:48 那批"外部 worker"就是 Claude 在内存恢复后重启的补跑，被 15:50 的清理终止时尚在中途（日志里的 COMPLETE 标记来自更早批次）。按冻结此项**不阻塞发帖**，不重启；散点表如用现有数据须注明各 cell 的实际 n。
+- [ ] 确定 7–8 个 policy package 的名称 + 文献引用（固定一个 model pair）
+- [ ] 出单一 model pair 下的 policy operating-point 散点表；defender robustness 单独成表，不做笛卡尔积
 - [ ] 回应 aP1N Q1、TtBh Q4
 
-### 7. E5 States replication
+### 7. E5 States replication（可选）
 
-- [ ] 原 protocol 下补 K 组（目标 n≥5），报 mean±sd
+- [ ] 仅在确认能精确复现原 States protocol 时补 K 组（目标 n≥5），报 mean±sd
 - [ ] 解释 variance 机制（early-context 是否含被查 state 对象 + 小分母）
-- [ ] 回应 JD3a Q2
+- [ ] 若时间不足：收窄 surface-asymmetry claim，明确 n=2 与高方差，不仓促换 protocol
 
 ### 8. E6 RQ3 非 OpenAI
 
@@ -108,7 +130,7 @@
 - [x] **确认 E6 无需 seed group**：该脚本不走 `contact_agent`（0 匹配），自己构造模型直接扮演 Alex。此前为它 seed 的 8ce8/8ce9 两组是多余的
 - [x] **修复已验证跑通（2026-07-29 13:26）**：冒烟 D3 × R1 × GLM × Q101-103 打印 `provider=openai-compatible`，3 例 0 error。这行 provider 就是"没走 Azure 回落"的判据
 - [x] **跑起来才发现的第二个 bug（同日修，commit c2293b0cd）**：run id 直接拼接原始 model id，`z-ai/glm-5.2` 的斜杠把产物切成 `research/runs/d3_D3_R1_z-ai/glm-5.2_.../`，**分析脚本的扁平 `d3_*` glob 会静默漏掉整个 run**。已改为路径用 slug、`summary.json` 保留真实 id。两次冒烟已归档进 `e6_smoke_glm/artifacts/`，防止 1–3 题被当数据
-- [ ] **全量进行中**：D3 × R0–R4 × Q101-200 × GLM 5.2。**2026-07-29 16:0x 状态：R0/R1/R2 各 100 例已完成，R3 78/100，R4 未开始**。产物 `pulse/research/runs/d3_D3_R{0,1,2,3}_z-ai-glm-5.2_*/`
+- [ ] **全量进行中**：D3 × R0–R4 × Q101-200 × GLM 5.2。**2026-07-29 15:40 状态：R0/R1/R2/R3 各 100 例已完成，R4 17/100；总计 417/500**。产物 `pulse/research/runs/d3_D3_R{0,1,2,3,4}_z-ai-glm-5.2_*/`
   - **初步观察（产物级，尚未过 judge，不得写进 rebuttal）**：
 
     | requester | n | avg tool calls | avg latency | avg resp chars |
@@ -157,5 +179,5 @@
 
 ## 阻塞中
 
-- ⏸ Pulse 侧运行验证：iCloud 冷缓存导致首次模块加载极慢，需暖机一次
-- ⏸ Pulse type-check：同上原因未跑完（**注意：之前误报过"干净"，实际未验证**）
+- ✅ 磁盘压力已解除：2026-07-29 15:40 有约 95 GiB 可用。
+- ⏸ Pulse type-check 已得到有效结果（exit 2）：全仓库有历史诊断；本轮改动范围内剩 1 个真实错误，位于 `lib/ai/chat/experiment-model-runtime.ts:90`，需修复后重跑。
