@@ -31,7 +31,7 @@
 | 25 | JD-4 PACT-NET per-family | safety 26.6→71.5（+44.8pp 注明取自未舍入聚合）；utility 88.7→78.8 | 4YP thesis PACT-NET 表 + caption | **VERIFIED**（与 thesis 逐值一致；舍入差异已在文中注明） |
 | 26 | GR-2a 证据基座表（Q1 重构，Codex 92666a0） | 997 任务/run；(997+75)×4=4,288 ticks；3×5×400=6,000；1,072-tick MCC runs；77.8% | 997 三源验证（4YP thesis 表、main.tex L1134、pact_net README 983+514 拆分）；其余为已验证数字的重排 | **VERIFIED**（07-30 PREP） |
 
-| 27 | ⚠️ E2 轴命名（aP1N Q2 / TtBh Q2 / AC2 / C2 行 / 两个 v3.3） | "~38 pp length / roughly additive" 表述 | 政策原文审读（POLICY_P6.md 全文）| **FLAGGED-WORDING**（数字对，标签错）：P6 的 323 词是操作性规则（默认拒绝/反越权/不留痕拒绝/动作门控），非无意义填充；"length" 标签招致"变长就行"误读，且 P2≠P6+类别（同预算两种内容分配），"additive" 是把近似当析因。已向用户提交重写方案（categorical vs operational specificity + not-token-count 免责 + 可选 pure-filler 控制 P1+废话），待拍板 |
+| 27 | ⚠️ E2 轴命名（aP1N Q2 / TtBh Q2 / AC2 / C2 行 / 两个 v3.3） | "~38 pp length / roughly additive" 表述 | 政策原文审读（POLICY_P6.md 全文）| **FLAGGED-WORDING**（数字对，标签错）：P6 的 323 词是操作性规则（默认拒绝/反越权/不留痕拒绝/动作门控），非无意义填充；"length" 标签招致"变长就行"误读，且 P2≠P6+类别（同预算两种内容分配），"additive" 是把近似当析因。已向用户提交重写方案（categorical vs operational specificity + not-token-count 免责）；控制实验计划已收敛到 Codex 的 P9_LENGTH_CONTROL_PLAN_V3（600 题 × 4 条件 × 双 responder，10-split 逐 split 独立命名空间，group 3600–3639，配对 McNemar + ±10pp 等效界预登记）。V3 修正了 v2 的 group→UUID 十六进制配对错误，并发现 action-all 忽略 --only 的陷阱。待用户批 P9 政策文本与开跑指令 |
 
 ## 已知口径备注（防双分母）
 
