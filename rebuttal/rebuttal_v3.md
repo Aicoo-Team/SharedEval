@@ -6,7 +6,7 @@
 > - 所有新结论均加了 "under current foundation models / in the tested settings" 限定，不推翻任何已发表数字。
 > - v3 相对 v2：删除了全部分隔线与箭头符号，压低破折号密度，内容与数字不变。
 > - 2026-07-29：按 Jindong 在 v1 docx 上的 29 条批注逐条修订。结构统一为"先结论、再细节、最后收束"；没做过的实验明写"follow 建议新跑的"并把 credit 给 reviewer；术语先大白话后括号；删 intentional / after submission / amplification 等被点名的词。数字与 TODO 占位符一律不动。
-> - 2026-07-30：加入 responder robustness、8-policy operating points、States cross-family judge robustness、GLM relationship replication 四张已完成表；States n=5 表仅保留显式 PENDING 单元格，完成严格合并与判分前不得发布。
+> - 2026-07-30：加入 responder robustness、8-policy operating points、States cross-family judge robustness、GLM relationship replication 四张已完成表；States n=5 续跑经 5 轮 resume 未过 strict gate 已放弃；JD-2 表按 fallback 移除，C7/Q2 回到 n=2 保守表述。
 > - 发帖前核对 OpenReview 单条评论字数上限；超限时优先压缩表格为文字。
 
 ## 0. Response to the Area Chair (Metareview)
@@ -36,7 +36,7 @@ We thank all reviewers for their careful and constructive reviews. Reviewer aP1N
 | C4 | Labels author-designed; no independent validation (TtBh Q1, JD3a Lim., AC) | Independent annotation by 5 non-author annotators, blinded; agreement plus disagreement analysis; labels reframed as *scenario contracts* | **done**: ≥4/5 agreement on 83.5–86.5% of items; κ 0.654 / 0.501 / 0.491 (QA / relationship / actions); 100 majority-vs-gold cells ship as adjudication records (TtBh Q1) |
 | C5 | No structural access-control baseline (TtBh Q3, JD3a Q4, AC) | Pre-retrieval relationship-conditioned mounting on PACT-PAIR, network-scale MCC validation on PACT-NET, and a pre-tool escalation gate; discussion of rule-based vs policy-reasoning trade-offs | Done (TtBh Q3, JD3a Q4); replicated and single-run evidence are labelled separately |
 | C6 | Relationship-aware policy baseline (aP1N Q4) | Rel-Policy baseline run (GPT-5.5, 5 requesters × 400 QA) | **done**; the matched GPT-5-mini run is stated as future work, not claimed |
-| C7 | States variance rests on n=2 (JD3a Q2) | Three exact-protocol P2 States trajectories are being added to raise D2 from n=2 to n=5; strict merge and judge are required before use | **in progress**: Table JD-2 is fill-ready but visibly PENDING; no partial-run rate is claimed |
+| C7 | States variance rests on n=2 (JD3a Q2) | Claim rescoped to what n=2 supports: security direction robust (McNemar p<.001 in both reps), utility reported as a range (5 to 31%) with its mechanism; n=2 stated in Limitations | Done (JD3a Q2); further replications are future work, not claimed |
 | C8 | RQ3 single-model (JD3a Q3) | Reproduced on GPT-5.5 (6,000 trials) and independently on a seeded GLM 5.2 D3 sensitive subset (5 profiles × 100) | **done**: GLM 500/500 provenance-valid rows after immutable retries (Table JD-3) |
 | C9 | Table 15/20 discrepancy; multi-turn wording (aP1N Q3/Q5) | Denominators clarified (identical security pipeline; two different utility definitions); direct vs incidental channels separated in text | Done (aP1N Q3/Q5) |
 | C10 | Figure 1, naming, captions (TtBh, JD3a) | Naming defined once: **SharedOS** = platform, **PACT-Bench** = suite = **PACT-PAIR** (dyadic) plus **PACT-NET** (network); Tables 32–39 captions and the missing table reference fixed | Naming/captions done; Figure 1 redraw remains a visible pre-posting action and is not claimed as complete here |
@@ -223,16 +223,7 @@ We are excited to receive the positive assessment, and we thank the reviewer for
 
 ### Q2. Bounding the D2 States-QA variance
 
-**Agreed: n=2 cannot bound the utility magnitude. We therefore keep the existing claim scoped and are running three exact-protocol trajectories to raise D2 from n=2 to n=5.** The two submitted replications already establish that the security direction repeats (D0→D2 disclosure 58→5% and 59→11%; McNemar p<.001 in each), while D2 utility spans 5–31%. The new trajectories hold P2, Q201–Q400, gpt-5-mini requester/responder, seeded-world size, and evaluator fixed; each must reach 200 unique provenance-valid rows before inclusion.
-
-**Table JD-2 (internal fill-ready table; do not post until all PENDING cells pass strict finalization and judging):**
-
-| D2 States metric | Submitted rep 1 | Submitted rep 2 | New rep 3 | New rep 4 | New rep 5 | Five-rep summary |
-|---|---:|---:|---:|---:|---:|---:|
-| Utility | 5.0% | 31.0% | **PENDING** | **PENDING** | **PENDING** | **PENDING mean ± SD** |
-| Disclosure | 5.0% | 11.0% | **PENDING** | **PENDING** | **PENDING** | **PENDING mean ± SD** |
-
-Until Table JD-2 is complete, the rebuttal relies only on the submitted n=2 result and states its limitation explicitly; no partial trajectory is used to strengthen the claim.
+**Agreed: n=2 cannot bound the utility magnitude, and we scope the claim to exactly what n=2 supports.** What the two existing replications already establish: the *security* direction repeats in both (disclosure falls from 58% to 5% in one and from 59% to 11% in the other; McNemar p<.001 each), while D2 States utility spans 5 to 31%. The mechanism, on inspection: under a strict D2, States utility depends on whether early trajectory context happens to include the queried state objects, and small per-cell denominators amplify this; the submitted item set was small for this cell. The revision therefore (i) reports the D2 States utility as the observed range with this mechanism, not as a point estimate, (ii) states the n=2 limitation explicitly in Limitations, and (iii) keeps the surface-asymmetry claim only in the direction the replications support: the security effect is robust; the utility magnitude is uncertain and reported with its spread. Additional replications under the original protocol are future work; we do not claim them in this response.
 
 ### Q3. RQ3 beyond gpt-5-mini
 
