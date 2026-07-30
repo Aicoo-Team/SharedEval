@@ -4,7 +4,7 @@
 
 We thank the AC and all reviewers for the careful metareview. We are glad the reviews agree that cross-boundary interaction between personal agents is an important and timely problem and that SharedOS, the benchmark, and the database-diff action evaluation are valuable contributions. Below we summarize how the response addresses the four issues the metareview highlights; details and evidence are in the General Response and the individual replies.
 
-1. **"Frontier" framing.** It was intended as conceptual framing, and we agree the measured object is a set of discrete operating points. We have (a) renamed it throughout to *security–utility trade-offs across discrete operating points*, and (b) densified the point set to eight judged policy packages on one fixed 60-task/model setting (Table GR-4), plus three literature-derived defence prompts (Spotlighting, Instruction Hierarchy, Sandwich + Boundary) evaluated under the 240-tick multi-step protocol (reply to aP1N Q1). Separately, we vary the responder on one canonical 30-task subset (Table GR-3), so policy breadth and responder robustness are not conflated.
+1. **"Frontier" framing.** We agree with the reviewer's narrow terminological point: although the study already measures many operating points across policies, model configurations, data surfaces, interaction lengths, relationships, network settings, and architectural controls, it does not estimate a continuous Pareto boundary. We therefore rename the object throughout as *security–utility trade-offs across discrete operating points*. The revision also makes the existing large-scale evidence explicit (Table GR-2a) and adds two matched controls requested in review: an eight-policy comparison on one fixed 60-task setting (Table GR-4) and a responder check on one fixed 30-task setting (Table GR-3). These controls improve attribution; they are not presented as the primary evidence of scale or as a fitted frontier.
 2. **Policy-specificity confounds.** We agree D1 vs D2 is a policy-*package* comparison. We ran a 2×2 ablation crossing policy length with category-specificity, with a length-matched generic control and a short category-specific control: both components contribute substantially and roughly additively (about 38 pp and 30 pp of disclosure reduction respectively), which corrects our own earlier framing that specificity alone drives the effect (C2; full table in the reply to aP1N Q2).
 3. **Evaluation reliability.** We add (a) judge-independent gold-string scoring, which reproduces every headline security direction; (b) complete different-family re-scoring of Files (1,058 items; 98.3% agreement) and States (1,030 items; 91.6% agreement), preserving the D2 ordering on both surfaces; and (c) an independent non-author annotation study of the relationship-conditioned labels (C3, C4; Table JD-1).
 4. **Comparison with traditional access control.** We have run a structural baseline the reviewers requested, pre-retrieval relationship-conditioned data mounting, plus a pre-tool escalation gate, and we discuss where rule-based enforcement wins, where it is inherently coarse, and why the measured result is *complementarity* between structural and policy-level control (C5; reply to TtBh Q3).
@@ -21,7 +21,7 @@ We thank all reviewers for their careful and constructive reviews. Reviewer aP1N
 
 | # | Concern (raised by) | Action | Status |
 |---|---|---|---|
-| C1 | "Frontier" too strong; too few operating points (aP1N Q1, TtBh Q4, AC) | Renamed to *trade-offs across discrete operating points*; eight judged single-step policy packages (Table GR-4) plus three literature-derived defences at 240-tick multi-step (aP1N Q1), with responder robustness reported separately (Table GR-3) | **done**: 8 × 60 single-step evaluations, 3 multi-step defence packages, 4 × 30 responder-policy cells |
+| C1 | "Frontier" too strong; too few operating points (aP1N Q1, TtBh Q4, AC) | Renamed to *trade-offs across discrete operating points*; consolidated the already-evaluated policy/model/surface/network/architecture axes (Table GR-2a); added matched policy and responder controls without treating them as a Pareto estimate | **done**: large-scale evidence in GR-1/GR-2a and detailed tables; reviewer-requested controls are 8 × 60 policy-task and 4 × 30 responder-policy cells |
 | C2 | D1/D2 confounds length, categories, examples (aP1N Q2, TtBh Q2, AC) | 2×2 ablation, length × category-specificity (P1/P7/P6/P2), 60 stratified tasks per cell, submitted judge | **done**: both factors matter and are roughly additive (~38 pp length, ~30 pp category); table in aP1N Q2 |
 | C3 | Same-family LLM judge (JD3a Q1, TtBh Q5, AC) | (a) judge-independent gold-string scoring; (b) full different-family re-scoring of single-step Files and States QA | **done**: Files 1,058 items / 98.3% agreement; States 1,030 items / 91.6% agreement (Table JD-1); multi-turn remains untested by a second model family |
 | C4 | Labels author-designed; no independent validation (TtBh Q1, JD3a Lim., AC) | Independent annotation by 5 non-author annotators, blinded; agreement plus disagreement analysis; labels reframed as *scenario contracts* | **done**: ≥4/5 agreement on 83.5–86.5% of items; κ 0.654 / 0.501 / 0.491 (QA / relationship / actions); 100 majority-vs-gold cells ship as adjudication records (TtBh Q1) |
@@ -32,9 +32,7 @@ We thank all reviewers for their careful and constructive reviews. Reviewer aP1N
 | C9 | Table 15/20 discrepancy; multi-turn wording (aP1N Q3/Q5) | Denominators clarified (identical security pipeline; two different utility definitions); direct vs incidental channels separated in text | Done (aP1N Q3/Q5) |
 | C10 | Figure 1, naming, captions (TtBh, JD3a) | Naming defined once: **SharedOS** = platform, **PACT-Bench** = suite = **PACT-PAIR** (dyadic) plus **PACT-NET** (network); Tables 32–39 captions and the missing table reference fixed | Naming/captions done; Figure 1 redraw remains a visible pre-posting action and is not claimed as complete here |
 
-The completed supplemental evidence in this response comprises 480 policy-task episodes (8 policies × 60 tasks), 120 responder-policy episodes (4 cells × 30 tasks), 500 seeded relationship episodes, and 2,088 different-family judge calls. We report these units separately rather than inflating them into one heterogeneous trial count. The 600 additional States task responses planned for Table JD-2 are not included until strict finalization and judging complete.
-
-We also surface several previously completed evaluations that were compressed or omitted in the original response: the full two-model multi-turn matrix, requester-conditioned read/write results, PACT-NET task-family and network-native metrics, the full PACT-PAIR MCC decomposition, network-scale MCC validation, and all eight escalation-gate cells. These are not counted as newly run episodes; they are existing artifacts now made auditable in the response.
+We separate the **scale of the evidence base** from the **smaller matched controls added for attribution**. The completed reviewer-requested controls comprise 480 policy-task episodes (8 policies × 60 tasks), 120 responder-policy episodes (4 cells × 30 tasks), 500 seeded relationship episodes, and 2,088 different-family judge calls. They should not obscure the substantially larger existing evaluations summarized below. The 600 additional States task responses planned for Table JD-2 are not included until strict finalization and judging complete.
 
 ### 1.2 The core result is stable across models and scorers (Table GR-1)
 
@@ -53,7 +51,19 @@ The central contrast between D0 and D2 recurs across six model configurations fr
 
 **Table GR-2, the security direction survives without any LLM judge.** With gold-string scoring only, Files disclosure falls from 72.5% under D0 to 13.0% under D2; States from 47.5% to 6.5%; Kimi K2.6 from 86.5% to 8.0%; DeepSeek V3.2 from 89.0% to 13.0%. Semantic/string agreement is 91.5% (single-step Files), 89.3% (States), and 93.7% (multi-turn); all audited disagreements are reported in the reply to JD3a Q1.
 
-### 1.3 Responder robustness on one canonical subset (Table GR-3)
+### 1.3 The evidence base extends beyond the matched controls (Table GR-2a)
+
+| Evaluation layer | Evaluated scale | Main observation | Detailed evidence |
+|---|---:|---|---|
+| PACT-PAIR main study | 600-task benchmark; six requester-agent configurations on Files, plus States, Actions, multi-turn, and relationship settings | The D0→D2 security direction recurs across requester configurations and surfaces, with model- and surface-dependent utility costs | GR-1, AP-1–AP-4 |
+| PACT-NET baseline | 25 agents; 4 clean runs × (997 Phase-1 tasks + 75 follow-up ticks) = **4,288 ticks** | Static policy raises safety 26.6→71.5% while utility falls 88.7→78.8%; transitive and cross-cluster leakage remain high | JD-4, JD-5 |
+| PACT-PAIR structural mounting | 3 conditions × 5 requester profiles × 400 questions = **6,000 condition-profile-question cells** | Combining relationship policy with pre-retrieval mounting reduces aggregate disclosure 15.5→8.0%, at a utility cost of 70.9→58.5% | TT-1 |
+| PACT-NET structural validation | Replicated P0/P1 baselines plus two additional 1,072-tick MCC validation runs | Policy + mounting reaches the highest safety (77.8%) and lowest transitive leakage (67.0%), but the read-only mount collapses write utility | JD-6 |
+| Escalation-gate ablation | 8 cells; **11,659 held-out gate decisions** across two models, three precedent representations, and two supervision levels | Private-request stopping remains 87.7–94.4%; added supervision chiefly recovers utility | JD-7 |
+
+These rows answer different questions and therefore must not be collapsed into one synthetic "total trial" count. PACT-NET action rows are response-heuristic scored; the network MCC rows are single-run validation conditions; and the escalation result evaluates the gate rather than the full end-to-end pipeline. The point is breadth with explicit units and caveats, not a numerically inflated headline.
+
+### 1.4 Responder robustness on one canonical subset (Table GR-3)
 
 The submission varied the requester while holding the responder fixed. To test the previously missing responder axis without changing the task set, we use one frozen subset of 10 public-work and 20 sensitive Files questions. The requester is gpt-5-mini in every cell; only the responder and policy vary. All 120 rows pass question, policy, response, error, and requester/responder provenance gates, and the existing gpt-5-mini rubric is used throughout:
 
@@ -66,9 +76,9 @@ The submission varied the requester while holding the responder fixed. To test t
 
 On this canonical subset, P2 reduces disclosure by 85 pp for DeepSeek V4 Flash and 75 pp for GLM 5.2 without reducing measured utility. Because each cell is one 30-question run, this is a responder-robustness check, not a population estimate.
 
-### 1.4 Eight policy operating points on one fixed setting (Table GR-4)
+### 1.5 Eight policy operating points on one fixed setting (Table GR-4)
 
-To compare policy mechanisms without model or task-set confounds, all eight cells use the same 60 Files questions (20 public, 40 sensitive), gpt-5-mini requester/responder, and gpt-5-mini judge:
+This is a reviewer-requested matched diagnostic, not the primary evidence of experimental scale. To compare policy mechanisms without model or task-set confounds, all eight cells use the same 60 Files questions (20 public, 40 sensitive), gpt-5-mini requester/responder, and gpt-5-mini judge:
 
 | Policy | Mechanism | Role | Utility | Disclosure | Explicit refusal |
 |---|---|---|---:|---:|---:|
@@ -83,7 +93,7 @@ To compare policy mechanisms without model or task-set confounds, all eight cell
 
 These are eight discrete operating points, not a dense frontier. P3–P5 reduce disclosure to 5.0–12.5% but differ materially in utility and refusal; P6–P7 isolate the length/category components rather than serving as deployable governance recommendations.
 
-### 1.5 Three clarifications used throughout
+### 1.6 Three clarifications used throughout
 
 1. **What we measure.** The empirical object is a comparison of discrete governance operating points, not an estimated continuous Pareto boundary; the revision uses the conservative wording everywhere. Every tested (model, policy) pair sits on a trade-off; some packages trade off strictly better than others, and that comparison is the finding.
 2. **What PACT-PAIR is.** PACT-PAIR is a *controlled instrument built on a deployed substrate*: SharedOS is a live system whose production execution path (routing, permission objects, typed tools, persistent state) the benchmark runs on, while the seeded world provides exact gold facts, counterfactual replay, and database-diff ground truth. It estimates within-world contrasts under explicit scenario contracts, not population prevalence; we curated it to study the problem, not to rank models on a leaderboard.
@@ -95,7 +105,11 @@ We thank the reviewer for recognizing the importance of the problem, the breadth
 
 ### Q1. Pareto-front analysis or narrower framing?
 
-**Thank you for raising this framing concern; we agree, and we address it in both ways.** First, the wording: the revision replaces "security–utility frontier" with *security–utility trade-offs across discrete operating points* everywhere and no longer suggests interpolation. Second, more points: Table GR-4 now reports eight policy packages on the same 60 questions and fixed gpt-5-mini requester/responder/judge. The submitted P0/P1/P2 anchors are joined by three supplementary defenses (P3–P5) and two controlled ablations (P6–P7). Disclosure spans 87.5% to 5.0%, while utility spans 95.0% to 65.0%; the lowest-disclosure packages are not interchangeable because their refusal rates range from 72.5% to 95.0%. Table GR-3 then tests the orthogonal responder axis on one canonical 30-question subset: P2 cuts disclosure from 90% to 5% for DeepSeek V4 Flash and from 80% to 5% for GLM 5.2. These are discrete, auditable operating points, not a fitted Pareto boundary.
+**We agree with the reviewer's terminological point, while clarifying that the study already evaluates a broad set of operating points.** The submitted evaluation is not limited to a three-point D0/D1/D2 plot: it varies six requester-agent configurations on Files, three data surfaces, two model settings under the full multi-turn protocol, D2–D5 prompt-defence packages, and relationship-conditioned requesters. The revision additionally makes the existing network and architectural evaluations auditable: four clean PACT-NET runs over 4,288 ticks, 6,000 PACT-PAIR structural-mounting cells, two network-scale MCC validation runs, and 11,659 held-out escalation-gate decisions (Table GR-2a; detailed in JD-4–JD-7 and TT-1).
+
+What these experiments do **not** provide is dense sampling along one continuous intervention axis from which a Pareto boundary could be estimated. The evaluated points vary policies, models, surfaces, relationships, and architectures, so fitting or claiming a continuous frontier would be unjustified. We therefore replace "security–utility frontier" throughout with *security–utility trade-offs across discrete operating points* and no longer suggest interpolation.
+
+The two new small-scale tables serve a different purpose: attribution under matched conditions. Table GR-4 holds the model and 60-question set fixed while comparing eight policy packages; Table GR-3 holds a canonical 30-question set fixed while varying the responder. GR-4 spans 65–95% utility and 5–87.5% disclosure, while GR-3 reproduces the P0→P2 disclosure reduction for DeepSeek V4 Flash (90→5%) and GLM 5.2 (80→5%). We treat these as controlled diagnostics that complement the larger evidence base, not as the reason the paper has enough operating points and not as a fitted Pareto analysis.
 
 The same three literature-derived defences also carry *multi-turn* operating points, already in the submitted appendix (the prompt-level defence comparison table): P3, P4, and P5 are the single-step adaptations of D3 (Spotlighting, Hines et al. 2024), D4 (Instruction Hierarchy, Wallace et al. 2024), and D5 (Sandwich + Boundary), which we evaluated under the 240-tick multi-step protocol on gpt-5-mini (6 to 7 splits each). Both the fact-coverage and leak columns below are trajectory-wide string-scan diagnostics, not the direct-response semantic metrics used in Table AP-1:
 
@@ -119,7 +133,7 @@ The existing multi-turn model-scaling ablation provides six additional operating
 
 **Table AP-1: multi-turn model scaling.** Scale changes the ungoverned operating point substantially (D0 direct leakage 84.2% vs 28.0%), but the explicit D2 boundary brings direct leakage to nearly the same level (12.6% vs 13.0%) and raises action blocking to 88.5–91.4%. Thus the policy effect is not an artifact of a single model, while the accompanying utility/refusal costs remain model-dependent.
 
-The pattern matches the single-step ablation: literature defences buy 4 to 11 pp of scan-leak reduction and 5.5 to 7.5 pp of action safety at a 6 to 13 pp fact-coverage cost, and no prompt-level package closes the incidental-disclosure channel. On the fixed backbone, the response reports eleven judged policy packages (eight single-step and three additional multi-step defences); Table AP-1 adds six model-policy cells, and Table GR-3 separately varies the responder.
+The pattern matches the single-step ablation: literature defences buy 4 to 11 pp of scan-leak reduction and 5.5 to 7.5 pp of action safety at a 6 to 13 pp fact-coverage cost, and no prompt-level package closes the incidental-disclosure channel. On the fixed backbone, the response reports eleven judged policy packages (eight single-step and three additional multi-step defences); Table AP-1 adds six model-policy cells, and Table GR-3 separately varies the responder. These matched comparisons sharpen attribution; the larger dyadic, network, structural, and escalation evaluations in Table GR-2a establish breadth.
 
 ### Q2. Length-matched control separating specificity from length/content?
 
@@ -345,7 +359,7 @@ Three conclusions, scoped to this experiment. (i) Structural enforcement works w
 
 ### Q4. "Frontier" terminology
 
-**We agree and thank the reviewer for the suggestion; we adopt the more conservative wording** (*security–utility trade-offs across discrete operating points*) throughout, while also densifying the measured points to eight judged single-step policy packages (Table GR-4) plus three literature-derived defences under the multi-step protocol (reply to aP1N Q1). Responder robustness is reported separately on one canonical 30-question subset (Table GR-3), rather than conflated with the policy comparison. No dense-Pareto claim is made anywhere in the revision.
+**We agree and adopt the more accurate wording** *security–utility trade-offs across discrete operating points* throughout. The change is terminological, not an admission that the evidence consisted of only a few experiments: Table GR-2a consolidates the already-evaluated dyadic, multi-turn, network, structural, and escalation settings, while the detailed results appear in GR-1, AP-1–AP-4, JD-4–JD-7, and TT-1. The new 60-question policy comparison and 30-question responder check are explicitly labelled as matched controls for attribution, not as substitutes for that larger evidence base or as a fitted Pareto analysis.
 
 ### Q5. Evaluator robustness for States QA and multi-turn
 
