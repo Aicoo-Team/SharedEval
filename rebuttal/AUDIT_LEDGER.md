@@ -29,6 +29,7 @@
 | 23 | JD-1 明细行（States D2 双 judge 对照） | util 21.6→20.4%（36/167→34/167）；discl 7.5→5.7%（13/174→10/174）；agreement util 88.8% / sec 94.3% | `runs/e4_states/verdicts.jsonl` | **VERIFIED**（07-30 PREP 复算，四数精确） |
 | 24 | 多轮 model-scaling 六点（aP1N Q1/Q5 语境） | gpt-5-mini vs GPT-5.5 × D0/D1/D2 多轮 | neurips 附录 multi-turn model scaling 表 | AS-PUBLISHED |
 | 25 | JD-4 PACT-NET per-family | safety 26.6→71.5（+44.8pp 注明取自未舍入聚合）；utility 88.7→78.8 | 4YP thesis PACT-NET 表 + caption | **VERIFIED**（与 thesis 逐值一致；舍入差异已在文中注明） |
+| 26 | GR-2a 证据基座表（Q1 重构，Codex 92666a0） | 997 任务/run；(997+75)×4=4,288 ticks；3×5×400=6,000；1,072-tick MCC runs；77.8% | 997 三源验证（4YP thesis 表、main.tex L1134、pact_net README 983+514 拆分）；其余为已验证数字的重排 | **VERIFIED**（07-30 PREP） |
 
 ## 已知口径备注（防双分母）
 
