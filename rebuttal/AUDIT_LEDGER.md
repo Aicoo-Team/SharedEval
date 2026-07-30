@@ -9,7 +9,7 @@
 | 3 | E2 2×2 消融（Q2/C2/AC2） | 75.0/42.5/35.0/7.5；util 90/90/85/65；~38pp/~30pp；4.7×；29 of 60 | `6b656e42874d_resume/*/results.merged.jsonl` + judge pass | **VERIFIED**（07-29 复算） |
 | 4 | E4 Files 异族 judge（JD3a Q1） | 1,058；98.3%（98.6/98.0）；88.1→14.1 vs 88.6→14.1；89.4/90.6；18 分歧净+3 | `runs/e4/verdicts.jsonl` | **VERIFIED**（07-29 原始计数审计） |
 | 5 | JD-1 States 异族 judge | 1,030；91.6% | `runs/e4_states/verdicts.jsonl` | **VERIFIED**（07-30 复算 943/1030=91.55%；分歧 87 条无 leak 翻转） |
-| 6 | GR-3 responder 表 | DS 90→5；GLM 80→5；util 100/100/90/100 | `finalized_defender_20260730/defender_table.md` | **VERIFIED**（rebuttal=产物表逐格一致；raw 复算排入 watcher） |
+| 6 | GR-3 responder 表 | DS 90→5；GLM 80→5；util 100/100/90/100 | `finalized_defender_20260730/*/eval_output/eval_single_step_gpt-5-mini.json` | **VERIFIED-RAW**（07-30 PREP：四格 12 个分数从 judge 原始输出精确复现） |
 | 7 | GR-4 8-policy 表 | P0 87.5/95→P5 5/65 等 | `finalized_e1_20260730/operating_points.md` | **VERIFIED**（逐格一致；P1/P2/P6/P7 行与 E2 表互恰 ✓） |
 | 8 | JD-3 GLM relationship 修正版 | R3 泄露 31.8%(27/85)；util 6/6,31/33,15/15,10/11；478+22=500 | `finalized_e6_glm_20260730/relationship_table.md` | **VERIFIED**（20 格逐格一致；L 分母与 label matrix join 独立吻合 6/33/15/11 ✓） |
 | 9 | Q4(b) 逐 requester D2 | answered 6.7/28.3/18.3/30.0；refused 71.7/58.3/75.0/58.3；类别 ~94/90-93/90-100；17pp | `l1_qa_eval_llm.json` sensitive_work 切片 + byCategory | **VERIFIED**（07-30 复算；Marcus 已修 28.3） |
