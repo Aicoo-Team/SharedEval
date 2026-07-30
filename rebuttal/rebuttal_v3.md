@@ -106,16 +106,16 @@ We thank the reviewer for recognizing the importance of the problem, the breadth
 
 **Thank you for raising this framing concern; we agree, and we address it in both ways.** First, the wording: the revision replaces "security–utility frontier" with *security–utility trade-offs across discrete operating points* everywhere and no longer suggests interpolation. Second, more points: Table GR-4 now reports eight policy packages on the same 60 questions and fixed gpt-5-mini requester/responder/judge. The submitted P0/P1/P2 anchors are joined by three supplementary defenses (P3–P5) and two controlled ablations (P6–P7). Disclosure spans 87.5% to 5.0%, while utility spans 95.0% to 65.0%; the lowest-disclosure packages are not interchangeable because their refusal rates range from 72.5% to 95.0%. Table GR-3 then tests the orthogonal responder axis on one canonical 30-question subset: P2 cuts disclosure from 90% to 5% for DeepSeek V4 Flash and from 80% to 5% for GLM 5.2. These are discrete, auditable operating points, not a fitted Pareto boundary.
 
-The same three literature-derived defences also carry *multi-turn* operating points, already in the submitted appendix (the prompt-level defence comparison table): P3, P4, and P5 are the single-step adaptations of D3 (Spotlighting, Hines et al. 2024), D4 (Instruction Hierarchy, Wallace et al. 2024), and D5 (Sandwich + Boundary), which we evaluated under the 240-tick multi-step protocol on gpt-5-mini (6 to 7 splits each; leak is the trajectory-wide gold-fact scan, the diagnostic metric, so these numbers are not comparable to single-turn message rates):
+The same three literature-derived defences also carry *multi-turn* operating points, already in the submitted appendix (the prompt-level defence comparison table): P3, P4, and P5 are the single-step adaptations of D3 (Spotlighting, Hines et al. 2024), D4 (Instruction Hierarchy, Wallace et al. 2024), and D5 (Sandwich + Boundary), which we evaluated under the 240-tick multi-step protocol on gpt-5-mini (6 to 7 splits each). Both the fact-coverage and leak columns below are trajectory-wide string-scan diagnostics, not the direct-response semantic metrics used in Table AP-1:
 
-| Defence (multi-step, 240 ticks) | Utility | Scan-based leak | Unauthorized-action block |
+| Defence (multi-step, 240 ticks) | Trajectory fact coverage (diagnostic) | Scan-based leak (diagnostic) | Unauthorized-action block |
 |---|---|---|---|
 | D2 category deny (baseline) | 85.5% | 38.0% | 88.5% |
 | D3 Spotlighting | 72.9% | 34.3% | 94.0% |
 | D4 Instruction Hierarchy | 72.1% | 32.1% | 96.0% |
 | D5 Sandwich + Boundary | 80.0% | 27.5% | 94.0% |
 
-The existing multi-turn model-scaling ablation provides six additional operating points under the same 240-tick protocol. `MsgL` is the judged direct-message leak; `GlobL` is the over-inclusive trajectory scan and remains diagnostic:
+The existing multi-turn model-scaling ablation provides six additional operating points under the same 240-tick protocol. `Utility` is direct-response semantic utility, `MsgL` is the judged direct-message leak, and `GlobL` is the over-inclusive trajectory scan and remains diagnostic:
 
 | Model | Policy | Refusal | MsgL | GlobL | Utility | Unauthorized-action block |
 |---|---|---:|---:|---:|---:|---:|
@@ -128,7 +128,7 @@ The existing multi-turn model-scaling ablation provides six additional operating
 
 **Table AP-1: multi-turn model scaling.** Scale changes the ungoverned operating point substantially (D0 direct leakage 84.2% vs 28.0%), but the explicit D2 boundary brings direct leakage to nearly the same level (12.6% vs 13.0%) and raises action blocking to 88.5–91.4%. Thus the policy effect is not an artifact of a single model, while the accompanying utility/refusal costs remain model-dependent.
 
-The pattern matches the single-step ablation: literature defences buy 4 to 11 pp of scan-leak reduction and 5.5 to 7.5 pp of action safety at a 6 to 13 pp utility cost, and no prompt-level package closes the incidental-disclosure channel. On the fixed backbone, the response reports eleven judged policy packages (eight single-step and three additional multi-step defences); Table AP-1 adds six model-policy cells, and Table GR-3 separately varies the responder.
+The pattern matches the single-step ablation: literature defences buy 4 to 11 pp of scan-leak reduction and 5.5 to 7.5 pp of action safety at a 6 to 13 pp fact-coverage cost, and no prompt-level package closes the incidental-disclosure channel. On the fixed backbone, the response reports eleven judged policy packages (eight single-step and three additional multi-step defences); Table AP-1 adds six model-policy cells, and Table GR-3 separately varies the responder.
 
 ### Q2. Length-matched control separating specificity from length/content?
 
@@ -268,7 +268,7 @@ Second, PACT-NET provides a larger structural test. The P0/P1 baselines average 
 | Confused-deputy request | 50 | 53.0% | 98.0% | +45.0 pp |
 | Cross-surface sensitive plant | 50 | 0.0% | 94.0% | +94.0 pp |
 
-**Table JD-4: PACT-NET per-family accuracy.** Aggregate safety rises from 26.6% to 71.5% (+44.8 pp) while aggregate utility falls from 88.7% to 78.8% (−10.0 pp). P1 handles visible direct violations well but leaves most network-native threats unresolved:
+**Table JD-4: PACT-NET per-family accuracy.** Aggregate safety rises from 26.6% to 71.5% (reported +44.8 pp from the unrounded aggregates) while aggregate utility falls from 88.7% to 78.8% (reported −10.0 pp). P1 handles visible direct violations well but leaves most network-native threats unresolved:
 
 | Network-native metric | P0 | P1 | Better direction |
 |---|---:|---:|---|
