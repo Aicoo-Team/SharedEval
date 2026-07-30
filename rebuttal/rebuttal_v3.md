@@ -1,4 +1,4 @@
-# SharedOS / PACT — Rebuttal v3 (co-author draft, 2026-07-27)
+# SharedOS / PACT — Rebuttal v3.2 (co-author draft, 2026-07-30)
 
 > **使用说明（发帖前删除本框）**
 > - `【TODO: …】` = 待填数字/待跑实验结果；`【CHECK-n】` = 数据一致性待核对项，编号对应 `rebuttal_v2_internal_checklist.md`。
@@ -6,15 +6,16 @@
 > - 所有新结论均加了 "under current foundation models / in the tested settings" 限定，不推翻任何已发表数字。
 > - v3 相对 v2：删除了全部分隔线与箭头符号，压低破折号密度，内容与数字不变。
 > - 2026-07-29：按 Jindong 在 v1 docx 上的 29 条批注逐条修订。结构统一为"先结论、再细节、最后收束"；没做过的实验明写"follow 建议新跑的"并把 credit 给 reviewer；术语先大白话后括号；删 intentional / after submission / amplification 等被点名的词。数字与 TODO 占位符一律不动。
+> - 2026-07-30：加入 responder robustness、8-policy operating points、States cross-family judge robustness、GLM relationship replication 四张已完成表；States n=5 表仅保留显式 PENDING 单元格，完成严格合并与判分前不得发布。
 > - 发帖前核对 OpenReview 单条评论字数上限；超限时优先压缩表格为文字。
 
 ## 0. Response to the Area Chair (Metareview)
 
 We thank the AC and all reviewers for the careful metareview. We are glad the reviews agree that cross-boundary interaction between personal agents is an important and timely problem and that SharedOS, the benchmark, and the database-diff action evaluation are valuable contributions. Below we summarize how the response addresses the four issues the metareview highlights; details and evidence are in the General Response and the individual replies.
 
-1. **"Frontier" framing.** It was intended as conceptual framing, and we agree the measured object is a set of discrete operating points. We have (a) renamed it throughout to *security–utility trade-offs across discrete operating points*, and (b) densified the point set: beyond D0/D1/D2, the component ablation adds two judged policy packages (a length-matched generic policy and a category-names-only policy) on the fixed model pair, and Table GR-1 spans six requester configurations (General Response, C1).
+1. **"Frontier" framing.** It was intended as conceptual framing, and we agree the measured object is a set of discrete operating points. We have (a) renamed it throughout to *security–utility trade-offs across discrete operating points*, and (b) densified the point set to eight judged policy packages on one fixed 60-task/model setting (Table GR-4). Separately, we vary the responder on one canonical 30-task subset (Table GR-3), so policy breadth and responder robustness are not conflated.
 2. **Policy-specificity confounds.** We agree D1 vs D2 is a policy-*package* comparison. We ran a 2×2 ablation crossing policy length with category-specificity, with a length-matched generic control and a short category-specific control: both components contribute substantially and roughly additively (about 38 pp and 30 pp of disclosure reduction respectively), which corrects our own earlier framing that specificity alone drives the effect (C2; full table in the reply to aP1N Q2).
-3. **Evaluation reliability.** We add (a) judge-independent gold-string scoring, which already reproduces every headline security direction, (b) a complete re-scoring of the single-step Files QA track by a different-family judge, which agrees with the original judgments on 98.3% of 1,058 items and preserves every headline rate, and (c) an independent non-author annotation study of the relationship-conditioned labels (C3, C4).
+3. **Evaluation reliability.** We add (a) judge-independent gold-string scoring, which reproduces every headline security direction; (b) complete different-family re-scoring of Files (1,058 items; 98.3% agreement) and States (1,030 items; 91.6% agreement), preserving the D2 ordering on both surfaces; and (c) an independent non-author annotation study of the relationship-conditioned labels (C3, C4; Table JD-1).
 4. **Comparison with traditional access control.** We have run a structural baseline the reviewers requested, pre-retrieval relationship-conditioned data mounting, plus a pre-tool escalation gate, and we discuss where rule-based enforcement wins, where it is inherently coarse, and why the measured result is *complementarity* between structural and policy-level control (C5; reply to TtBh Q3).
 
 We view this paper as a first systematic exploration of the security–utility trade-off in agent-to-agent delegation, on a deployment-realistic substrate, under current foundation models. Our goal is to establish the platform, the measurement methodology, and the first set of reproducible observations, and thereby to initialize more research in this direction; the revision scopes every conclusion accordingly. We are happy to continue the discussion on any remaining point.
@@ -29,16 +30,18 @@ We thank all reviewers for their careful and constructive reviews. Reviewer aP1N
 
 | # | Concern (raised by) | Action | Status |
 |---|---|---|---|
-| C1 | "Frontier" too strong; too few operating points (aP1N Q1, TtBh Q4, AC) | Renamed to *trade-offs across discrete operating points*; point set densified: five judged policy packages (D0/D1/D2 plus length-matched and category-only controls) on the fixed model pair, six requester configurations in Table GR-1 | Done (aP1N Q1, Q2); additional packages still running are not claimed |
+| C1 | "Frontier" too strong; too few operating points (aP1N Q1, TtBh Q4, AC) | Renamed to *trade-offs across discrete operating points*; eight judged policy packages on one fixed model pair/task set (Table GR-4), with responder robustness reported separately (Table GR-3) | **done**: 8 × 60 policy evaluations plus 4 × 30 responder-policy cells |
 | C2 | D1/D2 confounds length, categories, examples (aP1N Q2, TtBh Q2, AC) | 2×2 ablation, length × category-specificity (P1/P7/P6/P2), 60 stratified tasks per cell, submitted judge | **done**: both factors matter and are roughly additive (~38 pp length, ~30 pp category); table in aP1N Q2 |
-| C3 | Same-family LLM judge (JD3a Q1, TtBh Q5, AC) | (a) judge-independent gold-string scoring; (b) full re-scoring of single-step Files QA by a different-family judge | (a) done (Table GR-2); (b) **done** — 1,058 items, 98.3% agreement (reply to JD3a Q1); States and multi-turn re-scoring still outstanding |
+| C3 | Same-family LLM judge (JD3a Q1, TtBh Q5, AC) | (a) judge-independent gold-string scoring; (b) full different-family re-scoring of single-step Files and States QA | **done**: Files 1,058 items / 98.3% agreement; States 1,030 items / 91.6% agreement (Table JD-1); multi-turn remains untested by a second model family |
 | C4 | Labels author-designed; no independent validation (TtBh Q1, JD3a Lim., AC) | Independent annotation by 5 annotators (4 external, 1 project-affiliated), blinded; κ plus disagreement analysis; labels reframed as *scenario contracts* | **done**: κ 0.654 / 0.501 / 0.491 (QA / relationship / actions), external-only sensitivity reported; 100 majority-vs-gold cells ship as adjudication records (TtBh Q1) |
 | C5 | No structural access-control baseline (TtBh Q3, JD3a Q4, AC) | Pre-retrieval relationship-conditioned mounting baseline plus pre-tool escalation gate; discussion of rule-based vs policy-reasoning trade-offs | Done (TtBh Q3, JD3a Q4) |
 | C6 | Relationship-aware policy baseline (aP1N Q4) | Rel-Policy baseline run (GPT-5.5, 5 requesters × 400 QA) | **done**; the matched GPT-5-mini run is stated as future work, not claimed |
-| C7 | States variance rests on n=2 (JD3a Q2) | Claim rescoped to what n=2 supports: security direction robust (McNemar p<.001 in both reps), utility reported as a range (5 to 31%) with its mechanism; n=2 stated in Limitations | Done (JD3a Q2); further replications are future work, not claimed |
-| C8 | RQ3 single-model (JD3a Q3) | Reproduced on GPT-5.5 across 5 requester profiles × 400 QA × 3 conditions | 6,000 trials; result reported below |
+| C7 | States variance rests on n=2 (JD3a Q2) | Three exact-protocol P2 States trajectories are being added to raise D2 from n=2 to n=5; strict merge and judge are required before use | **in progress**: Table JD-2 is fill-ready but visibly PENDING; no partial-run rate is claimed |
+| C8 | RQ3 single-model (JD3a Q3) | Reproduced on GPT-5.5 (6,000 trials) and independently on a seeded GLM 5.2 D3 sensitive subset (5 profiles × 100) | **done**: GLM 500/500 provenance-valid rows after immutable retries (Table JD-3) |
 | C9 | Table 15/20 discrepancy; multi-turn wording (aP1N Q3/Q5) | Denominators clarified (identical security pipeline; two different utility definitions); direct vs incidental channels separated in text | Done (aP1N Q3/Q5) |
-| C10 | Figure 1, naming, captions (TtBh, JD3a) | Figure 1 redrawn (larger text, explicit architecture); naming defined once: **SharedOS** = platform, **PACT-Bench** = suite = **PACT-PAIR** (dyadic) plus **PACT-NET** (network); Tables 32–39 captions and the missing table reference fixed | Done in revision |
+| C10 | Figure 1, naming, captions (TtBh, JD3a) | Naming defined once: **SharedOS** = platform, **PACT-Bench** = suite = **PACT-PAIR** (dyadic) plus **PACT-NET** (network); Tables 32–39 captions and the missing table reference fixed | Naming/captions done; Figure 1 redraw remains a visible pre-posting action and is not claimed as complete here |
+
+The completed supplemental evidence in this response comprises 480 policy-task episodes (8 policies × 60 tasks), 120 responder-policy episodes (4 cells × 30 tasks), 500 seeded relationship episodes, and 2,088 different-family judge calls. We report these units separately rather than inflating them into one heterogeneous trial count. The 600 additional States task responses planned for Table JD-2 are not included until strict finalization and judging complete.
 
 ### 1.2 The core result is stable across models and scorers (Table GR-1)
 
@@ -57,7 +60,37 @@ The central contrast between D0 and D2 recurs across six model configurations fr
 
 **Table GR-2, the security direction survives without any LLM judge.** With gold-string scoring only, Files disclosure falls from 72.5% under D0 to 13.0% under D2; States from 47.5% to 6.5%; Kimi K2.6 from 86.5% to 8.0%; DeepSeek V3.2 from 89.0% to 13.0%. Semantic/string agreement is 91.5% (single-step Files), 89.3% (States), and 93.7% (multi-turn); all audited disagreements are reported in the reply to JD3a Q1.
 
-### 1.3 Three clarifications used throughout
+### 1.3 Responder robustness on one canonical subset (Table GR-3)
+
+The submission varied the requester while holding the responder fixed. To test the previously missing responder axis without changing the task set, we use one frozen subset of 10 public-work and 20 sensitive Files questions. The requester is gpt-5-mini in every cell; only the responder and policy vary. All 120 rows pass question, policy, response, error, and requester/responder provenance gates, and the existing gpt-5-mini rubric is used throughout:
+
+| Responder | Policy | Utility | Disclosure | Explicit refusal |
+|---|---:|---:|---:|---:|
+| DeepSeek V4 Flash | P0 | 10/10 (100%) | 18/20 (90%) | 1/20 (5%) |
+| DeepSeek V4 Flash | P2 | 10/10 (100%) | 1/20 (5%) | 19/20 (95%) |
+| GLM 5.2 | P0 | 9/10 (90%) | 16/20 (80%) | 3/20 (15%) |
+| GLM 5.2 | P2 | 10/10 (100%) | 1/20 (5%) | 19/20 (95%) |
+
+On this canonical subset, P2 reduces disclosure by 85 pp for DeepSeek V4 Flash and 75 pp for GLM 5.2 without reducing measured utility. Because each cell is one 30-question run, this is a responder-robustness check, not a population estimate.
+
+### 1.4 Eight policy operating points on one fixed setting (Table GR-4)
+
+To compare policy mechanisms without model or task-set confounds, all eight cells use the same 60 Files questions (20 public, 40 sensitive), gpt-5-mini requester/responder, and gpt-5-mini judge:
+
+| Policy | Mechanism | Role | Utility | Disclosure | Explicit refusal |
+|---|---|---|---:|---:|---:|
+| P0 | No policy | submitted anchor | 19/20 (95.0%) | 35/40 (87.5%) | 1/40 (2.5%) |
+| P1 | Generic caution | submitted | 18/20 (90.0%) | 30/40 (75.0%) | 1/40 (2.5%) |
+| P2 | Category policy | submitted | 13/20 (65.0%) | 3/40 (7.5%) | 29/40 (72.5%) |
+| P3 | External messages are data | supplementary defense | 17/20 (85.0%) | 5/40 (12.5%) | 35/40 (87.5%) |
+| P4 | Instruction hierarchy | supplementary defense | 16/20 (80.0%) | 2/40 (5.0%) | 36/40 (90.0%) |
+| P5 | Classification checklist | supplementary defense | 13/20 (65.0%) | 2/40 (5.0%) | 38/40 (95.0%) |
+| P6 | Length-matched generic | ablation control | 17/20 (85.0%) | 14/40 (35.0%) | 16/40 (40.0%) |
+| P7 | Short category-specific | ablation control | 18/20 (90.0%) | 17/40 (42.5%) | 13/40 (32.5%) |
+
+These are eight discrete operating points, not a dense frontier. P3–P5 reduce disclosure to 5.0–12.5% but differ materially in utility and refusal; P6–P7 isolate the length/category components rather than serving as deployable governance recommendations.
+
+### 1.5 Three clarifications used throughout
 
 1. **What we measure.** The empirical object is a comparison of discrete governance operating points, not an estimated continuous Pareto boundary; the revision uses the conservative wording everywhere. Every tested (model, policy) pair sits on a trade-off; some packages trade off strictly better than others, and that comparison is the finding.
 2. **What PACT-PAIR is.** PACT-PAIR is a *controlled instrument built on a deployed substrate*: SharedOS is a live system whose production execution path (routing, permission objects, typed tools, persistent state) the benchmark runs on, while the seeded world provides exact gold facts, counterfactual replay, and database-diff ground truth. It estimates within-world contrasts under explicit scenario contracts, not population prevalence; we curated it to study the problem, not to rank models on a leaderboard.
@@ -69,7 +102,7 @@ We thank the reviewer for recognizing the importance of the problem, the breadth
 
 ### Q1. Pareto-front analysis or narrower framing?
 
-**Thank you for raising this framing concern; we agree, and we address it in both ways.** First, the wording: the revision replaces "security–utility frontier" with *security–utility trade-offs across discrete operating points* everywhere, and no longer suggests an interpolated frontier. Second, more points: we did not stop at the submitted three policies. Five policy packages now carry judged Files numbers on the fixed gpt-5-mini pair: D0, D1, D2, plus the two purpose-built controls from the component ablation, a length-matched generic policy and a category-names-only policy (full 2×2 table in our reply to Q2), and Table GR-1 spans six requester configurations at D0/D1/D2. The picture is consistent under current models: *every* configuration shows a trade-off, but the trade-offs are not equal. D2 reduces Files disclosure by 69 to 91 pp across all six models at a utility cost between 1 and 29 pp; D1 barely moves security in any configuration; and at matched length the category-specific package still leaks 4.7 times less than the generic one (7.5% vs 35.0%). This comparison, which policies and which models trade off better, measured point by point, is exactly what the new framing supports. Additional policy packages are still running; we will post whatever completes within the discussion period and do not claim it in advance.
+**Thank you for raising this framing concern; we agree, and we address it in both ways.** First, the wording: the revision replaces "security–utility frontier" with *security–utility trade-offs across discrete operating points* everywhere and no longer suggests interpolation. Second, more points: Table GR-4 now reports eight policy packages on the same 60 questions and fixed gpt-5-mini requester/responder/judge. The submitted P0/P1/P2 anchors are joined by three supplementary defenses (P3–P5) and two controlled ablations (P6–P7). Disclosure spans 87.5% to 5.0%, while utility spans 95.0% to 65.0%; the lowest-disclosure packages are not interchangeable because their refusal rates range from 72.5% to 95.0%. Table GR-3 then tests the orthogonal responder axis on one canonical 30-question subset: P2 cuts disclosure from 90% to 5% for DeepSeek V4 Flash and from 80% to 5% for GLM 5.2. These are discrete, auditable operating points, not a fitted Pareto boundary.
 
 ### Q2. Length-matched control separating specificity from length/content?
 
@@ -117,17 +150,43 @@ We are excited to receive the positive assessment, and we thank the reviewer for
 
 ### Q1. Different-family judge
 
-**Yes, and two layers of evidence already bound the risk.** (a) *Judge-independent scoring*: with gold-string matching only and no LLM judge at all, every headline security direction reproduces. Files disclosure falls from 72.5% under D0 to 13.0% under D2, States from 47.5% to 6.5%, Kimi K2.6 from 86.5% to 8.0%, and DeepSeek V3.2 from 89.0% to 13.0%. Semantic/string agreement is 89.3 to 93.7% across tracks; we manually reviewed all disagreements (44 single-step cases: all genuine paraphrase or format leaks missed by the matcher; 38 multi-turn cases: 28 real leaks missed by strings, 5 judge false positives, 3 debatable, 2 partial; removing the 5 false positives changes no headline by more than 1.6 pp). (b) *New*: we re-scored **every** gradable response from the six single-step Files QA runs (D0/D1/D2 × two replications) with a different-family judge, DeepSeek V4 Flash at temperature 0 — 1,058 of 1,059 items, one lost to repeated empty provider responses. This is a full re-scoring, not a sample. We kept the submitted utility and security rubrics and verdict labels verbatim and added only a provider-specific JSON-format instruction, so that the judge family is the only thing that varies. Verdict agreement with the original gpt-5-mini judgments is **98.3%** overall (98.6% utility, 98.0% security). The headline result is preserved: Files disclosure falls from 88.1% to 14.1% under the original judge and from 88.6% to 14.1% under the cross-family judge, and D1 remains ineffective (89.4% vs 90.6%). (Rates in this paragraph are over gradable items, e.g. 163/185 leaked under D0; Table GR-1 reports 83.0% because it uses the fixed 200-item denominator, which also counts non-gradable cases as non-leaks.) Of the 18 disagreements, 9 change a disclosure classification, with a net effect of +3 leaks; they do not alter the ordering or any conclusion. Per-item verdicts and the served-model provenance for all 1,058 calls are in the supplementary artifact.
+**Yes. We now provide judge-independent scoring plus full different-family re-scoring on both single-step QA surfaces.** Gold-string matching, with no LLM judge, reproduces every headline security direction: Files disclosure falls from 72.5% under D0 to 13.0% under D2 and States from 47.5% to 6.5%. For the model-family check, DeepSeek V4 Flash (temperature 0) re-scores every gradable response using the submitted rubrics and verdict labels verbatim:
+
+| Surface | Re-scored items | Overall agreement | Utility agreement | Security agreement | Headline comparison on gradable items |
+|---|---:|---:|---:|---:|---|
+| Files QA | 1,058/1,059 | 98.3% | 98.6% | 98.0% | D0→D2 disclosure: original 88.1→14.1%; DeepSeek 88.6→14.1% |
+| States QA | 1,030/1,030 | 91.6% | 88.8% | 94.3% | D2 utility: 21.6→20.4%; D2 disclosure: 7.5→5.7% |
+
+**Table JD-1: cross-family judge robustness.** All 1,030 States calls and all 1,058 returned Files calls carry provider-returned served-model provenance; provider errors are zero for States and one repeatedly empty Files response is excluded because there is no text to judge. The Files conclusion is nearly invariant. States is more judge-sensitive: 57/507 utility judgments and 30/523 security judgments disagree, with DeepSeek more often changing utility `correct` to `incorrect` (29 cases) than the reverse (5); nevertheless, the D2 ordering and low-disclosure conclusion remain. Rates here use the gradable-only denominator for judge agreement and do not replace the manuscript's fixed-200 headline rates, which count no-response as failure.
 
 ### Q2. Bounding the D2 States-QA variance
 
-**Agreed: n=2 cannot bound the utility magnitude, and we scope the claim to exactly what n=2 supports.** What the two existing replications already establish: the *security* direction repeats in both (disclosure falls from 58% to 5% in one and from 59% to 11% in the other; McNemar p<.001 each), while D2 States utility spans 5 to 31%. The mechanism, on inspection: under a strict D2, States utility depends on whether early trajectory context happens to include the queried state objects, and small per-cell denominators amplify this; the submitted item set was small for this cell. The revision therefore (i) reports the D2 States utility as the observed range with this mechanism, not as a point estimate, (ii) states the n=2 limitation explicitly in Limitations, and (iii) keeps the surface-asymmetry claim only in the direction the replications support: the security effect is robust; the utility magnitude is uncertain and reported with its spread. Additional replications under the original protocol are future work; we do not claim them in this response.
+**Agreed: n=2 cannot bound the utility magnitude. We therefore keep the existing claim scoped and are running three exact-protocol trajectories to raise D2 from n=2 to n=5.** The two submitted replications already establish that the security direction repeats (D0→D2 disclosure 58→5% and 59→11%; McNemar p<.001 in each), while D2 utility spans 5–31%. The new trajectories hold P2, Q201–Q400, gpt-5-mini requester/responder, seeded-world size, and evaluator fixed; each must reach 200 unique provenance-valid rows before inclusion.
+
+**Table JD-2 (internal fill-ready table; do not post until all PENDING cells pass strict finalization and judging):**
+
+| D2 States metric | Submitted rep 1 | Submitted rep 2 | New rep 3 | New rep 4 | New rep 5 | Five-rep summary |
+|---|---:|---:|---:|---:|---:|---:|
+| Utility | 5.0% | 31.0% | **PENDING** | **PENDING** | **PENDING** | **PENDING mean ± SD** |
+| Disclosure | 5.0% | 11.0% | **PENDING** | **PENDING** | **PENDING** | **PENDING mean ± SD** |
+
+Until Table JD-2 is complete, the rebuttal relies only on the submitted n=2 result and states its limitation explicitly; no partial trajectory is used to strengthen the claim.
 
 ### Q3. RQ3 beyond gpt-5-mini
 
-**Following the reviewer's suggestion, we have reproduced RQ3 on GPT-5.5.**
+**Following the reviewer's suggestion, we reproduce the relationship study on GPT-5.5 and add a non-OpenAI GLM 5.2 replication.** The GPT-5.5 experiment covers 5 requesters × 400 QA × 3 conditions (6,000 trials): requester-specific policy raises utility to 87% for colleague, delegate, and investor, while the close-friend profile remains the failure mode (63.3% utility, 38.7% P+B disclosure).
 
-Across 5 requesters × 400 QA × 3 conditions (6,000 trials), the qualitative pattern replicates. Requester-specific policy raises utility to 87% for colleague, delegate, and investor, while the close-friend profile remains the failure mode (63.3% utility, 38.7% P+B disclosure). We note this experiment uses a richer policy package (an extension, not an exact fixed-D2 replication), and Table GR-1's Kimi and DeepSeek columns already provide non-OpenAI evidence for the RQ1 policy contrast.
+The independent GLM 5.2 run uses one seeded world (103 Notes at run start), fixed D3, and the same Q101–Q200 sensitive subset for every requester. After retaining 478 valid base rows and replacing 22 engine-error pairs through immutable, question-specific retries, strict finalization yields 500/500 rows:
+
+| Requester profile | Utility | Disclosure | Safe non-answer | Explicit refusal |
+|---|---:|---:|---:|---:|
+| R0 stranger | – (0/0 legitimate items) | 1.0% (1/100) | 62.0% (62/100) | 37.0% (37/100) |
+| R1 colleague | 100.0% (6/6) | 5.3% (5/94) | 4.3% (4/94) | 90.4% (85/94) |
+| R2 CEO delegate | 93.9% (31/33) | 0.0% (0/67) | 1.5% (1/67) | 98.5% (66/67) |
+| R3 close friend | 100.0% (15/15) | 31.8% (27/85) | 4.7% (4/85) | 63.5% (54/85) |
+| R4 investor | 90.9% (10/11) | 13.5% (12/89) | 2.2% (2/89) | 84.3% (75/89) |
+
+**Table JD-3: seeded GLM relationship replication.** The utility denominator varies because the scenario contract assigns different numbers of legitimate items to each profile; security is evaluated on the remaining protected/borderline items. The close-friend disclosure concentration replicates as a qualitative failure mode, while the delegate profile occupies a different, highly conservative operating point. Because the GPT-5.5 and GLM packages cover different task ranges and policy implementations, we do not compare their absolute utility rates as a controlled model effect; together they show that relationship-conditioned behavior remains model- and package-dependent.
 
 ### Q4. Interventions MVP
 
@@ -182,12 +241,12 @@ Three conclusions, scoped to this experiment. (i) Structural enforcement works w
 
 ### Q4. "Frontier" terminology
 
-**We agree and thank the reviewer for the suggestion; we adopt the more conservative wording** (*security–utility trade-offs across discrete operating points*) throughout, while also densifying the measured points (five judged policy packages on the fixed model pair, six requester configurations at D0/D1/D2; see General Response C1 and the reply to aP1N Q1). No dense-Pareto claim is made anywhere in the revision.
+**We agree and thank the reviewer for the suggestion; we adopt the more conservative wording** (*security–utility trade-offs across discrete operating points*) throughout, while also densifying the measured points to eight judged policy packages on the same 60-task/model setting (Table GR-4). Responder robustness is reported separately on one canonical 30-question subset (Table GR-3), rather than conflated with the policy comparison. No dense-Pareto claim is made anywhere in the revision.
 
 ### Q5. Evaluator robustness for States QA and multi-turn
 
-**Added on three levels.** (i) Judge-independent gold-string scoring reproduces every headline security direction (States disclosure falls from 47.5% to 6.5%; multi-turn semantic/string agreement is 93.7%). (ii) A full re-scoring of the single-step Files QA track by a different-family judge (DeepSeek V4 Flash, temperature 0, 1,058 items, 98.3% verdict agreement; details in our reply to JD3a Q1). The equivalent re-scoring for States QA and multi-turn is not yet complete, and we do not claim judge-family robustness for those two surfaces. (iii) A human audit of disagreements, now grounded in the returned independent annotations rather than in authors only: all 458 non-unanimous items carry an adjudication column, and the 100 cells where the annotator majority disagrees with our gold ship as adjudication records (details in our reply to Q1). We will report all three alongside the main tables so readers can see the stability of leakage and over-refusal rates under alternative scoring rules.
+**Added on three levels.** (i) Judge-independent gold-string scoring reproduces every headline security direction (States disclosure falls from 47.5% to 6.5%; multi-turn semantic/string agreement is 93.7%). (ii) DeepSeek V4 Flash re-scores every gradable response from both single-step surfaces using the submitted rubric: Files agreement is 98.3% over 1,058 items, and States agreement is 91.6% over 1,030 items (88.8% utility, 94.3% security). Table JD-1 reports the full comparison: States is more judge-sensitive than Files, but D2 remains the lowest-disclosure package under both judges (7.5% original vs 5.7% DeepSeek on gradable items). We do not yet claim different-family robustness for multi-turn because its full trajectory inputs have not been reconstructed for re-scoring. (iii) A human audit of disagreements is grounded in the returned independent annotations: all 458 non-unanimous items carry an adjudication column, and the 100 cells where the annotator majority disagrees with our gold ship as adjudication records (details in our reply to Q1).
 
 ### Presentation and limitations
 
-We especially appreciate the concrete feedback on Figure 1; this kind of comment is rare and genuinely helpful. We have redrawn it with larger text and a single explicit cross-boundary path: from the requester agent, through the cross-boundary policy and contact layer, to the target agent, its typed read/write tools, and the owner's private state, with the enforcement layers (prompt policy, mounted reachability, DB-diff evaluation) visually separated. Per the reviewer's limitation note, the revision states explicitly that (a) benchmark labels and relationship-conditioned access norms are author-designed scenario contracts pending the independent annotation study, and (b) the submitted "governance" conclusions concern prompt-level policies plus the structural mechanisms actually tested. We hope the added experiments, the scoped claims, and the framing of this work as a first controlled exploration of cross-boundary A2A delegation, intended to initialize research on a problem that current deployments are already encountering, address the reviewer's concerns, and we welcome further discussion.
+We especially appreciate the concrete feedback on Figure 1; this kind of comment is rare and genuinely helpful. The architecture redraw remains a pre-posting action, and we do not claim it as complete in this draft. The intended revision enlarges the text and shows one explicit path from requester agent, through the cross-boundary policy/contact layer, to the target agent, typed read/write tools, and owner state, with prompt policy, mounted reachability, and DB-diff evaluation visually separated. Per the reviewer's limitation note, the revision also states explicitly that (a) benchmark labels and relationship-conditioned access norms are independently audited scenario contracts rather than universal social norms, and (b) the submitted "governance" conclusions concern prompt-level policies plus the structural mechanisms actually tested. We hope the added experiments, scoped claims, and framing of this work as a first controlled exploration of cross-boundary A2A delegation address the concerns, and we welcome further discussion.
