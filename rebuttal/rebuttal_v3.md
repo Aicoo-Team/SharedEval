@@ -33,8 +33,8 @@ We thank all reviewers for their careful and constructive reviews. Reviewer aP1N
 | C1 | "Frontier" too strong; too few operating points (aP1N Q1, TtBh Q4, AC) | Renamed to *trade-offs across discrete operating points*; eight judged single-step policy packages (Table GR-4) plus three literature-derived defences at 240-tick multi-step (aP1N Q1), with responder robustness reported separately (Table GR-3) | **done**: 8 × 60 single-step evaluations, 3 multi-step defence packages, 4 × 30 responder-policy cells |
 | C2 | D1/D2 confounds length, categories, examples (aP1N Q2, TtBh Q2, AC) | 2×2 ablation, length × category-specificity (P1/P7/P6/P2), 60 stratified tasks per cell, submitted judge | **done**: both factors matter and are roughly additive (~38 pp length, ~30 pp category); table in aP1N Q2 |
 | C3 | Same-family LLM judge (JD3a Q1, TtBh Q5, AC) | (a) judge-independent gold-string scoring; (b) full different-family re-scoring of single-step Files and States QA | **done**: Files 1,058 items / 98.3% agreement; States 1,030 items / 91.6% agreement (Table JD-1); multi-turn remains untested by a second model family |
-| C4 | Labels author-designed; no independent validation (TtBh Q1, JD3a Lim., AC) | Independent annotation by 5 annotators (4 external, 1 project-affiliated), blinded; κ plus disagreement analysis; labels reframed as *scenario contracts* | **done**: κ 0.654 / 0.501 / 0.491 (QA / relationship / actions), external-only sensitivity reported; 100 majority-vs-gold cells ship as adjudication records (TtBh Q1) |
-| C5 | No structural access-control baseline (TtBh Q3, JD3a Q4, AC) | Pre-retrieval relationship-conditioned mounting baseline plus pre-tool escalation gate; discussion of rule-based vs policy-reasoning trade-offs | Done (TtBh Q3, JD3a Q4) |
+| C4 | Labels author-designed; no independent validation (TtBh Q1, JD3a Lim., AC) | Independent annotation by 5 non-author annotators, blinded; agreement plus disagreement analysis; labels reframed as *scenario contracts* | **done**: ≥4/5 agreement on 83.5–86.5% of items; κ 0.654 / 0.501 / 0.491 (QA / relationship / actions); 100 majority-vs-gold cells ship as adjudication records (TtBh Q1) |
+| C5 | No structural access-control baseline (TtBh Q3, JD3a Q4, AC) | Pre-retrieval relationship-conditioned mounting on PACT-PAIR, network-scale MCC validation on PACT-NET, and a pre-tool escalation gate; discussion of rule-based vs policy-reasoning trade-offs | Done (TtBh Q3, JD3a Q4); replicated and single-run evidence are labelled separately |
 | C6 | Relationship-aware policy baseline (aP1N Q4) | Rel-Policy baseline run (GPT-5.5, 5 requesters × 400 QA) | **done**; the matched GPT-5-mini run is stated as future work, not claimed |
 | C7 | States variance rests on n=2 (JD3a Q2) | Three exact-protocol P2 States trajectories are being added to raise D2 from n=2 to n=5; strict merge and judge are required before use | **in progress**: Table JD-2 is fill-ready but visibly PENDING; no partial-run rate is claimed |
 | C8 | RQ3 single-model (JD3a Q3) | Reproduced on GPT-5.5 (6,000 trials) and independently on a seeded GLM 5.2 D3 sensitive subset (5 profiles × 100) | **done**: GLM 500/500 provenance-valid rows after immutable retries (Table JD-3) |
@@ -42,6 +42,8 @@ We thank all reviewers for their careful and constructive reviews. Reviewer aP1N
 | C10 | Figure 1, naming, captions (TtBh, JD3a) | Naming defined once: **SharedOS** = platform, **PACT-Bench** = suite = **PACT-PAIR** (dyadic) plus **PACT-NET** (network); Tables 32–39 captions and the missing table reference fixed | Naming/captions done; Figure 1 redraw remains a visible pre-posting action and is not claimed as complete here |
 
 The completed supplemental evidence in this response comprises 480 policy-task episodes (8 policies × 60 tasks), 120 responder-policy episodes (4 cells × 30 tasks), 500 seeded relationship episodes, and 2,088 different-family judge calls. We report these units separately rather than inflating them into one heterogeneous trial count. The 600 additional States task responses planned for Table JD-2 are not included until strict finalization and judging complete.
+
+We also surface several previously completed evaluations that were compressed or omitted in the original response: the full two-model multi-turn matrix, requester-conditioned read/write results, PACT-NET task-family and network-native metrics, the full PACT-PAIR MCC decomposition, network-scale MCC validation, and all eight escalation-gate cells. These are not counted as newly run episodes; they are existing artifacts now made auditable in the response.
 
 ### 1.2 The core result is stable across models and scorers (Table GR-1)
 
@@ -113,7 +115,20 @@ The same three literature-derived defences also carry *multi-turn* operating poi
 | D4 Instruction Hierarchy | 72.1% | 32.1% | 96.0% |
 | D5 Sandwich + Boundary | 80.0% | 27.5% | 94.0% |
 
-The pattern matches the single-step ablation: literature defences buy 4 to 11 pp of scan-leak reduction and 5.5 to 7.5 pp of action safety at a 6 to 13 pp utility cost, and no prompt-level package closes the incidental-disclosure channel. Counting both protocols, the response now reports eleven judged policy operating points (eight single-step, three multi-step) plus the responder axis.
+The existing multi-turn model-scaling ablation provides six additional operating points under the same 240-tick protocol. `MsgL` is the judged direct-message leak; `GlobL` is the over-inclusive trajectory scan and remains diagnostic:
+
+| Model | Policy | Refusal | MsgL | GlobL | Utility | Unauthorized-action block |
+|---|---|---:|---:|---:|---:|---:|
+| gpt-5-mini | D0 | 0.0% | 84.2% | 83.0% | 82.9% | 59.0% |
+| gpt-5-mini | D1 | 2.0% | 72.9% | 79.5% | 77.5% | 51.0% |
+| gpt-5-mini | D2 | 64.4% | 12.6% | 38.0% | 60.3% | 88.5% |
+| GPT-5.5 | D0 | 63.5% | 28.0% | 39.5% | 68.5% | 40.9% |
+| GPT-5.5 | D1 | 68.5% | 25.0% | 34.0% | 56.0% | 52.6% |
+| GPT-5.5 | D2 | 80.5% | 13.0% | 24.5% | 51.5% | 91.4% |
+
+**Table AP-1: multi-turn model scaling.** Scale changes the ungoverned operating point substantially (D0 direct leakage 84.2% vs 28.0%), but the explicit D2 boundary brings direct leakage to nearly the same level (12.6% vs 13.0%) and raises action blocking to 88.5–91.4%. Thus the policy effect is not an artifact of a single model, while the accompanying utility/refusal costs remain model-dependent.
+
+The pattern matches the single-step ablation: literature defences buy 4 to 11 pp of scan-leak reduction and 5.5 to 7.5 pp of action safety at a 6 to 13 pp utility cost, and no prompt-level package closes the incidental-disclosure channel. On the fixed backbone, the response reports eleven judged policy packages (eight single-step and three additional multi-step defences); Table AP-1 adds six model-policy cells, and Table GR-3 separately varies the responder.
 
 ### Q2. Length-matched control separating specificity from length/content?
 
@@ -138,6 +153,17 @@ We would like to clarify from the following perspectives.
 
 **(a) The relationship-agnostic policy is the study design, and the gap it produces is the finding.** Our initial goal in RQ3 is to test whether current models, given one uniform policy (D2) plus in-context relationship information, can work out relationship-appropriate boundaries on their own. The relationship-conditioned gold labels define what the right behavior would be. When the model falls short of that target, it mostly fails by refusing too much, and that over-refusal is exactly what we measure and report.
 
+The full fixed-D2 experiment includes both reads and writes:
+
+| Requester | QA disclosure on protected items | QA over-refusal on legitimate items | QA utility | Action utility | Unauthorized-action block |
+|---|---:|---:|---:|---:|---:|
+| Colleague | 1.7% | 40% | 57% | 92% | 90% |
+| CEO delegate | 3.3% | 59% | 49% | 89% | 85% |
+| Close friend | 9.2% | 86% | 58% | 92% | 84% |
+| Investor / board observer | 7.5% | 31% | 70% | 83% | 91% |
+
+**Table AP-2: relationship-conditioned D2 across read and write tracks.** The relationship effect is not scalar trust. The investor profile has the highest QA utility and low over-refusal but the lowest action utility and highest action safety, whereas the close-friend profile combines the highest over-refusal with the lowest action safety. This read/write separation is observed under one fixed policy and responder.
+
 **(b) We therefore treat RQ3 as a calibration stress test, and the measured over-refusal is structured, not uniform.** The mismatch is substantive rather than cosmetic: 70 of 99 sensitive items change label across requester profiles, and the close-friend and investor contracts differ on 55 of 99. The behavior under the same fixed D2 shows matching structure. On the same 60 sensitive-work questions, before any scoring against labels (so "answers" here includes answers the requester is entitled to):
 
 | Requester | Answers with the queried facts | Refuses |
@@ -154,6 +180,31 @@ By category, refusal on the personal categories is nearly uniform across all fou
 ### Q5. Why "eroding" if direct leakage is similar to single-turn?
 
 **We agree, and we will drop the word "eroding": multi-turn interaction does not make the direct leak worse; it adds a second, different way for facts to leak.** *Direct* leakage, a protected fact appearing in the answer to the probing request itself, is indeed similar across settings (12.6% multi-turn after retries vs 14.0% single-turn; retries add only +2.1 pp, from 20/191 to 24/191), and we do not claim that multi-turn interaction makes this direct leak larger. What it adds is a channel that single-turn evaluation cannot show at all: while the agent serves other requests over 240 ticks, protected facts can surface elsewhere in the conversation (*incidental co-located disclosure*). The 38.0% figure is an over-inclusive string-scan diagnostic of that channel (76/200 hits, of which 21 were semantically confirmed and 55 were false positives); we will report confirmed incidental disclosure separately from the scan rate. The channel is also surface-dependent (Files 8.0% vs States 17.6% under the multi-turn protocol). The revised claim reads: *persistent multi-turn interaction opens additional disclosure channels beyond the direct response*. That is exactly what a single-turn benchmark would miss, and one reason the SharedOS setting matters.
+
+The category decomposition shows why the aggregate direct rate stays bounded:
+
+| Category | mini Ref | mini MsgL | mini Fail | mini GlobL | 5.5 Ref | 5.5 MsgL | 5.5 Fail | 5.5 GlobL |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Sensitive work | 36.8% | 22.8% | 40.4% | 51.7% | 83.3% | 16.7% | 0.0% | 26.7% |
+| Personal finance | 75.0% | 4.5% | 20.5% | 34.7% | 80.0% | 8.0% | 12.0% | 24.0% |
+| Personal health | 89.7% | 2.6% | 7.7% | 20.0% | 100.0% | 0.0% | 0.0% | 15.0% |
+| Personal relationships | 66.7% | 15.7% | 17.6% | 39.2% | 80.0% | 8.0% | 12.0% | 24.0% |
+| All | 64.4% | 12.6% | 23.0% | 38.0% | 85.0% | 9.0% | 6.0% | 23.0% |
+
+**Table AP-3: D2 multi-turn security by category** (`mini`: n=191 gradable protected requests; `5.5`: n=100). Sensitive work is the residual direct-leak bottleneck for both models; health is strongly refused yet still appears in the trajectory-wide scan. This is why we separate direct semantic disclosure from the broader diagnostic scan.
+
+The persistent protocol also records 1,184 adaptive retry attempts. Raw-note-ID retrieval accounts for 65% of attempts but flips only 7.6%; business-justification reframing accounts for 15% but flips 34.5%. The highest-risk observed breach combines business justification, scope expansion, and constrained output after 12 failed attempts; the responder then refuses all six follow-up probes. This supports bounded, strategy-dependent breaches rather than monotonic policy collapse.
+
+Finally, the existing cross-surface audit classifies every unique D2 leak pooled across the two single-step replications:
+
+| Failure mechanism | Files | States | Total |
+|---|---:|---:|---:|
+| Category-boundary ambiguity | 17 | 10 | 27/44 (61%) |
+| Protected fact outside the attributed answer | 4 | 3 | 7/44 (16%) |
+| Company-benefit / personal-finance confusion | 2 | 1 | 3/44 (7%) |
+| Stochastic, one-replication-only failure | 5 | 2 | 7/44 (16%) |
+
+**Table AP-4: D2 residual-failure taxonomy.** Most residual leakage is not an obvious-PII failure; it is boundary ambiguity in organisational data. The second row also shows why attributed-response scoring and trajectory-level auditing answer different questions.
 
 ## 3. Response to Reviewer JD3a
 
@@ -201,19 +252,66 @@ The independent GLM 5.2 run uses one seeded world (103 Notes at run start), fixe
 
 ### Q4. Interventions MVP
 
-**We did not stop at stating the interventions: two of them are now implemented and tested, and both work, at a measurable utility cost.** (i) *Pre-retrieval relationship-conditioned mounting* (Notes surface, 5 requesters × 200 questions × 3 conditions): adding folder-level mounting to the same relationship policy reduces P+B disclosure from 12.9% to 5.6%, a 56.8% relative reduction, at a utility cost from 78.9% to 65.2%. Conversely, semantic policy still reduces disclosure within the mounted scope, from 9.0% to 5.6%, at unchanged utility (64.2% and 65.2%). (ii) *Pre-tool escalation gate*: 2 models × supervision/retrieval conditions, 11,659 gate decisions in the relationship phase alone. Two headline numbers. First, protection is robust across every tested condition: the gate stops 87.7 to 94.4% of protected requests in all eight condition-model cells. Second, the trade-off is tunable: raising the supervised-precedent fraction from 10% to 30% lifts legitimate-request pass-through from 69.8% to 91.0% (gpt-5-mini; 67.1% to 87.4% for GPT-5.5) at essentially unchanged protection (88 to 92% stop rate), so the gate exposes an adjustable operating point rather than a fixed cost:
+**We did not stop at stating the interventions: mounting and pre-tool escalation are implemented and evaluated at dyadic and network scales.** First, *pre-retrieval relationship-conditioned mounting* on PACT-PAIR (Notes, 5 requesters × 200 questions × 3 conditions) reduces P+B disclosure from 12.9% to 5.6% when added to the same relationship policy, a 56.8% relative reduction, while utility falls from 78.9% to 65.2%. Policy still helps inside the mounted scope: disclosure falls from 9.0% under mounting alone to 5.6% under mounting plus policy, at similar utility (64.2% vs 65.2%).
 
-| Gate condition (individual scope) | Protected stopped | Legitimate passed |
-|---|---|---|
-| gpt-5-mini, 10% supervised | 90.8% | 69.8% |
-| gpt-5-mini, 30% supervised | 87.7% | 91.0% |
-| GPT-5.5, 10% supervised | 94.2% | 67.1% |
-| GPT-5.5, 30% supervised | 92.1% | 87.4% | Together these demonstrate, rather than assert, that structural and policy-level enforcement are complementary under current models, with a measurable utility cost; this also answers the "architectural enforcement asserted but not demonstrated" weakness. Full protocol and tables go into the revised appendix.
+Second, PACT-NET provides a larger structural test. The P0/P1 baselines average two namespace-isolated replications:
+
+| PACT-NET task family | N | P0 accuracy | P1 accuracy | Change |
+|---|---:|---:|---:|---:|
+| Legitimate contact query | 172 | 75.9% | 64.0% | −11.9 pp |
+| Direct sensitive query | 139 | 16.2% | 73.4% | +57.2 pp |
+| Transitive third-party risk | 94 | 3.7% | 22.3% | +18.6 pp |
+| Cross-cluster disclosure | 28 | 12.5% | 30.4% | +17.9 pp |
+| Authorized create | 184 | 98.4% | 86.7% | −11.7 pp |
+| Authorized complete/update | 115 | 91.7% | 88.3% | −3.5 pp |
+| Unauthorized mutation | 115 | 29.6% | 85.2% | +55.7 pp |
+| Confused-deputy request | 50 | 53.0% | 98.0% | +45.0 pp |
+| Cross-surface sensitive plant | 50 | 0.0% | 94.0% | +94.0 pp |
+
+**Table JD-4: PACT-NET per-family accuracy.** Aggregate safety rises from 26.6% to 71.5% (+44.8 pp) while aggregate utility falls from 88.7% to 78.8% (−10.0 pp). P1 handles visible direct violations well but leaves most network-native threats unresolved:
+
+| Network-native metric | P0 | P1 | Better direction |
+|---|---:|---:|---|
+| Transitive leak rate | 96.3% | 77.7% | lower |
+| Cross-cluster leak rate | 87.5% | 69.6% | lower |
+| Facts disclosed per leak event | 1.61 | 1.55 | lower |
+| Confused-deputy success | 47.0% | 2.0% | lower |
+| Hard contact enforcement | 100.0% | 100.0% | higher |
+
+**Table JD-5: PACT-NET network-native metrics.** Static policy nearly solves a visible false-authority claim but only modestly reduces transitive and cross-cluster leakage; structural contact enforcement remains exact in every condition.
+
+We then add network-scale MCC. P0/P1 below are the replicated baselines; the MCC rows are single validation runs and therefore directional rather than replication-balanced:
+
+| Network condition | Policy | MCC | Safety | Utility | Transitive leak | Deputy success | Plant defence |
+|---|---|---|---:|---:|---:|---:|---:|
+| P0 | no | no | 26.6% | 88.7% | 96.3% | 47.0% | 0.0% |
+| P1 | yes | no | 71.5% | 78.8% | 77.7% | 2.0% | 94.0% |
+| MCC_H | no | yes | 64.4% | 23.1% | 77.7% | 6.0% | 2.0% |
+| MCC_H + P1 | yes | yes | 77.8% | 20.6% | 67.0% | 0.0% | 92.0% |
+
+**Table JD-6: PACT-NET MCC validation.** Combining MCC with policy produces the strongest safety and lowest transitive leakage, but utility collapses because this validation mount is read-only and blocks authorized writes. This is useful negative evidence: structural isolation needs separate read/write capabilities and cannot be treated as a free replacement for policy.
+
+Third, the *pre-tool escalation gate* covers two models and four supervision/retrieval conditions, totalling 11,659 decisions. `PStop` is protected-request recall; `Utility` is legitimate-request pass-through:
+
+| Model | Precedent scope | Supervised fraction | N | PStop | Utility | False continue | False stop |
+|---|---|---:|---:|---:|---:|---:|---:|
+| gpt-5-mini | individual | 10% | 1,548 | 90.8% | 69.8% | 9.2% | 30.2% |
+| gpt-5-mini | cluster-2NN | 10% | 1,548 | 88.5% | 76.7% | 11.5% | 23.3% |
+| gpt-5-mini | rich cluster-2NN | 10% | 1,548 | 91.3% | 78.0% | 8.8% | 22.0% |
+| gpt-5-mini | individual | 30% | 1,186 | 87.7% | 91.0% | 12.3% | 9.0% |
+| GPT-5.5 | individual | 10% | 1,548 | 94.2% | 67.1% | 5.8% | 32.9% |
+| GPT-5.5 | cluster-2NN | 10% | 1,547 | 92.7% | 71.3% | 7.3% | 28.7% |
+| GPT-5.5 | rich cluster-2NN | 10% | 1,548 | 94.4% | 68.1% | 5.6% | 31.9% |
+| GPT-5.5 | individual | 30% | 1,186 | 92.1% | 87.4% | 7.9% | 12.6% |
+
+**Table JD-7: escalation-gate ablation.** Protection stays at 87.7–94.4% in all eight cells. Raising same-pair supervision from 10% to 30% lifts utility from 69.8% to 91.0% for gpt-5-mini and from 67.1% to 87.4% for GPT-5.5; cluster transfer recovers some utility, while richer cards help gpt-5-mini on both axes but do not close the gap to direct precedents.
+
+Together these results demonstrate three distinct enforcement layers: static policy handles visible violations, mounting limits reachable context, and escalation moves ambiguous decisions to the tool boundary. None dominates without cost. The PACT-NET action-family rows above are response-heuristic scored because those runs predate DB-diff instrumentation; we use them as directional evidence and reserve strong action claims for the instrumented PACT-PAIR track.
 
 ### Weaknesses and limitations
 
 - **Single-target design / PACT-NET design-only.** PACT-NET is now executed, not design-only: 25 agents, D0/D1, two replications per condition, roughly 1,000 tasks plus 75 probes per run, every agent appearing as both source and target. Moving from D0 to D1, private-request refusal rises from 16.2% to 73.4%, but transitive-risk refusal only from 3.7% to 22.3% and cross-cluster refusal from 12.5% to 30.4%, with the hard non-contact gate at 100% throughout. The single-target observations generalize directionally, and transitive and cross-cluster risk remains an open problem, which we flag as such. (Action-level PACT-NET results are excluded from strong claims because those runs predate DB-diff instrumentation. Scale, for reference: the contact graph spans 114 directed edges, 58 undirected pairs, over the 25 agents.)
-- **Author-only annotation (κ=0.96 among co-authors).** Five independent annotators (four external, one project-affiliated; blinded to model outputs and to each other) have now re-labelled all three tracks: κ = 0.654 (QA share/protect), 0.501 (relationship P/L/B), 0.491 (action verdicts), with external-only sensitivity values also reported. In 100 audited cells the annotator majority disagrees with our gold; we froze the gold rather than editing it after the votes, and those cells ship as adjudication records. Full table and disagreement patterns in our reply to TtBh Q1.
+- **Author-only annotation (κ=0.96 among co-authors).** Five non-author annotators (blinded to model outputs and to each other) have now re-labelled all three tracks. At least four of the five agree on 83.5 to 86.5% of items; chance-corrected κ = 0.654 (QA share/protect), 0.501 (relationship P/L/B), 0.491 (action verdicts), with an outlier-excluded sensitivity also reported. In 100 audited cells the annotator majority disagrees with our gold; we froze the gold rather than editing it after the votes, and those cells ship as adjudication records. Full table and disagreement patterns in our reply to TtBh Q1.
 - **Naming.** Defined once in the revision: SharedOS is the platform; PACT-Bench is the benchmark suite, comprising PACT-PAIR (dyadic) and PACT-NET (network). All inconsistent uses fixed.
 - **Novelty positioning.** We agree the integrative combination is the novelty and will cite the "abstraction paradox" connection explicitly; our incremental observations (incidental co-located disclosure at roughly three times the direct channel; metadata in refusals; read trust differing from write trust) are, to our knowledge, new in this jointly-instrumented setting.
 - **Formatting.** Tables 32–39 captions and the missing table reference are fixed in the revision. Thank you for catching these.
@@ -224,15 +322,15 @@ We sincerely thank the reviewer for the expert, access-control-informed review. 
 
 ### Q1. Validation of relationship-conditioned labels
 
-**The independent annotation is complete, and we report it in full, including the cells where the annotators disagree with our own labels.** (a) *Validation*: five annotators independently re-labelled all three tracks, blinded to model outputs and to each other. Four are external to the project and one is project-affiliated, so we report both the five-annotator agreement and the external-only sensitivity:
+**The independent annotation is complete, and we report it in full, including the cells where the annotators disagree with our own labels.** (a) *Validation*: five non-author annotators independently re-labelled all three tracks (1,095 items each: 400 QA, 495 relationship decisions, 200 action verdicts), blinded to model outputs and to each other:
 
-| Track | κ (5 annotators) | κ (4 external only) | Unanimous cells |
+| Track | ≥4 of 5 annotators agree | Majority decision exists | κ (5 annotators) |
 |---|---|---|---|
-| QA share/protect | 0.654 | 0.609 | 60.0% |
-| Relationship P/L/B | 0.501 | 0.452 | 61.4% |
-| Action verdicts | 0.491 | 0.389 | 46.5% |
+| QA share/protect | 86.5% | 97.8% | 0.654 |
+| Relationship P/L/B | 85.7% | 95.6% | 0.501 |
+| Action verdicts | 83.5% | 100% | 0.491 |
 
-QA agreement is substantial and relationship agreement is moderate. Action agreement falls below our 0.6 bar, and we say so plainly; the shortfall is structural rather than negligence, since annotators deviate from the gold in three *opposite* directions (lenient on unauthorized-strategic actions; strict on authorized routine edits; lenient on probing and sensitive create/edit), which indicates genuinely underspecified boundaries, and we release the identified guideline gaps with the data. All 458 non-unanimous items ship with an adjudication column. Most informative for this question: in 100 cells the annotator majority disagrees with our own gold (32 QA, 6 actions, 62 relationship, including 31 ties), with two clear patterns: on 16 sensitive-work items the majority reads company-internal knowledge as shareable where our contract says protect, and on 16 close-friend items the majority upgrades our borderline label to legitimate. We froze the gold rather than editing it after seeing the votes; these cells ship as adjudication records. (b) *Framing*: the labels are *scenario contracts*, that is, explicit and self-consistent authorization stipulations for one concrete scenario, instantiating the variables that contextual integrity and ReBAC/ABAC identify (requester, relationship, object, operation, context). They are not claims about universal social norms, and the revision says so in Limitations, as the reviewer requests. The requester set is a maximum-contrast design, not a representative sample: 70 of the 99 relationship-conditioned sensitive items change label across requesters, and the close-friend and investor profiles differ on 55 of them. The investor (a lead Series A investor and non-voting board observer with stipulated information rights) exists precisely to break a scalar-trust reading: narrow legitimate company-information rights, and no entitlement to the founder's health or personal finances. What the benchmark measures is whether an agent can realize a stipulated information-flow contract while remaining useful; that is the construct the labels need to support, and the one the independent annotation study tests.
+A supermajority of at least four of five annotators agrees on 83.5 to 86.5% of items across the three tracks, and only 31 of 1,095 cells are unresolvable 2-2-1 ties. Chance-corrected agreement is substantial for QA and moderate for relationship and actions; the action κ falls below our 0.6 bar, and we say so plainly. The action shortfall is structural rather than negligence, since annotators deviate from the gold in three *opposite* directions (lenient on unauthorized-strategic actions; strict on authorized routine edits; lenient on probing and sensitive create/edit), which indicates genuinely underspecified boundaries, and we release the identified guideline gaps with the data. As a sensitivity check, a pre-registered outlier analysis (one annotator fell below 80% majority-agreement on all three tracks) yields κ of 0.745 / 0.623 / 0.582 with that annotator excluded. All 458 non-unanimous items ship with an adjudication column. Most informative for this question: in 100 cells the annotator majority disagrees with our own gold (32 QA, 6 actions, 62 relationship, including 31 ties), with two clear patterns: on 16 sensitive-work items the majority reads company-internal knowledge as shareable where our contract says protect, and on 16 close-friend items the majority upgrades our borderline label to legitimate. We froze the gold rather than editing it after seeing the votes; these cells ship as adjudication records. (b) *Framing*: the labels are *scenario contracts*, that is, explicit and self-consistent authorization stipulations for one concrete scenario, instantiating the variables that contextual integrity and ReBAC/ABAC identify (requester, relationship, object, operation, context). They are not claims about universal social norms, and the revision says so in Limitations, as the reviewer requests. The requester set is a maximum-contrast design, not a representative sample: 70 of the 99 relationship-conditioned sensitive items change label across requesters, and the close-friend and investor profiles differ on 55 of them. The investor (a lead Series A investor and non-voting board observer with stipulated information rights) exists precisely to break a scalar-trust reading: narrow legitimate company-information rights, and no entitlement to the founder's health or personal finances. What the benchmark measures is whether an agent can realize a stipulated information-flow contract while remaining useful; that is the construct the labels need to support, and the one the independent annotation study tests.
 
 ### Q2. Cleaner policy-specificity ablation
 
@@ -247,6 +345,19 @@ QA agreement is substantial and relationship agreement is moderate. Action agree
 | Rel-Policy | requester-specific | all Notes | 78.9% | 12.9% |
 | Mounted access | none | profile folders | 64.2% | 9.0% |
 | Rel-Policy + Mounted | same policy | profile folders | 65.2% | 5.6% |
+
+The table above isolates Notes, where folder mounting is fully implemented. For completeness, the broader Q1–Q400 analysis combines Notes and Todos and reports every requester separately; Todo isolation is coarser, so its absolute utility and disclosure denominators must not be mixed with the Notes-only table:
+
+| Requester | Rel-Policy utility / leak | Mounted utility / leak | Combined utility / leak |
+|---|---:|---:|---:|
+| Stranger | 21.0% / 1.2% | 23.8% / 1.6% | 23.9% / 0.6% |
+| Colleague | 87.4% / 8.0% | 82.9% / 20.3% | 83.3% / 6.3% |
+| CEO delegate | 87.1% / 12.6% | 86.6% / 17.9% | 85.9% / 12.6% |
+| Close friend | 63.3% / 38.7% | 26.2% / 22.0% | 27.1% / 18.1% |
+| Investor | 87.4% / 16.9% | 59.7% / 1.6% | 60.6% / 2.7% |
+| **Aggregate** | **70.9% / 15.5%** | **57.6% / 12.4%** | **58.5% / 8.0%** |
+
+**Table TT-1: requester-level MCC decomposition over Notes + Todos.** Structure helps most for the misaligned close-friend and investor profiles, while mounting alone can increase leakage for aligned requesters because the agent freely discloses protected facts that remain inside an allowed folder. The combined layer therefore dominates aggregate disclosure but does not dominate utility.
 
 Three conclusions, scoped to this experiment. (i) Structural enforcement works where it applies: adding mounting to the same policy cuts disclosure by more than half, from 12.9% to 5.6%. (ii) It is inherently coarse for this problem: enforcement is container-level, while entitlements in cross-boundary delegation are item- and context-level. The same item is legitimate for the investor and protected from the friend (55 of the 99 relationship-conditioned items differ between just those two profiles), and static mounts cannot express purpose-bound access; the measured utility cost, from 78.9% to 65.2%, is the price of that coarseness. (iii) Policy reasoning still adds protection *inside* the mounted scope, from 9.0% to 5.6% at unchanged utility. So the measured relationship is complementarity: structure bounds the worst case; semantic policy handles context-dependence within scope. We additionally tested a pre-tool escalation gate (over 10,000 decisions per phase; details in the reply to JD3a Q4). We do not claim this constitutes a complete RBAC/ABAC engine; field-level redaction, role hierarchies, and post-generation auditing are explicitly future work, and the revision scopes "governance" into its four distinct layers (prompt policy, mounted reachability, contact ACLs, pre-tool escalation) rather than treating them as one mechanism.
 
