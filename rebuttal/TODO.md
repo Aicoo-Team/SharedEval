@@ -125,7 +125,7 @@
 
 ### 7. E5 States replication（已批准并排队）
 
-- [ ] **原协议复现计划正在运行（2026-07-30）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。与原 g403/g406 合并后 D2 从 n=2 提升到 n=5。20 次监督结束时原始进度 **67/200、51/200、65/200**；169/183 行 response/model provenance 正确，14 个 explicit error rows 继续排除。三个 seed logs 均独立确认 100 notes + 150 todos，全部非 error 行通过 policy、response、contact-error 与 requester/responder model gates。`pact-e5-continuation` 已独立 caffeinate 并等待 exact frozen-plan PID；主进程结束后，它按全部 provenance-valid artifacts 重算 missing ids，在 fresh per-trajectory attempts 中最多续跑 5 轮，之后严格合并每格 200 rows 并用现有 gpt-5-mini rubric judge 全部 600 rows。seed、policy、models、groups、question set、denominators 均不变；完成状态写入 `pulse/research/runs/rebuttal/a682b8a7fc7c_resume/status.log` 并追加 supervisor log。任何空世界或题集错配直接作废。
+- [ ] **原协议复现计划已恢复续跑（2026-07-30 17:15 +0800）**：plan `a682b8a7fc7c3663d59859e22310efa3e3252aa402c2cddfdbd9e8860ab5cb87`，P2、baseline gpt-5-mini requester/responder、Q201–Q400、groups 3540–3542、3 个完整 200-question trajectories、并发 3，共 600 calls。首轮及有效续跑已积累 **480/600 provenance-valid**；当前仅补 trajectory 1/2/3 分别缺失的 **20/63/37** 题。此前 rounds 2–5 因 Neon DNS `ENOTFOUND` 在数秒内失败，并非实验协议失败；续跑器现已增加 research DB 预检和等待，使用 fresh immutable attempt、missing-question logic 与原 frozen plan。三格达到 200/200 后才会合并，并用现有 gpt-5-mini rubric judge 全部 600 rows；在 strict gate 与 judge 完成前不恢复 JD-2。seed、policy、models、groups、question set、denominators 均不变。
 - [ ] 解释 variance 机制（early-context 是否含被查 state 对象 + 小分母）
 - [ ] 若时间不足：收窄 surface-asymmetry claim，明确 n=2 与高方差，不仓促换 protocol
 
