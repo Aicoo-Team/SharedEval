@@ -25,7 +25,7 @@
 | 19 | 标注矩阵计数（TtBh Q1/Q3） | 70/99；55/99 | `relationship_label_matrix.json` | **VERIFIED**（CHECK-3） |
 | 20 | JD3a Q1(a) 人工复核 | 44 单步；38 多轮=28+5+3+2；≤1.6pp | 提交版论文 | AS-PUBLISHED |
 | 21 | JD3a Q2 States | 58→5 / 59→11；5–31% | 提交版论文 | AS-PUBLISHED |
-| 22 | **JD-2 States n=5 表** | PENDING 单元格 | Codex 已 arm E5 续跑（782bfc9） | **PENDING — 发帖前必须填实或整表删除** |
+| 22 | **JD-2 States n=5 表** | PENDING 单元格 | E5 队列 2026-07-30 02:10Z **失败**（exit=1，strict cells 0/3，ORCHESTRATOR_FAILED gate=False） | **FLAGGED — 除非 Codex 重试成功并过 strict gate，发帖前应整表删除并软化 C7/Q2 措辞** |
 | 23 | JD-1 明细行（States D2 双 judge 对照） | util 21.6→20.4%（36/167→34/167）；discl 7.5→5.7%（13/174→10/174）；agreement util 88.8% / sec 94.3% | `runs/e4_states/verdicts.jsonl` | **VERIFIED**（07-30 PREP 复算，四数精确） |
 | 24 | 多轮 model-scaling 六点（aP1N Q1/Q5 语境） | gpt-5-mini vs GPT-5.5 × D0/D1/D2 多轮 | neurips 附录 multi-turn model scaling 表 | AS-PUBLISHED |
 | 25 | JD-4 PACT-NET per-family | safety 26.6→71.5（+44.8pp 注明取自未舍入聚合）；utility 88.7→78.8 | 4YP thesis PACT-NET 表 + caption | **VERIFIED**（与 thesis 逐值一致；舍入差异已在文中注明） |
