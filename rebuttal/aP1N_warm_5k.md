@@ -69,12 +69,12 @@ Personal-category refusal is uniform (90–100%) while sensitive-work refusal va
 
 ## Q5. Why "eroding" if direct leakage is similar?
 
-We agree and will drop "eroding": multi-turn opens additional channels; it does not worsen the direct leak.
+Thank you; let us clarify what we meant. "Eroding" referred to persistent interaction opening additional disclosure channels, not to growth in direct leakage. We will reword the direct-leakage discussion so this cannot be misread.
 
-1) Direct leakage: 12.6% multi-turn vs 14.0% single-turn; retries add only 2.1 pp.
+1) On the direct channel, we observe what you observe: 12.6% multi-turn vs 14.0% single-turn; adaptive retries add only 2.1 pp. We will state this explicitly.
 
-2) The 38.0% figure is an over-inclusive trajectory scan: 21 confirmed incidental disclosures, 55 false positives among 76 hits; we will report them separately.
+2) What persistent interaction adds is an incidental channel: protected facts surface while the agent serves other requests. The 38.0% figure is an over-inclusive trajectory scan (21 confirmed incidental disclosures, 55 false positives among 76 hits); we will report confirmed disclosures separately from the scan.
 
 3) Across 1,184 retries, brute repetition flips 7.6%; business-justification reframing flips 34.5%; the policy recovers after each breach.
 
-4) The claim becomes exactly what the data supports: *persistent multi-turn interaction opens additional disclosure channels beyond the direct response*. Thank you for pushing us to state it precisely.
+4) The clarified wording: *persistent multi-turn interaction opens additional disclosure channels beyond the direct response*. This is what "eroding" was meant to capture, and the paper will say it this precisely.
