@@ -23,7 +23,7 @@ Thank you, and we fully agree: we measured discrete operating points, not a cont
 
 3) On a frozen 30-question responder control, P2 cuts disclosure 90→5% (DeepSeek V4 Flash) and 80→5% (GLM 5.2), with no utility loss.
 
-4) We agree on the wording too: "frontier" is now *trade-offs across discrete operating points* everywhere, and we thank you for pushing us to it.
+4) We agree on the wording too: "frontier" is now *trade-offs across discrete operating points* everywhere.
 
 ## Q2. Length-matched specificity control?
 
