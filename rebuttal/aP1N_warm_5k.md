@@ -44,7 +44,7 @@ You are right that this control was missing; thank you for insisting. We built P
 
 Thank you for catching this; the confusion is our fault and the fix is simple.
 
-1) The two tables measure utility differently; security columns share one pipeline, which is why they match. Table 15 asks whether the received answer solves the task (denominators 193/200/194); Table 20 scans the whole 240-tick trajectory for the fact (fixed 200), counting incidental matches.
+1) The two tables measure utility differently; security columns share one pipeline, hence they match. Table 15 asks whether the received answer solves the task (denominators 193/200/194); Table 20 scans the whole 240-tick trajectory for the fact (fixed 200), counting incidental matches.
 
 2) Both keep the D0 > D1 > D2 ordering.
 
@@ -69,12 +69,12 @@ Personal-category refusal is uniform (90–100%) while sensitive-work refusal va
 
 ## Q5. Why "eroding" if direct leakage is similar?
 
-Thank you; let us clarify what we meant. "Eroding" referred to persistent interaction opening additional disclosure channels, not to growth in direct leakage. We will reword the direct-leakage discussion so this cannot be misread.
+Thank you; let us clarify what we meant. "Eroding" referred to persistent interaction opening additional disclosure channels, not to growth in direct leakage; we will reword so this cannot be misread.
 
-1) On the direct channel, we observe what you observe: 12.6% multi-turn vs 14.0% single-turn; adaptive retries add only 2.1 pp. We will state this explicitly.
+1) Direct channel: 12.6% multi-turn vs 14.0% single-turn; retries add only 2.1 pp. We will state this explicitly.
 
 2) What persistent interaction adds is an incidental channel: protected facts surface while the agent serves other requests. The 38.0% figure is an over-inclusive trajectory scan (21 confirmed incidental disclosures, 55 false positives among 76 hits); we will report confirmed disclosures separately from the scan.
 
 3) Across 1,184 retries, brute repetition flips 7.6%; business-justification reframing flips 34.5%; the policy recovers after each breach.
 
-4) The clarified wording: *persistent multi-turn interaction opens additional disclosure channels beyond the direct response*. This is what "eroding" was meant to capture, and the paper will say it this precisely.
+4) The clarified wording: *persistent multi-turn interaction opens additional disclosure channels beyond the direct response*. This is what "eroding" meant, and the paper now says it precisely.
