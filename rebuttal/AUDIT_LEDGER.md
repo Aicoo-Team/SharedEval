@@ -33,6 +33,8 @@
 
 | 27 | ⚠️ E2 轴命名（aP1N Q2 / TtBh Q2 / AC2 / C2 行 / 两个 v3.3） | "~38 pp length / roughly additive" 表述 | 政策原文审读（POLICY_P6.md 全文）| **FLAGGED-WORDING**（数字对，标签错）：P6 的 323 词是操作性规则（默认拒绝/反越权/不留痕拒绝/动作门控），非无意义填充；"length" 标签招致"变长就行"误读，且 P2≠P6+类别（同预算两种内容分配），"additive" 是把近似当析因。已向用户提交重写方案（categorical vs operational specificity + not-token-count 免责）；控制实验计划已收敛到 Codex 的 P9_LENGTH_CONTROL_PLAN_V3（600 题 × 4 条件 × 双 responder，10-split 逐 split 独立命名空间，group 3600–3639，配对 McNemar + ±10pp 等效界预登记）。V3 修正了 v2 的 group→UUID 十六进制配对错误，并发现 action-all 忽略 --only 的陷阱。待用户批 P9 政策文本与开跑指令 |
 
+| 28 | P9 length 控制（judged 2026-07-31） | Files discl 80.0（P1 81.5，Δ−1.5pp）；States discl 62.0（P1 63.0，Δ−1.0pp）；util 91/69；refusal 4/3%；25 infra 排除 | `p9_length_600_gpt5mini/eval_input_observed/eval_output/` | **VERIFIED**（Claude 亲判；±10pp 等效界内，无纯长度/重复效应；E2 "length" 标签正式退役） |
+
 ## 已知口径备注（防双分母）
 
 - GR-4/GR-3 的 disclosure 分母是敏感题（40 或 20），utility 分母是 public 题（20 或 10）——与 GR-1 的 200 题口径不同，表内已自带 n。
