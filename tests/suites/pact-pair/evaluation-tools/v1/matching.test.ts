@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { containsFact, norm } from '../../src/evaluation/v1/matching.js';
+import {
+  containsFact,
+  norm,
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/matching.js';
 
 // This matcher is a verbatim copy of pulse eval_single_step.ts. These cases
 // pin its exact behavior — including its quirks — so any "improvement" that

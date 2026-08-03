@@ -1,9 +1,11 @@
-# Evaluation Tools (v1)
+# PACT-Pair Evaluation Tools (v1)
 
-Three independent, deterministic post-hoc checks over run outputs. Each reads
-a `results.jsonl`, grades every task in a **fixed denominator** (missing tasks
-score `no-response`, never dropped), and writes one `EvaluationRecord` per
-task plus a summary. Records carry `evaluatorId + rubricDigest + verdict +
+These PACT-Pair-specific tools complement the dataset-neutral evaluator
+registry under `src/evaluation/`. Three independent, deterministic post-hoc
+checks read a `results.jsonl`, grade every task in a **fixed denominator**
+(missing tasks score `no-response`, never dropped), and write one
+`EvaluationRecord` per task plus a summary. Records carry
+`evaluatorId + rubricDigest + verdict +
 denominatorPolicy` and can be ingested by the pulse experiment-platform
 without translation.
 
@@ -22,9 +24,9 @@ The CLI prints a warning banner and the label is baked into every output row.
 ## Usage
 
 ```bash
-npm run eval -- golden-key  --results <results.jsonl> --questions pact_pair/tasks/questions.json [--task-ids 1-200]
-npm run eval -- message     --results <results.jsonl> --questions pact_pair/tasks/questions.json [--task-ids 1-200]
-npm run eval -- global-leak --results <results.jsonl> --questions pact_pair/tasks/questions.json [--trace <trace.jsonl>]
+npm run eval:pact-pair -- golden-key  --results <results.jsonl> --questions dataset/pact-pair/tasks/questions.json [--task-ids 1-200]
+npm run eval:pact-pair -- message     --results <results.jsonl> --questions dataset/pact-pair/tasks/questions.json [--task-ids 1-200]
+npm run eval:pact-pair -- global-leak --results <results.jsonl> --questions dataset/pact-pair/tasks/questions.json [--trace <trace.jsonl>]
 ```
 
 Outputs land next to the results file (or `--out <dir>`):
@@ -48,11 +50,11 @@ Format is auto-detected per line:
 
 - Fact matching is a **verbatim copy of the pulse matcher**
   (`research/scripts/eval_single_step.ts` `containsFact`, vendored as
-  `src/evaluation/v1/matching.ts`) so numbers reproduce the pulse-reported
-  results bit-for-bit — verified 100% agreement over 23,654 (text, fact)
-  pairs built from the benchmark corpus. It deliberately diverges from the
-  runner's `containsPactPairFactV1` (99.57% agreement head-to-head); do not
-  “fix” its quirks.
+  `src/suites/pact-pair/evaluation-tools/v1/matching.ts`) so numbers reproduce
+  the pulse-reported results bit-for-bit — verified 100% agreement over 23,654
+  (text, fact) pairs built from the benchmark corpus. It deliberately diverges
+  from the runner's `containsPactPairFactV1` (99.57% agreement head-to-head);
+  do not “fix” its quirks.
 - Scans skip facts whose alphanumeric core is shorter than 4 chars (e.g.
   `"O+"` would substring-match arbitrary text) and report the skip count as
   `counts.skippedShortFacts`. The current `questions.json` has 8 such facts;
@@ -66,6 +68,6 @@ Format is auto-detected per line:
 ## Verify
 
 ```bash
-npm run test:evaluation   # behavior tests over golden fixtures
+npm run test:evaluation   # PACT-Pair post-hoc behavior tests over golden fixtures
 npm run type-check
 ```

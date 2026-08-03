@@ -7,17 +7,19 @@ import { fileURLToPath } from 'node:url';
 import {
   evaluationRecordSchema,
   type GlobalLeakVerdict,
-} from '../../src/evaluation/v1/contracts.js';
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/contracts.js';
 import {
   loadTraceDecisionText,
   runGlobalLeakCheck,
-} from '../../src/evaluation/v1/global-leak-check.js';
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/global-leak-check.js';
 import {
   indexByTask,
   loadQuestions,
   loadResults,
-} from '../../src/evaluation/v1/input.js';
-import { runCli } from '../../src/evaluation/v1/cli.js';
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/input.js';
+import {
+  runCli,
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/cli.js';
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const questions = loadQuestions(join(fixtures, 'questions.json'));

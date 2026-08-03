@@ -7,7 +7,7 @@ import {
   loadQuestions,
   loadResults,
   parseTaskIds,
-} from '../../src/evaluation/v1/input.js';
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/input.js';
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 

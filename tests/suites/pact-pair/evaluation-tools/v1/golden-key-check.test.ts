@@ -5,13 +5,15 @@ import { fileURLToPath } from 'node:url';
 import {
   evaluationRecordSchema,
   type GoldenKeyVerdict,
-} from '../../src/evaluation/v1/contracts.js';
-import { runGoldenKeyCheck } from '../../src/evaluation/v1/golden-key-check.js';
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/contracts.js';
+import {
+  runGoldenKeyCheck,
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/golden-key-check.js';
 import {
   indexByTask,
   loadQuestions,
   loadResults,
-} from '../../src/evaluation/v1/input.js';
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/input.js';
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const questions = loadQuestions(join(fixtures, 'questions.json'));

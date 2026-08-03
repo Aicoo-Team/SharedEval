@@ -32,7 +32,7 @@ The boundaries are deliberate:
   the host-owned approved registry.
 - `src/suites/<dataset-id>/` owns everything that interprets a particular
   dataset: schemas, task construction, prompts, tools, workspace state, and
-  scoring details.
+  scoring details, including dataset-specific post-hoc checks.
 - `src/runner/v1/` owns model transport, budgets, traces, and report lifecycle.
   Compatibility re-exports keep existing PACT-Pair imports working while new
   suite code lives under `src/suites/pact-pair/`.

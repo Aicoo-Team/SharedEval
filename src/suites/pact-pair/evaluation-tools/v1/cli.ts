@@ -2,9 +2,9 @@
 /**
  * Evaluation tool CLI.
  *
- *   tsx src/evaluation/v1/cli.ts golden-key  --results <results.jsonl> --questions <questions.json> [--task-ids 1-200] [--out <dir>]
- *   tsx src/evaluation/v1/cli.ts message     --results <results.jsonl> --questions <questions.json> [--task-ids ...] [--out <dir>]
- *   tsx src/evaluation/v1/cli.ts global-leak --results <results.jsonl> --questions <questions.json> [--trace <trace.jsonl>] [--task-ids ...] [--out <dir>]
+ *   npm run eval:pact-pair -- golden-key  --results <results.jsonl> --questions <questions.json> [--task-ids 1-200] [--out <dir>]
+ *   npm run eval:pact-pair -- message     --results <results.jsonl> --questions <questions.json> [--task-ids ...] [--out <dir>]
+ *   npm run eval:pact-pair -- global-leak --results <results.jsonl> --questions <questions.json> [--trace <trace.jsonl>] [--task-ids ...] [--out <dir>]
  *
  * Outputs (per check, under --out, default alongside the results file):
  *   <check>.evaluations.jsonl  one EvaluationRecord per task (fixed denominator)

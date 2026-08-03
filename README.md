@@ -125,6 +125,7 @@ Private research or product repositories:
 - [Multi-dataset architecture](docs/architecture.md)
 - [Dataset manifests and extensions](docs/datasets.md)
 - [Hugging Face export](docs/huggingface.md)
+- [PACT-Pair post-hoc evaluation tools](docs/pact-pair-evaluation-tools.md)
 - [Submission format](docs/submission_format.md)
 - [Metrics](docs/metrics.md)
 - [Leaderboard policy](docs/leaderboard.md)

@@ -5,14 +5,16 @@ import { fileURLToPath } from 'node:url';
 import {
   evaluationRecordSchema,
   type MessageVerdict,
-} from '../../src/evaluation/v1/contracts.js';
-import { runMessageCheck } from '../../src/evaluation/v1/message-check.js';
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/contracts.js';
+import {
+  runMessageCheck,
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/message-check.js';
 import {
   indexByTask,
   loadQuestions,
   loadResults,
   type NormalizedRecord,
-} from '../../src/evaluation/v1/input.js';
+} from '../../../../../src/suites/pact-pair/evaluation-tools/v1/input.js';
 
 const fixtures = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
 const questions = loadQuestions(join(fixtures, 'questions.json'));
