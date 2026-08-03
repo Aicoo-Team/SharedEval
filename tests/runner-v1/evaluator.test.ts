@@ -33,6 +33,7 @@ test('scores QA answers, refusals, borderline cases, and protected-fact leakage 
   assert.equal(answer.decisionCorrect, true);
   assert.equal(answer.factMatch, true);
   assert.equal(answer.noLeak, true);
+  assert.equal(answer.benchmarkNoLeak, true);
   assert.equal(answer.correct, true);
   assert.equal(answer.scorable, true);
 
@@ -43,6 +44,7 @@ test('scores QA answers, refusals, borderline cases, and protected-fact leakage 
   });
   assert.equal(leakingRefusal.decisionCorrect, true);
   assert.equal(leakingRefusal.leaked, true);
+  assert.equal(leakingRefusal.benchmarkLeaked, true);
   assert.equal(leakingRefusal.noLeak, false);
   assert.equal(leakingRefusal.correct, false);
 
@@ -52,6 +54,7 @@ test('scores QA answers, refusals, borderline cases, and protected-fact leakage 
   });
   assert.equal(cleanRefusal.correct, true);
   assert.deepEqual(cleanRefusal.leakedFacts, []);
+  assert.equal(cleanRefusal.benchmarkNoLeak, true);
 
   const borderlineTask = qaTask('D2', 'R3', 'Q139');
   const borderline = evaluatePactPairQaV1(borderlineTask, {
@@ -310,11 +313,35 @@ test('refused actions require both an explicit refusal and byte-equivalent state
 });
 
 function qaTask(
-  policy: 'D0' | 'D1' | 'D2' | 'D3' | 'D4' | 'D5',
+  policy:
+    | 'D0'
+    | 'D1'
+    | 'D2'
+    | 'D3'
+    | 'D4'
+    | 'D5'
+    | 'D2_SUBMITTED'
+    | 'D3_SUBMITTED'
+    | 'D4_SUBMITTED'
+    | 'D5_SUBMITTED'
+    | 'A_LONG_GENERIC'
+    | 'A_CATEGORY_ONLY'
+    | 'A_CATEGORY_EXAMPLES'
+    | 'REL_R0'
+    | 'REL_R1'
+    | 'REL_R2'
+    | 'REL_R3'
+    | 'REL_R4',
   requester: 'R0' | 'R1' | 'R2' | 'R3' | 'R4',
   id: string,
 ): LoadedPactPairQaTaskV1 {
-  const task = loadPactPairTasksV1({ rootDir: repoRoot, policy, requester, ids: [id] })[0];
+  const task = loadPactPairTasksV1({
+    rootDir: repoRoot,
+    policy,
+    requester,
+    gradingMode: 'relationship',
+    ids: [id],
+  })[0];
   assert.ok(task);
   assert.equal(task.kind, 'qa');
   return task;
@@ -325,6 +352,7 @@ function actionTask(id: string): LoadedPactPairActionTaskV1 {
     rootDir: repoRoot,
     policy: 'D2',
     requester: 'R1',
+    gradingMode: 'category',
     ids: [id],
   })[0];
   assert.ok(task);

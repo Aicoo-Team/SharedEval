@@ -29,6 +29,7 @@ test('parses a strict run config and applies safe defaults', () => {
   assert.deepEqual(config.benchmark, {
     policy: 'D2',
     requester: 'R1',
+    gradingMode: 'category',
     tasks: { kind: 'all' },
   });
   assert.deepEqual(config.budget, {
@@ -105,6 +106,7 @@ test('validates requester and task filters strictly', () => {
 benchmark:
   policy: D5
   requester: R4
+  gradingMode: category
   tasks:
     kind: action
     ids: [PAIR-A1, PAIR-A2]
@@ -113,6 +115,7 @@ benchmark:
   assert.deepEqual(configured.benchmark, {
     policy: 'D5',
     requester: 'R4',
+    gradingMode: 'category',
     tasks: {
       kind: 'action',
       ids: ['PAIR-A1', 'PAIR-A2'],
@@ -128,6 +131,123 @@ benchmark:
     ids: [PAIR-A1, PAIR-A1]
 `),
     ZodError,
+  );
+});
+
+test('accepts explicit reproducibility and provider-routing controls', () => {
+  const configured = parsePactRunConfigV1Yaml(minimalConfig.replace(
+    '  model: example-model',
+    `  model: example-model
+  temperature: 0
+  seed: 42
+  reasoning:
+    effort: low
+  providerRouting:
+    requireParameters: true
+    allowFallbacks: false
+    only: [deepinfra]
+    order: [deepinfra]`,
+  ));
+
+  assert.deepEqual(configured.model, {
+    provider: 'openai-compatible',
+    baseUrl: 'https://api.example.com/v1',
+    apiKeyEnv: 'PACT_MODEL_API_KEY',
+    model: 'example-model',
+    temperature: 0,
+    seed: 42,
+    reasoning: { effort: 'low' },
+    providerRouting: {
+      requireParameters: true,
+      allowFallbacks: false,
+      only: ['deepinfra'],
+      order: ['deepinfra'],
+    },
+    maxOutputTokens: 4_096,
+  });
+
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(minimalConfig.replace(
+      '  model: example-model',
+      '  model: example-model\n  providerRouting:\n    only: [deepinfra, deepinfra]',
+    )),
+    ZodError,
+  );
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(minimalConfig.replace(
+      '  model: example-model',
+      '  model: example-model\n  providerRouting:\n    only: [deepinfra]\n    order: [together]',
+    )),
+    /provider order contains entries outside only/,
+  );
+});
+
+test('validates matched ablation and relationship policy semantics', () => {
+  const ablation = parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  policy: A_CATEGORY_ONLY
+  requester: R1
+  gradingMode: category
+  tasks:
+    kind: qa
+`);
+  assert.equal(ablation.benchmark.policy, 'A_CATEGORY_ONLY');
+
+  for (const gradingMode of ['category', 'relationship'] as const) {
+    const submitted = parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  policy: D2_SUBMITTED
+  requester: R1
+  gradingMode: ${gradingMode}
+  tasks:
+    kind: qa
+`);
+    assert.equal(submitted.benchmark.policy, 'D2_SUBMITTED');
+    assert.equal(submitted.benchmark.gradingMode, gradingMode);
+  }
+
+  const relationship = parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  policy: REL_R3
+  requester: R3
+  gradingMode: relationship
+  tasks:
+    kind: qa
+`);
+  assert.equal(relationship.benchmark.policy, 'REL_R3');
+
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  policy: REL_R3
+  requester: R1
+  gradingMode: relationship
+  tasks:
+    kind: qa
+`),
+    /REL_R3 must be paired with requester R3/,
+  );
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  policy: REL_R3
+  requester: R3
+  gradingMode: category
+  tasks:
+    kind: qa
+`),
+    /REL_R3 requires relationship grading/,
+  );
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  policy: REL_R3
+  requester: R3
+  gradingMode: relationship
+  tasks:
+    kind: action
+`),
+    /REL_R3 is validated only for QA tasks/,
   );
 });
 

@@ -6,5 +6,12 @@ coverage/
 .env.*
 !.env.example
 runs/
+!rebuttal/runs/
+rebuttal/runs/*
+!rebuttal/runs/run_experiments.py
+!rebuttal/runs/validate_setup.py
+!rebuttal/runs/run_policy_lane.py
+!rebuttal/runs/run_relationship_lane.py
+!rebuttal/runs/run_surface_lane.py
 results/raw/
 *.log

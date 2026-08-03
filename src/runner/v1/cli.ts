@@ -19,6 +19,7 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
     const tasks = loadPactPairTasksV1({
       policy: config.benchmark.policy,
       requester: config.benchmark.requester,
+      gradingMode: config.benchmark.gradingMode,
       kind: config.benchmark.tasks.kind,
       ids: config.benchmark.tasks.ids,
       limit: config.benchmark.tasks.limit,
@@ -34,11 +35,19 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
         ...(config.model.temperature === undefined
           ? {}
           : { temperature: config.model.temperature }),
+        ...(config.model.seed === undefined ? {} : { seed: config.model.seed }),
+        ...(config.model.reasoning === undefined
+          ? {}
+          : { reasoning: config.model.reasoning }),
+        ...(config.model.providerRouting === undefined
+          ? {}
+          : { providerRouting: config.model.providerRouting }),
         credentialEnvironmentVariable: config.model.apiKeyEnv,
       },
       benchmark: {
         policy: config.benchmark.policy,
         requester: config.benchmark.requester,
+        gradingMode: config.benchmark.gradingMode,
         taskCount: tasks.length,
         firstTask: tasks.at(0)?.taskId ?? null,
         lastTask: tasks.at(-1)?.taskId ?? null,
