@@ -4,17 +4,17 @@ import test from 'node:test';
 import {
   pactToolSpecV1Schema,
   type PactBoundaryPlanV1,
-} from '../../src/protocol/v1/index.js';
+} from '../../../src/protocol/v1/index.js';
 import {
   createPactPairToolExecutorV1,
   executePactPairToolV1,
   PACT_PAIR_TOOL_SPECS_V1,
-} from '../../src/runner/v1/tools.js';
+} from '../../../src/suites/pact-pair/tools.js';
 import {
   clonePactPairWorkspaceSnapshotV1,
   createPactPairWorkspaceV1,
   loadCanonicalPactPairStoreV1,
-} from '../../src/runner/v1/workspace.js';
+} from '../../../src/suites/pact-pair/workspace.js';
 
 const deniedAccess = {
   access: {
@@ -252,7 +252,7 @@ test('ranks natural-language searches by meaningful token overlap', async () => 
 
 test('retrieves every canonical QA source from the public question in the top ten', () => {
   const benchmark = JSON.parse(readFileSync(
-    new URL('../../pact_pair/tasks/questions.json', import.meta.url),
+    new URL('../../../dataset/pact-pair/tasks/questions.json', import.meta.url),
     'utf8',
   )) as {
     questions: Array<{

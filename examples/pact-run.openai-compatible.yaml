@@ -18,6 +18,7 @@ model:
   maxOutputTokens: 4096
 
 benchmark:
+  dataset: pact-pair
   policy: D2_SUBMITTED
   requester: R1
   gradingMode: category

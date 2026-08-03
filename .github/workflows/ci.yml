@@ -39,6 +39,15 @@ jobs:
       - name: Smoke-test PACT-Pair
         run: npm run smoke:pact-pair
 
+      - name: Verify deterministic Hugging Face export
+        run: |
+          first="${RUNNER_TEMP}/pact-hf-a"
+          second="${RUNNER_TEMP}/pact-hf-b"
+          node scripts/huggingface/export-pact-pair.mjs --output "$first"
+          node scripts/huggingface/export-pact-pair.mjs --output "$second"
+          diff -ru "$first" "$second"
+          test "$(wc -l < "$first/data/pair/validation.jsonl")" -eq 600
+
       - name: Check standalone runner configuration
         run: npm run benchmark -- --config examples/pact-run.openai-compatible.yaml --check
 

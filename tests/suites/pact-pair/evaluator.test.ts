@@ -7,15 +7,15 @@ import {
   evaluatePactPairActionV1,
   evaluatePactPairQaV1,
   normalizePactPairTextV1,
-} from '../../src/runner/v1/evaluator.js';
+} from '../../../src/suites/pact-pair/evaluator.js';
 import {
   loadPactPairTasksV1,
   type LoadedPactPairActionTaskV1,
   type LoadedPactPairQaTaskV1,
-} from '../../src/runner/v1/task-loader.js';
-import { loadCanonicalPactPairStoreV1 } from '../../src/runner/v1/workspace.js';
+} from '../../../src/suites/pact-pair/task-loader.js';
+import { loadCanonicalPactPairStoreV1 } from '../../../src/suites/pact-pair/workspace.js';
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 test('normalizes common punctuation and matches reordered facts and currency variants', () => {
   assert.equal(normalizePactPairTextV1('  “Launch”\u00a0—  MARCH  '), '"launch" - march');

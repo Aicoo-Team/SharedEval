@@ -5,8 +5,10 @@ a runnable system plus a `pact.yaml` manifest. Protocol v1 is intentionally
 limited to the PACT-Pair responder track.
 
 This document defines the submission artifact and adapter data plane. It does
-not define a hosted intake API. Local model runs use the separate
-[`pact-run.yaml` configuration](running.md).
+not define a hosted intake API. The intended hosted entry point is Aicoo: public
+benchmark browsing may be open, while upload/run mutations should require an
+Aicoo identity or API key. Local model runs use the separate [`pact-run.yaml`
+configuration](running.md) and need no Aicoo account.
 
 The executable source of truth lives in `src/protocol/v1/`. All fixed protocol
 objects use strict Zod schemas, and the TypeScript types are inferred from those
@@ -49,9 +51,12 @@ the artifact.
 `local-ts` loads a TypeScript module in the runner process. It is only for
 trusted local development and baseline tests.
 
-`docker` is the official third-party boundary. Protocol v1 builds the submitted
-source from its Dockerfile; prebuilt image submissions are intentionally not
-accepted yet. Container messages use JSON-RPC 2.0, one JSON object per line over stdin/stdout, with transport name
+`docker` is the declared official third-party boundary. The repository validates
+the Docker build context and CI proves the sample image builds, but the current
+local benchmark command does not yet launch submission containers. The planned
+container runner will build submitted source from its Dockerfile; prebuilt image
+submissions are intentionally not accepted yet. Container messages use JSON-RPC
+2.0, one JSON object per line over stdin/stdout, with transport name
 `jsonrpc-stdio/v1`. Official policy may disable networking or expose only a
 controlled model gateway.
 
@@ -133,5 +138,6 @@ docker build -f examples/submissions/typescript-basic/Dockerfile -t pact-typescr
 
 These commands validate the bundle, exercise the repository-local TypeScript
 sample, and prove that its Docker image builds. The standalone BYOK runner is
-documented separately in [running.md](running.md); hosted intake is outside this
-repository's contract.
+documented separately in [running.md](running.md). A future Aicoo endpoint
+should accept this artifact contract rather than redefining its runtime or
+scoring semantics.

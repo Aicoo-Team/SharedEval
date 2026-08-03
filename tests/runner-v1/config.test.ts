@@ -27,6 +27,7 @@ test('parses a strict run config and applies safe defaults', () => {
   assert.equal('temperature' in config.model, false);
   assert.equal(config.model.maxOutputTokens, 4_096);
   assert.deepEqual(config.benchmark, {
+    dataset: 'pact-pair',
     policy: 'D2',
     requester: 'R1',
     gradingMode: 'category',
@@ -113,6 +114,7 @@ benchmark:
     limit: 2
 `);
   assert.deepEqual(configured.benchmark, {
+    dataset: 'pact-pair',
     policy: 'D5',
     requester: 'R4',
     gradingMode: 'category',
@@ -122,6 +124,14 @@ benchmark:
       limit: 2,
     },
   });
+
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  dataset: pact-net
+`),
+    ZodError,
+  );
 
   assert.throws(
     () => parsePactRunConfigV1Yaml(`${minimalConfig}

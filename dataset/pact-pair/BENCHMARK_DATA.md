@@ -2,9 +2,9 @@
 
 This folder's canonical benchmark data file is:
 
-- `pact_pair/tasks/questions.json`
+- `dataset/pact-pair/tasks/questions.json`
 
-The files under `pact_pair/tasks/gold_answers_legacy.*` are archived legacy
+The files under `dataset/pact-pair/tasks/gold_answers_legacy.*` are archived legacy
 files and should not be used as the current benchmark source of truth.
 
 ## Data Layout
@@ -42,11 +42,11 @@ primary utility/security denominators.
 
 The public synthetic world that these questions refer to is stored in:
 
-- `pact_pair/data_spec/alex_data_store.json`
+- `dataset/pact-pair/data_spec/alex_data_store.json`
 
 The old Pulse DB-backed seed script is preserved for reference at:
 
-- `pact_pair/data_spec/seed_pact_pair.ts`
+- `dataset/pact-pair/data_spec/seed_pact_pair.ts`
 
 The public runner instead clones this JSON fixture in memory for every task.
 

@@ -7,13 +7,13 @@ import {
   dataStoreSchema,
   pairActionSchema,
   pairRelationshipLabelMatrixSchema,
-} from '../../src/schemas.js';
+} from '../../../src/suites/pact-pair/schemas.js';
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 test('preserves action target fields required by the evaluator', () => {
   const pair = JSON.parse(
-    readFileSync(join(repoRoot, 'pact_pair/tasks/questions.json'), 'utf8'),
+    readFileSync(join(repoRoot, 'dataset/pact-pair/tasks/questions.json'), 'utf8'),
   ) as { actions: unknown[] };
 
   const pairAction = pairActionSchema.parse(pair.actions[0]);
@@ -24,7 +24,7 @@ test('preserves action target fields required by the evaluator', () => {
 
 test('rejects evaluator-breaking action schema corruption', () => {
   const pair = JSON.parse(
-    readFileSync(join(repoRoot, 'pact_pair/tasks/questions.json'), 'utf8'),
+    readFileSync(join(repoRoot, 'dataset/pact-pair/tasks/questions.json'), 'utf8'),
   ) as { actions: Array<Record<string, unknown>> };
   const { target_folder: _pairFolder, ...pairWithoutFolder } = pair.actions[0];
 
@@ -55,7 +55,7 @@ test('rejects evaluator-breaking action schema corruption', () => {
 
 test('requires exact mutation targets for edit and completion actions', () => {
   const pair = JSON.parse(
-    readFileSync(join(repoRoot, 'pact_pair/tasks/questions.json'), 'utf8'),
+    readFileSync(join(repoRoot, 'dataset/pact-pair/tasks/questions.json'), 'utf8'),
   ) as { actions: Array<Record<string, unknown>> };
   const pairEdit = pair.actions.find(action => action.operation === 'edit');
   const pairCompletion = pair.actions.find(action => action.operation === 'complete');
@@ -74,7 +74,10 @@ test('requires exact mutation targets for edit and completion actions', () => {
 
 test('validates a concrete Pair datastore record', () => {
   const pairStore = JSON.parse(
-    readFileSync(join(repoRoot, 'pact_pair/data_spec/alex_data_store.json'), 'utf8'),
+    readFileSync(
+      join(repoRoot, 'dataset/pact-pair/data_spec/alex_data_store.json'),
+      'utf8',
+    ),
   );
 
   assert.doesNotThrow(() => dataStoreSchema.parse(pairStore));
@@ -92,7 +95,10 @@ test('validates a concrete Pair datastore record', () => {
 test('validates the Pair requester-conditioned relationship labels', () => {
   const matrix = JSON.parse(
     readFileSync(
-      join(repoRoot, 'pact_pair/relationship_labels/relationship_label_matrix.json'),
+      join(
+        repoRoot,
+        'dataset/pact-pair/relationship_labels/relationship_label_matrix.json',
+      ),
       'utf8',
     ),
   ) as { labels: Array<Record<string, unknown>> };

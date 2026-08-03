@@ -3,8 +3,7 @@ import {
   loadPactRunConfigV1,
   resolvePactRunModelApiKeyV1,
 } from './config.js';
-import { runPactPairBenchmarkV1 } from './runner.js';
-import { loadPactPairTasksV1 } from './task-loader.js';
+import { inspectPactBenchmarkV1, runPactBenchmarkV1 } from './runner.js';
 
 type CliOptions = {
   configPath: string;
@@ -16,14 +15,7 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
   const config = await loadPactRunConfigV1(options.configPath);
 
   if (options.check) {
-    const tasks = loadPactPairTasksV1({
-      policy: config.benchmark.policy,
-      requester: config.benchmark.requester,
-      gradingMode: config.benchmark.gradingMode,
-      kind: config.benchmark.tasks.kind,
-      ids: config.benchmark.tasks.ids,
-      limit: config.benchmark.tasks.limit,
-    });
+    const inspection = inspectPactBenchmarkV1(config);
     process.stdout.write(`${JSON.stringify({
       valid: true,
       config: config.sourcePath,
@@ -45,12 +37,13 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
         credentialEnvironmentVariable: config.model.apiKeyEnv,
       },
       benchmark: {
+        dataset: inspection.dataset,
         policy: config.benchmark.policy,
         requester: config.benchmark.requester,
         gradingMode: config.benchmark.gradingMode,
-        taskCount: tasks.length,
-        firstTask: tasks.at(0)?.taskId ?? null,
-        lastTask: tasks.at(-1)?.taskId ?? null,
+        taskCount: inspection.taskCount,
+        firstTask: inspection.firstTask,
+        lastTask: inspection.lastTask,
       },
       note: 'Configuration check does not call the model API.',
     }, null, 2)}\n`);
@@ -59,7 +52,7 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
 
   // Fail before creating a run directory or iterating over tasks.
   resolvePactRunModelApiKeyV1(config);
-  const result = await runPactPairBenchmarkV1(config);
+  const result = await runPactBenchmarkV1(config);
   process.stdout.write(`${JSON.stringify({
     runId: result.runId,
     outputDirectory: result.outputDirectory,

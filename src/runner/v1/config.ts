@@ -14,6 +14,7 @@ import {
 } from './task-loader.js';
 
 export const PACT_RUN_CONFIG_API_VERSION_V1 = 'pact-run/v1' as const;
+export const PACT_BUILTIN_DATASET_ID_V1 = 'pact-pair' as const;
 export const MAX_PACT_RUN_CONFIG_BYTES_V1 = 256 * 1_024;
 
 // A config may choose an arbitrary model endpoint, so it must not also be able
@@ -162,6 +163,7 @@ export const pactRunConfigV1Schema = z
     model: pactOpenAICompatibleModelConfigV1Schema,
     benchmark: z
       .object({
+        dataset: z.literal(PACT_BUILTIN_DATASET_ID_V1).default(PACT_BUILTIN_DATASET_ID_V1),
         policy: z.enum(PACT_PAIR_POLICIES_V1).default('D2'),
         requester: z.enum(PACT_PAIR_REQUESTERS_V1).default('R1'),
         gradingMode: z.enum(PACT_PAIR_GRADING_MODES_V1).default('category'),
@@ -194,6 +196,7 @@ export const pactRunConfigV1Schema = z
         }
       })
       .default({
+        dataset: PACT_BUILTIN_DATASET_ID_V1,
         policy: 'D2',
         requester: 'R1',
         gradingMode: 'category',

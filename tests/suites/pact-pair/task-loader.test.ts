@@ -10,9 +10,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { loadPactPairTasksV1 } from '../../src/runner/v1/task-loader.js';
+import { loadPactPairTasksV1 } from '../../../src/suites/pact-pair/task-loader.js';
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 test('loads distinct QA/action ids and preserves requested filter order', () => {
   const tasks = loadPactPairTasksV1({
@@ -209,13 +209,21 @@ test('public task intro omits every private grading and retrieval field', () => 
 test('infers note, todo, and mixed-source QA surfaces without exposing sources', t => {
   const fixtureRoot = mkdtempSync(join(tmpdir(), 'pact-pair-loader-'));
   t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
-  const tasksDir = join(fixtureRoot, 'pact_pair', 'tasks');
-  const labelsDir = join(fixtureRoot, 'pact_pair', 'relationship_labels');
+  const tasksDir = join(fixtureRoot, 'dataset', 'pact-pair', 'tasks');
+  const labelsDir = join(
+    fixtureRoot,
+    'dataset',
+    'pact-pair',
+    'relationship_labels',
+  );
   mkdirSync(tasksDir, { recursive: true });
   mkdirSync(labelsDir, { recursive: true });
 
   const benchmark = JSON.parse(
-    readFileSync(join(repoRoot, 'pact_pair', 'tasks', 'questions.json'), 'utf8'),
+    readFileSync(
+      join(repoRoot, 'dataset', 'pact-pair', 'tasks', 'questions.json'),
+      'utf8',
+    ),
   ) as { questions: Array<Record<string, unknown>> };
   benchmark.questions[0] = {
     ...benchmark.questions[0],
@@ -225,7 +233,13 @@ test('infers note, todo, and mixed-source QA surfaces without exposing sources',
   writeFileSync(
     join(labelsDir, 'relationship_label_matrix.json'),
     readFileSync(
-      join(repoRoot, 'pact_pair', 'relationship_labels', 'relationship_label_matrix.json'),
+      join(
+        repoRoot,
+        'dataset',
+        'pact-pair',
+        'relationship_labels',
+        'relationship_label_matrix.json',
+      ),
     ),
   );
 

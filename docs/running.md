@@ -84,6 +84,7 @@ tasks and can incur substantial provider cost:
 
 ```yaml
 benchmark:
+  dataset: pact-pair
   policy: D2_SUBMITTED
   requester: R1
   gradingMode: category
@@ -104,7 +105,7 @@ The policy registry contains:
 
 Use `*_SUBMITTED` when reproducing the submitted-paper conditions. The exact
 policy source, word counts, and loaded-text SHA-256 values are recorded in
-`pact_pair/policies/EXPERIMENT_POLICIES.md`.
+`dataset/pact-pair/policies/EXPERIMENT_POLICIES.md`.
 
 `gradingMode: category` uses the policy dial's category-level labels.
 `gradingMode: relationship` uses the selected requester's relationship label
@@ -281,7 +282,7 @@ interrupted cell in place.
 ## Isolation and privacy
 
 Each task receives a fresh clone of
-`pact_pair/data_spec/alex_data_store.json`. The model sees the public requester,
+`dataset/pact-pair/data_spec/alex_data_store.json`. The model sees the public requester,
 target, prompt, policy, tool schemas, and results of tools it calls. It does
 not receive categories, source pointers, gold facts, expected verdicts, gold
 checks, or P/L/B evaluator labels.

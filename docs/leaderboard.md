@@ -20,7 +20,7 @@ Keep outside the public repository:
 - hidden evaluation tasks;
 - official gold labels for held-out tasks;
 - raw traces that expose unreleased benchmark answers;
-- product adapters requiring private Aicoo/Pulse database access;
+- product adapters requiring private Aicoo database access;
 - credentials, API keys, or production configuration.
 
 ## Result Requirements
@@ -43,6 +43,8 @@ the actual runtime provenance observed by the runner.
 A hosted held-out service must not return local-run per-task evaluations,
 traces, or correctness/leak booleans. Return aggregate or delayed results and
 rate-limit submissions so the evaluator cannot be queried as a label oracle.
+Write operations should require an authenticated Aicoo identity/API key;
+viewing public datasets and published aggregate results need not require one.
 
 ## Anti-Overfitting Rule
 

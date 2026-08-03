@@ -11,14 +11,14 @@ import type {
   PactObservationV1,
   PactRunInitV1,
   PactTaskIntroV1,
-} from '../../src/protocol/v1/index.js';
-import { pactRunConfigV1Schema } from '../../src/runner/v1/config.js';
+} from '../../../src/protocol/v1/index.js';
+import { pactRunConfigV1Schema } from '../../../src/runner/v1/config.js';
 import {
   OpenAICompatiblePactAdapterV1,
   PactProviderRequestErrorV1,
-} from '../../src/runner/v1/model-adapter.js';
-import { runPactPairBenchmarkV1 } from '../../src/runner/v1/runner.js';
-import { loadCanonicalPactPairStoreV1 } from '../../src/runner/v1/workspace.js';
+} from '../../../src/runner/v1/model-adapter.js';
+import { runPactPairBenchmarkV1 } from '../../../src/suites/pact-pair/runner.js';
+import { loadCanonicalPactPairStoreV1 } from '../../../src/suites/pact-pair/workspace.js';
 
 test('runs the protocol lifecycle through a QA lookup and deterministic score', async () => {
   const adapter = new ScriptedAdapter(observation => {
@@ -579,6 +579,7 @@ function configFor(
       model: 'test-model',
     },
     benchmark: {
+      dataset: 'pact-pair',
       policy,
       requester: 'R1',
       tasks: { kind: 'all', ids },

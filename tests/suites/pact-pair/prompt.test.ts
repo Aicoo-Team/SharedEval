@@ -8,9 +8,9 @@ import {
   getPactPolicySha256V1,
   getPactPolicyTextV1,
   PACT_POLICY_FILES_V1,
-} from '../../src/runner/v1/prompt.js';
+} from '../../../src/suites/pact-pair/prompt.js';
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 const frozenPolicies = {
   A_LONG_GENERIC: {
@@ -96,7 +96,7 @@ test('freezes submitted policy files byte-for-byte and after runner trimming', (
   for (const [policy, expected] of Object.entries(submittedPolicies)) {
     const policyId = policy as keyof typeof submittedPolicies;
     const raw = readFileSync(
-      join(repoRoot, 'pact_pair', 'policies', expected.file),
+      join(repoRoot, 'dataset', 'pact-pair', 'policies', expected.file),
       'utf8',
     );
     const text = getPactPolicyTextV1(policyId);

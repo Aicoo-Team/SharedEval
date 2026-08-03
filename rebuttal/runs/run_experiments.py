@@ -83,10 +83,13 @@ REASONING_EFFORT = "low"
 REASONING_CONFIG = {"effort": REASONING_EFFORT}
 PROVENANCE_RUNTIME_PATHS = (
     "src/runner/v1/",
-    "pact_pair/policies/",
-    "pact_pair/tasks/",
-    "pact_pair/relationship_labels/",
-    "pact_pair/data_spec/",
+    "src/suites/pact-pair/",
+    "src/evaluation/",
+    "dataset/pact-pair/manifest.yaml",
+    "dataset/pact-pair/policies/",
+    "dataset/pact-pair/tasks/",
+    "dataset/pact-pair/relationship_labels/",
+    "dataset/pact-pair/data_spec/",
     "rebuttal/runs/",
     "package.json",
     "package-lock.json",
@@ -170,7 +173,7 @@ POLICY_FILES = {
     "REL_R3": "REL_R3.md",
     "REL_R4": "REL_R4.md",
 }
-POLICY_DIR = REPO / "pact_pair/policies"
+POLICY_DIR = REPO / "dataset/pact-pair/policies"
 
 BLOCK_DESCRIPTIONS = {
     "anchors": (

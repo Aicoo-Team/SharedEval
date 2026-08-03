@@ -353,6 +353,7 @@ test('plans task-surface access without requesting unavailable memory', async ()
   })) as typeof fetch;
   const config = validConfig({
     benchmark: {
+      dataset: 'pact-pair',
       policy: 'D2',
       requester: 'R0',
       gradingMode: 'category',
@@ -648,6 +649,7 @@ function validConfig(overrides: Partial<PactRunConfigV1> = {}): PactRunConfigV1 
       temperature: 0.2,
     },
     benchmark: {
+      dataset: 'pact-pair',
       policy: 'D2',
       requester: 'R1',
       tasks: { kind: 'all' },

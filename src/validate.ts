@@ -1,8 +1,12 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ZodError } from 'zod';
 import { parsePactManifestYamlV1 } from './protocol/v1/index.js';
+import {
+  parseDatasetManifestYamlV1,
+  type DatasetManifestV1,
+} from './datasets/index.js';
 import {
   dataStoreSchema,
   pairBenchmarkSchema,
@@ -26,6 +30,10 @@ function parseArgs(): Suite {
 
 function readJson(pathFromRoot: string): unknown {
   return JSON.parse(readFileSync(join(repoRoot, pathFromRoot), 'utf8'));
+}
+
+function readText(pathFromRoot: string): string {
+  return readFileSync(join(repoRoot, pathFromRoot), 'utf8');
 }
 
 function assertEqual(actual: number, expected: number, label: string): void {
@@ -173,10 +181,21 @@ function validatePairRelationshipLabels(
 }
 
 function validatePair(): void {
-  const data = pairBenchmarkSchema.parse(readJson('pact_pair/tasks/questions.json'));
-  const store = dataStoreSchema.parse(readJson('pact_pair/data_spec/alex_data_store.json'));
+  const datasetRoot = 'dataset/pact-pair';
+  const manifest = parseDatasetManifestYamlV1(readText(`${datasetRoot}/manifest.yaml`));
+  if (manifest.id !== 'pact-pair' || manifest.version !== '6.0.0') {
+    throw new Error(`PACT-Pair manifest identity is unexpected: ${manifest.id}@${manifest.version}`);
+  }
+  for (const [name, asset] of Object.entries(manifest.assets)) {
+    if (!existsSync(join(repoRoot, datasetRoot, asset))) {
+      throw new Error(`PACT-Pair manifest asset ${name} does not exist: ${asset}`);
+    }
+  }
+
+  const data = pairBenchmarkSchema.parse(readJson(`${datasetRoot}/${manifest.assets.tasks}`));
+  const store = dataStoreSchema.parse(readJson(`${datasetRoot}/${manifest.assets.workspace}`));
   const relationshipLabels = pairRelationshipLabelMatrixSchema.parse(
-    readJson('pact_pair/relationship_labels/relationship_label_matrix.json'),
+    readJson(`${datasetRoot}/${manifest.assets.relationships}`),
   );
 
   assertEqual(data.total, 600, 'PACT-Pair total metadata');
@@ -204,6 +223,39 @@ function validatePair(): void {
   console.log(formatPairSummary(data));
 }
 
+function validateDatasetCatalog(): Map<string, DatasetManifestV1> {
+  const datasetDirectory = join(repoRoot, 'dataset');
+  const manifests = new Map<string, DatasetManifestV1>();
+  const entries = readdirSync(datasetDirectory, { withFileTypes: true })
+    .filter(entry => entry.isDirectory())
+    .sort((left, right) => left.name.localeCompare(right.name));
+
+  for (const entry of entries) {
+    const relativeRoot = `dataset/${entry.name}`;
+    const manifestPath = `${relativeRoot}/manifest.yaml`;
+    if (!existsSync(join(repoRoot, manifestPath))) {
+      throw new Error(`Dataset directory ${entry.name} is missing manifest.yaml`);
+    }
+    const manifest = parseDatasetManifestYamlV1(readText(manifestPath));
+    if (manifest.id !== entry.name) {
+      throw new Error(
+        `Dataset directory ${entry.name} contains manifest id ${manifest.id}`,
+      );
+    }
+    const identity = `${manifest.id}@${manifest.version}`;
+    if (manifests.has(identity)) throw new Error(`Duplicate dataset identity ${identity}`);
+    for (const [name, asset] of Object.entries(manifest.assets)) {
+      if (!existsSync(join(repoRoot, relativeRoot, asset))) {
+        throw new Error(`Dataset ${identity} asset ${name} does not exist: ${asset}`);
+      }
+    }
+    manifests.set(identity, manifest);
+  }
+
+  console.log(`Dataset catalog validation passed (${manifests.size} manifest${manifests.size === 1 ? '' : 's'})`);
+  return manifests;
+}
+
 function validateProtocolExample(): void {
   const source = readFileSync(
     join(repoRoot, 'examples/submissions/typescript-basic/pact.yaml'),
@@ -228,7 +280,10 @@ function formatPairSummary(data: PairBenchmark): string {
 
 try {
   const suite = parseArgs();
-  if (suite === 'all') validateProtocolExample();
+  if (suite === 'all') {
+    validateDatasetCatalog();
+    validateProtocolExample();
+  }
   if (suite === 'all' || suite === 'pair') validatePair();
 } catch (error) {
   if (error instanceof ZodError) {

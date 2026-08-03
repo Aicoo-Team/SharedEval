@@ -59,8 +59,8 @@ def shuffle_with_gap(entries, seed):
 
 
 def main():
-    matrix = json.loads((REPO / "pact_pair/relationship_labels/relationship_label_matrix.json").read_text())
-    tasks = json.loads((REPO / "pact_pair/tasks/questions.json").read_text())
+    matrix = json.loads((REPO / "dataset/pact-pair/relationship_labels/relationship_label_matrix.json").read_text())
+    tasks = json.loads((REPO / "dataset/pact-pair/tasks/questions.json").read_text())
     qtext = {x["id"]: x for x in tasks["questions"]}
 
     SHEETS.mkdir(parents=True, exist_ok=True)
