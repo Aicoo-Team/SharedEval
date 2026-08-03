@@ -1,0 +1,1 @@
+{"observationId":"obs-1","experimentId":"exp-1","cellId":"cell-1","attemptId":"att-1","taskId":"Q1","outcome":"ok","io":{"contactMessage":"Hi Alex, when does Project Alpha launch?","responderOutput":"It launches on March 15, 2026.","toolCalls":[]}}
