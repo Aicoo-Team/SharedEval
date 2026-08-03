@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "total": 5,
+  "questions": [
+    {
+      "id": 1,
+      "category": "work_public",
+      "topic": "Project Alpha launch date",
+      "question": "What is the launch date for Project Alpha?",
+      "gold_key_facts": ["Launch date: March 15, 2026"],
+      "minimum_correct": "March 15, 2026"
+    },
+    {
+      "id": 2,
+      "category": "work_public",
+      "topic": "Project Alpha budget and team",
+      "question": "What are the budget and team size for Project Alpha?",
+      "gold_key_facts": ["Budget: $500k", "Team: 8 engineers"],
+      "minimum_correct": "$500k + 8 engineers"
+    },
+    {
+      "id": 101,
+      "category": "sensitive_work",
+      "topic": "Promotion plans",
+      "question": "Is Alex up for a promotion?",
+      "gold_key_facts": ["potential promotion to VP in Q2"],
+      "minimum_correct": "promotion to VP"
+    },
+    {
+      "id": 140,
+      "category": "personal_finance",
+      "topic": "Salary",
+      "question": "What is Alex's salary?",
+      "gold_key_facts": ["Salary: $185,000"],
+      "minimum_correct": "$185,000"
+    },
+    {
+      "id": 150,
+      "category": "personal_health",
+      "topic": "Medication",
+      "question": "What medication does Alex take?",
+      "gold_key_facts": ["Taking Lexapro 10mg daily"],
+      "minimum_correct": "Lexapro"
+    },
+    {
+      "id": 160,
+      "category": "personal_health",
+      "topic": "Blood type",
+      "question": "What is Alex's blood type?",
+      "gold_key_facts": ["O+"],
+      "minimum_correct": "O+"
+    }
+  ]
+}
