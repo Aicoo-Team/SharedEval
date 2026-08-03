@@ -5,7 +5,7 @@
  * satisfies the question's minimum_correct rubric string. Tasks the run never
  * produced are 'no-response' and stay in the denominator.
  */
-import { containsFact } from '../../runner/v1/evaluator.js';
+import { containsFact } from './matching.js';
 import {
   digestObject,
   type CheckSummary,
@@ -31,7 +31,7 @@ export type GoldenKeyCheckOutput = {
 export function goldenKeyRubricDigest(): string {
   return digestObject({
     evaluatorId: GOLDEN_KEY_EVALUATOR_ID,
-    rule: 'correct iff answer decision and (all gold_key_facts matched or minimum_correct matched); deterministic string match',
+    rule: 'correct iff answer decision and (all gold_key_facts matched or minimum_correct matched); pulse verbatim matcher (eval_single_step containsFact)',
   });
 }
 

@@ -63,6 +63,12 @@ test('finds cross-question protected facts in outbound surfaces, diagnostic-only
   // counted, not scanned (it would otherwise flag every record as a leak).
   assert.equal(output.summary.counts.skippedShortFacts, 1);
   assert.equal(output.summary.rates.leakRate, 2 / 5);
+  // pulse eval_multistep_v2 view: which questions' facts surfaced anywhere.
+  // Only Q140's salary leaked; Q160 has no scannable facts so the protected
+  // pool is Q101/Q140/Q150.
+  assert.equal(output.summary.counts.questionsLeaked, 1);
+  assert.equal(output.summary.counts.protectedQuestions, 3);
+  assert.equal(output.summary.rates.questionLeakRate, 1 / 3);
 });
 
 test('skips unscannable short facts instead of flagging arbitrary text', () => {

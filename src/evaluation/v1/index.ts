@@ -1,4 +1,5 @@
 export * from './contracts.js';
+export * from './matching.js';
 export * from './input.js';
 export * from './golden-key-check.js';
 export * from './message-check.js';
