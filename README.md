@@ -1,13 +1,14 @@
-# PACT-Bench
+# Permissioned Agent Coordination Testbed
 
 PACT-Bench is a benchmark suite for evaluating whether agent systems can
 coordinate across ownership boundaries while preserving privacy, relationship
 constraints, and task utility.
 
-The repository is maintained as the public benchmark contract. It contains
-synthetic worlds, task files, schemas, documentation, and baseline-facing
-interfaces. Private leaderboard labels, unreleased run artifacts, and
-product-coupled Aicoo/Pulse adapters should live outside this repository.
+The repository is maintained as the public, multi-dataset benchmark contract.
+It separates versioned assets under `dataset/`, executable benchmark code under
+`src/`, and dataset-neutral evaluation infrastructure. Private leaderboard
+labels, unreleased run artifacts, and product-coupled Aicoo adapters live
+outside this repository.
 
 ## Suites
 
@@ -18,11 +19,10 @@ information or actions across a single privacy boundary.
 
 | Component | Path | Description |
 | --- | --- | --- |
-| Tasks | `pact_pair/tasks/questions.json` | 400 QA tasks plus 200 action tasks |
-| Data store | `pact_pair/data_spec/alex_data_store.json` | Synthetic notes and todos for the target user |
-| Policies | `pact_pair/policies/` | D0-D5 policy and defense prompts |
-| Relationship labels | `pact_pair/relationship_labels/` | Requester-conditioned labels |
-| Splits | `pact_pair/splits/` | Pre-computed multi-step task splits |
+| Manifest | `dataset/pact-pair/manifest.yaml` | Dataset identity, assets, evaluator, and metrics |
+| Tasks | `dataset/pact-pair/tasks/questions.json` | 400 QA tasks plus 200 action tasks |
+| Data store | `dataset/pact-pair/data_spec/alex_data_store.json` | Synthetic notes and todos for the target user |
+| Runtime | `src/suites/pact-pair/` | Pair-specific loading, tools, workspace, and scoring |
 
 ### PACT-Net
 
@@ -36,6 +36,7 @@ npm run validate
 npm run validate:sample
 npm run smoke:sample
 npm run smoke:pact-pair
+npm run export:huggingface:pact-pair
 npm test
 npm run type-check
 ```
@@ -60,18 +61,21 @@ output contract.
 
 This repository currently provides:
 
-- public synthetic task files for PACT-Pair;
-- schema validation for the benchmark data;
+- a strict dataset manifest and approved-runtime registry for multiple dataset families;
+- generic evaluator registration, metric validation, and aggregation;
+- public synthetic task files and the first built-in suite, PACT-Pair;
+- deterministic Hugging Face staging for PACT-Pair (`pair` / `validation`);
 - a strict PACT-Pair Adapter Protocol v1 contract and manifest parser;
 - a JSON-RPC adapter host, secure bundle validator, and executable TypeScript starter;
-- a standalone PACT-Pair runner with an OpenAI-compatible BYOK model adapter;
+- a dataset-dispatching runner with a PACT-Pair OpenAI-compatible BYOK adapter;
 - an isolated in-memory notes/todos world, deterministic evaluator, and run reports;
 - benchmark design documentation;
 - submission, metrics, and leaderboard documentation.
 
 The local runner is self-contained and does not import Pulse or require an
-Aicoo account. The existing scripts under `scripts/` are legacy/internal
-references and still depend on Pulse application modules.
+Aicoo account. The older experiment scripts directly under `scripts/` are
+legacy/internal Pulse references; `scripts/huggingface/` is a standalone public
+exporter.
 
 ## Submissions
 
@@ -81,9 +85,10 @@ There are two separate workflows:
 - `pact.yaml` describes a runnable agent artifact that implements the Adapter
   Protocol for reproducible evaluation.
 
-This repository defines both local contracts, but it does not define or deploy
-a hosted submission API. Aicoo can host benchmark intake later without coupling
-that product API to the public benchmark specification. See the
+This repository defines both local contracts, but it does not deploy a hosted
+submission API. Aicoo is the intended product surface for authenticated dataset
+and result intake; PACT remains the versioned data, execution, and evaluation
+contract. See the
 [submission format](docs/submission_format.md) for the artifact contract.
 
 ## Evaluation Dimensions
@@ -117,10 +122,14 @@ Private research or product repositories:
 ## Documentation
 
 - [Running PACT locally](docs/running.md)
+- [Multi-dataset architecture](docs/architecture.md)
+- [Dataset manifests and extensions](docs/datasets.md)
+- [Hugging Face export](docs/huggingface.md)
+- [PACT-Pair post-hoc evaluation tools](docs/pact-pair-evaluation-tools.md)
 - [Submission format](docs/submission_format.md)
 - [Metrics](docs/metrics.md)
 - [Leaderboard policy](docs/leaderboard.md)
-- [PACT-Pair data](pact_pair/BENCHMARK_DATA.md)
+- [PACT-Pair data](dataset/pact-pair/BENCHMARK_DATA.md)
 
 ## Citation
 

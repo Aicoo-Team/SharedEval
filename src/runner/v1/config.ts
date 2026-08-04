@@ -7,14 +7,67 @@ import {
   pactBudgetV1Schema,
   safeRelativePathSchema,
 } from '../../protocol/v1/index.js';
+import {
+  PACT_PAIR_GRADING_MODES_V1,
+  PACT_PAIR_POLICIES_V1,
+  PACT_PAIR_REQUESTERS_V1,
+} from './task-loader.js';
 
 export const PACT_RUN_CONFIG_API_VERSION_V1 = 'pact-run/v1' as const;
+export const PACT_BUILTIN_DATASET_ID_V1 = 'pact-pair' as const;
 export const MAX_PACT_RUN_CONFIG_BYTES_V1 = 256 * 1_024;
 
 // A config may choose an arbitrary model endpoint, so it must not also be able
 // to select an arbitrary process secret (for example an AWS or GitHub token).
 // Callers explicitly bind their provider credential to this dedicated alias.
 export const PACT_MODEL_API_KEY_ENV_V1 = 'PACT_MODEL_API_KEY' as const;
+
+const providerSlugSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/, 'must be a valid provider slug');
+
+export const pactProviderRoutingV1Schema = z
+  .object({
+    requireParameters: z.boolean().optional(),
+    allowFallbacks: z.boolean().optional(),
+    order: z.array(providerSlugSchema).min(1).max(32).refine(
+      values => new Set(values).size === values.length,
+      { message: 'provider order entries must be unique' },
+    ).optional(),
+    only: z.array(providerSlugSchema).min(1).max(32).refine(
+      values => new Set(values).size === values.length,
+      { message: 'allowed providers must be unique' },
+    ).optional(),
+  })
+  .strict()
+  .superRefine((routing, context) => {
+    if (Object.values(routing).every(value => value === undefined)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'provider routing must set at least one control',
+      });
+    }
+    if (routing.only && routing.order) {
+      const allowed = new Set(routing.only);
+      const disallowed = routing.order.filter(provider => !allowed.has(provider));
+      if (disallowed.length > 0) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['order'],
+          message: `provider order contains entries outside only: ${disallowed.join(', ')}`,
+        });
+      }
+    }
+  });
+
+export const pactReasoningV1Schema = z
+  .object({
+    effort: z.enum(['none', 'minimal', 'low', 'medium', 'high', 'max']),
+  })
+  .strict();
 
 const providerBaseUrlSchema = z
   .string()
@@ -65,6 +118,9 @@ export const pactOpenAICompatibleModelConfigV1Schema = z
     apiKeyEnv: z.literal(PACT_MODEL_API_KEY_ENV_V1),
     model: z.string().trim().min(1).max(256),
     temperature: z.number().finite().min(0).max(2).optional(),
+    seed: z.number().int().safe().optional(),
+    reasoning: pactReasoningV1Schema.optional(),
+    providerRouting: pactProviderRoutingV1Schema.optional(),
     maxOutputTokens: z.number().int().safe().min(1).max(65_536).default(4_096),
   })
   .strict();
@@ -107,12 +163,45 @@ export const pactRunConfigV1Schema = z
     model: pactOpenAICompatibleModelConfigV1Schema,
     benchmark: z
       .object({
-        policy: z.enum(['D0', 'D1', 'D2', 'D3', 'D4', 'D5']).default('D2'),
-        requester: z.enum(['R0', 'R1', 'R2', 'R3', 'R4']).default('R1'),
+        dataset: z.literal(PACT_BUILTIN_DATASET_ID_V1).default(PACT_BUILTIN_DATASET_ID_V1),
+        policy: z.enum(PACT_PAIR_POLICIES_V1).default('D2'),
+        requester: z.enum(PACT_PAIR_REQUESTERS_V1).default('R1'),
+        gradingMode: z.enum(PACT_PAIR_GRADING_MODES_V1).default('category'),
         tasks: pactTaskFilterV1Schema,
       })
       .strict()
-      .default({ policy: 'D2', requester: 'R1', tasks: { kind: 'all' } }),
+      .superRefine((benchmark, context) => {
+        if (!benchmark.policy.startsWith('REL_')) return;
+        const expectedRequester = benchmark.policy.slice('REL_'.length);
+        if (benchmark.requester !== expectedRequester) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['requester'],
+            message: `${benchmark.policy} must be paired with requester ${expectedRequester}`,
+          });
+        }
+        if (benchmark.gradingMode !== 'relationship') {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['gradingMode'],
+            message: `${benchmark.policy} requires relationship grading`,
+          });
+        }
+        if (benchmark.tasks.kind !== 'qa') {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['tasks', 'kind'],
+            message: `${benchmark.policy} is validated only for QA tasks`,
+          });
+        }
+      })
+      .default({
+        dataset: PACT_BUILTIN_DATASET_ID_V1,
+        policy: 'D2',
+        requester: 'R1',
+        gradingMode: 'category',
+        tasks: { kind: 'all' },
+      }),
     budget: pactRunBudgetV1Schema.default({
       maxTurns: 8,
       maxToolCalls: 4,

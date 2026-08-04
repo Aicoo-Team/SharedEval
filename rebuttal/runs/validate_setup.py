@@ -272,7 +272,7 @@ def check_policy_artifacts(cells: list[Cell]) -> None:
     tsx = REPO / "node_modules/.bin/tsx"
     command = (
         "import { PACT_POLICY_FILES_V1, getPactPolicySha256V1 } "
-        "from './src/runner/v1/prompt.ts'; "
+        "from './src/suites/pact-pair/prompt.ts'; "
         "console.log(JSON.stringify(Object.fromEntries("
         "Object.keys(PACT_POLICY_FILES_V1).map(id => "
         "[id, getPactPolicySha256V1("
@@ -349,7 +349,7 @@ def smoke_ids(surface: str, count: int) -> list[str]:
 def check_smoke_design(count: int) -> None:
     print("\n[6] Smoke-set balance (no model calls)")
     relationship_data = json.loads(
-        (REPO / "pact_pair/relationship_labels/relationship_label_matrix.json")
+        (REPO / "dataset/pact-pair/relationship_labels/relationship_label_matrix.json")
         .read_text()
     )
     relationship_rows = {
@@ -373,7 +373,7 @@ def check_smoke_design(count: int) -> None:
         )
 
     task_data = json.loads(
-        (REPO / "pact_pair/tasks/questions.json").read_text()
+        (REPO / "dataset/pact-pair/tasks/questions.json").read_text()
     )
     action_verdicts = {
         f"A{row['id']}": row["expected_verdict"]

@@ -6,11 +6,22 @@ model:
   baseUrl: https://api.openai.com/v1
   apiKeyEnv: PACT_MODEL_API_KEY
   model: gpt-5-mini
+  # Optional endpoint-specific controls:
+  # temperature: 0
+  # seed: 20260728
+  # reasoning:
+  #   effort: low
+  # providerRouting:
+  #   requireParameters: true
+  #   allowFallbacks: false
+  #   only: [example/provider]
   maxOutputTokens: 4096
 
 benchmark:
-  policy: D2
+  dataset: pact-pair
+  policy: D2_SUBMITTED
   requester: R1
+  gradingMode: category
   tasks:
     kind: all
     ids: [Q1, A1]

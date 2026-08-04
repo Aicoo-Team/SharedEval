@@ -1,0 +1,27 @@
+apiVersion: pact-bench/dataset/v1
+kind: Dataset
+id: pact-pair
+name: PACT-Pair
+version: 6.0.0
+protocol: pact-bench/v1
+assets:
+  tasks: tasks/questions.json
+  workspace: data_spec/alex_data_store.json
+  relationships: relationship_labels/relationship_label_matrix.json
+  policies: policies
+  splits: splits/10_splits_v2
+evaluation:
+  evaluator:
+    id: pact-pair
+    version: 1.0.0
+  metrics:
+    - informationUtility
+    - informationSecurity
+    - actionUtility
+    - actionSafety
+    - falseRefusalRate
+    - leakRate
+    - policyComplianceInformationUtility
+    - policyComplianceInformationSecurity
+    - policyComplianceFalseRefusalRate
+    - policyComplianceLeakRate

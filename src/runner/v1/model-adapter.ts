@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   assertPactJsonComplexityV1,
   jsonObjectSchema,
+  jsonValueSchema,
   pactDecisionV1Schema,
   pactObservationV1Schema,
   pactRunInitV1Schema,
@@ -30,8 +31,14 @@ import {
 type FetchImplementation = typeof globalThis.fetch;
 
 export const MAX_PACT_PROVIDER_RESPONSE_BYTES_V1 = 2 * 1_024 * 1_024;
-const MAX_PROVIDER_ATTEMPTS_V1 = 3;
-const MAX_PROVIDER_RETRY_DELAY_MS_V1 = 2_000;
+// OpenRouter's pinned open-weight endpoints can emit short 429 bursts even in
+// a sequential run. Eight attempts add at most 31.75s of exponential backoff
+// when Retry-After is absent, while the task deadline remains the hard bound.
+const MAX_PROVIDER_ATTEMPTS_V1 = 8;
+// Provider Retry-After values routinely exceed two seconds under concurrent
+// OpenRouter sweeps. Honor a bounded portion instead of immediately creating
+// another 429 storm; the task-level AbortSignal remains the hard deadline.
+const MAX_PROVIDER_RETRY_DELAY_MS_V1 = 30_000;
 
 export type OpenAICompatiblePactAdapterV1Options = {
   fetch?: FetchImplementation;
@@ -56,7 +63,7 @@ export class PactProviderRequestErrorV1 extends Error {
     // selection. Other 4xx responses may be task-specific (content policy,
     // payload size, or context length) and remain isolated task errors.
     this.fatalConfiguration = options.status !== undefined
-      && [401, 403, 404, 405].includes(options.status);
+      && [401, 402, 403, 404, 405].includes(options.status);
   }
 }
 
@@ -75,6 +82,7 @@ type OpenAICompatibleMessage =
     role: 'assistant';
     content: string | null;
     tool_calls?: OpenAICompatibleToolCall[];
+    reasoning_details?: JsonValue[];
   }
   | { role: 'tool'; tool_call_id: string; content: string };
 
@@ -100,25 +108,112 @@ const providerToolCallSchema = z
   })
   .passthrough();
 
-const providerResponseSchema = z
+const providerEnvelopeSchema = z
   .object({
-    choices: z
-      .array(
-        z
-          .object({
-            message: z
-              .object({
-                content: z.string().nullable().optional(),
-                refusal: z.string().nullable().optional(),
-                tool_calls: z.array(providerToolCallSchema).max(1).optional(),
-              })
-              .passthrough(),
-          })
-          .passthrough(),
-      )
-      .length(1),
+    id: z.string().min(1).max(512).nullish(),
+    model: z.string().min(1).max(512).nullish(),
+    provider: z.string().min(1).max(512).nullish(),
+    usage: z.unknown().optional(),
+    choices: z.array(z.unknown()).min(1).max(128),
   })
   .passthrough();
+
+const providerChoiceSchema = z
+  .object({
+    message: z
+      .object({
+        content: z.string().nullable().optional(),
+        refusal: z.string().nullable().optional(),
+        // Several OpenAI-compatible providers serialize an absent tool call
+        // list as null. Treat null and omission equivalently.
+        tool_calls: z.array(providerToolCallSchema).max(128).nullish(),
+        // OpenRouter reasoning models require these opaque details to be
+        // replayed unchanged on the next turn after a tool call.
+        reasoning_details: z.array(z.unknown()).max(256).nullish(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
+
+const nonnegativeFiniteNumberSchema = z.number().finite().nonnegative();
+
+const providerUsageSchema = z
+  .object({
+    prompt_tokens: nonnegativeFiniteNumberSchema.nullish(),
+    completion_tokens: nonnegativeFiniteNumberSchema.nullish(),
+    total_tokens: nonnegativeFiniteNumberSchema.nullish(),
+    cost: nonnegativeFiniteNumberSchema.nullish(),
+    prompt_tokens_details: z
+      .object({
+        cached_tokens: nonnegativeFiniteNumberSchema.nullish(),
+      })
+      .passthrough()
+      .nullish(),
+    completion_tokens_details: z
+      .object({
+        reasoning_tokens: nonnegativeFiniteNumberSchema.nullish(),
+      })
+      .passthrough()
+      .nullish(),
+  })
+  .passthrough();
+
+export type PactProviderUsageV1 = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+  reasoningTokens?: number;
+  cachedTokens?: number;
+  costUsd?: number;
+};
+
+export type PactProviderRequestTelemetryV1 = {
+  requestedModel: string;
+  servedModel?: string;
+  provider?: string;
+  responseId?: string;
+  requestId?: string;
+  generationId?: string;
+  httpStatus?: number;
+  lastResponseAttempt?: number;
+  retryable?: boolean;
+  latencyMs: number;
+  attempts: number;
+  choiceCount?: number;
+  outcome: 'success' | 'invalid_response' | 'provider_error';
+  usage?: PactProviderUsageV1;
+};
+
+export type PactProviderTelemetryV1 = {
+  requestedModel: string;
+  requests: PactProviderRequestTelemetryV1[];
+  totals: {
+    requests: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    reasoningTokens?: number;
+    cachedTokens?: number;
+    costUsd?: number;
+  };
+};
+
+type PactProviderTelemetrySourceV1 = {
+  getProviderTelemetryV1(): PactProviderTelemetryV1;
+};
+
+type ProviderResponseHeadersV1 = {
+  requestId?: string;
+  generationId?: string;
+  provider?: string;
+};
+
+type FetchedProviderCompletionV1 = {
+  body: unknown;
+  headers: ProviderResponseHeadersV1;
+  attempts: number;
+  latencyMs: number;
+};
 
 const terminalReasonSchema = z.object({ reason: z.string().trim().min(1).max(4_096) }).strict();
 const terminalAnswerSchema = z.object({ content: z.string().trim().min(1).max(65_536) }).strict();
@@ -132,7 +227,8 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
   private runInit: PactRunInitV1 | null = null;
   private messages: OpenAICompatibleMessage[] = [];
   private availableToolNames = new Set<string>();
-  private pendingToolCall: { id: string; name: string } | null = null;
+  private pendingToolCalls: OpenAICompatibleToolCall[] = [];
+  private providerRequests: PactProviderRequestTelemetryV1[] = [];
   private failed = false;
 
   constructor(
@@ -163,7 +259,8 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
     this.runInit = parsed;
     this.availableToolNames = new Set(parsed.tools.map(tool => tool.name));
     this.messages = [];
-    this.pendingToolCall = null;
+    this.pendingToolCalls = [];
+    this.providerRequests = [];
     this.failed = false;
     this.requestTimeoutMs = this.configuredTimeoutMs;
   }
@@ -203,7 +300,7 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
 
     try {
       if (parsed.type === 'task') {
-        this.pendingToolCall = null;
+        this.pendingToolCalls = [];
         this.messages = [
           {
             role: 'system',
@@ -225,6 +322,10 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
         ];
       } else {
         this.appendToolResult(parsed);
+        const queuedCall = this.pendingToolCalls[0];
+        if (queuedCall) {
+          return this.decisionFromToolCall(queuedCall, false);
+        }
       }
 
       return await this.requestDecision(init.tools);
@@ -235,7 +336,7 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
   }
 
   async finalize(): Promise<PactFinalizeReportV1> {
-    this.pendingToolCall = null;
+    this.pendingToolCalls = [];
     this.messages = [];
     return this.failed
       ? {
@@ -248,11 +349,28 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
       };
   }
 
+  getProviderTelemetryV1(): PactProviderTelemetryV1 {
+    const usage = this.providerRequests.map(request => request.usage);
+    return {
+      requestedModel: this.config.model.model,
+      requests: structuredClone(this.providerRequests),
+      totals: {
+        requests: this.providerRequests.length,
+        ...sumOptionalUsage(usage, 'promptTokens'),
+        ...sumOptionalUsage(usage, 'completionTokens'),
+        ...sumOptionalUsage(usage, 'totalTokens'),
+        ...sumOptionalUsage(usage, 'reasoningTokens'),
+        ...sumOptionalUsage(usage, 'cachedTokens'),
+        ...sumOptionalUsage(usage, 'costUsd'),
+      },
+    };
+  }
+
   private appendToolResult(
     observation: Extract<PactObservationV1, { type: 'tool_result' }>,
   ): void {
-    const pending = this.pendingToolCall;
-    if (!pending || pending.name !== observation.toolName) {
+    const pending = this.pendingToolCalls[0];
+    if (!pending || pending.function.name !== observation.toolName) {
       throw new Error('Tool result does not match the model adapter pending call');
     }
     this.messages.push({
@@ -264,51 +382,130 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
         budgetRemaining: observation.budgetRemaining,
       }),
     });
-    this.pendingToolCall = null;
+    this.pendingToolCalls.shift();
   }
 
   private async requestDecision(
     runnerTools: PactToolSpecV1[],
   ): Promise<PactDecisionV1> {
-    const response = redactProviderCredential(await this.fetchCompletion({
+    const fetched = await this.fetchCompletion({
       model: this.config.model.model,
       ...(this.config.model.temperature === undefined
         ? {}
         : { temperature: this.config.model.temperature }),
-      max_completion_tokens: this.config.model.maxOutputTokens,
+      ...(this.config.model.seed === undefined
+        ? {}
+        : { seed: this.config.model.seed }),
+      ...(this.config.model.reasoning === undefined
+        ? {}
+        : { reasoning: this.config.model.reasoning }),
+      ...(this.config.model.providerRouting === undefined
+        ? {}
+        : {
+          provider: {
+            ...(this.config.model.providerRouting.requireParameters === undefined
+              ? {}
+              : {
+                require_parameters:
+                  this.config.model.providerRouting.requireParameters,
+              }),
+            ...(this.config.model.providerRouting.allowFallbacks === undefined
+              ? {}
+              : {
+                allow_fallbacks:
+                  this.config.model.providerRouting.allowFallbacks,
+              }),
+            ...(this.config.model.providerRouting.order === undefined
+              ? {}
+              : { order: this.config.model.providerRouting.order }),
+            ...(this.config.model.providerRouting.only === undefined
+              ? {}
+              : { only: this.config.model.providerRouting.only }),
+          },
+        }),
+      // OpenRouter and the pinned endpoints advertise `max_tokens`. Sending
+      // the OpenAI-specific `max_completion_tokens` with
+      // require_parameters=true makes routing fail with "No endpoints found".
+      max_tokens: this.config.model.maxOutputTokens,
       messages: this.messages,
       tools: [
         ...runnerTools.map(toProviderTool),
         ...terminalTools(),
       ],
       tool_choice: 'auto',
-      parallel_tool_calls: false,
-    }), this.apiKey);
+    });
+    const response = redactProviderCredential(fetched.body, this.apiKey);
 
-    const parsedResponse = providerResponseSchema.safeParse(response);
-    if (!parsedResponse.success) {
-      throw new Error('OpenAI-compatible provider returned an invalid response');
+    const parsedEnvelope = providerEnvelopeSchema.safeParse(response);
+    if (!parsedEnvelope.success) {
+      this.providerRequests.push(providerTelemetryFromResponse({
+        requestedModel: this.config.model.model,
+        fetched,
+        outcome: 'invalid_response',
+      }));
+      throw new Error(
+        `OpenAI-compatible provider returned an invalid response envelope: ${
+          summarizeProviderSchemaIssues(parsedEnvelope.error)
+        }`,
+      );
     }
 
-    const message = parsedResponse.data.choices[0].message;
+    const telemetry = providerTelemetryFromResponse({
+      requestedModel: this.config.model.model,
+      fetched,
+      envelope: parsedEnvelope.data,
+      outcome: 'invalid_response',
+    });
+    this.providerRequests.push(telemetry);
+
+    const parsedChoice = providerChoiceSchema.safeParse(
+      parsedEnvelope.data.choices[0],
+    );
+    if (!parsedChoice.success) {
+      throw new Error(
+        `OpenAI-compatible provider returned an invalid first choice: ${
+          summarizeProviderSchemaIssues(parsedChoice.error)
+        }`,
+      );
+    }
+
+    const message = parsedChoice.data.message;
     const calls = message.tool_calls ?? [];
-    if (calls.length > 1) {
-      throw new Error('OpenAI-compatible provider returned multiple tool calls');
-    }
+    const reasoningDetails = parseReasoningDetails(message.reasoning_details);
 
-    if (calls.length === 1) {
-      const call = calls[0] as OpenAICompatibleToolCall;
+    if (calls.length > 0) {
+      assertUniqueToolCallIds(calls);
+      const decisions = calls.map(call => this.decisionFromToolCall(call, true));
+      if (
+        calls.length > 1
+        && decisions.some(decision => decision.type !== 'tool_call')
+      ) {
+        throw new Error(
+          'OpenAI-compatible provider mixed terminal and runner tool calls',
+        );
+      }
       this.messages.push({
         role: 'assistant',
         content: message.content ?? null,
-        tool_calls: [call],
+        tool_calls: calls,
+        ...(reasoningDetails ? { reasoning_details: reasoningDetails } : {}),
       });
-      return this.decisionFromToolCall(call);
+      telemetry.outcome = 'success';
+      if (decisions[0]?.type === 'tool_call') {
+        // Keep the transcript immutable while the execution queue is shifted.
+        this.pendingToolCalls = [...calls];
+      }
+      const firstDecision = decisions[0];
+      if (!firstDecision) {
+        throw new Error('OpenAI-compatible provider returned no tool decision');
+      }
+      return firstDecision;
     }
 
     const refusal = message.refusal?.trim();
     if (refusal) {
       this.messages.push({ role: 'assistant', content: refusal });
+      telemetry.outcome = 'success';
       return pactDecisionV1Schema.parse({ type: 'refuse', reason: refusal });
     }
 
@@ -317,21 +514,34 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
       throw new Error('OpenAI-compatible provider returned no decision');
     }
     this.messages.push({ role: 'assistant', content });
+    telemetry.outcome = 'success';
     return pactDecisionV1Schema.parse({ type: 'answer', content });
   }
 
-  private decisionFromToolCall(call: OpenAICompatibleToolCall): PactDecisionV1 {
+  private decisionFromToolCall(
+    call: OpenAICompatibleToolCall,
+    allowTerminal: boolean,
+  ): PactDecisionV1 {
     const input = parseToolArguments(call.function.arguments);
 
     if (call.function.name === 'pact_answer') {
+      if (!allowTerminal) {
+        throw new Error('Queued provider tool call cannot be terminal');
+      }
       const { content } = terminalAnswerSchema.parse(input);
       return pactDecisionV1Schema.parse({ type: 'answer', content });
     }
     if (call.function.name === 'pact_refuse') {
+      if (!allowTerminal) {
+        throw new Error('Queued provider tool call cannot be terminal');
+      }
       const { reason } = terminalReasonSchema.parse(input);
       return pactDecisionV1Schema.parse({ type: 'refuse', reason });
     }
     if (call.function.name === 'pact_escalate') {
+      if (!allowTerminal) {
+        throw new Error('Queued provider tool call cannot be terminal');
+      }
       const { reason } = terminalReasonSchema.parse(input);
       return pactDecisionV1Schema.parse({ type: 'escalate', reason });
     }
@@ -339,7 +549,6 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
       throw new Error('OpenAI-compatible provider selected an unavailable tool');
     }
 
-    this.pendingToolCall = { id: call.id, name: call.function.name };
     return pactDecisionV1Schema.parse({
       type: 'tool_call',
       toolName: call.function.name,
@@ -347,7 +556,7 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
     });
   }
 
-  private async fetchCompletion(body: unknown): Promise<unknown> {
+  private async fetchCompletion(body: unknown): Promise<FetchedProviderCompletionV1> {
     const init = this.requireRunInit();
     const timeoutMs = Math.min(
       this.requestTimeoutMs,
@@ -359,9 +568,16 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
       'chat/completions',
       `${this.config.model.baseUrl}/`,
     );
+    const startedAt = Date.now();
+    let attempts = 0;
+    let failureHeaders: ProviderResponseHeadersV1 = {};
+    let failureStatus: number | undefined;
+    let failureResponseAttempt: number | undefined;
+    let failureRetryable: boolean | undefined;
 
     try {
       for (let attempt = 1; attempt <= MAX_PROVIDER_ATTEMPTS_V1; attempt += 1) {
+        attempts = attempt;
         let response: Response;
         try {
           response = await this.fetchImplementation(endpoint, {
@@ -385,18 +601,26 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
             );
             continue;
           }
+          failureRetryable = true;
           throw new PactProviderRequestErrorV1(
             'OpenAI-compatible provider request failed',
             { retryable: true },
           );
         }
 
+        failureHeaders = providerResponseHeaders(response, this.apiKey);
+        failureStatus = response.status;
+        failureResponseAttempt = attempt;
+        failureRetryable = response.ok
+          ? false
+          : isRetryableProviderStatus(response.status);
         if (!response.ok) {
-          const retryable = isRetryableProviderStatus(response.status);
+          const retryable = failureRetryable;
+          const retryDelay = providerRetryDelayMs(response, attempt);
           await cancelProviderResponseBody(response);
           if (retryable && attempt < MAX_PROVIDER_ATTEMPTS_V1) {
             await waitForProviderRetry(
-              providerRetryDelayMs(response, attempt),
+              retryDelay,
               abortController.signal,
               timeoutMs,
             );
@@ -408,9 +632,48 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
           );
         }
 
-        return await readBoundedProviderJson(response, abortController.signal, timeoutMs);
+        return {
+          body: await readBoundedProviderJson(
+            response,
+            abortController.signal,
+            timeoutMs,
+          ),
+          headers: providerResponseHeaders(response, this.apiKey),
+          attempts: attempt,
+          latencyMs: Date.now() - startedAt,
+        };
       }
       throw new PactProviderRequestErrorV1('OpenAI-compatible provider request failed');
+    } catch (error) {
+      this.providerRequests.push({
+        requestedModel: this.config.model.model,
+        ...(failureHeaders.provider
+          ? { provider: failureHeaders.provider }
+          : {}),
+        ...(failureHeaders.requestId
+          ? { requestId: failureHeaders.requestId }
+          : {}),
+        ...(failureHeaders.generationId
+          ? { generationId: failureHeaders.generationId }
+          : {}),
+        ...(failureStatus === undefined
+          ? {}
+          : { httpStatus: failureStatus }),
+        ...(failureResponseAttempt === undefined
+          ? {}
+          : { lastResponseAttempt: failureResponseAttempt }),
+        ...(failureRetryable === undefined
+          ? {}
+          : { retryable: failureRetryable }),
+        latencyMs: Date.now() - startedAt,
+        attempts: Math.max(1, attempts),
+        outcome: failureStatus !== undefined
+          && failureStatus >= 200
+          && failureStatus < 300
+          ? 'invalid_response'
+          : 'provider_error',
+      });
+      throw error;
     } finally {
       clearTimeout(timeout);
     }
@@ -422,6 +685,171 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
     }
     return this.runInit;
   }
+}
+
+export function readPactProviderTelemetryV1(
+  adapter: PactAdapterV1,
+): PactProviderTelemetryV1 | undefined {
+  const candidate = adapter as PactAdapterV1 & Partial<PactProviderTelemetrySourceV1>;
+  if (typeof candidate.getProviderTelemetryV1 !== 'function') return undefined;
+  return candidate.getProviderTelemetryV1();
+}
+
+function providerTelemetryFromResponse(options: {
+  requestedModel: string;
+  fetched: FetchedProviderCompletionV1;
+  envelope?: z.infer<typeof providerEnvelopeSchema>;
+  outcome: PactProviderRequestTelemetryV1['outcome'];
+}): PactProviderRequestTelemetryV1 {
+  const usage = providerUsage(options.envelope?.usage);
+  return {
+    requestedModel: options.requestedModel,
+    ...(options.envelope?.model
+      ? { servedModel: options.envelope.model }
+      : {}),
+    ...(options.envelope?.provider ?? options.fetched.headers.provider
+      ? {
+        provider: options.envelope?.provider
+          ?? options.fetched.headers.provider,
+      }
+      : {}),
+    ...(options.envelope?.id
+      ? { responseId: options.envelope.id }
+      : {}),
+    ...(options.fetched.headers.requestId
+      ? { requestId: options.fetched.headers.requestId }
+      : {}),
+    ...(options.fetched.headers.generationId
+      ? { generationId: options.fetched.headers.generationId }
+      : {}),
+    latencyMs: options.fetched.latencyMs,
+    attempts: options.fetched.attempts,
+    ...(options.envelope
+      ? { choiceCount: options.envelope.choices.length }
+      : {}),
+    outcome: options.outcome,
+    ...(usage ? { usage } : {}),
+  };
+}
+
+function providerUsage(value: unknown): PactProviderUsageV1 | undefined {
+  const parsed = providerUsageSchema.safeParse(value);
+  if (!parsed.success) return undefined;
+  const usage: PactProviderUsageV1 = {
+    ...(parsed.data.prompt_tokens == null
+      ? {}
+      : { promptTokens: parsed.data.prompt_tokens }),
+    ...(parsed.data.completion_tokens == null
+      ? {}
+      : { completionTokens: parsed.data.completion_tokens }),
+    ...(parsed.data.total_tokens == null
+      ? {}
+      : { totalTokens: parsed.data.total_tokens }),
+    ...(parsed.data.completion_tokens_details?.reasoning_tokens == null
+      ? {}
+      : {
+        reasoningTokens:
+          parsed.data.completion_tokens_details.reasoning_tokens,
+      }),
+    ...(parsed.data.prompt_tokens_details?.cached_tokens == null
+      ? {}
+      : { cachedTokens: parsed.data.prompt_tokens_details.cached_tokens }),
+    ...(parsed.data.cost == null ? {} : { costUsd: parsed.data.cost }),
+  };
+  return Object.keys(usage).length > 0 ? usage : undefined;
+}
+
+function sumOptionalUsage<K extends keyof PactProviderUsageV1>(
+  usages: Array<PactProviderUsageV1 | undefined>,
+  key: K,
+): Partial<Record<K, number>> {
+  const values = usages.flatMap(usage => {
+    const value = usage?.[key];
+    return value === undefined ? [] : [value];
+  });
+  if (values.length === 0) return {};
+  return { [key]: values.reduce((sum, value) => sum + value, 0) } as Partial<
+    Record<K, number>
+  >;
+}
+
+function parseReasoningDetails(value: unknown[] | null | undefined): JsonValue[] | undefined {
+  if (!value || value.length === 0) return undefined;
+  const parsed = z.array(jsonValueSchema).safeParse(value);
+  if (!parsed.success) {
+    // Do not include nested object paths: reasoning payload keys are
+    // provider-controlled and could themselves contain sensitive text.
+    throw new Error('OpenAI-compatible provider returned invalid reasoning details');
+  }
+  return parsed.data;
+}
+
+function assertUniqueToolCallIds(calls: OpenAICompatibleToolCall[]): void {
+  if (new Set(calls.map(call => call.id)).size !== calls.length) {
+    throw new Error('OpenAI-compatible provider returned duplicate tool-call identifiers');
+  }
+}
+
+function summarizeProviderSchemaIssues(error: z.ZodError): string {
+  const issues = error.issues.slice(0, 6).map(issue => {
+    const path = issue.path.length === 0
+      ? '<root>'
+      : issue.path.map(segment =>
+        typeof segment === 'number' ? `[${segment}]` : String(segment)).join('.');
+    if (issue.code === z.ZodIssueCode.invalid_type) {
+      return `${path}: expected ${issue.expected}, received ${issue.received}`;
+    }
+    return `${path}: ${issue.code}`;
+  });
+  const omitted = error.issues.length - issues.length;
+  return `${issues.join('; ')}${omitted > 0 ? `; +${omitted} more issue(s)` : ''}`;
+}
+
+function providerResponseHeaders(
+  response: Response,
+  secret: string,
+): ProviderResponseHeadersV1 {
+  return {
+    ...firstSafeProviderHeader(
+      response,
+      ['x-request-id', 'request-id'],
+      'requestId',
+      secret,
+    ),
+    ...firstSafeProviderHeader(
+      response,
+      ['x-generation-id', 'x-openrouter-generation-id'],
+      'generationId',
+      secret,
+    ),
+    ...firstSafeProviderHeader(
+      response,
+      ['x-openrouter-provider', 'x-provider'],
+      'provider',
+      secret,
+    ),
+  };
+}
+
+function firstSafeProviderHeader<K extends keyof ProviderResponseHeadersV1>(
+  response: Response,
+  names: string[],
+  key: K,
+  secret: string,
+): Partial<Record<K, string>> {
+  for (const name of names) {
+    const raw = response.headers.get(name);
+    if (!raw) continue;
+    const sanitized = raw
+      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .split(secret)
+      .join('[REDACTED]')
+      .slice(0, 512);
+    if (sanitized) {
+      return { [key]: sanitized } as Partial<Record<K, string>>;
+    }
+  }
+  return {};
 }
 
 function isRetryableProviderStatus(status: number): boolean {

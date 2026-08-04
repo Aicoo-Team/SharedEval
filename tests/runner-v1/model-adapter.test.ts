@@ -7,6 +7,8 @@ import type {
 import {
   MAX_PACT_PROVIDER_RESPONSE_BYTES_V1,
   OpenAICompatiblePactAdapterV1,
+  PactProviderRequestErrorV1,
+  readPactProviderTelemetryV1,
 } from '../../src/runner/v1/model-adapter.js';
 import {
   pactRunConfigV1Schema,
@@ -64,8 +66,9 @@ test('converts OpenAI-compatible runner and terminal tool calls into decisions',
   const firstBody = JSON.parse(String(calls[0].init?.body));
   assert.equal(firstBody.model, 'example-model');
   assert.equal(firstBody.temperature, 0.2);
-  assert.equal(firstBody.max_completion_tokens, 4_096);
-  assert.equal(firstBody.parallel_tool_calls, false);
+  assert.equal(firstBody.max_tokens, 4_096);
+  assert.equal(firstBody.max_completion_tokens, undefined);
+  assert.equal(firstBody.parallel_tool_calls, undefined);
   assert.deepEqual(
     firstBody.tools.map((tool: { function: { name: string } }) => tool.function.name),
     ['search_notes', 'pact_answer', 'pact_refuse', 'pact_escalate'],
@@ -83,7 +86,13 @@ test('supports refusal and text-only compatibility fallbacks', async () => {
   const responses = [
     completionWithTool('provider-refuse', 'pact_refuse', { reason: 'That information is private.' }),
     {
-      choices: [{ message: { content: null, refusal: 'The provider blocked this request.' } }],
+      choices: [{
+        message: {
+          content: null,
+          refusal: 'The provider blocked this request.',
+          tool_calls: null,
+        },
+      }],
     },
     {
       choices: [{ message: { content: 'A plain compatible response.' } }],
@@ -113,6 +122,188 @@ test('supports refusal and text-only compatibility fallbacks', async () => {
   );
 });
 
+test('serializes compatible multi-tool responses and preserves reasoning details', async () => {
+  const calls: Array<{ init?: RequestInit }> = [];
+  const responses = [
+    {
+      id: 'gen-multi-1',
+      model: 'served-reasoning-model',
+      choices: [{
+        message: {
+          content: null,
+          reasoning_details: [{
+            type: 'reasoning.text',
+            text: 'Need both note searches.',
+          }],
+          tool_calls: [
+            {
+              id: 'provider-call-a',
+              type: 'function',
+              function: {
+                name: 'search_notes',
+                arguments: JSON.stringify({ query: 'launch date' }),
+              },
+            },
+            {
+              id: 'provider-call-b',
+              type: 'function',
+              function: {
+                name: 'search_notes',
+                arguments: JSON.stringify({ query: 'launch owner' }),
+              },
+            },
+          ],
+        },
+      }],
+    },
+    completionWithTool(
+      'provider-answer',
+      'pact_answer',
+      { content: 'Friday, owned by Alex.' },
+    ),
+  ];
+  const fetchMock = (async (_input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ init });
+    return jsonResponse(responses.shift());
+  }) as typeof fetch;
+  const adapter = createAdapter(fetchMock);
+  await adapter.initialize(validRunInitV1);
+  const grantedAccess = await adapter.planBoundary(validTaskV1);
+
+  assert.deepEqual(await adapter.step(taskObservation(grantedAccess)), {
+    type: 'tool_call',
+    toolName: 'search_notes',
+    input: { query: 'launch date' },
+  });
+  assert.deepEqual(await adapter.step(toolResultObservation(
+    1,
+    'search_notes',
+    { matches: [] },
+  )), {
+    type: 'tool_call',
+    toolName: 'search_notes',
+    input: { query: 'launch owner' },
+  });
+  assert.equal(calls.length, 1, 'the queued call must not trigger another completion');
+
+  assert.deepEqual(await adapter.step(toolResultObservation(
+    2,
+    'search_notes',
+    { matches: [] },
+  )), {
+    type: 'answer',
+    content: 'Friday, owned by Alex.',
+  });
+  assert.equal(calls.length, 2);
+
+  const secondBody = JSON.parse(String(calls[1]?.init?.body));
+  const assistant = secondBody.messages.find(
+    (message: { role: string }) => message.role === 'assistant',
+  );
+  assert.equal(assistant.tool_calls.length, 2);
+  assert.deepEqual(assistant.reasoning_details, [{
+    type: 'reasoning.text',
+    text: 'Need both note searches.',
+  }]);
+  assert.equal(
+    secondBody.messages.filter(
+      (message: { role: string }) => message.role === 'tool',
+    ).length,
+    2,
+  );
+});
+
+test('captures sanitized model, provider, request, token, and cost telemetry', async () => {
+  const fetchMock = (async () => jsonResponse({
+    id: 'generation-body-id',
+    model: 'served/example-model-2026-07',
+    provider: 'Example Provider',
+    usage: {
+      prompt_tokens: 120,
+      completion_tokens: 30,
+      total_tokens: 150,
+      cost: 0.0042,
+      prompt_tokens_details: { cached_tokens: 20 },
+      completion_tokens_details: { reasoning_tokens: 7 },
+    },
+    choices: [{ message: { content: 'A compatible response.', tool_calls: null } }],
+  }, {
+    'x-request-id': 'request-header-id',
+    'x-generation-id': 'generation-header-id',
+  })) as typeof fetch;
+  const adapter = createAdapter(fetchMock);
+  await adapter.initialize(validRunInitV1);
+  await adapter.step(taskObservation(deniedAccessV1));
+
+  const telemetry = readPactProviderTelemetryV1(adapter);
+  assert.ok(telemetry);
+  assert.equal(telemetry.requests.length, 1);
+  const request = telemetry.requests[0];
+  assert.ok(request);
+  assert.equal(Number.isSafeInteger(request.latencyMs), true);
+  assert.ok(request.latencyMs >= 0);
+  assert.deepEqual({ ...telemetry, requests: [{ ...request, latencyMs: 0 }] }, {
+    requestedModel: 'example-model',
+    requests: [{
+      requestedModel: 'example-model',
+      servedModel: 'served/example-model-2026-07',
+      provider: 'Example Provider',
+      responseId: 'generation-body-id',
+      requestId: 'request-header-id',
+      generationId: 'generation-header-id',
+      latencyMs: 0,
+      attempts: 1,
+      choiceCount: 1,
+      outcome: 'success',
+      usage: {
+        promptTokens: 120,
+        completionTokens: 30,
+        totalTokens: 150,
+        reasoningTokens: 7,
+        cachedTokens: 20,
+        costUsd: 0.0042,
+      },
+    }],
+    totals: {
+      requests: 1,
+      promptTokens: 120,
+      completionTokens: 30,
+      totalTokens: 150,
+      reasoningTokens: 7,
+      cachedTokens: 20,
+      costUsd: 0.0042,
+    },
+  });
+});
+
+test('reports response-shape diagnostics without echoing provider content', async () => {
+  const secretContent = 'DO_NOT_ECHO_PROVIDER_BODY';
+  const adapter = createAdapter((async () => jsonResponse({
+    choices: [{
+      message: {
+        content: secretContent,
+        tool_calls: { malformed: secretContent },
+      },
+    }],
+  })) as typeof fetch);
+  await adapter.initialize(validRunInitV1);
+
+  await assert.rejects(
+    adapter.step(taskObservation(deniedAccessV1)),
+    error => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /invalid first choice/);
+      assert.match(error.message, /tool_calls/);
+      assert.doesNotMatch(error.message, new RegExp(secretContent));
+      return true;
+    },
+  );
+  assert.equal(
+    readPactProviderTelemetryV1(adapter)?.requests[0]?.outcome,
+    'invalid_response',
+  );
+});
+
 test('omits temperature when the config leaves it to the provider default', async () => {
   let requestBody: Record<string, unknown> | undefined;
   const fetchMock = (async (_input: string | URL | Request, init?: RequestInit) => {
@@ -129,6 +320,13 @@ test('omits temperature when the config leaves it to the provider default', asyn
       baseUrl: 'https://api.example.com/v1',
       apiKeyEnv: 'PACT_MODEL_API_KEY',
       model: 'reasoning-model',
+      seed: 42,
+      reasoning: { effort: 'low' },
+      providerRouting: {
+        requireParameters: true,
+        allowFallbacks: false,
+        only: ['example-provider'],
+      },
     },
   });
   const adapter = new OpenAICompatiblePactAdapterV1(config, {
@@ -140,6 +338,13 @@ test('omits temperature when the config leaves it to the provider default', asyn
 
   assert.ok(requestBody);
   assert.equal('temperature' in requestBody, false);
+  assert.equal(requestBody.seed, 42);
+  assert.deepEqual(requestBody.reasoning, { effort: 'low' });
+  assert.deepEqual(requestBody.provider, {
+    require_parameters: true,
+    allow_fallbacks: false,
+    only: ['example-provider'],
+  });
 });
 
 test('plans task-surface access without requesting unavailable memory', async () => {
@@ -148,8 +353,10 @@ test('plans task-surface access without requesting unavailable memory', async ()
   })) as typeof fetch;
   const config = validConfig({
     benchmark: {
+      dataset: 'pact-pair',
       policy: 'D2',
       requester: 'R0',
+      gradingMode: 'category',
       tasks: { kind: 'all' },
     },
   });
@@ -207,6 +414,14 @@ test('redacts provider response bodies and configured credentials from errors', 
       return true;
     },
   );
+});
+
+test('treats exhausted provider credit as a fatal run configuration', () => {
+  const error = new PactProviderRequestErrorV1(
+    'OpenAI-compatible provider request failed with HTTP 402',
+    { status: 402 },
+  );
+  assert.equal(error.fatalConfiguration, true);
 });
 
 test('redacts a configured credential echoed by the provider', async () => {
@@ -298,7 +513,7 @@ test('retries transient provider responses within the request budget', async () 
   const adapter = new OpenAICompatiblePactAdapterV1(validConfig(), {
     fetch: (async () => {
       calls += 1;
-      if (calls === 1) {
+      if (calls < 8) {
         return new Response(null, { status: 429, headers: { 'retry-after': '0' } });
       }
       return jsonResponse({ choices: [{ message: { content: 'Recovered.' } }] });
@@ -311,7 +526,108 @@ test('retries transient provider responses within the request budget', async () 
     await adapter.step(taskObservation(deniedAccessV1)),
     { type: 'answer', content: 'Recovered.' },
   );
-  assert.equal(calls, 2);
+  assert.equal(calls, 8);
+});
+
+test('records exhausted provider retries as one failed logical request', async () => {
+  let calls = 0;
+  const adapter = new OpenAICompatiblePactAdapterV1(validConfig(), {
+    fetch: (async () => {
+      calls += 1;
+      return new Response(null, {
+        status: 429,
+        headers: {
+          'retry-after': '0',
+          'x-openrouter-provider': 'Example Provider',
+          'x-request-id': `request-${calls}`,
+        },
+      });
+    }) as typeof fetch,
+    environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+  });
+  await adapter.initialize(validRunInitV1);
+
+  await assert.rejects(
+    adapter.step(taskObservation(deniedAccessV1)),
+    /HTTP 429/,
+  );
+  assert.equal(calls, 8);
+  const request = readPactProviderTelemetryV1(adapter)?.requests[0];
+  assert.ok(request);
+  assert.deepEqual({ ...request, latencyMs: 0 }, {
+    requestedModel: 'example-model',
+    provider: 'Example Provider',
+    requestId: 'request-8',
+    httpStatus: 429,
+    lastResponseAttempt: 8,
+    retryable: true,
+    latencyMs: 0,
+    attempts: 8,
+    outcome: 'provider_error',
+  });
+});
+
+test('preserves the last response metadata when a later retry has no response', async () => {
+  let calls = 0;
+  const adapter = new OpenAICompatiblePactAdapterV1(validConfig(), {
+    fetch: (async () => {
+      calls += 1;
+      if (calls < 8) {
+        return new Response(null, {
+          status: 429,
+          headers: {
+            'retry-after': '0',
+            'x-openrouter-provider': 'Example Provider',
+            'x-request-id': `response-${calls}`,
+          },
+        });
+      }
+      throw new TypeError('synthetic network failure');
+    }) as typeof fetch,
+    environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+  });
+  await adapter.initialize(validRunInitV1);
+
+  await assert.rejects(
+    adapter.step(taskObservation(deniedAccessV1)),
+    /provider request failed/,
+  );
+  const request = readPactProviderTelemetryV1(adapter)?.requests[0];
+  assert.ok(request);
+  assert.equal(request.attempts, 8);
+  assert.equal(request.httpStatus, 429);
+  assert.equal(request.lastResponseAttempt, 7);
+  assert.equal(request.provider, 'Example Provider');
+  assert.equal(request.requestId, 'response-7');
+  assert.equal(request.outcome, 'provider_error');
+});
+
+test('records unreadable successful HTTP responses as invalid responses', async () => {
+  const adapter = new OpenAICompatiblePactAdapterV1(validConfig(), {
+    fetch: (async () => new Response('{', {
+      status: 200,
+      headers: {
+        'content-type': 'application/json',
+        'x-openrouter-provider': 'Example Provider',
+        'x-request-id': 'invalid-json-response',
+      },
+    })) as typeof fetch,
+    environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+  });
+  await adapter.initialize(validRunInitV1);
+
+  await assert.rejects(
+    adapter.step(taskObservation(deniedAccessV1)),
+    /invalid JSON/,
+  );
+  const request = readPactProviderTelemetryV1(adapter)?.requests[0];
+  assert.ok(request);
+  assert.equal(request.attempts, 1);
+  assert.equal(request.httpStatus, 200);
+  assert.equal(request.lastResponseAttempt, 1);
+  assert.equal(request.provider, 'Example Provider');
+  assert.equal(request.requestId, 'invalid-json-response');
+  assert.equal(request.outcome, 'invalid_response');
 });
 
 function createAdapter(fetchImplementation: typeof fetch): OpenAICompatiblePactAdapterV1 {
@@ -333,6 +649,7 @@ function validConfig(overrides: Partial<PactRunConfigV1> = {}): PactRunConfigV1 
       temperature: 0.2,
     },
     benchmark: {
+      dataset: 'pact-pair',
       policy: 'D2',
       requester: 'R1',
       tasks: { kind: 'all' },
@@ -364,6 +681,26 @@ function taskObservation(grantedAccess: PactBoundaryPlanV1): PactObservationV1 {
   };
 }
 
+function toolResultObservation(
+  turn: number,
+  toolName: string,
+  output: Extract<PactObservationV1, { type: 'tool_result' }>['output'],
+): PactObservationV1 {
+  return {
+    type: 'tool_result',
+    turn,
+    toolCallId: `runner-tool-${turn}`,
+    toolName,
+    output,
+    isError: false,
+    budgetRemaining: {
+      turns: 8 - turn,
+      toolCalls: 4 - turn,
+      runtimeMs: 60_000,
+    },
+  };
+}
+
 function completionWithTool(id: string, name: string, input: object) {
   return {
     choices: [{
@@ -382,9 +719,12 @@ function completionWithTool(id: string, name: string, input: object) {
   };
 }
 
-function jsonResponse(value: unknown): Response {
+function jsonResponse(
+  value: unknown,
+  headers: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(value), {
     status: 200,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...headers },
   });
 }
