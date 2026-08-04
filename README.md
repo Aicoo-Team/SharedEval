@@ -1,4 +1,4 @@
-# PACT-Bench
+# Permissioned Agent Coordination Testbed
 
 PACT-Bench is a benchmark suite for evaluating whether agent systems can
 coordinate across ownership boundaries while preserving privacy, relationship
