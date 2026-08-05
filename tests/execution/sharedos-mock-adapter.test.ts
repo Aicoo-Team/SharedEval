@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import {
   MockSharedOsAdapterV1,
   SharedOsWorldGateErrorV1,
+  type SharedOsTurnRequestV1,
   type SharedOsWorldInitV1,
 } from '../../src/execution/sharedos/v1/index.js';
 
@@ -12,9 +13,22 @@ function worldInit(overrides: Partial<SharedOsWorldInitV1> = {}): SharedOsWorldI
   return {
     worldId: 'world-1',
     taskId: 'qa:127',
-    recipient: { namespace: 'pact', agentId: 'responder' },
+    namespaceId: 'run-0001',
+    recipient: { kind: 'agent', agentId: 'responder' },
     workspaceDigest: DIGEST,
     expectedVisibleTools: ['memory.search'],
+    ...overrides,
+  };
+}
+
+function turnRequest(
+  turnId: string,
+  overrides: Partial<SharedOsTurnRequestV1> = {},
+): SharedOsTurnRequestV1 {
+  return {
+    turnId,
+    message: { intent: 'go', purpose: 'benchmark-task qa:127' },
+    options: { timeoutMs: 1000 },
     ...overrides,
   };
 }
@@ -50,53 +64,58 @@ test('init fails closed on digest mismatch, unknown world, and empty world', asy
   );
 });
 
-test('a clean turn completes exactly once with valid provenance', async () => {
+test('a clean turn succeeds exactly once with adapter identity and events', async () => {
   const adapter = makeAdapter({ 'turn-1': { output: 'the answer', toolCallNames: ['memory.search'] } });
   const handle = await adapter.initWorld(worldInit());
-  const results = await adapter.runTurn(handle, {
-    turnId: 'turn-1',
-    message: { intent: 'answer' },
-    timeoutMs: 1000,
-  });
+  assert.equal(handle.namespaceId, 'run-0001');
+  const results = await adapter.runTurn(handle, turnRequest('turn-1'));
   assert.equal(results.length, 1);
-  assert.equal(results[0].outcome, 'completed');
+  assert.equal(results[0].status, 'succeeded');
   assert.equal(results[0].output, 'the answer');
+  assert.equal(results[0].adapterId, 'mock-sharedos');
+  assert.equal(results[0].protocolVersion, '1');
   assert.equal(results[0].provenance.servedId, results[0].provenance.resolvedId);
   assert.deepEqual(results[0].toolCalls.map(c => c.publicStatus), ['ok']);
+  assert.deepEqual(results[0].events.map(e => e.type), ['turn_opened', 'turn_closed']);
 });
 
 test('running a turn against a never-initialized world fails closed', async () => {
   const adapter = makeAdapter();
   await assert.rejects(
     () => adapter.runTurn(
-      { worldId: 'world-1', worldDigestAtInit: DIGEST },
-      { turnId: 'turn-1', message: { intent: 'go' }, timeoutMs: 1000 },
+      { worldId: 'world-1', namespaceId: 'run-0001', worldDigestAtInit: DIGEST },
+      turnRequest('turn-1'),
     ),
     (error: unknown) => error instanceof SharedOsWorldGateErrorV1,
   );
 });
 
-test('timeout fault reports the bounded limit and produces no output', async () => {
+test('timeout fault surfaces as cancelled at the bounded limit, per the runtime abort', async () => {
   const adapter = makeAdapter({ 'turn-t': { fault: 'timeout' } });
   const handle = await adapter.initWorld(worldInit());
-  const [result] = await adapter.runTurn(handle, {
-    turnId: 'turn-t',
-    message: { intent: 'go' },
-    timeoutMs: 2500,
-  });
-  assert.equal(result.outcome, 'timeout');
+  const [result] = await adapter.runTurn(
+    handle,
+    turnRequest('turn-t', { options: { timeoutMs: 2500 } }),
+  );
+  assert.equal(result.status, 'cancelled');
   assert.equal(result.output, null);
   assert.equal(result.latencyMs, 2500);
+  assert.equal(result.errorDetail, 'turn timeout');
+});
+
+test('denied is a deterministic experimental outcome, not a transient failure', async () => {
+  const adapter = makeAdapter({ 'turn-p': { fault: 'denied' } });
+  const handle = await adapter.initWorld(worldInit());
+  const [first] = await adapter.runTurn(handle, turnRequest('turn-p'));
+  assert.equal(first.status, 'denied');
+  const [second] = await adapter.runTurn(handle, turnRequest('turn-p'));
+  assert.equal(second.status, 'denied', 'a retry must not flip a denial');
 });
 
 test('duplicate emission surfaces both rows instead of hiding one', async () => {
   const adapter = makeAdapter({ 'turn-d': { fault: 'duplicate-emission' } });
   const handle = await adapter.initWorld(worldInit());
-  const results = await adapter.runTurn(handle, {
-    turnId: 'turn-d',
-    message: { intent: 'go' },
-    timeoutMs: 1000,
-  });
+  const results = await adapter.runTurn(handle, turnRequest('turn-d'));
   assert.equal(results.length, 2);
   assert.equal(results[0].turnId, results[1].turnId);
 });
@@ -104,23 +123,18 @@ test('duplicate emission surfaces both rows instead of hiding one', async () => 
 test('served-model drift is visible in provenance for downstream gates', async () => {
   const adapter = makeAdapter({ 'turn-m': { fault: 'served-model-drift' } });
   const handle = await adapter.initWorld(worldInit());
-  const [result] = await adapter.runTurn(handle, {
-    turnId: 'turn-m',
-    message: { intent: 'go' },
-    timeoutMs: 1000,
-  });
-  assert.equal(result.outcome, 'completed');
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-m'));
+  assert.equal(result.status, 'succeeded');
   assert.notEqual(result.provenance.servedId, result.provenance.resolvedId);
 });
 
-test('transient fault fails the first attempt and completes the retry', async () => {
+test('transient fault fails the first attempt and succeeds on retry', async () => {
   const adapter = makeAdapter({ 'turn-r': { fault: 'transient-then-success' } });
   const handle = await adapter.initWorld(worldInit());
-  const request = { turnId: 'turn-r', message: { intent: 'go' }, timeoutMs: 1000 };
-  const [first] = await adapter.runTurn(handle, request);
-  assert.equal(first.outcome, 'infrastructure_error');
-  const [second] = await adapter.runTurn(handle, request);
-  assert.equal(second.outcome, 'completed');
+  const [first] = await adapter.runTurn(handle, turnRequest('turn-r'));
+  assert.equal(first.status, 'failed');
+  const [second] = await adapter.runTurn(handle, turnRequest('turn-r'));
+  assert.equal(second.status, 'succeeded');
 });
 
 test('absent and undiscoverable tools return the same public tool_unavailable', async () => {
@@ -128,11 +142,7 @@ test('absent and undiscoverable tools return the same public tool_unavailable', 
     'turn-u': { toolCallNames: ['memory.search', 'billing.charge', 'no-such-tool'] },
   });
   const handle = await adapter.initWorld(worldInit());
-  const [result] = await adapter.runTurn(handle, {
-    turnId: 'turn-u',
-    message: { intent: 'go' },
-    timeoutMs: 1000,
-  });
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-u'));
   assert.deepEqual(
     result.toolCalls.map(call => call.publicStatus),
     ['ok', 'tool_unavailable', 'tool_unavailable'],
@@ -147,9 +157,10 @@ test('malformed turn requests are rejected before execution', async () => {
       turnId: 'turn-x',
       message: {
         intent: 'go',
+        purpose: 'benchmark',
         grants: [{ capability: 'sharedos.execution' }],
       },
-      timeoutMs: 1000,
+      options: { timeoutMs: 1000 },
     } as never),
   );
 });
@@ -159,11 +170,7 @@ test('closeWorld releases the world; later turns fail closed', async () => {
   const handle = await adapter.initWorld(worldInit());
   await adapter.closeWorld(handle);
   await assert.rejects(
-    () => adapter.runTurn(handle, {
-      turnId: 'turn-z',
-      message: { intent: 'go' },
-      timeoutMs: 1000,
-    }),
+    () => adapter.runTurn(handle, turnRequest('turn-z')),
     (error: unknown) => error instanceof SharedOsWorldGateErrorV1,
   );
 });

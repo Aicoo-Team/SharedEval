@@ -1,16 +1,19 @@
 /**
- * In-memory SharedOS mock (v1).
+ * In-memory SharedOS mock (v1), adapter id `mock-sharedos`.
  *
  * Deterministic stand-in for the real SharedOS runtime, reproducing the
  * incident classes the pulse experiment-platform mock encodes so that
  * PACT-side gates can be acceptance-tested against them:
  *
- *   - timeout                → outcome `timeout` at the bounded limit
- *   - no-response            → outcome `no_response`, null output
+ *   - timeout                → status `cancelled` at the bounded limit
+ *                              (the runtime aborts with "turn timeout")
+ *   - no-response            → status `failed`, null output
+ *   - denied                 → status `denied`; an experimental outcome,
+ *                              deterministic across repeated attempts
  *   - duplicate-emission     → two result rows for one turn
  *   - served-model-drift     → provenance.servedId differs from resolvedId
- *   - transient-then-success → first attempt `infrastructure_error`, retry
- *                              (a new turnId, host policy) completes
+ *   - transient-then-success → first attempt `failed`, retry (a new
+ *                              turnId, host policy) succeeds
  *   - empty-world            → init fails closed before any turn
  *
  * Every entry point parses its arguments with the strict contracts first;
@@ -20,8 +23,10 @@
 import {
   sharedOsTurnRequestV1Schema,
   sharedOsWorldInitV1Schema,
+  SHAREDOS_PROTOCOL_VERSION_V1,
   type SharedOsModelProvenanceV1,
   type SharedOsToolCallRecordV1,
+  type SharedOsTurnEventV1,
   type SharedOsTurnRequestV1,
   type SharedOsTurnResultV1,
   type SharedOsWorldHandleV1,
@@ -37,6 +42,7 @@ import {
 export type MockFaultV1 =
   | 'timeout'
   | 'no-response'
+  | 'denied'
   | 'duplicate-emission'
   | 'served-model-drift'
   | 'transient-then-success'
@@ -50,9 +56,9 @@ export type MockWorldSpecV1 = {
 };
 
 export type MockTurnScriptV1 = {
-  /** Fault to inject for this turnId; omit for a clean completion. */
+  /** Fault to inject for this turnId; omit for a clean success. */
   fault?: MockFaultV1;
-  /** Output text for completed turns. */
+  /** Output text for succeeded turns. */
   output?: string;
   /** Tool names the scripted turn attempts, in order. */
   toolCallNames?: readonly string[];
@@ -60,7 +66,7 @@ export type MockTurnScriptV1 = {
 
 export type MockSharedOsAdapterOptionsV1 = {
   worlds: Record<string, MockWorldSpecV1>;
-  /** Per-turnId scripts; an unscripted turn completes with a stub output. */
+  /** Per-turnId scripts; an unscripted turn succeeds with a stub output. */
   turns?: Record<string, MockTurnScriptV1>;
   provenance?: SharedOsModelProvenanceV1;
   clock?: SharedOsClockV1;
@@ -126,7 +132,11 @@ export class MockSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
       );
     }
     this.openWorlds.add(parsed.worldId);
-    return { worldId: parsed.worldId, worldDigestAtInit: world.workspaceDigest };
+    return {
+      worldId: parsed.worldId,
+      namespaceId: parsed.namespaceId,
+      worldDigestAtInit: world.workspaceDigest,
+    };
   }
 
   async runTurn(
@@ -145,10 +155,15 @@ export class MockSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
     const attempt = (this.attemptsByTurnId.get(parsed.turnId) ?? 0) + 1;
     this.attemptsByTurnId.set(parsed.turnId, attempt);
 
+    const traceId = this.idGen.next('trace');
     const base = {
       turnId: parsed.turnId,
       worldId: handle.worldId,
+      adapterId: 'mock-sharedos' as const,
+      protocolVersion: SHAREDOS_PROTOCOL_VERSION_V1,
+      traceId,
       toolCalls: this.scriptedToolCalls(handle.worldId, script),
+      events: this.turnEvents(parsed.turnId, traceId),
       provenance: this.provenance,
       usage: { inputTokens: 128, outputTokens: 64 },
     };
@@ -157,41 +172,53 @@ export class MockSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
       case 'timeout':
         return [{
           ...base,
-          outcome: 'timeout',
+          status: 'cancelled',
           output: null,
           usage: null,
-          latencyMs: parsed.timeoutMs,
-          errorDetail: `Turn exceeded ${parsed.timeoutMs}ms and was cancelled.`,
+          latencyMs: parsed.options.timeoutMs,
+          errorDetail: 'turn timeout',
         }];
       case 'no-response':
         return [{
           ...base,
-          outcome: 'no_response',
+          status: 'failed',
           output: null,
           usage: null,
           latencyMs: 5,
+          errorDetail: 'The turn produced no output.',
+        }];
+      case 'denied':
+        return [{
+          ...base,
+          status: 'denied',
+          output: null,
+          usage: null,
+          latencyMs: 5,
+          errorDetail:
+            'Execution grant did not authorize this turn. Experimental '
+            + 'outcome: do not retry with a wider principal.',
         }];
       case 'duplicate-emission': {
-        const completed = this.completedResult(base, script);
-        return [completed, { ...completed }];
+        const succeeded = this.succeededResult(base, script);
+        return [succeeded, { ...succeeded }];
       }
       case 'served-model-drift':
         return [{
-          ...this.completedResult(base, script),
+          ...this.succeededResult(base, script),
           provenance: { ...this.provenance, servedId: `${this.provenance.resolvedId}-drifted` },
         }];
       case 'transient-then-success':
         if (attempt === 1) {
           return [{
             ...base,
-            outcome: 'infrastructure_error',
+            status: 'failed',
             output: null,
             usage: null,
             latencyMs: 5,
             errorDetail: 'Transient provider failure; retry with a new turnId.',
           }];
         }
-        return [this.completedResult(base, script)];
+        return [this.succeededResult(base, script)];
       case 'empty-world':
         throw new SharedOsWorldGateErrorV1(
           handle.worldId,
@@ -199,7 +226,7 @@ export class MockSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
           'empty-world is an init-time fault; it cannot occur during a turn.',
         );
       default:
-        return [this.completedResult(base, script)];
+        return [this.succeededResult(base, script)];
     }
   }
 
@@ -207,16 +234,34 @@ export class MockSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
     this.openWorlds.delete(handle.worldId);
   }
 
-  private completedResult(
-    base: Omit<SharedOsTurnResultV1, 'outcome' | 'output' | 'latencyMs'>,
+  private succeededResult(
+    base: Omit<SharedOsTurnResultV1, 'status' | 'output' | 'latencyMs'>,
     script: MockTurnScriptV1,
   ): SharedOsTurnResultV1 {
     return {
       ...base,
-      outcome: 'completed',
+      status: 'succeeded',
       output: script.output ?? `mock output for ${base.turnId}`,
       latencyMs: Math.max(1, this.clock.nowMs() % 1000),
     };
+  }
+
+  /** Minimal append-only event trail; the real runtime emits far more. */
+  private turnEvents(turnId: string, traceId: string): SharedOsTurnEventV1[] {
+    return [
+      {
+        sequence: 0,
+        type: 'turn_opened',
+        data: { turnId, traceId },
+        occurredAt: new Date(this.clock.nowMs()).toISOString(),
+      },
+      {
+        sequence: 1,
+        type: 'turn_closed',
+        data: { turnId },
+        occurredAt: new Date(this.clock.nowMs()).toISOString(),
+      },
+    ];
   }
 
   /**
