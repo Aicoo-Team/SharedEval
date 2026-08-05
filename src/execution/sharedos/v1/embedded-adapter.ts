@@ -240,6 +240,24 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
           : JSON.stringify(result.output)
         : null;
 
+    const runtimeEvents = result.events.map(event => ({
+      sequence: event.sequence,
+      type: event.type,
+      data: event.data,
+      occurredAt: event.occurredAt,
+    }));
+    // Kernel-level audit records (authorization.checked, tool.invoked, …)
+    // are what make authorization decisions reconstructable from the run
+    // transcript; append this turn's slice after the runtime events.
+    const auditEvents = state.test.audit.events
+      .filter(event => event.traceId === traceId)
+      .map((event, index) => ({
+        sequence: runtimeEvents.length + index,
+        type: `audit.${event.type}`,
+        data: event as unknown,
+        occurredAt: event.at,
+      }));
+
     return [{
       turnId: parsed.turnId,
       worldId: handle.worldId,
@@ -249,12 +267,7 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
       status: result.status,
       output,
       toolCalls,
-      events: result.events.map(event => ({
-        sequence: event.sequence,
-        type: event.type,
-        data: event.data,
-        occurredAt: event.occurredAt,
-      })),
+      events: [...runtimeEvents, ...auditEvents],
       provenance: this.options.provenance,
       usage: null,
       latencyMs: Math.max(0, this.clock.nowMs() - startedAtMs),

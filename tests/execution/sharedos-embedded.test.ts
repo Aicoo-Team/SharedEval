@@ -169,6 +169,79 @@ test('an authorized turn runs through the production kernel and succeeds', { ski
   assert.ok(types.includes('turn.completed'));
 });
 
+test('one tick maps to exactly one bounded turn', { skip }, async () => {
+  assert.ok(loaded.ok);
+  const adapter = makeAdapter(loaded.modules, searchingDriver());
+  const handle = await adapter.initWorld(worldInit());
+  const results = await adapter.runTurn(handle, turnRequest('turn-1'));
+  assert.equal(results.length, 1, 'one tick yields one result row');
+  const starts = results[0].events.filter(event => event.type === 'turn.started');
+  assert.equal(starts.length, 1, 'exactly one turn.started per tick');
+});
+
+test('worlds are isolated: another world sees neither tools nor state of the first', { skip }, async () => {
+  assert.ok(loaded.ok);
+  let tick = Date.UTC(2026, 7, 5);
+  const adapter = new EmbeddedSharedOsAdapterV1({
+    modules: loaded.modules,
+    // world-a is the fully provisioned world; world-b registers no tools
+    // and passes no sender grants — a fresh kernel with nothing in it.
+    worldFactory: (init, m) =>
+      init.worldId === 'world-a'
+        ? makeWorld(m)
+        : makeWorld(m, { setup: () => undefined, senderGrants: () => [] }),
+    driver: searchingDriver(),
+    provenance: PROVENANCE,
+    clock: { nowMs: () => (tick += 10) },
+  });
+  const handleA = await adapter.initWorld(worldInit({ worldId: 'world-a', namespaceId: 'run-a' }));
+  const handleB = await adapter.initWorld(worldInit({ worldId: 'world-b', namespaceId: 'run-b' }));
+  assert.notEqual(handleA.namespaceId, handleB.namespaceId);
+
+  const [resultA] = await adapter.runTurn(handleA, turnRequest('turn-a'));
+  const [resultB] = await adapter.runTurn(handleB, turnRequest('turn-b'));
+
+  assert.equal(resultA.toolCalls[0].publicStatus, 'ok');
+  assert.match(resultA.output ?? '', /authority outside the message/);
+  assert.equal(
+    resultB.toolCalls[0].publicStatus,
+    'tool_unavailable',
+    "world-a's registered tools must not exist in world-b's kernel",
+  );
+  assert.doesNotMatch(resultB.output ?? '', /authority outside the message/);
+});
+
+test('audit events reconstruct the admission decision: allowed turns carry the matched grant', { skip }, async () => {
+  assert.ok(loaded.ok);
+  const adapter = makeAdapter(loaded.modules, searchingDriver());
+  const handle = await adapter.initWorld(worldInit());
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-1'));
+
+  const checks = result.events.filter(event => event.type === 'audit.authorization.checked');
+  assert.ok(checks.length > 0, 'kernel authorization decisions must appear in the transcript');
+  const admission = checks
+    .map(event => event.data as { outcome: string; grantId?: string; namespaceId: string })
+    .find(data => data.outcome === 'allowed' && data.grantId?.startsWith('grant-exec'));
+  assert.ok(admission, 'the turn admission must be traceable to the per-tick execution grant');
+  assert.equal(admission.namespaceId, 'run-0001');
+});
+
+test('audit events reconstruct a denial: withheld grant leaves a denied authorization record', { skip }, async () => {
+  assert.ok(loaded.ok);
+  const adapter = makeAdapter(loaded.modules, searchingDriver(), { executionGrant: 'withheld' });
+  const handle = await adapter.initWorld(worldInit());
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-1'));
+  assert.equal(result.status, 'denied');
+
+  const denials = result.events
+    .filter(event => event.type === 'audit.authorization.checked')
+    .map(event => event.data as { outcome: string; reason?: string });
+  assert.ok(
+    denials.some(data => data.outcome === 'denied'),
+    'the denied admission must be reconstructable from audit events',
+  );
+});
+
 test('withholding the execution grant yields a denied turn — an experimental outcome', { skip }, async () => {
   assert.ok(loaded.ok);
   const adapter = makeAdapter(loaded.modules, searchingDriver(), { executionGrant: 'withheld' });

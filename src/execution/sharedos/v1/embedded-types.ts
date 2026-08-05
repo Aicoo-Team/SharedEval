@@ -76,9 +76,21 @@ export type SoKernel = {
   listTools(context: Record<string, unknown>): Promise<ReadonlyArray<{ name: string }>>;
 } & Record<string, unknown>;
 
+/** Kernel-level audit record (core AuditEvent, structurally). */
+export type SoAuditEvent = {
+  type: string;
+  outcome: string;
+  at: string;
+  traceId: string;
+  namespaceId: string;
+  purpose: string;
+  grantId?: string;
+  reason?: string;
+} & Record<string, unknown>;
+
 export type SoTestKernel = {
   kernel: SoKernel;
-  audit: { events: unknown[] };
+  audit: { events: SoAuditEvent[] };
   messages: unknown;
 };
 
