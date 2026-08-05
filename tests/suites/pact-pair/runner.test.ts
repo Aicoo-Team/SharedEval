@@ -14,6 +14,12 @@ import type {
 } from '../../../src/protocol/v1/index.js';
 import { pactRunConfigV1Schema } from '../../../src/runner/v1/config.js';
 import {
+  pactRunMetadataV1Schema,
+  pactRunSummaryV1Schema,
+  pactTaskResultV1Schema,
+  pactTraceEventV1Schema,
+} from '../../../src/runner/v1/artifacts.js';
+import {
   OpenAICompatiblePactAdapterV1,
   PactProviderRequestErrorV1,
 } from '../../../src/runner/v1/model-adapter.js';
@@ -40,7 +46,7 @@ test('runs the protocol lifecycle through a QA lookup and deterministic score', 
   });
 
   const result = await runPactPairBenchmarkV1(configFor(['Q1']), {
-    adapterFactory: context => {
+    harnessFactory: context => {
       assert.deepEqual(Object.keys(context).sort(), ['config', 'publicTask']);
       assert.doesNotMatch(JSON.stringify(context.publicTask), /gold_key_facts|minimum_correct/);
       return adapter;
@@ -226,6 +232,14 @@ test('redacts provider secrets and writes the documented output files', async t 
   const results = readFileSync(join(result.outputDirectory, 'results.jsonl'), 'utf8');
   const trace = readFileSync(join(result.outputDirectory, 'trace.jsonl'), 'utf8');
   const combined = `${run}${summary}${results}${trace}`;
+  pactRunMetadataV1Schema.parse(JSON.parse(run));
+  pactRunSummaryV1Schema.parse(JSON.parse(summary));
+  for (const line of results.trim().split('\n')) {
+    pactTaskResultV1Schema.parse(JSON.parse(line));
+  }
+  for (const line of trace.trim().split('\n')) {
+    pactTraceEventV1Schema.parse(JSON.parse(line));
+  }
   assert.doesNotMatch(combined, new RegExp(secret));
   assert.match(results, /\[REDACTED\]/);
   assert.doesNotMatch(
@@ -384,6 +398,42 @@ test('counts recovered retries as one successful logical request', async () => {
   assert.equal(result.summary.provider.costRecords, 1);
   assert.equal(result.summary.provider.costComplete, true);
   assert.equal(result.summary.provider.costUsd, 0.001);
+});
+
+test('emits azure-openai run metadata for a local azure config', async () => {
+  const azureConfig = pactRunConfigV1Schema.parse({
+    apiVersion: 'pact-run/v1',
+    kind: 'RunConfig',
+    backend: { kind: 'local' },
+    model: {
+      provider: 'azure-openai',
+      endpoint: 'https://contoso.openai.azure.com/openai/v1',
+      deployment: 'gpt-4o-eval',
+      apiKeyEnv: 'PACT_MODEL_API_KEY',
+    },
+    benchmark: { policy: 'D2', requester: 'R1', tasks: { kind: 'all', ids: ['Q1'] } },
+    budget: { maxTurns: 4, maxToolCalls: 2, maxRuntimeMs: 10_000 },
+    output: { directory: 'runs', saveTraces: false },
+  });
+
+  // The scripted adapter makes no model call, so this exercises the runner's
+  // azure metadata branch (and its schema validation) without a live endpoint.
+  const result = await runPactPairBenchmarkV1(azureConfig, {
+    harnessFactory: () => new ScriptedAdapter(() => ({
+      type: 'refuse',
+      reason: 'Refused for the azure metadata test.',
+    })),
+    environment: {},
+    runId: 'azure-metadata',
+    writeOutputs: false,
+  });
+
+  assert.ok(result.model.provider === 'azure-openai');
+  assert.equal(result.model.endpoint, 'https://contoso.openai.azure.com/openai/v1');
+  assert.equal(result.model.deployment, 'gpt-4o-eval');
+  assert.equal(result.model.apiVersion, undefined);
+  assert.equal('baseUrl' in result.model, false);
+  assert.doesNotMatch(JSON.stringify(result.model), /PACT_MODEL_API_KEY|api-key/);
 });
 
 test('redacts a credential echoed in a terminal model decision', async () => {

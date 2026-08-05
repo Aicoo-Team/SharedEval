@@ -9,7 +9,7 @@ import {
   pactTaskIntroV1Schema,
   type JsonObject,
   type JsonValue,
-  type PactAdapterV1,
+  type PactHarnessV1,
   type PactBoundaryPlanV1,
   type PactDecisionV1,
   type PactFinalizeReportV1,
@@ -19,6 +19,8 @@ import {
   type PactToolSpecV1,
 } from '../../protocol/v1/index.js';
 import {
+  pactModelIdentifierV1,
+  type PactModelConfigV1,
   type PactRunConfigV1,
   resolvePactRunModelApiKeyV1,
 } from './config.js';
@@ -40,7 +42,7 @@ const MAX_PROVIDER_ATTEMPTS_V1 = 8;
 // another 429 storm; the task-level AbortSignal remains the hard deadline.
 const MAX_PROVIDER_RETRY_DELAY_MS_V1 = 30_000;
 
-export type OpenAICompatiblePactAdapterV1Options = {
+export type OpenAICompatiblePactHarnessV1Options = {
   fetch?: FetchImplementation;
   environment?: Record<string, string | undefined>;
   timeoutMs?: number;
@@ -219,9 +221,12 @@ const terminalReasonSchema = z.object({ reason: z.string().trim().min(1).max(4_0
 const terminalAnswerSchema = z.object({ content: z.string().trim().min(1).max(65_536) }).strict();
 const terminalToolNames = new Set<string>(PACT_TERMINAL_TOOL_NAMES_V1);
 
-export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
+export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
   private readonly fetchImplementation: FetchImplementation;
   private readonly apiKey: string;
+  private readonly completionUrl: URL;
+  private readonly authHeaders: Readonly<Record<string, string>>;
+  private readonly requestModel: string;
   private readonly configuredTimeoutMs: number;
   private requestTimeoutMs: number;
   private runInit: PactRunInitV1 | null = null;
@@ -233,7 +238,7 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
 
   constructor(
     private readonly config: PactRunConfigV1,
-    options: OpenAICompatiblePactAdapterV1Options = {},
+    options: OpenAICompatiblePactHarnessV1Options = {},
   ) {
     this.fetchImplementation = options.fetch ?? globalThis.fetch;
     if (typeof this.fetchImplementation !== 'function') {
@@ -243,6 +248,10 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
       config,
       options.environment ?? process.env,
     );
+    const target = resolveProviderRequestTargetV1(config.model, this.apiKey);
+    this.completionUrl = target.url;
+    this.authHeaders = target.headers;
+    this.requestModel = target.bodyModel;
     this.configuredTimeoutMs = validateTimeout(
       options.timeoutMs ?? config.budget.maxRuntimeMs,
     );
@@ -352,7 +361,7 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
   getProviderTelemetryV1(): PactProviderTelemetryV1 {
     const usage = this.providerRequests.map(request => request.usage);
     return {
-      requestedModel: this.config.model.model,
+      requestedModel: this.requestModel,
       requests: structuredClone(this.providerRequests),
       totals: {
         requests: this.providerRequests.length,
@@ -389,40 +398,11 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
     runnerTools: PactToolSpecV1[],
   ): Promise<PactDecisionV1> {
     const fetched = await this.fetchCompletion({
-      model: this.config.model.model,
+      model: this.requestModel,
       ...(this.config.model.temperature === undefined
         ? {}
         : { temperature: this.config.model.temperature }),
-      ...(this.config.model.seed === undefined
-        ? {}
-        : { seed: this.config.model.seed }),
-      ...(this.config.model.reasoning === undefined
-        ? {}
-        : { reasoning: this.config.model.reasoning }),
-      ...(this.config.model.providerRouting === undefined
-        ? {}
-        : {
-          provider: {
-            ...(this.config.model.providerRouting.requireParameters === undefined
-              ? {}
-              : {
-                require_parameters:
-                  this.config.model.providerRouting.requireParameters,
-              }),
-            ...(this.config.model.providerRouting.allowFallbacks === undefined
-              ? {}
-              : {
-                allow_fallbacks:
-                  this.config.model.providerRouting.allowFallbacks,
-              }),
-            ...(this.config.model.providerRouting.order === undefined
-              ? {}
-              : { order: this.config.model.providerRouting.order }),
-            ...(this.config.model.providerRouting.only === undefined
-              ? {}
-              : { only: this.config.model.providerRouting.only }),
-          },
-        }),
+      ...openAICompatibleRequestExtrasV1(this.config.model),
       // OpenRouter and the pinned endpoints advertise `max_tokens`. Sending
       // the OpenAI-specific `max_completion_tokens` with
       // require_parameters=true makes routing fail with "No endpoints found".
@@ -439,7 +419,7 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
     const parsedEnvelope = providerEnvelopeSchema.safeParse(response);
     if (!parsedEnvelope.success) {
       this.providerRequests.push(providerTelemetryFromResponse({
-        requestedModel: this.config.model.model,
+        requestedModel: this.requestModel,
         fetched,
         outcome: 'invalid_response',
       }));
@@ -451,7 +431,7 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
     }
 
     const telemetry = providerTelemetryFromResponse({
-      requestedModel: this.config.model.model,
+      requestedModel: this.requestModel,
       fetched,
       envelope: parsedEnvelope.data,
       outcome: 'invalid_response',
@@ -564,10 +544,6 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
     );
     const abortController = new AbortController();
     const timeout = setTimeout(() => abortController.abort(), timeoutMs);
-    const endpoint = new URL(
-      'chat/completions',
-      `${this.config.model.baseUrl}/`,
-    );
     const startedAt = Date.now();
     let attempts = 0;
     let failureHeaders: ProviderResponseHeadersV1 = {};
@@ -580,10 +556,10 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
         attempts = attempt;
         let response: Response;
         try {
-          response = await this.fetchImplementation(endpoint, {
+          response = await this.fetchImplementation(this.completionUrl, {
             method: 'POST',
             headers: {
-              authorization: `Bearer ${this.apiKey}`,
+              ...this.authHeaders,
               'content-type': 'application/json',
             },
             body: JSON.stringify(body),
@@ -646,7 +622,7 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
       throw new PactProviderRequestErrorV1('OpenAI-compatible provider request failed');
     } catch (error) {
       this.providerRequests.push({
-        requestedModel: this.config.model.model,
+        requestedModel: this.requestModel,
         ...(failureHeaders.provider
           ? { provider: failureHeaders.provider }
           : {}),
@@ -688,9 +664,9 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
 }
 
 export function readPactProviderTelemetryV1(
-  adapter: PactAdapterV1,
+  adapter: PactHarnessV1,
 ): PactProviderTelemetryV1 | undefined {
-  const candidate = adapter as PactAdapterV1 & Partial<PactProviderTelemetrySourceV1>;
+  const candidate = adapter as PactHarnessV1 & Partial<PactProviderTelemetrySourceV1>;
   if (typeof candidate.getProviderTelemetryV1 !== 'function') return undefined;
   return candidate.getProviderTelemetryV1();
 }
@@ -852,6 +828,62 @@ function firstSafeProviderHeader<K extends keyof ProviderResponseHeadersV1>(
   return {};
 }
 
+/**
+ * Builds the OpenRouter/OpenAI-specific request extras (seed, reasoning,
+ * provider routing). Azure's v1 chat-completions API accepts none of these
+ * controls, so an azure-openai model config contributes nothing here.
+ */
+function openAICompatibleRequestExtrasV1(
+  model: PactModelConfigV1,
+): Record<string, unknown> {
+  if (model.provider !== 'openai-compatible') return {};
+  return {
+    ...(model.seed === undefined ? {} : { seed: model.seed }),
+    ...(model.reasoning === undefined ? {} : { reasoning: model.reasoning }),
+    ...(model.providerRouting === undefined
+      ? {}
+      : {
+        provider: {
+          ...(model.providerRouting.requireParameters === undefined
+            ? {}
+            : { require_parameters: model.providerRouting.requireParameters }),
+          ...(model.providerRouting.allowFallbacks === undefined
+            ? {}
+            : { allow_fallbacks: model.providerRouting.allowFallbacks }),
+          ...(model.providerRouting.order === undefined
+            ? {}
+            : { order: model.providerRouting.order }),
+          ...(model.providerRouting.only === undefined
+            ? {}
+            : { only: model.providerRouting.only }),
+        },
+      }),
+  };
+}
+
+/**
+ * Computes the completion endpoint, auth headers, and request-body model for the
+ * configured provider. Both providers share identical request/response body
+ * handling below (so tool-call encoding and scoring stay parity-identical); only
+ * the URL, the auth-header name, and how the model is named differ.
+ */
+function resolveProviderRequestTargetV1(
+  model: PactModelConfigV1,
+  apiKey: string,
+): { url: URL; headers: Record<string, string>; bodyModel: string } {
+  const bodyModel = pactModelIdentifierV1(model);
+  if (model.provider === 'azure-openai') {
+    // The v1 endpoint already ends in /openai/v1, so this resolves to
+    // {endpoint}/chat/completions — the OpenAI-compatible path. Auth is the
+    // Azure `api-key` header; the deployment is carried as the body model.
+    const url = new URL('chat/completions', `${model.endpoint}/`);
+    if (model.apiVersion) url.searchParams.set('api-version', model.apiVersion);
+    return { url, headers: { 'api-key': apiKey }, bodyModel };
+  }
+  const url = new URL('chat/completions', `${model.baseUrl}/`);
+  return { url, headers: { authorization: `Bearer ${apiKey}` }, bodyModel };
+}
+
 function isRetryableProviderStatus(status: number): boolean {
   return [408, 409, 429].includes(status) || status >= 500;
 }
@@ -900,12 +932,21 @@ async function waitForProviderRetry(
   });
 }
 
-export function createOpenAICompatiblePactAdapterV1(
+export function createOpenAICompatiblePactHarnessV1(
   config: PactRunConfigV1,
-  options: OpenAICompatiblePactAdapterV1Options = {},
-): PactAdapterV1 {
-  return new OpenAICompatiblePactAdapterV1(config, options);
+  options: OpenAICompatiblePactHarnessV1Options = {},
+): PactHarnessV1 {
+  return new OpenAICompatiblePactHarnessV1(config, options);
 }
+
+/** @deprecated Use OpenAICompatiblePactHarnessV1Options. */
+export type OpenAICompatiblePactAdapterV1Options =
+  OpenAICompatiblePactHarnessV1Options;
+/** @deprecated Use OpenAICompatiblePactHarnessV1. */
+export { OpenAICompatiblePactHarnessV1 as OpenAICompatiblePactAdapterV1 };
+/** @deprecated Use createOpenAICompatiblePactHarnessV1. */
+export const createOpenAICompatiblePactAdapterV1 =
+  createOpenAICompatiblePactHarnessV1;
 
 function toProviderTool(tool: PactToolSpecV1): OpenAICompatibleTool {
   return {

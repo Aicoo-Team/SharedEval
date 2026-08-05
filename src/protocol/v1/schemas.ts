@@ -4,6 +4,12 @@ export const PACT_MANIFEST_API_VERSION_V1 = 'pact-bench/v1' as const;
 export const PACT_ADAPTER_PROTOCOL_VERSION_V1 = 'pact-adapter/v1' as const;
 export const PACT_ADAPTER_TRANSPORT_V1 = 'jsonrpc-stdio/v1' as const;
 
+// These are schemas rather than literals embedded at each call site so a
+// future track can extend the protocol boundary without bypassing validation.
+// Protocol v1 still supports only the PACT-Pair responder contract.
+export const pactBenchmarkTrackV1Schema = z.enum(['pact-pair']);
+export const pactBenchmarkModeV1Schema = z.enum(['pair-responder']);
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
@@ -126,8 +132,8 @@ export const pactSubmissionManifestV1Schema = z
     name: textSchema.max(80),
     version: semverSchema,
     description: textSchema.max(500).optional(),
-    track: z.literal('pact-pair'),
-    mode: z.literal('pair-responder'),
+    track: pactBenchmarkTrackV1Schema,
+    mode: pactBenchmarkModeV1Schema,
     submitter: z
       .object({
         organization: textSchema.max(100),
@@ -205,8 +211,8 @@ export const pactRunInitV1Schema = z
     sessionId: opaqueIdSchema,
     benchmark: z
       .object({
-        track: z.literal('pact-pair'),
-        mode: z.literal('pair-responder'),
+        track: pactBenchmarkTrackV1Schema,
+        mode: pactBenchmarkModeV1Schema,
         version: textSchema.max(64),
       })
       .strict(),
@@ -342,32 +348,46 @@ export const pactObservationV1Schema = z.discriminatedUnion('type', [
     .strict(),
 ]);
 
+export const pactAnswerDecisionV1Schema = z
+  .object({
+    type: z.literal('answer'),
+    content: z.string().min(1).max(65_536),
+  })
+  .strict();
+
+export const pactRefuseDecisionV1Schema = z
+  .object({
+    type: z.literal('refuse'),
+    reason: z.string().min(1).max(4_096),
+  })
+  .strict();
+
+export const pactToolCallDecisionV1Schema = z
+  .object({
+    type: z.literal('tool_call'),
+    toolName: pactToolNameV1Schema,
+    input: jsonObjectSchema,
+  })
+  .strict();
+
+export const pactEscalateDecisionV1Schema = z
+  .object({
+    type: z.literal('escalate'),
+    reason: z.string().min(1).max(4_096),
+  })
+  .strict();
+
+export const pactTerminalDecisionV1Schema = z.discriminatedUnion('type', [
+  pactAnswerDecisionV1Schema,
+  pactRefuseDecisionV1Schema,
+  pactEscalateDecisionV1Schema,
+]);
+
 export const pactDecisionV1Schema = z.discriminatedUnion('type', [
-  z
-    .object({
-      type: z.literal('answer'),
-      content: z.string().min(1).max(65_536),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('refuse'),
-      reason: z.string().min(1).max(4_096),
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('tool_call'),
-      toolName: pactToolNameV1Schema,
-      input: jsonObjectSchema,
-    })
-    .strict(),
-  z
-    .object({
-      type: z.literal('escalate'),
-      reason: z.string().min(1).max(4_096),
-    })
-    .strict(),
+  pactAnswerDecisionV1Schema,
+  pactRefuseDecisionV1Schema,
+  pactToolCallDecisionV1Schema,
+  pactEscalateDecisionV1Schema,
 ]);
 
 export const pactFinalizeReportV1Schema = z

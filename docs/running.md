@@ -279,6 +279,27 @@ stale, or changed cells remain pending and run into a new unique output
 directory. The runner checkpoints task artifacts, but it does not continue an
 interrupted cell in place.
 
+## Optional Harbor execution backend
+
+Run configs may select an execution backend. Omitting `backend` is equivalent
+to `backend: { kind: local }`, so existing model-backed configs are unchanged.
+The Harbor backend can materialize and run any PACT-Pair task selection (up to
+the full dataset), but every containerized trial currently runs the bundled
+no-network scripted parity harness — real-model execution inside containers is
+deferred until the secret-injection and container-networking decisions land:
+
+```bash
+uv tool install harbor==0.5.0
+bash scripts/verify_harbor.sh
+```
+
+The script builds the authoritative TypeScript environment as a Node image,
+runs the six-task smoke set through Harbor's local Docker backend, and compares
+the canonical results with committed local golden artifacts. It prints `SKIP`
+and exits successfully if Docker or Harbor is unavailable. See
+`examples/pact-run.harbor-smoke.yaml` for the smoke configuration and
+`examples/pact-run.harbor-split-01.yaml` for a curated 60-task split.
+
 ## Isolation and privacy
 
 Each task receives a fresh clone of

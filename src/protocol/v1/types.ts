@@ -31,9 +31,18 @@ export type PactObservationV1 = z.infer<typeof pactObservationV1Schema>;
 export type PactDecisionV1 = z.infer<typeof pactDecisionV1Schema>;
 export type PactFinalizeReportV1 = z.infer<typeof pactFinalizeReportV1Schema>;
 
-export interface PactAdapterV1 {
+/**
+ * Framework-agnostic lifecycle implemented by the agent harness under test.
+ *
+ * The former PactAdapterV1 name remains as a compatibility alias below. The
+ * JSON-RPC method names and protocol version intentionally do not change.
+ */
+export interface PactHarnessV1 {
   initialize(init: PactRunInitV1): Promise<void>;
   planBoundary(task: PactTaskIntroV1): Promise<PactBoundaryPlanV1>;
   step(observation: PactObservationV1): Promise<PactDecisionV1>;
   finalize(): Promise<PactFinalizeReportV1>;
 }
+
+/** @deprecated Use PactHarnessV1. */
+export type PactAdapterV1 = PactHarnessV1;

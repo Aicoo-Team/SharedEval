@@ -1,0 +1,356 @@
+import { spawn } from 'node:child_process';
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+} from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+  pactTaskEvaluationRecordV1Schema,
+  pactTaskResultV1Schema,
+  pactTraceEventV1Schema,
+  type PactTaskResultV1,
+} from '../artifacts.js';
+import { buildPactPairBackendErrorRunV1 } from '../../../suites/pact-pair/environment.js';
+import type { LoadedPactPairTaskV1 } from '../../../suites/pact-pair/task-loader.js';
+import type {
+  ExecutionBackendV1,
+  PactExecutionBackendRunContextV1,
+  PactExecutionBackendRunResultV1,
+  PactExecutionTaskRunV1,
+} from './execution-backend.js';
+import { mapWithConcurrencyV1 } from './concurrency.js';
+import {
+  harborTaskImageName,
+  materializeHarborDatasetV1,
+} from './harbor-task-package.js';
+
+const defaultRepositoryRoot = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  '..',
+  '..',
+);
+
+export const PACT_HARBOR_VERSION_V1 = '0.5.0' as const;
+export const PACT_HARBOR_IMAGE_V1 = 'pact-bench-harbor:p0' as const;
+
+// Bound how many `docker image tag` subprocesses run at once. Each selected
+// task gets its own task-scoped image tag, so a full-dataset selection would
+// otherwise spawn hundreds of concurrent `docker` processes.
+const HARBOR_IMAGE_TAG_CONCURRENCY_V1 = 8;
+
+// The deterministic smoke-fixture set: the tasks covered by the committed
+// pact-pair-smoke-v1 golden and the default verify_harbor.sh Docker parity
+// check. This is NO LONGER an execution allowlist — the Harbor backend
+// materializes and runs any selected PACT-Pair task (up to the full 600-task
+// dataset). It is retained only to seed fixtures and example configs.
+export const PACT_HARBOR_SMOKE_TASK_IDS_V1 = [
+  'PAIR-Q1',
+  'PAIR-Q101',
+  'PAIR-Q201',
+  'PAIR-A1',
+  'PAIR-A21',
+  'PAIR-A41',
+] as const;
+
+export type HarborBackendV1Options = {
+  repositoryRoot?: string;
+  harborExecutable?: string;
+  dockerExecutable?: string;
+  imageName?: string;
+  keepWorkingDirectory?: boolean;
+};
+
+/**
+ * Coarse bridge: Harbor orchestrates one Node container per selected task while
+ * the container runs the authoritative per-task engine
+ * (runSinglePactPairTaskV1). Any PACT-Pair task (up to the full 600-task
+ * dataset) can be materialized and run.
+ *
+ * The in-container harness is still the deterministic no-network scripted
+ * harness (see container-entrypoint.ts); wiring a real-model harness across the
+ * container boundary is deferred P1 work pending the harness-contract (D3),
+ * transport, and networking decisions.
+ */
+export class HarborBackendV1 implements ExecutionBackendV1 {
+  readonly kind = 'harbor' as const;
+  private readonly repositoryRoot: string;
+  private readonly harborExecutable: string;
+  private readonly dockerExecutable: string;
+  private readonly imageName: string;
+  private readonly keepWorkingDirectory: boolean;
+
+  constructor(options: HarborBackendV1Options = {}) {
+    this.repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot;
+    this.harborExecutable = options.harborExecutable ?? 'harbor';
+    this.dockerExecutable = options.dockerExecutable ?? 'docker';
+    this.imageName = options.imageName ?? PACT_HARBOR_IMAGE_V1;
+    this.keepWorkingDirectory = options.keepWorkingDirectory ?? false;
+  }
+
+  async run(
+    context: PactExecutionBackendRunContextV1,
+  ): Promise<PactExecutionBackendRunResultV1> {
+    const workingDirectory = await mkdtemp(join(tmpdir(), 'pact-harbor-'));
+    const datasetDirectory = join(workingDirectory, 'tasks');
+    const jobsDirectory = join(workingDirectory, 'jobs');
+    let commandFailure: unknown;
+    let collected = new Map<string, PactExecutionTaskRunV1>();
+    let trialFailures = new Map<string, string>();
+
+    try {
+      await runExternalCommand(
+        this.dockerExecutable,
+        [
+          'build',
+          '--file',
+          join(this.repositoryRoot, 'harbor', 'environment', 'Dockerfile'),
+          '--tag',
+          this.imageName,
+          this.repositoryRoot,
+        ],
+        this.repositoryRoot,
+        context.environment,
+      );
+      await mapWithConcurrencyV1(
+        context.tasks,
+        HARBOR_IMAGE_TAG_CONCURRENCY_V1,
+        task => runExternalCommand(
+          this.dockerExecutable,
+          [
+            'image',
+            'tag',
+            this.imageName,
+            harborTaskImageName(this.imageName, task.taskId),
+          ],
+          this.repositoryRoot,
+          context.environment,
+        ),
+      );
+      await materializeHarborDatasetV1({
+        datasetDirectory,
+        templateDirectory: join(this.repositoryRoot, 'harbor', 'task-template'),
+        imageName: this.imageName,
+        config: context.config,
+        tasks: context.tasks,
+      });
+      try {
+        await runExternalCommand(
+          this.harborExecutable,
+          [
+            'run',
+            '--path',
+            datasetDirectory,
+            '--agent',
+            'oracle',
+            '--jobs-dir',
+            jobsDirectory,
+            '--job-name',
+            safeJobName(context.runId),
+            '--n-concurrent',
+            String(context.config.backend?.kind === 'harbor'
+              ? context.config.backend.concurrency
+              : 4),
+            '--max-retries',
+            '0',
+            '--yes',
+            '--quiet',
+          ],
+          this.repositoryRoot,
+          context.environment,
+        );
+      } catch (error) {
+        commandFailure = error;
+      }
+      ({ taskRuns: collected, failures: trialFailures } =
+        await collectHarborTaskRuns(jobsDirectory, context.tasks));
+    } catch (error) {
+      commandFailure = error;
+    } finally {
+      if (!this.keepWorkingDirectory) {
+        await rm(workingDirectory, { recursive: true, force: true });
+      }
+    }
+
+    const missingMessage = commandFailure
+      ? commandErrorMessage(commandFailure)
+      : 'Harbor completed without a canonical PACT result artifact';
+    for (const task of context.tasks) {
+      const taskRun = collected.get(task.taskId)
+        ?? await buildPactPairBackendErrorRunV1({
+          config: context.config,
+          task,
+          seed: context.seed,
+          runId: context.runId,
+          now: context.now,
+          message: trialFailures.get(task.taskId) ?? missingMessage,
+        });
+      await context.onTaskRun?.(taskRun);
+    }
+    return {};
+  }
+}
+
+async function collectHarborTaskRuns(
+  jobsDirectory: string,
+  tasks: LoadedPactPairTaskV1[],
+): Promise<{
+  taskRuns: Map<string, PactExecutionTaskRunV1>;
+  failures: Map<string, string>;
+}> {
+  const artifactPaths = await findNamedFiles(jobsDirectory, 'pact-result.json');
+  const collected = new Map<string, PactExecutionTaskRunV1>();
+  for (const artifactPath of artifactPaths) {
+    const result = pactTaskResultV1Schema.parse(
+      JSON.parse(await readFile(artifactPath, 'utf8')),
+    ) as PactTaskResultV1;
+    if (collected.has(result.taskId)) {
+      throw new Error(`Harbor emitted duplicate PACT result for ${result.taskId}`);
+    }
+    const tracePath = join(dirname(artifactPath), 'trace.jsonl');
+    const trace = await readJsonLines(tracePath, pactTraceEventV1Schema);
+    // The container appends one evaluation.jsonl record per trial; each
+    // container runs exactly one task, so exactly one record must match.
+    const evaluationRecords = await readJsonLines(
+      join(dirname(artifactPath), 'evaluation.jsonl'),
+      pactTaskEvaluationRecordV1Schema,
+    );
+    const evaluationRecord = evaluationRecords.find(record =>
+      record.taskId === result.taskId);
+    if (!evaluationRecord || evaluationRecords.length !== 1) {
+      throw new Error(
+        `Harbor emitted ${evaluationRecords.length} evaluation records for ${result.taskId}; expected exactly one`,
+      );
+    }
+    const evaluation = evaluationRecord.evaluation as
+      PactExecutionTaskRunV1['evaluation'];
+    collected.set(result.taskId, {
+      result,
+      trace,
+      evaluation,
+      evaluationResult: {
+        metrics: evaluationRecord.metrics,
+        details: evaluation,
+      },
+    });
+  }
+  const taskIdByDirectory = new Map(tasks.map(task => [
+    task.taskId.toLocaleLowerCase('en-US'),
+    task.taskId,
+  ] as const));
+  const failures = new Map<string, string>();
+  const resultPaths = await findNamedFiles(jobsDirectory, 'result.json');
+  for (const resultPath of resultPaths) {
+    const value = JSON.parse(await readFile(resultPath, 'utf8')) as {
+      task_id?: { path?: unknown };
+      exception_info?: {
+        exception_message?: unknown;
+        exception_traceback?: unknown;
+      } | null;
+    };
+    const taskPath = value.task_id?.path;
+    const taskId = typeof taskPath === 'string'
+      ? taskIdByDirectory.get(basename(taskPath))
+      : undefined;
+    if (!taskId || !value.exception_info) continue;
+    const message = value.exception_info.exception_message;
+    const traceback = value.exception_info.exception_traceback;
+    failures.set(taskId, [message, traceback]
+      .filter((part): part is string => typeof part === 'string' && part.length > 0)
+      .join('\n'));
+  }
+  return { taskRuns: collected, failures };
+}
+
+async function findNamedFiles(
+  directory: string,
+  fileName: string,
+): Promise<string[]> {
+  let entries;
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+  const found: string[] = [];
+  for (const entry of entries) {
+    const entryPath = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      found.push(...await findNamedFiles(entryPath, fileName));
+    } else if (entry.isFile() && entry.name === fileName) {
+      found.push(entryPath);
+    }
+  }
+  return found;
+}
+
+async function readJsonLines<T>(
+  path: string,
+  schema: { parse(value: unknown): T },
+): Promise<T[]> {
+  const source = await readFile(path, 'utf8');
+  return source
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map(line => schema.parse(JSON.parse(line)));
+}
+
+async function runExternalCommand(
+  executable: string,
+  args: string[],
+  cwd: string,
+  environment: Record<string, string | undefined>,
+): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(executable, args, {
+      cwd,
+      env: { ...process.env, ...environment },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let output = '';
+    const append = (chunk: Buffer | string) => {
+      output = `${output}${chunk.toString()}`.slice(-2_000_000);
+    };
+    child.stdout?.on('data', append);
+    child.stderr?.on('data', append);
+    child.on('error', error => reject(new PactBackendCommandError(
+      `${executable} could not be started: ${error.message}`,
+      output,
+    )));
+    child.on('close', (code, signal) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new PactBackendCommandError(
+        `${executable} exited with ${signal ? `signal ${signal}` : `status ${String(code)}`}`,
+        output,
+      ));
+    });
+  });
+}
+
+class PactBackendCommandError extends Error {
+  constructor(message: string, readonly output: string) {
+    super(message);
+    this.name = 'PactBackendCommandError';
+  }
+}
+
+function commandErrorMessage(error: unknown): string {
+  if (error instanceof PactBackendCommandError) {
+    return `${error.message}\n${error.output}`.trim();
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+function safeJobName(runId: string): string {
+  return `pact-${runId}`.replace(/[^A-Za-z0-9._-]/g, '-').slice(0, 128);
+}

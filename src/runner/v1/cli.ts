@@ -2,6 +2,7 @@
 import {
   loadPactRunConfigV1,
   resolvePactRunModelApiKeyV1,
+  selectedPactExecutionBackendV1,
 } from './config.js';
 import { inspectPactBenchmarkV1, runPactBenchmarkV1 } from './runner.js';
 
@@ -19,21 +20,35 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
     process.stdout.write(`${JSON.stringify({
       valid: true,
       config: config.sourcePath,
+      backend: selectedPactExecutionBackendV1(config),
       model: {
-        provider: config.model.provider,
-        baseUrl: config.model.baseUrl,
-        model: config.model.model,
+        ...(config.model.provider === 'azure-openai'
+          ? {
+              provider: config.model.provider,
+              endpoint: config.model.endpoint,
+              deployment: config.model.deployment,
+              ...(config.model.apiVersion === undefined
+                ? {}
+                : { apiVersion: config.model.apiVersion }),
+            }
+          : {
+              provider: config.model.provider,
+              baseUrl: config.model.baseUrl,
+              model: config.model.model,
+              ...(config.model.seed === undefined
+                ? {}
+                : { seed: config.model.seed }),
+              ...(config.model.reasoning === undefined
+                ? {}
+                : { reasoning: config.model.reasoning }),
+              ...(config.model.providerRouting === undefined
+                ? {}
+                : { providerRouting: config.model.providerRouting }),
+            }),
         maxOutputTokens: config.model.maxOutputTokens,
         ...(config.model.temperature === undefined
           ? {}
           : { temperature: config.model.temperature }),
-        ...(config.model.seed === undefined ? {} : { seed: config.model.seed }),
-        ...(config.model.reasoning === undefined
-          ? {}
-          : { reasoning: config.model.reasoning }),
-        ...(config.model.providerRouting === undefined
-          ? {}
-          : { providerRouting: config.model.providerRouting }),
         credentialEnvironmentVariable: config.model.apiKeyEnv,
       },
       benchmark: {
@@ -50,8 +65,11 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
     return 0;
   }
 
-  // Fail before creating a run directory or iterating over tasks.
-  resolvePactRunModelApiKeyV1(config);
+  // The Harbor parity path uses its bundled no-network scripted harness.
+  // Local/model-backed runs still fail before creating a run directory.
+  if (selectedPactExecutionBackendV1(config).kind === 'local') {
+    resolvePactRunModelApiKeyV1(config);
+  }
   const result = await runPactBenchmarkV1(config);
   process.stdout.write(`${JSON.stringify({
     runId: result.runId,
