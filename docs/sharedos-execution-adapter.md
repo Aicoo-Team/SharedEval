@@ -1,8 +1,11 @@
 # SharedOS execution adapter (PACT side)
 
-Status: **contract + mock, verified against SharedOS source** at commit
-`846cbf6` (Aicoo-Team/SharedOS, local clone `~/Desktop/aicoo/sharedos-repo`).
-The real `sharedos-embedded` binding is the next step.
+Status: **contract + mock + real `sharedos-embedded` binding**, verified
+against SharedOS source at commit `846cbf6` (Aicoo-Team/SharedOS).
+
+This completes O007's PACT-side prerequisites: Node floor raised to
+20.11, execution adapter implemented against the production kernel, and
+fresh-world/gold isolation enforced and tested.
 
 ## Boundary
 
@@ -73,22 +76,43 @@ Verify behaviorally with:
 npm run test:execution
 ```
 
+## The `sharedos-embedded` binding
+
+`EmbeddedSharedOsAdapterV1` (`embedded-adapter.ts`) runs turns through
+the real SharedOS kernel and `TurnExecutor`:
+
+- `initWorld` verifies the world factory's canonical bytes against the
+  host-measured digest (fail-closed), then builds one fresh kernel per
+  world and lets the suite-owned `EmbeddedWorldV1` register providers,
+  tools, and sender grants. World factories must emit public task state
+  only — never gold labels or evaluator channels.
+- `runTurn` issues the per-tick recipient-scoped execution grant
+  (`agentExecutionCapability`), builds the `AccessContext` +
+  `MessageEnvelope` + permission-filtered tool list, executes one
+  bounded turn, and maps the `ExecutionResult` (status, events, public
+  tool statuses) into `SharedOsTurnResultV1`. A world can set
+  `executionGrant: 'withheld'` to make permission denial the expected
+  experimental condition.
+- The agent under test plugs in as SharedOS's `AgentTurnDriver` port;
+  SharedOS sanitizes the model-facing request itself (no grants, no
+  issuing authority — integration-tested).
+
+**Package consumption (interim):** `@sharedos/*` is private and
+unpublished, so the binding dynamically loads a locally built checkout —
+`PACT_SHAREDOS_DIR`, defaulting to `../sharedos-repo` — through minimal
+structural types (`embedded-types.ts`). Integration tests skip with an
+explicit logged reason when no build is present (CI stays green without
+repo access). Switching to a proper workspace/git dependency is a lead
+decision; the adapter body is unaffected by that swap.
+
 ## Next steps
 
-1. **`sharedos-embedded` binding** — implement
-   `SharedOsExecutionAdapterV1` over `@sharedos/{core,runtime,os}`:
-   world init allocates a namespace and seeds host-owned provider ports
-   (grants, messages, memory/workspace, deterministic tools, audit) with
-   run-local state; `runTurn` builds the `ExecutionRequest`
-   (AccessContext with the target-agent execution grant, MessageEnvelope,
-   tool definitions) and maps `ExecutionResult` into
-   `SharedOsTurnResultV1`. `@sharedos/testkit` in-memory providers can
-   seed early integration tests; official runs need a versioned PACT
-   world adapter. Consumption mechanics for the private unpublished
-   packages (workspace link vs. git dependency) are a lead decision.
-2. **Driver binding** — adapt PACT's model adapter to SharedOS's
+1. **Driver binding** — adapt PACT's model adapter to SharedOS's
    `AgentTurnDriver` port (`open` → `next` loop) so the tested model
    runs inside the guarded loop instead of PACT's own tool loop.
+2. **PACT-Pair world factory** — express the Pair workspace, tools, and
+   policy grants as an `EmbeddedWorldV1` under `src/suites/pact-pair/`
+   (dataset semantics stay in the suite, not in `src/execution/`).
 3. **Runner wiring** — exposing the adapter as an opt-in execution
    backend in the runner config is an explicit future config version;
    the current `pact-run/v1` config stays PACT-Pair-shaped for
