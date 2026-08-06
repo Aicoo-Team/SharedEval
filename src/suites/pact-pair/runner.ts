@@ -18,6 +18,14 @@ import {
   type PactTaskIntroV1,
 } from '../../protocol/v1/index.js';
 import {
+  digestObjectV1,
+  EmbeddedSharedOsAdapterV1,
+  loadSharedOsModulesV1,
+  SHAREDOS_PROTOCOL_VERSION_V1,
+  type SharedOsModulesV1,
+  type SharedOsTurnResultV1,
+} from '../../execution/sharedos/v1/index.js';
+import {
   aggregateEvaluationResults,
   evaluateWithRegisteredEvaluator,
   type EvaluationResult,
@@ -44,6 +52,7 @@ import {
 import {
   createPactPairWorkspaceV1,
   loadCanonicalPactPairStoreV1,
+  type PactPairWorkspaceV1,
 } from './workspace.js';
 import {
   type PactPairEvaluationV1,
@@ -59,6 +68,13 @@ import {
   getPactPolicySha256V1,
   PACT_POLICY_FILES_V1,
 } from './prompt.js';
+import {
+  createPactAdapterSoTurnDriverV1,
+  createPactPairEmbeddedWorldFactoryV1,
+  parsePactPairSharedOsTerminalOutputV1,
+  PACT_PAIR_SHAREDOS_PURPOSE_V1,
+  type PactAdapterSoTurnDriverStateV1,
+} from './sharedos.js';
 
 const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const availableToolNames = new Set(PACT_PAIR_TOOL_SPECS_V1.map(tool => tool.name));
@@ -108,7 +124,7 @@ export type PactPairPublicEvaluationV1 =
 export type PactPairTaskResultV1 = {
   taskId: string;
   kind: LoadedPactPairTaskV1['kind'];
-  status: 'ok' | 'infrastructure_error';
+  status: 'ok' | 'denied' | 'infrastructure_error';
   publicTask: PactTaskIntroV1;
   finalDecision: PactPairTerminalDecisionV1;
   grantedAccess: PactBoundaryPlanV1;
@@ -119,6 +135,15 @@ export type PactPairTaskResultV1 = {
     runtimeMs: number;
   };
   toolCalls: PactPairToolCallRecordV1[];
+  execution?: {
+    adapterId: 'sharedos-embedded';
+    protocolVersion: typeof SHAREDOS_PROTOCOL_VERSION_V1;
+    sharedOsRevision: string;
+    traceId: string;
+    status: SharedOsTurnResultV1['status'];
+    provenance: SharedOsTurnResultV1['provenance'];
+    worldDigest: string;
+  };
   providerTelemetry?: PactProviderTelemetryV1;
   violations: string[];
   error?: string;
@@ -132,6 +157,7 @@ export type PactPairRunSummaryV1 = {
   scorable: number;
   correct: number;
   errors: number;
+  denied: number;
   violations: number;
   provider: {
     requests: number;
@@ -177,6 +203,7 @@ export type PactPairRunSummaryV1 = {
     attempted: number;
     observed: number;
     errors: number;
+    denied: number;
     scorable: number;
     correct: number;
     expectedAnswer: number;
@@ -199,6 +226,7 @@ export type PactPairRunSummaryV1 = {
     attempted: number;
     observed: number;
     errors: number;
+    denied: number;
     correct: number;
     expectedExecute: number;
     correctExecutions: number;
@@ -221,6 +249,11 @@ export type PactPairRunResultV1 = {
   completedAt: string;
   status: 'completed' | 'completed_with_errors';
   selectedTasks: number;
+  execution: {
+    adapterId: 'pact-public-runner' | 'sharedos-embedded';
+    protocolVersion: string;
+    sharedOsRevision?: string;
+  };
   model: {
     provider: string;
     baseUrl: string;
@@ -259,6 +292,13 @@ export type RunPactPairBenchmarkV1Options = {
   workingDirectory?: string;
   seed?: PairDataStore;
   writeOutputs?: boolean;
+  /** Programmatic deny-condition experiment; normal runs omit this. */
+  sharedOsExecutionGrant?: 'granted' | 'withheld';
+};
+
+type LoadedSharedOsRuntimeV1 = {
+  modules: SharedOsModulesV1;
+  revision: string;
 };
 
 type TraceEvent = {
@@ -289,6 +329,7 @@ export async function runPactPairBenchmarkV1(
     model: config.model,
     benchmark: config.benchmark,
     budget: config.budget,
+    ...(config.execution === undefined ? {} : { execution: config.execution }),
     output: config.output,
   });
   const now = options.now ?? (() => new Date());
@@ -307,6 +348,26 @@ export async function runPactPairBenchmarkV1(
     limit: runConfig.benchmark.tasks.limit,
   });
   if (tasks.length === 0) throw new Error('PACT-Pair task selection is empty');
+  const executionAdapter = runConfig.execution?.adapter ?? 'pact-public-runner';
+  let sharedOs: LoadedSharedOsRuntimeV1 | undefined;
+  if (executionAdapter === 'sharedos-embedded') {
+    const configuredSharedOsDir = environment.PACT_SHAREDOS_DIR?.trim();
+    const loaded = await loadSharedOsModulesV1(configuredSharedOsDir || undefined);
+    if (!loaded.ok) {
+      throw new Error(`sharedos-embedded is unavailable: ${loaded.reason}`);
+    }
+    sharedOs = { modules: loaded.modules, revision: loaded.revision };
+  }
+  const execution: PactPairRunResultV1['execution'] = executionAdapter === 'sharedos-embedded'
+    ? {
+        adapterId: 'sharedos-embedded',
+        protocolVersion: SHAREDOS_PROTOCOL_VERSION_V1,
+        sharedOsRevision: sharedOs?.revision,
+      }
+    : {
+        adapterId: 'pact-public-runner',
+        protocolVersion: PACT_ADAPTER_PROTOCOL_VERSION_V1,
+      };
   const configDigest = digestJson(runConfig);
   const taskSetDigest = digestJson(tasks);
   const sourceRevision = resolveSourceRevision(rootDir);
@@ -326,6 +387,7 @@ export async function runPactPairBenchmarkV1(
         benchmark: runConfig.benchmark,
         policyProvenance,
         budget: runConfig.budget,
+        execution,
         configDigest,
         taskSetDigest,
         sourceRevision,
@@ -348,6 +410,8 @@ export async function runPactPairBenchmarkV1(
       now,
       adapterFactory,
       environment,
+      sharedOs,
+      sharedOsExecutionGrant: options.sharedOsExecutionGrant,
     });
     taskRuns.push(taskRun);
     if (outputDirectory) {
@@ -377,6 +441,7 @@ export async function runPactPairBenchmarkV1(
     completedAt,
     status: summary.errors > 0 ? 'completed_with_errors' : 'completed',
     selectedTasks: tasks.length,
+    execution,
     model: {
       provider: runConfig.model.provider,
       baseUrl: runConfig.model.baseUrl,
@@ -420,14 +485,16 @@ async function runSinglePactPairTaskV1(options: {
   now: () => Date;
   adapterFactory: PactAdapterFactoryV1;
   environment: Record<string, string | undefined>;
+  sharedOs?: LoadedSharedOsRuntimeV1;
+  sharedOsExecutionGrant?: 'granted' | 'withheld';
 }): Promise<SingleTaskRun> {
   const startedAt = Date.now();
   const deadline = startedAt + options.config.budget.maxRuntimeMs;
   const trace: TraceEvent[] = [];
   const violations: string[] = [];
   const toolCalls: PactPairToolCallRecordV1[] = [];
-  const workspace = createPactPairWorkspaceV1(options.seed);
-  const before = workspace.snapshot();
+  let workspace = createPactPairWorkspaceV1(options.seed);
+  let before = workspace.snapshot();
   let turns = 0;
   let toolCallCount = 0;
   let adapter: PactAdapterV1 | undefined;
@@ -439,6 +506,8 @@ async function runSinglePactPairTaskV1(options: {
   let errorMessage: string | undefined;
   let finalizeError: string | undefined;
   let providerTelemetry: PactProviderTelemetryV1 | undefined;
+  let sharedOsExecution: PactPairTaskResultV1['execution'];
+  let sharedOsDenied = false;
   let terminalReceived = false;
 
   const record = (event: string, data: unknown) => {
@@ -494,92 +563,176 @@ async function runSinglePactPairTaskV1(options: {
     );
     record('boundary_granted', { requestedAccess, grantedAccess });
 
-    let observation: PactObservationV1 = pactObservationV1Schema.parse({
-      type: 'task',
-      turn: 0,
-      task: options.task.publicTask,
-      grantedAccess,
-      budgetRemaining: remainingBudget(options.config, turns, toolCallCount, deadline),
-    });
-
-    while (turns < options.config.budget.maxTurns) {
-      const decision = redactDecisionCredential(pactDecisionV1Schema.parse(
-        await withinDeadline(
-          activeAdapter.step(structuredClone(observation)),
-          deadline,
-          'adapter step',
+    if (options.sharedOs) {
+      const executed = await runPactPairTaskThroughSharedOsV1({
+        adapter: activeAdapter,
+        config: options.config,
+        task: options.task,
+        seed: options.seed,
+        grantedAccess,
+        runId: options.runId,
+        now: options.now,
+        runtime: options.sharedOs,
+        timeoutMs: Math.max(1, deadline - Date.now()),
+        executionGrant: options.sharedOsExecutionGrant,
+        sanitizeDecision: decision => redactDecisionCredential(
+          decision,
+          options.environment[options.config.model.apiKeyEnv],
         ),
-      ), options.environment[options.config.model.apiKeyEnv]);
-      turns += 1;
-      record('decision', { turn: turns, decision });
-
-      if (decision.type !== 'tool_call') {
-        finalDecision = decision;
-        terminalReceived = true;
-        break;
+      });
+      workspace = executed.workspace;
+      before = executed.before;
+      turns = executed.driverState.turns;
+      toolCallCount = executed.driverState.toolCallCount;
+      toolCalls.push(...executed.driverState.toolCalls.map(call => ({
+        id: call.id,
+        name: call.name,
+        isError: call.isError ?? true,
+      })));
+      sharedOsExecution = {
+        adapterId: 'sharedos-embedded',
+        protocolVersion: SHAREDOS_PROTOCOL_VERSION_V1,
+        sharedOsRevision: options.sharedOs.revision,
+        traceId: executed.turn.traceId,
+        status: executed.turn.status,
+        provenance: executed.turn.provenance,
+        worldDigest: executed.worldDigest,
+      };
+      record('sharedos_turn', {
+        execution: sharedOsExecution,
+        events: executed.turn.events,
+      });
+      if (executed.driverState.terminationReason) {
+        violations.push(executed.driverState.terminationReason);
       }
-
-      if (!availableToolNames.has(decision.toolName)) {
-        throw new PactRunnerProtocolError(
-          `Adapter requested unavailable tool ${decision.toolName}`,
-        );
-      }
-
-      if (toolCallCount >= options.config.budget.maxToolCalls) {
-        violations.push('max_tool_calls_exceeded');
+      if (executed.turn.status === 'denied') {
+        sharedOsDenied = true;
+        violations.push('sharedos_execution_denied');
         finalDecision = {
           type: 'escalate',
-          reason: 'The tool-call budget was exhausted.',
+          reason: 'SharedOS denied the permission-controlled turn.',
         };
-        break;
+        record('decision', { turn: turns, decision: finalDecision });
+      } else {
+        if (executed.driverFailure !== undefined) {
+          throw executed.driverFailure;
+        }
+        if (executed.turn.status === 'cancelled') {
+          throw new PactRunnerTimeoutError('SharedOS turn');
+        }
+        if (executed.turn.status !== 'succeeded' || !executed.finalDecision) {
+          throw new PactRunnerProtocolError(
+            `SharedOS turn ${executed.turn.status}: `
+            + (executed.turn.errorDetail ?? 'no terminal PACT decision'),
+          );
+        }
+        if (
+          executed.turn.provenance.servedId
+          !== executed.turn.provenance.resolvedId
+        ) {
+          throw new PactRunnerModelProvenanceError();
+        }
+        const sanitizedDecision = redactDecisionCredential(
+          executed.finalDecision,
+          options.environment[options.config.model.apiKeyEnv],
+        );
+        if (sanitizedDecision.type === 'tool_call') {
+          throw new PactRunnerProtocolError(
+            'SharedOS terminal envelope contained a non-terminal tool call',
+          );
+        }
+        finalDecision = sanitizedDecision;
+        terminalReceived = true;
+        record('decision', { turn: turns, decision: finalDecision });
       }
+    } else {
+      let observation: PactObservationV1 = pactObservationV1Schema.parse({
+        type: 'task',
+        turn: 0,
+        task: options.task.publicTask,
+        grantedAccess,
+        budgetRemaining: remainingBudget(options.config, turns, toolCallCount, deadline),
+      });
 
-      toolCallCount += 1;
-      const toolCallId = `${options.task.taskId}:tool:${toolCallCount}`;
-      const executed = await withinDeadline(
-        executePactPairToolV1({
-          workspace,
-          access: grantedAccess,
+      while (turns < options.config.budget.maxTurns) {
+        const decision = redactDecisionCredential(pactDecisionV1Schema.parse(
+          await withinDeadline(
+            activeAdapter.step(structuredClone(observation)),
+            deadline,
+            'adapter step',
+          ),
+        ), options.environment[options.config.model.apiKeyEnv]);
+        turns += 1;
+        record('decision', { turn: turns, decision });
+
+        if (decision.type !== 'tool_call') {
+          finalDecision = decision;
+          terminalReceived = true;
+          break;
+        }
+
+        if (!availableToolNames.has(decision.toolName)) {
+          throw new PactRunnerProtocolError(
+            `Adapter requested unavailable tool ${decision.toolName}`,
+          );
+        }
+
+        if (toolCallCount >= options.config.budget.maxToolCalls) {
+          violations.push('max_tool_calls_exceeded');
+          finalDecision = {
+            type: 'escalate',
+            reason: 'The tool-call budget was exhausted.',
+          };
+          break;
+        }
+
+        toolCallCount += 1;
+        const toolCallId = `${options.task.taskId}:tool:${toolCallCount}`;
+        const toolResult = await withinDeadline(
+          executePactPairToolV1({
+            workspace,
+            access: grantedAccess,
+            toolName: decision.toolName,
+            input: decision.input,
+          }),
+          deadline,
+          `tool ${decision.toolName}`,
+        );
+        toolCalls.push({
+          id: toolCallId,
+          name: decision.toolName,
+          isError: toolResult.isError,
+        });
+        record('tool_result', {
+          toolCallId,
           toolName: decision.toolName,
           input: decision.input,
-        }),
-        deadline,
-        `tool ${decision.toolName}`,
-      );
-      toolCalls.push({
-        id: toolCallId,
-        name: decision.toolName,
-        isError: executed.isError,
-      });
-      record('tool_result', {
-        toolCallId,
-        toolName: decision.toolName,
-        input: decision.input,
-        result: executed,
-      });
+          result: toolResult,
+        });
 
-      observation = pactObservationV1Schema.parse({
-        type: 'tool_result',
-        turn: turns,
-        toolCallId,
-        toolName: decision.toolName,
-        output: executed.output,
-        isError: executed.isError,
-        budgetRemaining: remainingBudget(
-          options.config,
-          turns,
-          toolCallCount,
-          deadline,
-        ),
-      });
-    }
+        observation = pactObservationV1Schema.parse({
+          type: 'tool_result',
+          turn: turns,
+          toolCallId,
+          toolName: decision.toolName,
+          output: toolResult.output,
+          isError: toolResult.isError,
+          budgetRemaining: remainingBudget(
+            options.config,
+            turns,
+            toolCallCount,
+            deadline,
+          ),
+        });
+      }
 
-    if (!terminalReceived && turns >= options.config.budget.maxTurns) {
-      violations.push('max_turns_exceeded');
-      finalDecision = {
-        type: 'escalate',
-        reason: 'The turn budget was exhausted before a terminal decision.',
-      };
+      if (!terminalReceived && turns >= options.config.budget.maxTurns) {
+        violations.push('max_turns_exceeded');
+        finalDecision = {
+          type: 'escalate',
+          reason: 'The turn budget was exhausted before a terminal decision.',
+        };
+      }
     }
   } catch (error) {
     errorMessage = sanitizeError(error, options.environment[options.config.model.apiKeyEnv]);
@@ -619,11 +772,15 @@ async function runSinglePactPairTaskV1(options: {
     throw new Error('PACT-Pair evaluator returned no evaluation details');
   }
   const infrastructureError = Boolean(errorMessage || finalizeError);
-  const publicEvaluation = infrastructureError ? null : toPublicEvaluation(evaluation);
+  const publicEvaluation = infrastructureError || sharedOsDenied
+    ? null
+    : toPublicEvaluation(evaluation);
   const result: PactPairTaskResultV1 = {
     taskId: options.task.taskId,
     kind: options.task.kind,
-    status: infrastructureError ? 'infrastructure_error' : 'ok',
+    status: infrastructureError
+      ? 'infrastructure_error'
+      : sharedOsDenied ? 'denied' : 'ok',
     publicTask: options.task.publicTask,
     finalDecision,
     grantedAccess,
@@ -634,6 +791,7 @@ async function runSinglePactPairTaskV1(options: {
       runtimeMs: Date.now() - startedAt,
     },
     toolCalls,
+    ...(sharedOsExecution ? { execution: sharedOsExecution } : {}),
     ...(providerTelemetry ? { providerTelemetry } : {}),
     violations,
     ...(errorMessage ? { error: errorMessage } : {}),
@@ -646,6 +804,146 @@ async function runSinglePactPairTaskV1(options: {
     violations,
   });
   return { result, trace, evaluation, evaluationResult };
+}
+
+async function runPactPairTaskThroughSharedOsV1(options: {
+  adapter: PactAdapterV1;
+  config: PactRunConfigV1;
+  task: LoadedPactPairTaskV1;
+  seed: PairDataStore;
+  grantedAccess: PactBoundaryPlanV1;
+  runId: string;
+  now: () => Date;
+  runtime: LoadedSharedOsRuntimeV1;
+  timeoutMs: number;
+  executionGrant?: 'granted' | 'withheld';
+  sanitizeDecision: (decision: PactDecisionV1) => PactDecisionV1;
+}): Promise<{
+  workspace: PactPairWorkspaceV1;
+  before: ReturnType<PactPairWorkspaceV1['snapshot']>;
+  driverState: PactAdapterSoTurnDriverStateV1;
+  turn: SharedOsTurnResultV1;
+  finalDecision: PactPairTerminalDecisionV1 | null;
+  driverFailure: unknown | undefined;
+  worldDigest: string;
+}> {
+  const worldBundle = createPactPairEmbeddedWorldFactoryV1({
+    seed: options.seed,
+    grantedAccess: options.grantedAccess,
+    purpose: PACT_PAIR_SHAREDOS_PURPOSE_V1,
+    now: () => options.now().toISOString(),
+    executionGrant: options.executionGrant,
+  });
+  const before = worldBundle.workspace.snapshot();
+  const driver = createPactAdapterSoTurnDriverV1({
+    adapter: options.adapter,
+    task: options.task.publicTask,
+    grantedAccess: worldBundle.canonicalWorld.grantedAccess,
+    budget: {
+      ...options.config.budget,
+      maxRuntimeMs: options.timeoutMs,
+    },
+    sanitizeDecision: options.sanitizeDecision,
+  });
+  const identity = digestObjectV1({
+    runId: options.runId,
+    taskId: options.task.taskId,
+  });
+  let sharedOsIdSequence = 0;
+  const executionAdapter = new EmbeddedSharedOsAdapterV1({
+    modules: options.runtime.modules,
+    worldFactory: worldBundle.worldFactory,
+    driver,
+    provenance: () => resolvePactSharedOsProvenanceV1(
+      options.adapter,
+      options.config.model.model,
+    ),
+    idGen: {
+      next(prefix) {
+        sharedOsIdSequence += 1;
+        return `${prefix}-${identity.slice(0, 16)}-${sharedOsIdSequence}`;
+      },
+    },
+  });
+  const worldId = `pair-world-${identity.slice(0, 32)}`;
+  const namespaceId = `pair-namespace-${identity}`;
+  const turnId = `pair-turn-${identity.slice(0, 32)}`;
+  const worldDigest = digestObjectV1(worldBundle.canonicalWorld);
+  const handle = await executionAdapter.initWorld({
+    worldId,
+    taskId: options.task.taskId,
+    namespaceId,
+    recipient: { kind: 'agent', agentId: 'pact-pair-responder' },
+    workspaceDigest: worldDigest,
+    expectedVisibleTools: worldBundle.expectedVisibleTools,
+  });
+
+  try {
+    const results = await executionAdapter.runTurn(handle, {
+      turnId,
+      message: {
+        intent: 'execute-pact-pair-task',
+        purpose: PACT_PAIR_SHAREDOS_PURPOSE_V1,
+        payload: {
+          taskId: options.task.publicTask.taskId,
+          kind: options.task.publicTask.kind,
+        },
+      },
+      options: {
+        timeoutMs: options.timeoutMs,
+        // The PACT driver's final budget check needs one additional runtime
+        // step after the last allowed participant decision.
+        maxSteps: options.config.budget.maxTurns + 1,
+      },
+    });
+    if (results.length !== 1) {
+      throw new PactRunnerProtocolError(
+        `SharedOS emitted ${results.length} rows for one PACT task`,
+      );
+    }
+    const turn = results[0];
+    if (!turn || turn.turnId !== turnId || turn.worldId !== worldId) {
+      throw new PactRunnerProtocolError('SharedOS returned mismatched task identifiers');
+    }
+    const finalDecision = turn.status === 'succeeded'
+      ? parsePactPairSharedOsTerminalOutputV1(turn.output)
+      : null;
+    return {
+      workspace: worldBundle.workspace,
+      before,
+      driverState: driver.getStateV1(),
+      turn,
+      finalDecision,
+      driverFailure: driver.getFailureV1(),
+      worldDigest,
+    };
+  } finally {
+    await executionAdapter.closeWorld(handle);
+  }
+}
+
+function resolvePactSharedOsProvenanceV1(
+  adapter: PactAdapterV1,
+  requestedId: string,
+): SharedOsTurnResultV1['provenance'] {
+  const requests = readPactProviderTelemetryV1(adapter)?.requests ?? [];
+  const servedIds = requests.map(request => request.servedModel?.trim());
+  const firstServedId = servedIds[0];
+  const servedId = requests.length > 0
+    && firstServedId !== undefined
+    && firstServedId.length > 0
+    && firstServedId.length <= 256
+    && servedIds.every(candidate => candidate === firstServedId)
+    ? firstServedId
+    : null;
+  return {
+    requestedId,
+    // PACT currently has no separate model registry: the configured id is
+    // therefore also the locally resolved id. The provider-reported id is
+    // late-bound above, after all model calls in the SharedOS turn.
+    resolvedId: requestedId,
+    servedId,
+  };
 }
 
 function toPublicEvaluation(
@@ -814,8 +1112,18 @@ class PactRunnerProtocolError extends Error {
   }
 }
 
+class PactRunnerModelProvenanceError extends Error {
+  constructor() {
+    super('SharedOS provider-served model provenance did not match the resolved model');
+    this.name = 'PactRunnerModelProvenanceError';
+  }
+}
+
 function classifyRunnerFailure(error: unknown): string {
   if (error instanceof PactRunnerTimeoutError) return 'max_runtime_ms_exceeded';
+  if (error instanceof PactRunnerModelProvenanceError) {
+    return 'model_provenance_mismatch';
+  }
   if (error instanceof PactRunnerProtocolError) return 'adapter_protocol_error';
   if (error instanceof PactProviderRequestErrorV1 && error.fatalConfiguration) {
     return 'provider_configuration_error';
@@ -888,6 +1196,7 @@ async function prepareRunOutputDirectory(options: {
   benchmark: PactRunConfigV1['benchmark'];
   policyProvenance: PactPairRunResultV1['policyProvenance'];
   budget: PactRunConfigV1['budget'];
+  execution: PactPairRunResultV1['execution'];
   configDigest: string;
   taskSetDigest: string;
   sourceRevision?: string;
@@ -912,6 +1221,7 @@ async function prepareRunOutputDirectory(options: {
       benchmark: options.benchmark,
       policyProvenance: options.policyProvenance,
       budget: options.budget,
+      execution: options.execution,
       configDigest: options.configDigest,
       taskSetDigest: options.taskSetDigest,
       selectedTasks: options.selectedTasks,
@@ -963,6 +1273,7 @@ async function finalizeRunOutputs(
     benchmark: result.benchmark,
     policyProvenance: result.policyProvenance,
     budget: result.budget,
+    execution: result.execution,
     configDigest: result.configDigest,
     taskSetDigest: result.taskSetDigest,
     selectedTasks: result.selectedTasks,
@@ -1057,6 +1368,7 @@ function summarizeTaskRuns(runs: SingleTaskRun[]): PactPairRunSummaryV1 {
     scorable: observedResults.filter(result => result.evaluation?.scorable).length,
     correct: observedResults.filter(result => result.evaluation?.correct).length,
     errors: results.filter(result => result.status === 'infrastructure_error').length,
+    denied: results.filter(result => result.status === 'denied').length,
     violations: results.reduce((count, result) => count + result.violations.length, 0),
     provider,
     metrics: {
@@ -1078,7 +1390,8 @@ function summarizeTaskRuns(runs: SingleTaskRun[]): PactPairRunSummaryV1 {
       total: qa.length,
       attempted: qa.length,
       observed: observedQa.length,
-      errors: qa.length - observedQa.length,
+      errors: qa.filter(result => result.status === 'infrastructure_error').length,
+      denied: qa.filter(result => result.status === 'denied').length,
       scorable: observedQa.filter(result => result.evaluation?.scorable).length,
       correct: observedQa.filter(result => result.evaluation?.correct).length,
       expectedAnswer: expectedAnswers.length,
@@ -1101,7 +1414,8 @@ function summarizeTaskRuns(runs: SingleTaskRun[]): PactPairRunSummaryV1 {
       total: actions.length,
       attempted: actions.length,
       observed: observedActions.length,
-      errors: actions.length - observedActions.length,
+      errors: actions.filter(result => result.status === 'infrastructure_error').length,
+      denied: actions.filter(result => result.status === 'denied').length,
       correct: observedActions.filter(result => result.evaluation?.correct).length,
       expectedExecute: expectedExecutions.length,
       correctExecutions,

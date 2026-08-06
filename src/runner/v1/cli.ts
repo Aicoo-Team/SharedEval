@@ -45,6 +45,7 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
         firstTask: inspection.firstTask,
         lastTask: inspection.lastTask,
       },
+      execution: config.execution ?? { adapter: 'pact-public-runner' },
       note: 'Configuration check does not call the model API.',
     }, null, 2)}\n`);
     return 0;
@@ -56,6 +57,7 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
   process.stdout.write(`${JSON.stringify({
     runId: result.runId,
     outputDirectory: result.outputDirectory,
+    execution: result.execution,
     ...(result.aborted ? { aborted: result.aborted } : {}),
     summary: result.summary,
   }, null, 2)}\n`);

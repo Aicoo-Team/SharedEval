@@ -57,6 +57,15 @@ The YAML contains the model name, base URL, task selection, and the dedicated
 See [Running PACT locally](docs/running.md) for the complete configuration and
 output contract.
 
+To run the same model/tool loop through the pinned SharedOS permission kernel,
+build a sibling `SharedOS` checkout and select the embedded execution adapter:
+
+```bash
+export PACT_SHAREDOS_DIR=../SharedOS
+export PACT_MODEL_API_KEY="your-provider-key"
+npm run benchmark -- --config examples/pact-run.sharedos-embedded.yaml
+```
+
 ## Current Status
 
 This repository currently provides:
@@ -68,6 +77,7 @@ This repository currently provides:
 - a strict PACT-Pair Adapter Protocol v1 contract and manifest parser;
 - a JSON-RPC adapter host, secure bundle validator, and executable TypeScript starter;
 - a dataset-dispatching runner with a PACT-Pair OpenAI-compatible BYOK adapter;
+- an opt-in PACT-Pair → SharedOS embedded execution path with host-side gold and scoring;
 - an isolated in-memory notes/todos world, deterministic evaluator, and run reports;
 - benchmark design documentation;
 - submission, metrics, and leaderboard documentation.

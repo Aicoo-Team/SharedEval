@@ -11,14 +11,25 @@ import type {
   PactObservationV1,
   PactRunInitV1,
   PactTaskIntroV1,
+  PactToolSpecV1,
 } from '../../../src/protocol/v1/index.js';
 import { pactRunConfigV1Schema } from '../../../src/runner/v1/config.js';
+import { loadSharedOsModulesV1 } from '../../../src/execution/sharedos/v1/index.js';
 import {
   OpenAICompatiblePactAdapterV1,
   PactProviderRequestErrorV1,
+  type PactProviderTelemetryV1,
 } from '../../../src/runner/v1/model-adapter.js';
 import { runPactPairBenchmarkV1 } from '../../../src/suites/pact-pair/runner.js';
 import { loadCanonicalPactPairStoreV1 } from '../../../src/suites/pact-pair/workspace.js';
+
+const localSharedOs = await loadSharedOsModulesV1();
+if (!localSharedOs.ok && process.env.PACT_REQUIRE_SHAREDOS === '1') {
+  throw new Error(
+    `SharedOS runner integration is required but unavailable: ${localSharedOs.reason}`,
+  );
+}
+const sharedOsSkip = localSharedOs.ok ? false : localSharedOs.reason;
 
 test('runs the protocol lifecycle through a QA lookup and deterministic score', async () => {
   const adapter = new ScriptedAdapter(observation => {
@@ -77,6 +88,289 @@ test('runs the protocol lifecycle through a QA lookup and deterministic score', 
     JSON.stringify(result.tasks[0]?.evaluation),
     /expectedBehavior|matchedFacts|missedFacts|leakedFacts|minimumCorrect|goldCheck/,
   );
+});
+
+test('runs a complete PACT-Pair task through the real SharedOS kernel', {
+  skip: sharedOsSkip,
+}, async () => {
+  assert.ok(localSharedOs.ok);
+  const adapter = new TelemetryScriptedAdapter(observation => observation.type === 'task'
+    ? {
+        type: 'tool_call',
+        toolName: 'search_notes',
+        input: { query: 'Project Alpha launch date' },
+      }
+    : { type: 'answer', content: 'Project Alpha launches on March 15, 2026.' });
+  const config = configFor(['Q1']);
+  config.execution = { adapter: 'sharedos-embedded' };
+
+  const result = await runPactPairBenchmarkV1(config, {
+    adapterFactory: () => adapter,
+    environment: { PACT_SHAREDOS_DIR: localSharedOs.dir },
+    runId: 'sharedos-qa-integration',
+    writeOutputs: false,
+  });
+
+  assert.equal(result.summary.correct, 1);
+  assert.deepEqual(result.execution, {
+    adapterId: 'sharedos-embedded',
+    protocolVersion: '1',
+    sharedOsRevision: localSharedOs.revision,
+  });
+  const task = result.tasks[0];
+  assert.ok(task?.execution);
+  assert.equal(task.execution.status, 'succeeded');
+  assert.deepEqual(task.execution.provenance, {
+    requestedId: 'test-model',
+    resolvedId: 'test-model',
+    servedId: 'test-model',
+  });
+  assert.match(task.execution.worldDigest, /^[0-9a-f]{64}$/);
+  assert.match(task.execution.traceId, /^trace-/);
+  assert.equal(task.budgetUsed.turns, 2);
+  assert.equal(task.budgetUsed.toolCalls, 1);
+  assert.ok(adapter.scopedTools.length > 0);
+  assert.equal(adapter.scopedTools.every(tool => tool.sideEffects === 'read'), true);
+});
+
+test('late-binds provider served-model provenance after a SharedOS turn', {
+  skip: sharedOsSkip,
+}, async () => {
+  assert.ok(localSharedOs.ok);
+  const adapter = new TelemetryScriptedAdapter(
+    () => ({
+      type: 'answer',
+      content: 'Project Alpha launches on March 15, 2026.',
+    }),
+    'provider-served-model-v2',
+  );
+  const config = configFor(['Q1']);
+  config.execution = { adapter: 'sharedos-embedded' };
+
+  const result = await runPactPairBenchmarkV1(config, {
+    adapterFactory: () => adapter,
+    environment: { PACT_SHAREDOS_DIR: localSharedOs.dir },
+    runId: 'sharedos-served-model-provenance',
+    writeOutputs: false,
+  });
+
+  assert.deepEqual(result.tasks[0]?.execution?.provenance, {
+    requestedId: 'test-model',
+    resolvedId: 'test-model',
+    servedId: 'provider-served-model-v2',
+  });
+  assert.equal(result.tasks[0]?.status, 'infrastructure_error');
+  assert.deepEqual(result.tasks[0]?.violations, ['model_provenance_mismatch']);
+  assert.equal(result.tasks[0]?.evaluation, null);
+  assert.equal(result.summary.observed, 0);
+  assert.equal(result.summary.errors, 1);
+});
+
+test('marks an overlong provider model id unverifiable without breaking the turn schema', {
+  skip: sharedOsSkip,
+}, async () => {
+  assert.ok(localSharedOs.ok);
+  const servedModel = 'm'.repeat(257);
+  const config = configFor(['Q1']);
+  config.execution = { adapter: 'sharedos-embedded' };
+
+  const result = await runPactPairBenchmarkV1(config, {
+    adapterFactory: ({ config: adapterConfig }) =>
+      new OpenAICompatiblePactAdapterV1(adapterConfig, {
+        fetch: (async () => new Response(JSON.stringify({
+          model: servedModel,
+          choices: [{
+            message: { content: 'Project Alpha launches on March 15, 2026.' },
+          }],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })) as typeof fetch,
+        environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+      }),
+    environment: {
+      PACT_MODEL_API_KEY: 'unit-test-key',
+      PACT_SHAREDOS_DIR: localSharedOs.dir,
+    },
+    runId: 'sharedos-overlong-served-model',
+    writeOutputs: false,
+  });
+
+  const task = result.tasks[0];
+  assert.equal(task?.execution?.status, 'succeeded');
+  assert.equal(task?.execution?.provenance.servedId, null);
+  assert.deepEqual(task?.violations, ['model_provenance_mismatch']);
+  assert.match(task?.error ?? '', /model provenance/);
+  assert.doesNotMatch(task?.error ?? '', /too_big|max\(256\)|validation/i);
+});
+
+test('keeps a SharedOS permission denial explicit and out of score denominators', {
+  skip: sharedOsSkip,
+}, async () => {
+  assert.ok(localSharedOs.ok);
+  const adapter = new TelemetryScriptedAdapter(() => ({
+    type: 'answer',
+    content: 'The denied driver must never produce this answer.',
+  }));
+  const config = configFor(['Q1']);
+  config.execution = { adapter: 'sharedos-embedded' };
+
+  const result = await runPactPairBenchmarkV1(config, {
+    adapterFactory: () => adapter,
+    environment: { PACT_SHAREDOS_DIR: localSharedOs.dir },
+    runId: 'sharedos-denied-experiment',
+    writeOutputs: false,
+    sharedOsExecutionGrant: 'withheld',
+  });
+
+  const task = result.tasks[0];
+  assert.equal(task?.execution?.status, 'denied');
+  assert.equal(task?.status, 'denied');
+  assert.deepEqual(task?.violations, ['sharedos_execution_denied']);
+  assert.equal(task?.evaluation, null);
+  assert.equal(result.summary.observed, 0);
+  assert.equal(result.summary.errors, 0);
+  assert.equal(result.summary.denied, 1);
+  assert.equal(result.summary.qa.denied, 1);
+  assert.equal(result.status, 'completed');
+  assert.equal(result.aborted, undefined);
+});
+
+test('scores a SharedOS-guarded PACT-Pair action mutation host-side', {
+  skip: sharedOsSkip,
+}, async () => {
+  assert.ok(localSharedOs.ok);
+  const adapter = new TelemetryScriptedAdapter(observation => observation.type === 'task'
+    ? {
+        type: 'tool_call',
+        toolName: 'create_note',
+        input: {
+          folder: 'Shared',
+          title: 'Product sync summary',
+          content: 'Calendar integration was approved; launch target is April.',
+        },
+      }
+    : { type: 'answer', content: 'Done.' });
+  const config = configFor(['A1']);
+  config.execution = { adapter: 'sharedos-embedded' };
+
+  const result = await runPactPairBenchmarkV1(config, {
+    adapterFactory: () => adapter,
+    environment: { PACT_SHAREDOS_DIR: localSharedOs.dir },
+    runId: 'sharedos-action-integration',
+    writeOutputs: false,
+  });
+
+  assert.equal(result.summary.actions.correctExecutions, 1);
+  assert.equal(result.tasks[0]?.execution?.status, 'succeeded');
+  assert.equal(result.tasks[0]?.evaluation?.correct, true);
+  assert.ok(adapter.scopedTools.some(tool => tool.name === 'create_note'));
+});
+
+test('redacts provider credentials before SharedOS executes a tool call', {
+  skip: sharedOsSkip,
+}, async () => {
+  assert.ok(localSharedOs.ok);
+  const secret = 'sk-sharedos-tool-secret';
+  let toolObservation: PactObservationV1 | undefined;
+  const adapter = new TelemetryScriptedAdapter(observation => {
+    if (observation.type === 'task') {
+      return {
+        type: 'tool_call',
+        toolName: 'create_note',
+        input: {
+          folder: 'Shared',
+          title: 'Credential redaction probe',
+          content: `Never persist ${secret}`,
+        },
+      };
+    }
+    toolObservation = structuredClone(observation);
+    return { type: 'answer', content: 'Done.' };
+  });
+  const config = configFor(['A1']);
+  config.execution = { adapter: 'sharedos-embedded' };
+
+  const result = await runPactPairBenchmarkV1(config, {
+    adapterFactory: () => adapter,
+    environment: {
+      PACT_MODEL_API_KEY: secret,
+      PACT_SHAREDOS_DIR: localSharedOs.dir,
+    },
+    runId: 'sharedos-credential-redaction',
+    writeOutputs: false,
+  });
+
+  assert.ok(toolObservation);
+  assert.doesNotMatch(JSON.stringify(toolObservation), new RegExp(secret));
+  assert.match(JSON.stringify(toolObservation), /\[REDACTED\]/);
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(secret));
+});
+
+test('preserves direct-runner budget violations through SharedOS', {
+  skip: sharedOsSkip,
+}, async () => {
+  assert.ok(localSharedOs.ok);
+  const createToolLoop = () => new TelemetryScriptedAdapter(() => ({
+    type: 'tool_call',
+    toolName: 'search_notes',
+    input: { query: 'Project Alpha' },
+  }));
+
+  const turnConfig = configFor(['Q1']);
+  turnConfig.execution = { adapter: 'sharedos-embedded' };
+  turnConfig.budget.maxTurns = 1;
+  const turnResult = await runPactPairBenchmarkV1(turnConfig, {
+    adapterFactory: createToolLoop,
+    environment: { PACT_SHAREDOS_DIR: localSharedOs.dir },
+    runId: 'sharedos-turn-budget',
+    writeOutputs: false,
+  });
+  assert.deepEqual(turnResult.tasks[0]?.violations, ['max_turns_exceeded']);
+  assert.equal(turnResult.tasks[0]?.status, 'ok');
+
+  const toolConfig = configFor(['Q1']);
+  toolConfig.execution = { adapter: 'sharedos-embedded' };
+  toolConfig.budget.maxToolCalls = 0;
+  const toolResult = await runPactPairBenchmarkV1(toolConfig, {
+    adapterFactory: createToolLoop,
+    environment: { PACT_SHAREDOS_DIR: localSharedOs.dir },
+    runId: 'sharedos-tool-budget',
+    writeOutputs: false,
+  });
+  assert.deepEqual(toolResult.tasks[0]?.violations, ['max_tool_calls_exceeded']);
+  assert.equal(toolResult.tasks[0]?.status, 'ok');
+});
+
+test('preserves fatal provider errors through SharedOS and aborts the run', {
+  skip: sharedOsSkip,
+}, async () => {
+  assert.ok(localSharedOs.ok);
+  let adaptersCreated = 0;
+  const failure = new PactProviderRequestErrorV1(
+    'OpenAI-compatible provider request failed with HTTP 401',
+    { status: 401 },
+  );
+  const config = configFor(['Q1', 'Q2']);
+  config.execution = { adapter: 'sharedos-embedded' };
+
+  const result = await runPactPairBenchmarkV1(config, {
+    adapterFactory: () => {
+      adaptersCreated += 1;
+      return new ScriptedAdapter(() => { throw failure; });
+    },
+    environment: { PACT_SHAREDOS_DIR: localSharedOs.dir },
+    runId: 'sharedos-provider-fail-fast',
+    writeOutputs: false,
+  });
+
+  assert.equal(adaptersCreated, 1);
+  assert.equal(result.tasks.length, 1);
+  assert.deepEqual(result.tasks[0]?.violations, ['provider_configuration_error']);
+  assert.deepEqual(result.aborted, {
+    afterTaskId: 'PAIR-Q1',
+    reason: 'provider_configuration_error',
+  });
 });
 
 test('reports fixed benchmark leakage separately from D0 policy compliance', async () => {
@@ -471,6 +765,7 @@ test('stops a multi-task run after a permanent provider configuration error', as
 class ScriptedAdapter implements PactAdapterV1 {
   initialized = false;
   finalized = false;
+  scopedTools: PactToolSpecV1[] = [];
 
   constructor(
     private readonly decide: (observation: PactObservationV1) => PactDecisionV1,
@@ -492,6 +787,10 @@ class ScriptedAdapter implements PactAdapterV1 {
     return this.plan;
   }
 
+  setExecutionToolsV1(tools: readonly PactToolSpecV1[]): void {
+    this.scopedTools = tools.map(tool => structuredClone(tool));
+  }
+
   async step(observation: PactObservationV1): Promise<PactDecisionV1> {
     return this.decide(observation);
   }
@@ -499,6 +798,39 @@ class ScriptedAdapter implements PactAdapterV1 {
   async finalize(): Promise<PactFinalizeReportV1> {
     this.finalized = true;
     return { status: 'completed' };
+  }
+}
+
+class TelemetryScriptedAdapter extends ScriptedAdapter {
+  private completedProviderRequest = false;
+
+  constructor(
+    decide: (observation: PactObservationV1) => PactDecisionV1,
+    private readonly servedModel = 'test-model',
+  ) {
+    super(decide);
+  }
+
+  override async step(observation: PactObservationV1): Promise<PactDecisionV1> {
+    const decision = await super.step(observation);
+    this.completedProviderRequest = true;
+    return decision;
+  }
+
+  getProviderTelemetryV1(): PactProviderTelemetryV1 {
+    return {
+      requestedModel: 'test-model',
+      requests: this.completedProviderRequest
+        ? [{
+            requestedModel: 'test-model',
+            servedModel: this.servedModel,
+            latencyMs: 1,
+            attempts: 1,
+            outcome: 'success',
+          }]
+        : [],
+      totals: { requests: this.completedProviderRequest ? 1 : 0 },
+    };
   }
 }
 

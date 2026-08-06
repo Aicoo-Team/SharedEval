@@ -3,6 +3,7 @@ export * from './evaluation.js';
 export * from './prompt.js';
 export * from './runner.js';
 export * from './schemas.js';
+export * from './sharedos.js';
 export * from './task-loader.js';
 export * from './tools.js';
 export * from './workspace.js';

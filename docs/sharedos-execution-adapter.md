@@ -99,24 +99,29 @@ the real SharedOS kernel and `TurnExecutor`:
 
 **Package consumption (interim):** `@sharedos/*` is private and
 unpublished, so the binding dynamically loads a locally built checkout —
-`PACT_SHAREDOS_DIR`, defaulting to `../sharedos-repo` — through minimal
-structural types (`embedded-types.ts`). Integration tests skip with an
-explicit logged reason when no build is present (CI stays green without
-repo access). Switching to a proper workspace/git dependency is a lead
-decision; the adapter body is unaffected by that swap.
+`PACT_SHAREDOS_DIR`, otherwise the first existing sibling at `../SharedOS` or
+`../sharedos-repo` — through minimal structural types (`embedded-types.ts`).
+The loader pins commit `846cbf64830d1a77bf477b98fd3586cd5cdff02e` and fails
+closed on a different revision, tracked source changes, or a mismatch in the
+digest of the executable `dist/*.js` tree. Integration tests skip with an
+explicit logged reason when no checkout is present; a required pinned CI job
+remains necessary before this becomes an official execution path.
 
-## Next steps
+## Runner integration
 
-1. **Driver binding** — adapt PACT's model adapter to SharedOS's
-   `AgentTurnDriver` port (`open` → `next` loop) so the tested model
-   runs inside the guarded loop instead of PACT's own tool loop.
-2. **PACT-Pair world factory** — express the Pair workspace, tools, and
-   policy grants as an `EmbeddedWorldV1` under `src/suites/pact-pair/`
-   (dataset semantics stay in the suite, not in `src/execution/`).
-3. **Runner wiring** — exposing the adapter as an opt-in execution
-   backend in the runner config is an explicit future config version;
-   the current `pact-run/v1` config stays PACT-Pair-shaped for
-   compatibility.
+`src/suites/pact-pair/sharedos.ts` now provides the suite-owned world factory
+and `PactAdapterV1` → `AgentTurnDriver` bridge. The runner accepts the opt-in
+selector `execution.adapter: sharedos-embedded`; omission preserves the
+existing `pact-public-runner` behavior and config digest. Each selected task
+gets one fresh namespace, one digest-bound declarative world, and one bounded
+SharedOS turn. SharedOS-filtered tools are also applied to the model adapter's
+visible catalog before its first step.
+
+`npm run test:sharedos` is the fail-not-skip conformance entrypoint. The next
+production gate is wiring that command into a required CI job with authenticated
+access to the pinned SharedOS source. After that, replace the interim sibling
+checkout with an exact packaged dependency when SharedOS is licensed and
+published.
 
 Node floor: this repository declares `node >= 20.11`, matching the
 SharedOS supported floor (CI already tests Node 22).

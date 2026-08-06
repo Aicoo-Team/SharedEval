@@ -21,6 +21,9 @@ import {
 } from '../../src/execution/sharedos/v1/index.js';
 
 const loaded = await loadSharedOsModulesV1();
+if (!loaded.ok && process.env.PACT_REQUIRE_SHAREDOS === '1') {
+  throw new Error(`SharedOS integration is required but unavailable: ${loaded.reason}`);
+}
 const skip = loaded.ok ? false : loaded.reason;
 if (!loaded.ok) {
   console.log(`[sharedos-embedded] skipping integration tests: ${loaded.reason}`);
@@ -137,8 +140,7 @@ function makeAdapter(
   driver: SoTurnDriver,
   worldOverrides: Partial<EmbeddedWorldV1> = {},
 ) {
-  // Grants from createTestGrant are issued at 2026-01-01; a clock before
-  // that leaves them not-yet-valid and every turn is (correctly) denied.
+  // The fixture's resource grant defaults to 2026-01-01.
   let tick = Date.UTC(2026, 7, 5);
   return new EmbeddedSharedOsAdapterV1({
     modules,
@@ -169,6 +171,66 @@ test('an authorized turn runs through the production kernel and succeeds', { ski
   assert.ok(types.includes('turn.completed'));
 });
 
+test('resolves model provenance after the driver finishes the turn', { skip }, async () => {
+  assert.ok(loaded.ok);
+  let provenanceReads = 0;
+  let tick = Date.UTC(2026, 7, 5);
+  const adapter = new EmbeddedSharedOsAdapterV1({
+    modules: loaded.modules,
+    worldFactory: (_init, modules) => makeWorld(modules),
+    driver: searchingDriver(),
+    provenance: () => {
+      provenanceReads += 1;
+      return {
+        requestedId: 'requested-model',
+        resolvedId: 'resolved-model',
+        servedId: 'provider-served-model',
+      };
+    },
+    clock: { nowMs: () => (tick += 10) },
+  });
+  const handle = await adapter.initWorld(worldInit());
+  assert.equal(provenanceReads, 0);
+
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-provenance'));
+
+  assert.equal(provenanceReads, 1);
+  assert.deepEqual(result.provenance, {
+    requestedId: 'requested-model',
+    resolvedId: 'resolved-model',
+    servedId: 'provider-served-model',
+  });
+});
+
+test('issues the per-turn execution grant against the injected clock', { skip }, async () => {
+  assert.ok(loaded.ok);
+  let tick = Date.UTC(2024, 0, 1);
+  const adapter = new EmbeddedSharedOsAdapterV1({
+    modules: loaded.modules,
+    worldFactory: (_init, modules) => makeWorld(modules, {
+      setup: () => undefined,
+      senderGrants: () => [],
+    }),
+    driver: {
+      async open() {
+        return {
+          async next() {
+            return { type: 'complete', output: 'completed under replay clock' };
+          },
+        };
+      },
+    },
+    provenance: PROVENANCE,
+    clock: { nowMs: () => (tick += 10) },
+  });
+  const handle = await adapter.initWorld(worldInit({ expectedVisibleTools: [] }));
+
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-replay-clock'));
+
+  assert.equal(result.status, 'succeeded');
+  assert.equal(result.output, 'completed under replay clock');
+});
+
 test('one tick maps to exactly one bounded turn', { skip }, async () => {
   assert.ok(loaded.ok);
   const adapter = makeAdapter(loaded.modules, searchingDriver());
@@ -195,7 +257,11 @@ test('worlds are isolated: another world sees neither tools nor state of the fir
     clock: { nowMs: () => (tick += 10) },
   });
   const handleA = await adapter.initWorld(worldInit({ worldId: 'world-a', namespaceId: 'run-a' }));
-  const handleB = await adapter.initWorld(worldInit({ worldId: 'world-b', namespaceId: 'run-b' }));
+  const handleB = await adapter.initWorld(worldInit({
+    worldId: 'world-b',
+    namespaceId: 'run-b',
+    expectedVisibleTools: [],
+  }));
   assert.notEqual(handleA.namespaceId, handleB.namespaceId);
 
   const [resultA] = await adapter.runTurn(handleA, turnRequest('turn-a'));
@@ -285,6 +351,69 @@ test('a tool outside the grant surface returns public tool_unavailable, and the 
   assert.equal(result.toolCalls[0].publicStatus, 'tool_unavailable');
 });
 
+test('an exhausted bounded grant is opaque to the model-facing driver', { skip }, async () => {
+  assert.ok(loaded.ok);
+  const observedCodes: Array<string | undefined> = [];
+  let requested = 0;
+  const boundedDriver: SoTurnDriver = {
+    async open(request) {
+      const traceId = (request.context as { traceId: string }).traceId;
+      const requestedAt = (request.context as { now: string }).now;
+      return {
+        async next(input) {
+          if (input.type === 'tool_result') {
+            observedCodes.push(input.result.error?.code);
+          }
+          if (requested < 2) {
+            requested += 1;
+            return {
+              type: 'tool_call',
+              call: {
+                id: `call-${requested}`,
+                tool: 'memory.search',
+                arguments: { path: ['project-x'], query: 'authority' },
+                traceId,
+                requestedAt,
+              },
+            };
+          }
+          return { type: 'complete', output: 'done' };
+        },
+      };
+    },
+  };
+  const adapter = makeAdapter(loaded.modules, boundedDriver, {
+    senderGrants: (modules, namespaceId) => {
+      const grant = modules.testkit.createTestGrant({
+        id: 'grant-search-once',
+        namespaceId,
+        subject: requester,
+        issuer: owner,
+        capabilities: [{
+          resource: { namespace: 'memory', path: ['project-x'], owner },
+          actions: ['search'],
+          scope: 'descendants',
+        }],
+        purposes: ['benchmark-task'],
+      }) as { constraints: Record<string, unknown> } & Record<string, unknown>;
+      return [{
+        ...grant,
+        constraints: { ...grant.constraints, maxUses: 1 },
+      }];
+    },
+  });
+  const handle = await adapter.initWorld(worldInit());
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-1'));
+
+  assert.equal(result.status, 'succeeded');
+  assert.deepEqual(result.toolCalls.map(call => call.publicStatus), [
+    'ok',
+    'tool_unavailable',
+  ]);
+  assert.deepEqual(observedCodes, [undefined, 'tool_unavailable']);
+  assert.doesNotMatch(result.output ?? '', /grant_exhausted/);
+});
+
 test('the model-facing request is sanitized: no grants, no authority, no gold', { skip }, async () => {
   assert.ok(loaded.ok);
   const capture: { request?: SoAgentTurnRequest } = {};
@@ -312,6 +441,54 @@ test('world gate fails closed on digest mismatch before any kernel is built', { 
     () => adapter.initWorld(worldInit({ workspaceDigest: 'f'.repeat(64) })),
     (error: unknown) =>
       error instanceof SharedOsWorldGateErrorV1 && error.reason === 'digest_mismatch',
+  );
+});
+
+test('world gate rejects duplicate initialization and tampered handles', { skip }, async () => {
+  assert.ok(loaded.ok);
+  const adapter = makeAdapter(loaded.modules, searchingDriver());
+  const init = worldInit();
+  const handle = await adapter.initWorld(init);
+
+  await assert.rejects(
+    () => adapter.initWorld(init),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1 && error.reason === 'duplicate_world',
+  );
+  await assert.rejects(
+    () => adapter.runTurn(
+      { ...handle, namespaceId: 'another-namespace' },
+      turnRequest('turn-1'),
+    ),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1 && error.reason === 'stale_handle',
+  );
+  await assert.rejects(
+    () => adapter.runTurn(
+      { ...handle, worldDigestAtInit: 'f'.repeat(64) },
+      turnRequest('turn-2'),
+    ),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1 && error.reason === 'stale_handle',
+  );
+  await assert.rejects(
+    () => adapter.closeWorld({ ...handle, namespaceId: 'another-namespace' }),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1 && error.reason === 'stale_handle',
+  );
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-3'));
+  assert.equal(result.status, 'succeeded', 'a forged close must not release the real world');
+});
+
+test('world gate verifies the permission-filtered tool surface', { skip }, async () => {
+  assert.ok(loaded.ok);
+  const adapter = makeAdapter(loaded.modules, searchingDriver());
+  const handle = await adapter.initWorld(worldInit({ expectedVisibleTools: [] }));
+  await assert.rejects(
+    () => adapter.runTurn(handle, turnRequest('turn-1')),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1
+      && error.reason === 'tool_surface_mismatch',
   );
 });
 

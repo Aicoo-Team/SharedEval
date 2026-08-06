@@ -189,8 +189,60 @@ npm run benchmark -- --config pact-run.yaml
 The command exits nonzero if any selected task has an infrastructure error.
 Those failures are recorded as `status: infrastructure_error` with no
 evaluation and are excluded from every utility/security metric denominator.
-Use `summary.attempted`, `summary.observed`, and `summary.errors` to audit the
-gap; do not report a cell with errors as a complete result.
+Use `summary.attempted`, `summary.observed`, `summary.errors`, and
+`summary.denied` to audit the gap; do not report a cell with errors or denied
+observations as a complete result.
+
+### Run the same task through SharedOS
+
+The default execution adapter is `pact-public-runner`. To place the model and
+Pair tool loop inside the production SharedOS permission kernel, select:
+
+```yaml
+execution:
+  adapter: sharedos-embedded
+```
+
+SharedOS is a within-task execution substrate; it does not replace PACT's
+dataset scheduler, hidden evaluator, or a whole-task backend such as Harbor.
+PACT still creates the task, keeps gold host-side, freezes the resulting
+workspace, and computes the score after the SharedOS world is closed.
+
+For the currently pinned integration, build the sibling SharedOS checkout at
+revision `846cbf64830d1a77bf477b98fd3586cd5cdff02e`, then run the included
+one-task example:
+
+```bash
+cd ../SharedOS
+pnpm install --frozen-lockfile
+pnpm clean && pnpm build
+
+cd ../PACT
+export PACT_SHAREDOS_DIR=../SharedOS
+export PACT_MODEL_API_KEY="your-provider-key"
+npm run benchmark -- --config examples/pact-run.sharedos-embedded.yaml --check
+npm run benchmark -- --config examples/pact-run.sharedos-embedded.yaml
+npm run test:sharedos
+```
+
+The loader rejects a different SharedOS revision, tracked source changes, or
+an unexpected executable build digest instead of structurally casting an
+unverified checkout. In SharedOS mode, `budget.maxRuntimeMs` must be at most
+300,000 ms. Run and task artifacts retain the execution adapter, protocol
+version, pinned SharedOS revision, trace ID, terminal status, requested/resolved/
+provider-served model provenance, and world digest so public-runner and
+SharedOS rates cannot be mixed silently.
+
+A missing or different provider-served model ID is classified as
+`model_provenance_mismatch` and excluded from metrics. A kernel authorization
+denial is recorded separately as task status `denied` with
+`sharedos_execution_denied`; it is also unscored, but is not an infrastructure
+error and is not retried with wider authority.
+
+`npm run test:sharedos` is the fail-not-skip conformance command: it exits
+nonzero when the pinned verified SharedOS runtime is unavailable. The ordinary
+test suite may still skip these private-repository tests when no checkout is
+present.
 
 ## 4. Run the prespecified rebuttal sweep
 

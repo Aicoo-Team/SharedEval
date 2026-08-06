@@ -27,8 +27,10 @@
  */
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { jsonValueSchema } from '../../../protocol/v1/index.js';
 
 const sha256Schema = z.string().regex(/^[0-9a-f]{64}$/);
+const sharedOsIdentifierV1Schema = z.string().trim().min(1).max(256);
 
 /** Matches the SharedOS TurnExecutor default (`defaultTimeoutMs ?? 120_000`). */
 export const DEFAULT_TURN_TIMEOUT_MS_V1 = 120_000;
@@ -60,9 +62,13 @@ export type SharedOsAdapterIdV1 = z.infer<typeof sharedOsAdapterIdV1Schema>;
  * world (one fresh namespace per official run). SharedOS also defines
  * `group` and `service` kinds; PACT worlds only address humans and agents.
  */
+export const sharedOsAgentAddressV1Schema = z
+  .object({ kind: z.literal('agent'), agentId: sharedOsIdentifierV1Schema })
+  .strict();
+
 export const sharedOsAddressV1Schema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('agent'), agentId: z.string().min(1) }).strict(),
-  z.object({ kind: z.literal('human'), userId: z.string().min(1) }).strict(),
+  sharedOsAgentAddressV1Schema,
+  z.object({ kind: z.literal('human'), userId: sharedOsIdentifierV1Schema }).strict(),
 ]);
 export type SharedOsAddressV1 = z.infer<typeof sharedOsAddressV1Schema>;
 
@@ -79,27 +85,31 @@ export type SharedOsAddressV1 = z.infer<typeof sharedOsAddressV1Schema>;
  */
 export const sharedOsWorldInitV1Schema = z
   .object({
-    worldId: z.string().min(1),
-    taskId: z.string().min(1),
+    worldId: sharedOsIdentifierV1Schema,
+    taskId: sharedOsIdentifierV1Schema,
     /** One fresh namespace per official run; isolation boundary. */
-    namespaceId: z.string().min(1),
-    recipient: sharedOsAddressV1Schema,
+    namespaceId: sharedOsIdentifierV1Schema,
+    recipient: sharedOsAgentAddressV1Schema,
     /** sha256 over the canonical world bytes, measured by the host. */
     workspaceDigest: sha256Schema,
     /**
-     * Tool names the host expects to be visible after SharedOS permission
-     * filtering. Expectation only — SharedOS remains the authority on what
-     * the model actually sees.
+     * Exact tool names the host expects after SharedOS permission filtering.
+     * A mismatch fails closed before the model-facing driver opens.
      */
-    expectedVisibleTools: z.array(z.string().min(1)),
+    expectedVisibleTools: z
+      .array(sharedOsIdentifierV1Schema)
+      .max(512)
+      .refine(names => new Set(names).size === names.length, {
+        message: 'expected tool names must be unique',
+      }),
   })
   .strict();
 export type SharedOsWorldInitV1 = z.infer<typeof sharedOsWorldInitV1Schema>;
 
 export const sharedOsWorldHandleV1Schema = z
   .object({
-    worldId: z.string().min(1),
-    namespaceId: z.string().min(1),
+    worldId: sharedOsIdentifierV1Schema,
+    namespaceId: sharedOsIdentifierV1Schema,
     /** Digest measured at init, after the world gate passed. */
     worldDigestAtInit: sha256Schema,
   })
@@ -115,9 +125,9 @@ export type SharedOsWorldHandleV1 = z.infer<typeof sharedOsWorldHandleV1Schema>;
  */
 export const sharedOsTurnMessageV1Schema = z
   .object({
-    intent: z.string().min(1).max(512),
-    purpose: z.string().min(1).max(512),
-    payload: z.unknown().optional(),
+    intent: z.string().trim().min(1).max(512),
+    purpose: z.string().trim().min(1).max(512),
+    payload: jsonValueSchema.optional(),
   })
   .strict();
 export type SharedOsTurnMessageV1 = z.infer<typeof sharedOsTurnMessageV1Schema>;
@@ -138,7 +148,7 @@ export type SharedOsTurnOptionsV1 = z.infer<typeof sharedOsTurnOptionsV1Schema>;
 
 export const sharedOsTurnRequestV1Schema = z
   .object({
-    turnId: z.string().min(1),
+    turnId: sharedOsIdentifierV1Schema,
     message: sharedOsTurnMessageV1Schema,
     options: sharedOsTurnOptionsV1Schema.default({}),
   })
@@ -161,8 +171,8 @@ export type SharedOsToolCallStatusV1 = z.infer<
 
 export const sharedOsToolCallRecordV1Schema = z
   .object({
-    callId: z.string().min(1),
-    name: z.string().min(1),
+    callId: sharedOsIdentifierV1Schema,
+    name: sharedOsIdentifierV1Schema,
     publicStatus: sharedOsToolCallStatusV1Schema,
   })
   .strict();
@@ -178,9 +188,9 @@ export type SharedOsToolCallRecordV1 = z.infer<
  */
 export const sharedOsModelProvenanceV1Schema = z
   .object({
-    requestedId: z.string().min(1),
-    resolvedId: z.string().min(1),
-    servedId: z.string().nullable(),
+    requestedId: sharedOsIdentifierV1Schema,
+    resolvedId: sharedOsIdentifierV1Schema,
+    servedId: sharedOsIdentifierV1Schema.nullable(),
   })
   .strict();
 export type SharedOsModelProvenanceV1 = z.infer<
@@ -209,21 +219,21 @@ export type SharedOsTurnStatusV1 = z.infer<typeof sharedOsTurnStatusV1Schema>;
 export const sharedOsTurnEventV1Schema = z
   .object({
     sequence: z.number().int().nonnegative(),
-    type: z.string().min(1).max(128),
-    data: z.unknown(),
-    occurredAt: z.string().min(1),
+    type: z.string().trim().min(1).max(128),
+    data: jsonValueSchema,
+    occurredAt: z.string().datetime({ offset: true }),
   })
   .strict();
 export type SharedOsTurnEventV1 = z.infer<typeof sharedOsTurnEventV1Schema>;
 
 export const sharedOsTurnResultV1Schema = z
   .object({
-    turnId: z.string().min(1),
-    worldId: z.string().min(1),
+    turnId: sharedOsIdentifierV1Schema,
+    worldId: sharedOsIdentifierV1Schema,
     /** Which execution substrate produced this row; never mix rates across adapters. */
     adapterId: sharedOsAdapterIdV1Schema,
     protocolVersion: z.literal(SHAREDOS_PROTOCOL_VERSION_V1),
-    traceId: z.string().min(1),
+    traceId: sharedOsIdentifierV1Schema,
     status: sharedOsTurnStatusV1Schema,
     /** Final model-facing output of the turn; null when nothing was produced. */
     output: z.string().nullable(),

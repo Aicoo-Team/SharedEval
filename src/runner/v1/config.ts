@@ -12,6 +12,7 @@ import {
   PACT_PAIR_POLICIES_V1,
   PACT_PAIR_REQUESTERS_V1,
 } from './task-loader.js';
+import { MAX_TURN_TIMEOUT_MS_V1 } from '../../execution/sharedos/v1/index.js';
 
 export const PACT_RUN_CONFIG_API_VERSION_V1 = 'pact-run/v1' as const;
 export const PACT_BUILTIN_DATASET_ID_V1 = 'pact-pair' as const;
@@ -21,6 +22,7 @@ export const MAX_PACT_RUN_CONFIG_BYTES_V1 = 256 * 1_024;
 // to select an arbitrary process secret (for example an AWS or GitHub token).
 // Callers explicitly bind their provider credential to this dedicated alias.
 export const PACT_MODEL_API_KEY_ENV_V1 = 'PACT_MODEL_API_KEY' as const;
+export const PACT_DEFAULT_EXECUTION_ADAPTER_V1 = 'pact-public-runner' as const;
 
 const providerSlugSchema = z
   .string()
@@ -156,6 +158,20 @@ export const pactRunBudgetV1Schema = pactBudgetV1Schema.pick({
   maxRuntimeMs: true,
 });
 
+/**
+ * Selects the within-task execution substrate. This is deliberately
+ * orthogonal to whole-task backends such as local or Harbor: SharedOS owns
+ * one permission-controlled agent turn, while PACT continues to own task
+ * scheduling, gold isolation, and evaluation.
+ */
+export const pactExecutionConfigV1Schema = z
+  .object({
+    adapter: z
+      .enum(['pact-public-runner', 'sharedos-embedded'])
+      .default(PACT_DEFAULT_EXECUTION_ADAPTER_V1),
+  })
+  .strict();
+
 export const pactRunConfigV1Schema = z
   .object({
     apiVersion: z.literal(PACT_RUN_CONFIG_API_VERSION_V1),
@@ -207,6 +223,7 @@ export const pactRunConfigV1Schema = z
       maxToolCalls: 4,
       maxRuntimeMs: 60_000,
     }),
+    execution: pactExecutionConfigV1Schema.optional(),
     output: z
       .object({
         directory: safeRelativePathSchema.default('runs'),
@@ -215,11 +232,25 @@ export const pactRunConfigV1Schema = z
       .strict()
       .default({ directory: 'runs', saveTraces: false }),
   })
-  .strict();
+  .strict()
+  .superRefine((config, context) => {
+    if (
+      config.execution?.adapter === 'sharedos-embedded'
+      && config.budget.maxRuntimeMs > MAX_TURN_TIMEOUT_MS_V1
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['budget', 'maxRuntimeMs'],
+        message:
+          `sharedos-embedded requires maxRuntimeMs <= ${MAX_TURN_TIMEOUT_MS_V1}`,
+      });
+    }
+  });
 
 export type PactOpenAICompatibleModelConfigV1 = z.infer<
   typeof pactOpenAICompatibleModelConfigV1Schema
 >;
+export type PactExecutionConfigV1 = z.infer<typeof pactExecutionConfigV1Schema>;
 export type PactTaskFilterV1 = z.infer<typeof pactTaskFilterV1Schema>;
 export type PactRunConfigV1 = z.infer<typeof pactRunConfigV1Schema>;
 

@@ -34,6 +34,10 @@ test('a message carries intent, purpose, and payload but a grant-shaped key is a
 test('purpose is required: it is one of the kernel authorization dimensions', () => {
   const missing = sharedOsTurnMessageV1Schema.safeParse({ intent: 'go' });
   assert.equal(missing.success, false);
+  assert.equal(
+    sharedOsTurnMessageV1Schema.safeParse({ intent: 'go', purpose: '   ' }).success,
+    false,
+  );
 });
 
 test('turn options default to the SharedOS 120s timeout and reject above-maximum values', () => {
@@ -94,6 +98,41 @@ test('addresses are discriminated by kind, mirroring SharedOS', () => {
     agentId: 'responder',
   });
   assert.equal(legacyShape.success, false);
+  assert.equal(
+    sharedOsWorldInitV1Schema.shape.recipient.safeParse({
+      kind: 'human',
+      userId: 'owner',
+    }).success,
+    false,
+    'ExecutionRequest.agent only accepts an agent address',
+  );
+  assert.equal(
+    sharedOsWorldInitV1Schema.shape.recipient.safeParse({
+      kind: 'agent',
+      agentId: '   ',
+    }).success,
+    false,
+    'SharedOS identifiers are trimmed and cannot be blank',
+  );
+});
+
+test('turn payloads stay JSON-safe at the PACT boundary', () => {
+  assert.equal(
+    sharedOsTurnMessageV1Schema.safeParse({
+      intent: 'go',
+      purpose: 'benchmark',
+      payload: { count: 1, enabled: true },
+    }).success,
+    true,
+  );
+  assert.equal(
+    sharedOsTurnMessageV1Schema.safeParse({
+      intent: 'go',
+      purpose: 'benchmark',
+      payload: 1n,
+    }).success,
+    false,
+  );
 });
 
 test('turn results carry adapter identity, protocol version, trace, and events', () => {

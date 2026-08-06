@@ -20,6 +20,7 @@
     "export:huggingface:pact-pair": "node scripts/huggingface/export-pact-pair.mjs --check",
     "test": "tsx --test tests/protocol-v1/*.test.ts tests/runner-v1/*.test.ts tests/datasets/*.test.ts tests/evaluation/*.test.ts tests/execution/*.test.ts tests/suites/pact-pair/*.test.ts tests/suites/pact-pair/evaluation-tools/v1/*.test.ts",
     "test:execution": "tsx --test tests/execution/*.test.ts",
+    "test:sharedos": "PACT_REQUIRE_SHAREDOS=1 tsx --test tests/execution/sharedos-embedded.test.ts tests/suites/pact-pair/runner.test.ts",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

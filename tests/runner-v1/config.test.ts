@@ -38,10 +38,38 @@ test('parses a strict run config and applies safe defaults', () => {
     maxToolCalls: 4,
     maxRuntimeMs: 60_000,
   });
+  assert.equal(config.execution, undefined);
   assert.deepEqual(config.output, {
     directory: 'runs',
     saveTraces: false,
   });
+});
+
+test('accepts an explicit SharedOS execution substrate', () => {
+  const config = parsePactRunConfigV1Yaml(`${minimalConfig}
+execution:
+  adapter: sharedos-embedded
+`);
+
+  assert.deepEqual(config.execution, { adapter: 'sharedos-embedded' });
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+execution:
+  adapter: sharedos-http
+`),
+    ZodError,
+  );
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+execution:
+  adapter: sharedos-embedded
+budget:
+  maxTurns: 8
+  maxToolCalls: 4
+  maxRuntimeMs: 300001
+`),
+    /sharedos-embedded requires maxRuntimeMs <= 300000/,
+  );
 });
 
 test('rejects literal credentials and unknown config fields', () => {

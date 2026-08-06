@@ -290,6 +290,30 @@ export class OpenAICompatiblePactAdapterV1 implements PactAdapterV1 {
     };
   }
 
+  /**
+   * Host-only hook used after SharedOS permission filtering. It narrows the
+   * model-visible tool catalog without changing the public PactAdapterV1
+   * protocol or widening any previously granted boundary.
+   */
+  setExecutionToolsV1(tools: PactRunInitV1['tools']): void {
+    const init = this.requireRunInit();
+    if (this.messages.length > 0 || this.pendingToolCalls.length > 0) {
+      throw new Error('Execution tools must be scoped before the first adapter step');
+    }
+    const initializedNames = new Set(init.tools.map(tool => tool.name));
+    const widened = tools.find(tool => !initializedNames.has(tool.name));
+    if (widened) {
+      throw new Error(`Execution tool scope cannot add ${widened.name}`);
+    }
+    const scoped = pactRunInitV1Schema.parse({
+      ...init,
+      tools: structuredClone(tools),
+    });
+    this.runInit = scoped;
+    this.availableToolNames = new Set(scoped.tools.map(tool => tool.name));
+    this.pendingToolCalls = [];
+  }
+
   async step(observation: PactObservationV1): Promise<PactDecisionV1> {
     const init = this.requireRunInit();
     const parsed = pactObservationV1Schema.parse(observation);

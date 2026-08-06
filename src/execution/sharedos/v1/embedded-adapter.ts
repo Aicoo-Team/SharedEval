@@ -21,6 +21,8 @@
 import {
   digestObjectV1,
   sharedOsTurnRequestV1Schema,
+  sharedOsTurnResultV1Schema,
+  sharedOsWorldHandleV1Schema,
   sharedOsWorldInitV1Schema,
   SHAREDOS_PROTOCOL_VERSION_V1,
   type SharedOsModelProvenanceV1,
@@ -41,6 +43,7 @@ import type {
   SoKernel,
   SoTestKernel,
   SoToolResult,
+  SoTurnInput,
   SoTurnDriver,
 } from './embedded-types.js';
 
@@ -77,7 +80,11 @@ export type EmbeddedSharedOsAdapterOptionsV1 = {
   worldFactory: EmbeddedWorldFactoryV1;
   /** The agent-under-test driver (SharedOS AgentTurnDriver port). */
   driver: SoTurnDriver;
-  provenance: SharedOsModelProvenanceV1;
+  /**
+   * Static provenance or a late-bound resolver. The resolver runs after the
+   * turn so a model-backed driver can include the provider-reported served id.
+   */
+  provenance: SharedOsModelProvenanceV1 | (() => SharedOsModelProvenanceV1);
   clock?: { nowMs(): number };
   idGen?: SharedOsIdGenV1;
 };
@@ -87,6 +94,8 @@ type WorldState = {
   test: SoTestKernel;
   recipient: SoAddress;
   namespaceId: string;
+  worldDigestAtInit: string;
+  expectedVisibleTools: readonly string[];
 };
 
 function defaultIdGen(): SharedOsIdGenV1 {
@@ -99,7 +108,11 @@ function defaultIdGen(): SharedOsIdGenV1 {
   };
 }
 
-const PUBLIC_UNAVAILABLE_CODES = new Set(['tool_unavailable', 'tool_not_available']);
+const PUBLIC_UNAVAILABLE_CODES = new Set([
+  'tool_unavailable',
+  'tool_not_available',
+  'grant_exhausted',
+]);
 
 function publicToolStatus(result: SoToolResult): SharedOsToolCallRecordV1['publicStatus'] {
   if (result.status === 'succeeded') return 'ok';
@@ -123,6 +136,13 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
 
   async initWorld(init: SharedOsWorldInitV1): Promise<SharedOsWorldHandleV1> {
     const parsed = sharedOsWorldInitV1Schema.parse(init);
+    if (this.worlds.has(parsed.worldId)) {
+      throw new SharedOsWorldGateErrorV1(
+        parsed.worldId,
+        'duplicate_world',
+        `World ${parsed.worldId} is already initialized.`,
+      );
+    }
     const world = await this.options.worldFactory(parsed, this.options.modules);
     if (world.canonicalWorld === null || world.canonicalWorld === undefined) {
       throw new SharedOsWorldGateErrorV1(
@@ -147,6 +167,8 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
       test,
       recipient: parsed.recipient as SoAddress,
       namespaceId: parsed.namespaceId,
+      worldDigestAtInit: materializedDigest,
+      expectedVisibleTools: [...parsed.expectedVisibleTools].sort(),
     });
     return {
       worldId: parsed.worldId,
@@ -159,13 +181,24 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
     handle: SharedOsWorldHandleV1,
     request: SharedOsTurnRequestV1,
   ): Promise<SharedOsTurnResultV1[]> {
+    const parsedHandle = sharedOsWorldHandleV1Schema.parse(handle);
     const parsed = sharedOsTurnRequestV1Schema.parse(request);
-    const state = this.worlds.get(handle.worldId);
+    const state = this.worlds.get(parsedHandle.worldId);
     if (!state) {
       throw new SharedOsWorldGateErrorV1(
-        handle.worldId,
+        parsedHandle.worldId,
         'unknown_world',
-        `World ${handle.worldId} was never initialized or is closed.`,
+        `World ${parsedHandle.worldId} was never initialized or is closed.`,
+      );
+    }
+    if (
+      parsedHandle.namespaceId !== state.namespaceId
+      || parsedHandle.worldDigestAtInit !== state.worldDigestAtInit
+    ) {
+      throw new SharedOsWorldGateErrorV1(
+        parsedHandle.worldId,
+        'stale_handle',
+        `World handle ${parsedHandle.worldId} does not match the initialized world.`,
       );
     }
     const { modules } = this.options;
@@ -185,6 +218,7 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
           issuer: world.owner,
           capabilities: [modules.core.agentExecutionCapability(recipient, world.owner)],
           purposes: [parsed.message.purpose],
+          issuedAt: nowIso(),
         }),
       );
     }
@@ -201,6 +235,15 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
     };
 
     const tools = await test.kernel.listTools(context);
+    const visibleToolNames = tools.map(tool => tool.name).sort();
+    if (!sameStrings(visibleToolNames, state.expectedVisibleTools)) {
+      throw new SharedOsWorldGateErrorV1(
+        parsedHandle.worldId,
+        'tool_surface_mismatch',
+        `World ${parsedHandle.worldId} exposed [${visibleToolNames.join(', ')}] `
+        + `but expected [${state.expectedVisibleTools.join(', ')}].`,
+      );
+    }
     const toolCalls: SharedOsToolCallRecordV1[] = [];
     const executor = new modules.runtime.TurnExecutor(
       test.kernel,
@@ -258,9 +301,9 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
         occurredAt: event.at,
       }));
 
-    return [{
+    return [sharedOsTurnResultV1Schema.parse({
       turnId: parsed.turnId,
-      worldId: handle.worldId,
+      worldId: parsedHandle.worldId,
       adapterId: 'sharedos-embedded',
       protocolVersion: SHAREDOS_PROTOCOL_VERSION_V1,
       traceId: result.traceId,
@@ -268,17 +311,32 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
       output,
       toolCalls,
       events: [...runtimeEvents, ...auditEvents],
-      provenance: this.options.provenance,
+      provenance: typeof this.options.provenance === 'function'
+        ? this.options.provenance()
+        : this.options.provenance,
       usage: null,
       latencyMs: Math.max(0, this.clock.nowMs() - startedAtMs),
       ...(result.error === undefined
         ? {}
         : { errorDetail: `${result.error.code}${result.error.message ? `: ${result.error.message}` : ''}` }),
-    }];
+    })];
   }
 
   async closeWorld(handle: SharedOsWorldHandleV1): Promise<void> {
-    this.worlds.delete(handle.worldId);
+    const parsed = sharedOsWorldHandleV1Schema.parse(handle);
+    const state = this.worlds.get(parsed.worldId);
+    if (!state) return;
+    if (
+      parsed.namespaceId !== state.namespaceId
+      || parsed.worldDigestAtInit !== state.worldDigestAtInit
+    ) {
+      throw new SharedOsWorldGateErrorV1(
+        parsed.worldId,
+        'stale_handle',
+        `World handle ${parsed.worldId} does not match the initialized world.`,
+      );
+    }
+    this.worlds.delete(parsed.worldId);
   }
 
   /**
@@ -300,11 +358,36 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
                 publicStatus: publicToolStatus(input.result),
               });
             }
-            return session.next(input, nextSignal);
+            return session.next(normalizeDriverInput(input), nextSignal);
           },
           ...(session.close ? { close: session.close.bind(session) } : {}),
         };
       },
     };
   }
+}
+
+function normalizeDriverInput(input: SoTurnInput): SoTurnInput {
+  if (
+    input.type !== 'tool_result'
+    || !input.result.error
+    || !PUBLIC_UNAVAILABLE_CODES.has(input.result.error.code)
+  ) {
+    return input;
+  }
+  return {
+    type: 'tool_result' as const,
+    result: {
+      ...input.result,
+      status: 'denied' as const,
+      error: {
+        code: 'tool_unavailable',
+        message: 'The requested tool is unavailable.',
+      },
+    },
+  };
+}
+
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }

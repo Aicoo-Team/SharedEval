@@ -7,10 +7,9 @@
  * returned as an array so a misbehaving runtime can surface duplicate
  * emissions to the collection gate instead of hiding them.
  *
- * The real implementation wraps the `@sharedos` runtime/client once the
- * private repository is reachable; until then `MockSharedOsAdapterV1` is
- * the only implementation, which is exactly what lets the PACT-side tick
- * loop and gates be built and acceptance-tested first.
+ * `EmbeddedSharedOsAdapterV1` binds this contract to the production kernel;
+ * `MockSharedOsAdapterV1` remains available for deterministic fault and
+ * collection-gate tests.
  */
 import type {
   SharedOsTurnRequestV1,
@@ -27,7 +26,13 @@ export type SharedOsIdGenV1 = { next(prefix: string): string };
 export class SharedOsWorldGateErrorV1 extends Error {
   constructor(
     readonly worldId: string,
-    readonly reason: 'digest_mismatch' | 'empty_world' | 'unknown_world',
+    readonly reason:
+      | 'digest_mismatch'
+      | 'empty_world'
+      | 'unknown_world'
+      | 'duplicate_world'
+      | 'stale_handle'
+      | 'tool_surface_mismatch',
     message: string,
   ) {
     super(message);

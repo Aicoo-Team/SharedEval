@@ -82,6 +82,38 @@ test('converts OpenAI-compatible runner and terminal tool calls into decisions',
   assert.equal(secondBody.messages.at(-1).tool_call_id, 'provider-call-1');
 });
 
+test('SharedOS tool scoping narrows the model catalog and cannot widen it', async () => {
+  const calls: Array<{ init?: RequestInit }> = [];
+  const fetchMock = (async (_input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ init });
+    return jsonResponse(completionWithTool(
+      'provider-answer',
+      'pact_answer',
+      { content: 'No tool was needed.' },
+    ));
+  }) as typeof fetch;
+  const adapter = createAdapter(fetchMock);
+  await adapter.initialize(validRunInitV1);
+  adapter.setExecutionToolsV1([]);
+
+  const decision = await adapter.step(taskObservation(deniedAccessV1));
+  assert.deepEqual(decision, { type: 'answer', content: 'No tool was needed.' });
+  const body = JSON.parse(String(calls[0]?.init?.body));
+  assert.deepEqual(
+    body.tools.map((tool: { function: { name: string } }) => tool.function.name),
+    ['pact_answer', 'pact_refuse', 'pact_escalate'],
+  );
+
+  const widening = createAdapter(fetchMock);
+  await widening.initialize(validRunInitV1);
+  assert.throws(() => widening.setExecutionToolsV1([{
+    name: 'create_note',
+    description: 'Create a note.',
+    inputSchema: { type: 'object', properties: {} },
+    sideEffects: 'write',
+  }]), /cannot add create_note/);
+});
+
 test('supports refusal and text-only compatibility fallbacks', async () => {
   const responses = [
     completionWithTool('provider-refuse', 'pact_refuse', { reason: 'That information is private.' }),
@@ -490,6 +522,7 @@ test('rejects oversized or structurally hostile provider responses', async () =>
     deepAdapter.step(taskObservation(deniedAccessV1)),
     /exceeds JSON depth/,
   );
+
 });
 
 test('bounds parsed tool argument complexity before protocol validation', async () => {
