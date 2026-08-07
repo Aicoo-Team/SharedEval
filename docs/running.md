@@ -285,8 +285,9 @@ Run configs may select an execution backend. Omitting `backend` is equivalent
 to `backend: { kind: local }`, so existing model-backed configs are unchanged.
 The Harbor backend can materialize and run any PACT-Pair task selection (up to
 the full dataset), but every containerized trial currently runs the bundled
-no-network scripted parity harness — real-model execution inside containers is
-deferred until the secret-injection and container-networking decisions land:
+scripted parity harness — wiring the real-model harness across the container
+boundary is the runner-side follow-up. The container packaging contract
+(O-003) is already in force:
 
 ```bash
 uv tool install harbor==0.5.0
@@ -301,13 +302,51 @@ backend, the effective executor (`scripted-harness` for containerized parity
 trials, never the caller-selected model), the Harbor version, and the
 immutable image identity.
 
-The script builds the authoritative TypeScript environment as a Node image,
-runs the six-task smoke set through Harbor's local Docker backend, compares
-the canonical results with committed local golden artifacts, and then runs a
+**SharedOS in the image.** Before building the image, the backend stages the
+prebuilt SharedOS checkout (`packages/*/dist` plus manifests, workspace links,
+and the checkout's own `zod`) from the host into the Docker build context
+(`harbor/environment/sharedos-stage/`, gitignored), and the Dockerfile COPYs
+it to `/opt/pact/sharedos` with `PACT_SHAREDOS_DIR` pointing at it — the same
+loader contract as `src/execution/sharedos/v1/load-sharedos.ts`. The checkout
+is resolved from `PACT_SHAREDOS_DIR` on the host (default: `../sharedos-repo`)
+and must be at the verified commit `846cbf64830d1a77bf477b98fd3586cd5cdff02e`;
+staging fails closed on drift, and the commit is recorded both inside the
+image (`sharedos-provenance.json`) and in every task package
+(`[metadata] sharedos_commit`). The container never clones or builds SharedOS
+— that would require network access and break the no-network principle.
+
+**Secret injection (O-003 decision 1).** `PACT_MODEL_API_KEY` is runtime-only.
+Real-model task packages declare the Harbor env template
+`PACT_MODEL_API_KEY = "${PACT_MODEL_API_KEY}"`, which Harbor 0.5.0 resolves
+from the HOST environment at trial start and injects into container processes.
+The secret value never enters the task package, the image, logs, traces, or
+artifacts; in-container redaction is the same shared implementation the local
+backend uses (`src/suites/pact-pair/environment.ts`). Non-secret model
+configuration (endpoint, deployment, sampling controls) travels in the task
+package as a literal `PACT_MODEL_CONFIG_JSON`. Scripted parity packages carry
+no env section at all.
+
+**Network (O-003 decision 2).** Scripted parity trials stay strictly
+no-network (`allow_internet = false`), unchanged. Real-model trials narrow the
+no-network default to exactly the configured model endpoint host over HTTPS
+443: the task package records `network_policy = "model-endpoint-only"` and
+`allowed_egress = "https://<endpoint-host>:443"`, derived from the run
+config's model endpoint — never hardcoded — and materialization rejects plain
+HTTP or non-443 endpoints outright. Harbor 0.5.0 itself only offers the
+boolean `allow_internet` gate, so the host-level narrowing is enforced by the
+PACT harness pinning all provider traffic to the configured endpoint (its URL
+validator is not relaxed for containers) with the recorded `allowed_egress`
+as the auditable contract.
+
+The script checks for a built SharedOS checkout (skipping like the other
+prerequisites when absent), builds the authoritative TypeScript environment as
+a Node image, verifies the image carries the pinned SharedOS build, runs the
+six-task smoke set through Harbor's local Docker backend, compares the
+canonical results with committed local golden artifacts, and then runs a
 denied-egress probe that fails if a Harbor-run container can reach the
-network. It prints `SKIP` and exits successfully if Docker or Harbor is
-unavailable; set `PACT_HARBOR_SMOKE_REQUIRE=1` (as CI does) to fail instead of
-skipping when the prerequisites are expected. See
+network. It prints `SKIP` and exits successfully if Docker, Harbor, or the
+SharedOS build is unavailable; set `PACT_HARBOR_SMOKE_REQUIRE=1` (as CI does)
+to fail instead of skipping when the prerequisites are expected. See
 `examples/pact-run.harbor-smoke.yaml` for the smoke configuration and
 `examples/pact-run.harbor-split-01.yaml` for a curated 60-task split.
 

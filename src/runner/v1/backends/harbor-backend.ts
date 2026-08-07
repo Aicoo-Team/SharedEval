@@ -26,9 +26,16 @@ import type {
   PactRunExecutionMetadataV1,
 } from './execution-backend.js';
 import { mapWithConcurrencyV1 } from './concurrency.js';
+import { PACT_MODEL_API_KEY_ENV_V1 } from '../config.js';
+import {
+  defaultHostSharedOsDirV1,
+  pactHarborSharedOsStageDirV1,
+  stageSharedOsBuildV1,
+} from './harbor-sharedos.js';
 import {
   harborTaskImageName,
   materializeHarborDatasetV1,
+  pactHarborScriptedModelV1,
 } from './harbor-task-package.js';
 
 const defaultRepositoryRoot = join(
@@ -73,6 +80,12 @@ export type HarborBackendV1Options = {
   dockerExecutable?: string;
   imageName?: string;
   keepWorkingDirectory?: boolean;
+  /**
+   * A locally BUILT SharedOS checkout staged into the image. Defaults to
+   * PACT_SHAREDOS_DIR, then a `sharedos-repo` checkout beside the repository
+   * (the load-sharedos.ts convention).
+   */
+  sharedOsDir?: string;
 };
 
 /**
@@ -81,11 +94,16 @@ export type HarborBackendV1Options = {
  * (runSinglePactPairTaskV1). Any PACT-Pair task (up to the full 600-task
  * dataset) can be materialized and run.
  *
- * The in-container harness is still the deterministic no-network scripted
- * harness (see container-entrypoint.ts); wiring a real-model harness across the
- * container boundary is deferred P1 work pending the harness-contract (D3),
- * transport, and networking decisions. Run artifacts therefore record the
- * effective executor as `scripted-harness`, never the caller-selected model.
+ * The in-container harness is still the deterministic scripted harness (see
+ * container-entrypoint.ts); wiring a real-model harness across the container
+ * boundary is the runner-side follow-up. The container packaging decisions
+ * (O-003) are already in force here: the image carries the prebuilt SharedOS
+ * checkout (staged, never cloned/built in-container), the model credential is
+ * injected runtime-only through Harbor's env resolution, and real-model task
+ * packages narrow egress to the configured model endpoint host over HTTPS 443
+ * while scripted packages stay strictly no-network. Run artifacts therefore
+ * record the effective executor as `scripted-harness`, never the
+ * caller-selected model.
  */
 export class HarborBackendV1 implements ExecutionBackendV1 {
   readonly kind = 'harbor' as const;
@@ -94,6 +112,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
   private readonly dockerExecutable: string;
   private readonly imageName: string;
   private readonly keepWorkingDirectory: boolean;
+  private readonly sharedOsDir: string | undefined;
 
   constructor(options: HarborBackendV1Options = {}) {
     this.repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot;
@@ -101,6 +120,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
     this.dockerExecutable = options.dockerExecutable ?? 'docker';
     this.imageName = options.imageName ?? PACT_HARBOR_IMAGE_V1;
     this.keepWorkingDirectory = options.keepWorkingDirectory ?? false;
+    this.sharedOsDir = options.sharedOsDir;
   }
 
   async run(
@@ -126,6 +146,33 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
       // v0.5.0 semantics (allow_internet, verifier layout), so an unknown or
       // different Harbor version must not run trials at all.
       await this.assertCompatibleHarborVersion(context.environment);
+      // Harbor resolves task-package env templates from its own process
+      // environment; the subprocess below inherits process.env overlaid with
+      // context.environment, so check the same view here.
+      const runtimeEnvironment: Record<string, string | undefined> = {
+        ...process.env,
+        ...context.environment,
+      };
+      const scriptedRun = pactHarborScriptedModelV1(context.config.model);
+      if (!scriptedRun && !runtimeEnvironment[PACT_MODEL_API_KEY_ENV_V1]?.trim()) {
+        // O-003 decision 1: the credential is injected runtime-only through
+        // Harbor's env resolution, so a real-model run needs it on the host.
+        // Failing here beats one opaque per-trial resolution failure later.
+        throw new Error(
+          `Model credential environment variable ${PACT_MODEL_API_KEY_ENV_V1} `
+          + 'is not set. Harbor injects it into containers at runtime only '
+          + '(never via the task package or image), so real-model Harbor runs '
+          + 'require it in the host environment.',
+        );
+      }
+      // Stage the prebuilt SharedOS checkout into the Docker build context so
+      // the image COPY below carries it (no in-container clone/build). The
+      // staged commit is recorded in every task package for provenance.
+      const stagedSharedOs = await stageSharedOsBuildV1({
+        sharedOsDir: this.sharedOsDir
+          ?? defaultHostSharedOsDirV1(this.repositoryRoot, runtimeEnvironment),
+        stageDirectory: pactHarborSharedOsStageDirV1(this.repositoryRoot),
+      });
       await runExternalCommand(
         this.dockerExecutable,
         [
@@ -169,6 +216,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
         imageName: this.imageName,
         config: context.config,
         tasks: context.tasks,
+        sharedOsCommit: stagedSharedOs.commit,
       });
       try {
         await runExternalCommand(
