@@ -410,3 +410,71 @@ function normalizeTaskId(input: string): string {
   }
   return `PAIR-${match[1]?.toUpperCase()}${Number(match[2])}`;
 }
+
+function defaultPactPairRootDir(): string {
+  return join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+}
+
+export const PACT_PAIR_SPLIT_FAMILY_V2_V1 = '10_splits_v2' as const;
+
+const pactPairSplitTaskRefV1Schema = z
+  .object({ id: z.number().int().positive() })
+  .passthrough();
+
+/**
+ * A curated split under dataset/pact-pair/splits/<family>/split_<nn>.json.
+ * Only the question and action ids are load-bearing here; the canonical task
+ * content always comes from dataset/pact-pair/tasks/questions.json via
+ * loadPactPairTasksV1.
+ */
+export const pactPairSplitFileV1Schema = z
+  .object({
+    split: z.number().int().nonnegative().optional(),
+    total: z.number().int().nonnegative().optional(),
+    questions: z.array(pactPairSplitTaskRefV1Schema).default([]),
+    action_items: z.array(pactPairSplitTaskRefV1Schema).default([]),
+  })
+  .passthrough();
+
+export type PactPairSplitFileV1 = z.infer<typeof pactPairSplitFileV1Schema>;
+
+export function pactPairSplitPathV1(options: {
+  rootDir?: string;
+  family?: string;
+  index: number;
+}): string {
+  if (!Number.isSafeInteger(options.index) || options.index <= 0) {
+    throw new Error('PACT-Pair split index must be a positive safe integer');
+  }
+  const rootDir = options.rootDir ?? defaultPactPairRootDir();
+  const family = options.family ?? PACT_PAIR_SPLIT_FAMILY_V2_V1;
+  const fileName = `split_${String(options.index).padStart(2, '0')}.json`;
+  return join(rootDir, 'dataset', 'pact-pair', 'splits', family, fileName);
+}
+
+/**
+ * Resolves a curated split to its canonical, deterministically-ordered task
+ * ids: question tasks (ascending) followed by action tasks (ascending),
+ * mirroring the QA-then-action ordering used elsewhere. The returned ids are
+ * intended to be passed straight to loadPactPairTasksV1 / benchmark.tasks.ids,
+ * so the selection order — and therefore any committed golden — is stable.
+ */
+export function loadPactPairSplitTaskIdsV1(splitPath: string): string[] {
+  const split = pactPairSplitFileV1Schema.parse(readJson(splitPath));
+  const qaIds = [...split.questions]
+    .map(entry => entry.id)
+    .sort((left, right) => left - right)
+    .map(id => `PAIR-Q${id}`);
+  const actionIds = [...split.action_items]
+    .map(entry => entry.id)
+    .sort((left, right) => left - right)
+    .map(id => `PAIR-A${id}`);
+  const ids = [...qaIds, ...actionIds];
+  if (ids.length === 0) {
+    throw new Error(`PACT-Pair split ${splitPath} contains no tasks`);
+  }
+  if (new Set(ids).size !== ids.length) {
+    throw new Error(`PACT-Pair split ${splitPath} contains duplicate task ids`);
+  }
+  return ids;
+}

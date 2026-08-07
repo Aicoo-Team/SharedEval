@@ -57,6 +57,9 @@ jobs:
       - name: Type-check
         run: npm run type-check
 
+      - name: Build Harbor container bundle
+        run: npm run build:harbor
+
       - name: Build sample submission image
         run: >-
           docker build
@@ -126,3 +129,32 @@ jobs:
           PACT_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
           PACT_REQUIRE_SHAREDOS: '1'
         run: npm run test:execution
+
+  harbor-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Harbor 0.5.0
+        run: uv tool install harbor==0.5.0
+
+      # PACT_HARBOR_SMOKE_REQUIRE=1 turns missing prerequisites into hard
+      # failures: on CI the prerequisites are expected, so the smoke (parity
+      # golden + denied-egress probe) must fail loudly rather than skip.
+      - name: Harbor smoke (parity golden + denied-egress probe)
+        run: PACT_HARBOR_SMOKE_REQUIRE=1 bash scripts/verify_harbor.sh

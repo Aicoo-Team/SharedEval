@@ -1,0 +1,43 @@
+# Real-model (Azure OpenAI v1 API) config for the LOCAL backend — a single-task smoke.
+#
+# This calls a PAID Azure OpenAI endpoint (team-lead approved for real-model
+# testing). Start with one task and scale only once it works.
+#
+# Setup:
+#   1. export PACT_MODEL_API_KEY="<your-azure-openai-key>"   # never commit this
+#   2. edit endpoint + deployment below to match your resource
+#   3. npm run benchmark -- --config examples/pact-run.azure-local.yaml --check   # validate, no API call
+#   4. npm run benchmark -- --config examples/pact-run.azure-local.yaml           # one real trial
+#
+# The credential is read only from PACT_MODEL_API_KEY and sent in the Azure
+# `api-key` header. It is never written into this config, the request URL,
+# images, logs, traces, or run artifacts.
+apiVersion: pact-run/v1
+kind: RunConfig
+backend:
+  kind: local
+model:
+  provider: azure-openai
+  # The Azure OpenAI *v1* endpoint — it must end in /openai/v1 (NOT the project
+  # endpoint, and NOT a full .../chat/completions URL).
+  endpoint: https://your-resource.openai.azure.com/openai/v1
+  # Your deployment name (Azure uses it as the request-body model).
+  deployment: your-deployment-name
+  # apiVersion is optional on the v1 API. Uncomment only if your deployment
+  # needs preview features:
+  # apiVersion: preview
+  apiKeyEnv: PACT_MODEL_API_KEY
+  maxOutputTokens: 4096
+benchmark:
+  policy: D2
+  requester: R1
+  tasks:
+    kind: all
+    ids: [PAIR-Q1]
+budget:
+  maxTurns: 8
+  maxToolCalls: 4
+  maxRuntimeMs: 60000
+output:
+  directory: runs
+  saveTraces: true

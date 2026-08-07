@@ -8,6 +8,7 @@ import {
   loadPactRunConfigV1,
   parsePactRunConfigV1Yaml,
   resolvePactRunModelApiKeyV1,
+  selectedPactExecutionBackendV1,
 } from '../../src/runner/v1/config.js';
 
 const minimalConfig = `
@@ -20,12 +21,25 @@ model:
   model: example-model
 `;
 
+const azureConfig = `
+apiVersion: pact-run/v1
+kind: RunConfig
+model:
+  provider: azure-openai
+  endpoint: https://contoso.openai.azure.com/openai/v1
+  deployment: gpt-4o-eval
+  apiKeyEnv: PACT_MODEL_API_KEY
+`;
+
 test('parses a strict run config and applies safe defaults', () => {
   const config = parsePactRunConfigV1Yaml(minimalConfig);
 
+  assert.ok(config.model.provider === 'openai-compatible');
   assert.equal(config.model.baseUrl, 'https://api.example.com/v1');
   assert.equal('temperature' in config.model, false);
   assert.equal(config.model.maxOutputTokens, 4_096);
+  assert.equal(config.backend, undefined);
+  assert.deepEqual(selectedPactExecutionBackendV1(config), { kind: 'local' });
   assert.deepEqual(config.benchmark, {
     dataset: 'pact-pair',
     policy: 'D2',
@@ -42,6 +56,40 @@ test('parses a strict run config and applies safe defaults', () => {
     directory: 'runs',
     saveTraces: false,
   });
+});
+
+test('selects local by default and validates explicit backend settings', () => {
+  const local = parsePactRunConfigV1Yaml(`${minimalConfig}
+backend:
+  kind: local
+`);
+  assert.deepEqual(selectedPactExecutionBackendV1(local), { kind: 'local' });
+
+  const harbor = parsePactRunConfigV1Yaml(`${minimalConfig}
+backend:
+  kind: harbor
+`);
+  assert.deepEqual(selectedPactExecutionBackendV1(harbor), {
+    kind: 'harbor',
+    concurrency: 4,
+  });
+
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+backend:
+  kind: harbor
+  concurrency: 0
+`),
+    ZodError,
+  );
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+backend:
+  kind: local
+  concurrency: 4
+`),
+    ZodError,
+  );
 });
 
 test('rejects literal credentials and unknown config fields', () => {
@@ -80,13 +128,68 @@ test('rejects literal credentials and unknown config fields', () => {
     )),
     ZodError,
   );
-  assert.equal(
-    parsePactRunConfigV1Yaml(minimalConfig.replace(
-      'https://api.example.com/v1/',
-      'http://127.0.0.1:11434/v1/',
-    )).model.baseUrl,
-    'http://127.0.0.1:11434/v1',
+  const loopback = parsePactRunConfigV1Yaml(minimalConfig.replace(
+    'https://api.example.com/v1/',
+    'http://127.0.0.1:11434/v1/',
+  )).model;
+  assert.ok(loopback.provider === 'openai-compatible');
+  assert.equal(loopback.baseUrl, 'http://127.0.0.1:11434/v1');
+});
+
+test('parses an azure-openai model config and strips the endpoint trailing slash', () => {
+  const config = parsePactRunConfigV1Yaml(azureConfig.replace(
+    'endpoint: https://contoso.openai.azure.com/openai/v1',
+    'endpoint: https://contoso.openai.azure.com/openai/v1/',
+  ));
+  assert.ok(config.model.provider === 'azure-openai');
+  assert.equal(config.model.endpoint, 'https://contoso.openai.azure.com/openai/v1');
+  assert.equal(config.model.deployment, 'gpt-4o-eval');
+  assert.equal(config.model.apiVersion, undefined);
+  assert.equal(config.model.maxOutputTokens, 4_096);
+  assert.equal('baseUrl' in config.model, false);
+  assert.deepEqual(selectedPactExecutionBackendV1(config), { kind: 'local' });
+});
+
+test('accepts an optional azure api-version', () => {
+  const config = parsePactRunConfigV1Yaml(`${azureConfig}  apiVersion: preview\n`);
+  assert.ok(config.model.provider === 'azure-openai');
+  assert.equal(config.model.apiVersion, 'preview');
+});
+
+test('rejects malformed azure-openai model configs', () => {
+  const withEndpoint = (endpoint: string) => azureConfig.replace(
+    'endpoint: https://contoso.openai.azure.com/openai/v1',
+    `endpoint: ${endpoint}`,
   );
+  // not https
+  assert.throws(() => parsePactRunConfigV1Yaml(
+    withEndpoint('http://contoso.openai.azure.com/openai/v1'),
+  ), ZodError);
+  // carries a query string
+  assert.throws(() => parsePactRunConfigV1Yaml(
+    withEndpoint('https://contoso.openai.azure.com/openai/v1?api-version=preview'),
+  ), ZodError);
+  // bare resource host, not the v1 endpoint
+  assert.throws(() => parsePactRunConfigV1Yaml(
+    withEndpoint('https://contoso.openai.azure.com'),
+  ), ZodError);
+  // full completions URL instead of the v1 base
+  assert.throws(() => parsePactRunConfigV1Yaml(
+    withEndpoint('https://contoso.openai.azure.com/openai/v1/chat/completions'),
+  ), ZodError);
+  // project endpoint, not /openai/v1
+  assert.throws(() => parsePactRunConfigV1Yaml(
+    withEndpoint('https://contoso.services.ai.azure.com/api/projects/demo'),
+  ), ZodError);
+  // malformed api-version when provided
+  assert.throws(() => parsePactRunConfigV1Yaml(
+    `${azureConfig}  apiVersion: not-a-version\n`,
+  ), ZodError);
+  // literal credential instead of the env var name
+  assert.throws(() => parsePactRunConfigV1Yaml(azureConfig.replace(
+    'apiKeyEnv: PACT_MODEL_API_KEY',
+    'apiKeyEnv: sk-literal-secret',
+  )), ZodError);
 });
 
 test('rejects aliases and multiple YAML documents', () => {
