@@ -130,13 +130,44 @@ jobs:
           PACT_REQUIRE_SHAREDOS: '1'
         run: npm run test:execution
 
+  # The Harbor image now stages the pinned SharedOS build (Track B), so this
+  # job needs the same fail-closed SharedOS checkout as sharedos-conformance:
+  # a missing token or build must fail, never skip — "SharedOS unavailable"
+  # can never merge green.
   harbor-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    env:
+      # Pin: the SharedOS commit the staged image provenance is verified
+      # against. Keep in lockstep with sharedos-conformance.
+      SHAREDOS_PIN: 846cbf64830d1a77bf477b98fd3586cd5cdff02e
+
     steps:
+      - name: Require SharedOS checkout token
+        env:
+          SHAREDOS_CHECKOUT_TOKEN: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
+        run: |
+          if [ -z "$SHAREDOS_CHECKOUT_TOKEN" ]; then
+            echo "::error::SHAREDOS_CHECKOUT_TOKEN secret is not configured. The Harbor image stages the pinned SharedOS build, so this job must fail rather than skip: configure a PAT with read access to Aicoo-Team/SharedOS in the repository secrets."
+            exit 1
+          fi
+
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Check out SharedOS (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: Aicoo-Team/SharedOS
+          ref: ${{ env.SHAREDOS_PIN }}
+          token: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
+          path: sharedos-repo
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -146,6 +177,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Build SharedOS
+        working-directory: sharedos-repo
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -157,4 +194,6 @@ jobs:
       # failures: on CI the prerequisites are expected, so the smoke (parity
       # golden + denied-egress probe) must fail loudly rather than skip.
       - name: Harbor smoke (parity golden + denied-egress probe)
+        env:
+          PACT_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
         run: PACT_HARBOR_SMOKE_REQUIRE=1 bash scripts/verify_harbor.sh
