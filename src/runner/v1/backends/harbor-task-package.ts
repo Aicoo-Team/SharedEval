@@ -8,6 +8,7 @@ import {
 import { join } from 'node:path';
 import {
   PACT_MODEL_API_KEY_ENV_V1,
+  selectedPactExecutionAdapterV1,
   type PactModelConfigV1,
   type PactRunConfigV1,
 } from '../config.js';
@@ -84,7 +85,10 @@ export async function materializeHarborDatasetV1(
     : pactHarborAllowedEgressV1(options.config.model);
   const modelEnvironmentSection = scripted
     ? ''
-    : modelEnvironmentSectionV1(options.config.model);
+    : modelEnvironmentSectionV1(
+        options.config.model,
+        selectedPactExecutionAdapterV1(options.config),
+      );
   await mkdir(options.datasetDirectory, { recursive: true });
   await mapWithConcurrencyV1(
     options.tasks,
@@ -133,16 +137,21 @@ export async function materializeHarborDatasetV1(
  * pactModelConfigV1Schema; it names the credential's env alias but never its
  * value.
  */
-function modelEnvironmentSectionV1(model: PactModelConfigV1): string {
+function modelEnvironmentSectionV1(
+  model: PactModelConfigV1,
+  executionAdapter: string,
+): string {
   return [
     '',
     '# O-003 decision 1: the model credential is runtime-only. Harbor resolves',
     '# the template below from the HOST environment when the trial starts and',
     '# injects it into container processes only; the secret never enters this',
     '# task package, the image, logs, traces, or artifacts. Non-secret model',
-    '# configuration travels here as a literal.',
+    '# configuration travels here as a literal, as does the execution adapter',
+    '# the host run selected (provenance for the in-container config digest).',
     '[environment.env]',
     `PACT_MODEL_CONFIG_JSON = ${tomlBasicStringV1(JSON.stringify(model))}`,
+    `PACT_EXECUTION_ADAPTER = ${tomlBasicStringV1(executionAdapter)}`,
     `${PACT_MODEL_API_KEY_ENV_V1} = "\${${PACT_MODEL_API_KEY_ENV_V1}}"`,
     '',
   ].join('\n');

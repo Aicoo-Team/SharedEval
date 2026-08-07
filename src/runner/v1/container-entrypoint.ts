@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import { basename, dirname, resolve } from 'node:path';
-import { pactRunConfigV1Schema, type PactRunConfigV1 } from './config.js';
+import {
+  pactExecutionAdapterIdV1Schema,
+  pactRunConfigV1Schema,
+  type PactExecutionAdapterIdV1,
+  type PactRunConfigV1,
+} from './config.js';
 import { runPactPairBenchmarkV1 } from './runner.js';
 import { createScriptedPactHarnessV1 } from './scripted-harness.js';
 import {
@@ -40,13 +45,24 @@ export function buildPactContainerRunConfigV1(
     | 'maxTurns'
     | 'maxToolCalls'
     | 'maxRuntimeMs'
-  > & { outputDirectoryName: string },
+  > & {
+    outputDirectoryName: string;
+    /**
+     * Real-model trials: the non-secret model configuration the task package
+     * injected as the PACT_MODEL_CONFIG_JSON literal (O-003 decision 1). The
+     * credential itself never travels here — it stays in the runtime-only
+     * PACT_MODEL_API_KEY environment variable that Harbor injects.
+     */
+    modelConfig?: unknown;
+    /** Execution adapter selected by the host run config (provenance). */
+    executionAdapter?: PactExecutionAdapterIdV1;
+  },
 ): PactRunConfigV1 {
   return pactRunConfigV1Schema.parse({
     apiVersion: 'pact-run/v1',
     kind: 'RunConfig',
     backend: { kind: 'local' },
-    model: {
+    model: options.modelConfig ?? {
       provider: 'openai-compatible',
       baseUrl: 'https://scripted.invalid/v1',
       apiKeyEnv: 'PACT_MODEL_API_KEY',
@@ -64,6 +80,9 @@ export function buildPactContainerRunConfigV1(
         kind: options.taskId.startsWith('PAIR-A') ? 'action' : 'qa',
         ids: [options.taskId],
       },
+      ...(options.executionAdapter === undefined
+        ? {}
+        : { execution: { adapter: options.executionAdapter } }),
     },
     budget: {
       maxTurns: options.maxTurns,
@@ -82,16 +101,34 @@ export async function mainPactContainerV1(
 ): Promise<number> {
   const options = parseContainerOptions(argv);
   const absoluteOutput = resolve(options.outputDirectory);
+  // Real-model trials inject the non-secret model configuration as a task
+  // package literal (PACT_MODEL_CONFIG_JSON) and the credential as the
+  // runtime-only PACT_MODEL_API_KEY (O-003 decision 1). Absent that literal
+  // the container runs the deterministic scripted parity harness, exactly as
+  // before — scripted task packages carry no [environment.env] section.
+  const modelConfigJson = process.env.PACT_MODEL_CONFIG_JSON?.trim();
+  const executionAdapterRaw = process.env.PACT_EXECUTION_ADAPTER?.trim();
   const config = buildPactContainerRunConfigV1({
     ...options,
     outputDirectoryName: basename(absoluteOutput),
+    ...(modelConfigJson ? { modelConfig: parseModelConfigJson(modelConfigJson) } : {}),
+    ...(executionAdapterRaw
+      ? { executionAdapter: pactExecutionAdapterIdV1Schema.parse(executionAdapterRaw) }
+      : {}),
   });
+  const scripted = !modelConfigJson;
   const result = await runPactPairBenchmarkV1(config, {
-    harnessFactory: () => createScriptedPactHarnessV1(),
-    // The container always runs the deterministic scripted parity harness —
-    // never a caller-selected model — and its artifacts must say so.
-    executor: 'scripted-harness',
-    environment: {},
+    ...(scripted
+      ? {
+          harnessFactory: () => createScriptedPactHarnessV1(),
+          // Scripted parity trials never call a model and their artifacts
+          // must say so.
+          executor: 'scripted-harness' as const,
+        }
+      : {}),
+    // Real-model trials need the injected credential from the container
+    // process environment; scripted trials see no environment at all.
+    environment: scripted ? {} : process.env,
     runId: `harbor-${options.taskId}`,
     workingDirectory: dirname(absoluteOutput),
   });
@@ -101,6 +138,16 @@ export async function mainPactContainerV1(
     correct: result.tasks[0]?.evaluation?.correct ?? false,
   })}\n`);
   return result.summary.errors === 0 ? 0 : 1;
+}
+
+function parseModelConfigJson(source: string): unknown {
+  try {
+    return JSON.parse(source) as unknown;
+  } catch {
+    // Never echo the raw value: it is non-secret by contract, but a
+    // malformed injection should not be replayed into logs either.
+    throw new Error('PACT_MODEL_CONFIG_JSON is not valid JSON');
+  }
 }
 
 function parseContainerOptions(argv: string[]): ContainerOptionsV1 {

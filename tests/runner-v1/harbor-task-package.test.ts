@@ -356,3 +356,62 @@ function azureConfig(ids: string[]) {
     },
   });
 }
+
+test('real-model task packages carry the selected execution adapter and the container honors it', async t => {
+  const temporary = await mkdtemp(join(tmpdir(), 'pact-harbor-adapter-'));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const config = pactRunConfigV1Schema.parse({
+    ...JSON.parse(JSON.stringify(azureConfig(['PAIR-Q1']))),
+    benchmark: {
+      policy: 'D2',
+      requester: 'R1',
+      tasks: { kind: 'all', ids: ['PAIR-Q1'] },
+      execution: { adapter: 'sharedos-embedded' },
+    },
+  });
+
+  await materializeHarborDatasetV1({
+    datasetDirectory: temporary,
+    templateDirectory,
+    imageName: PACT_HARBOR_IMAGE_V1,
+    config,
+    tasks: tasksFor(['PAIR-Q1']),
+  });
+
+  const taskToml = await readFile(join(temporary, 'pair-q1', 'task.toml'), 'utf8');
+  assert.match(taskToml, /PACT_EXECUTION_ADAPTER = "sharedos-embedded"/);
+
+  // The container entrypoint rebuilds the exact run configuration from the
+  // injected literals: real model, selected adapter, same strict schema.
+  const { buildPactContainerRunConfigV1 } = await import(
+    '../../src/runner/v1/container-entrypoint.js'
+  );
+  const containerConfig = buildPactContainerRunConfigV1({
+    taskId: 'PAIR-Q1',
+    policy: 'D2',
+    requester: 'R1',
+    gradingMode: 'category',
+    maxTurns: 4,
+    maxToolCalls: 2,
+    maxRuntimeMs: 30_000,
+    outputDirectoryName: 'pact-output',
+    modelConfig: JSON.parse(JSON.stringify(config.model)),
+    executionAdapter: 'sharedos-embedded',
+  });
+  assert.equal(containerConfig.model.provider, 'azure-openai');
+  assert.equal(containerConfig.benchmark.execution?.adapter, 'sharedos-embedded');
+
+  // Scripted packages keep the public-runner default and no env section.
+  const scriptedContainerConfig = buildPactContainerRunConfigV1({
+    taskId: 'PAIR-Q1',
+    policy: 'D2',
+    requester: 'R1',
+    gradingMode: 'category',
+    maxTurns: 4,
+    maxToolCalls: 2,
+    maxRuntimeMs: 30_000,
+    outputDirectoryName: 'pact-output',
+  });
+  assert.equal(scriptedContainerConfig.model.provider, 'openai-compatible');
+  assert.equal('execution' in scriptedContainerConfig.benchmark, false);
+});
