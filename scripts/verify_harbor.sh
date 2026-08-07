@@ -106,7 +106,9 @@ def load_results(path):
     results = [json.loads(line) for line in path.read_text().splitlines() if line]
     for result in results:
         result["budgetUsed"]["runtimeMs"] = 0
-    return results
+    # The streaming checkpoint appends results in trial-completion order,
+    # which is nondeterministic under concurrency; compare by task id.
+    return sorted(results, key=lambda result: result["taskId"])
 
 actual_results = load_results(actual_dir / "results.jsonl")
 golden_results = load_results(golden_dir / "results.jsonl")

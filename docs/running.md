@@ -276,8 +276,8 @@ A cell is reusable only when its latest manifest row passed the strict gate
 and its model/policy/requester/surface/replicate, configuration, task set,
 policy hash, and exact source-state provenance still match. Failed, partial,
 stale, or changed cells remain pending and run into a new unique output
-directory. The runner checkpoints task artifacts, but it does not continue an
-interrupted cell in place.
+directory. The sweep script itself does not continue an interrupted cell in
+place, but the runner can: see "Resuming an interrupted run" below.
 
 ## Optional Harbor execution backend
 
@@ -407,6 +407,43 @@ artifacts.
 
 Local results use released tasks and labels and are intended for development
 and reproducibility. They are not an official held-out leaderboard score.
+
+## Resuming an interrupted run
+
+Both backends checkpoint per task: every trial's canonical result line is
+appended to `results.jsonl` the moment the trial settles (the Harbor backend
+streams settled trials back to the host while the job is still running, so a
+mid-batch crash of the runner, Docker, or the orchestrator loses at most the
+in-flight trials, never the completed ones).
+
+An interrupted run can then be continued in place:
+
+```bash
+npm run benchmark -- --config pact-run.yaml --resume runs/pact-<timestamp>-<uuid>
+```
+
+`--resume` re-executes only the tasks that are missing from `results.jsonl`
+and the tasks whose prior status was `infrastructure_error`; the seed
+workspace and task selection are unchanged, and the final `summary.json` is
+recomputed over the union of retained and re-run trials. Constraints and
+guarantees:
+
+- **Same config only.** The config passed with `--resume` must be exactly the
+  original one — `configDigest` and `taskSetDigest` are compared against the
+  run's `run.json` and any drift fails closed, so results produced under
+  different configurations can never mix in one run directory.
+- **Completed trials are immutable.** A task with a recorded `ok` result is
+  never re-run and its checkpoint line is retained verbatim. There is
+  deliberately no override flag: repeated resumes cannot be used to re-roll
+  completed trials (no best-of-N).
+- **Requires `output.saveTraces: true`.** The run summary aggregates the full
+  private evaluations, which only persist under `private/` when the retention
+  switch is on; resuming a run recorded without them is rejected.
+- **Resume provenance is recorded.** A resumed run's `run.json` (and the CLI
+  output) carries `resumed: true` plus a `resumes` list with one entry per
+  resume attempt and the exact task ids it re-executed. Before re-running,
+  stale artifact lines of the re-run tasks (their prior
+  `infrastructure_error` records) are compacted away via an atomic rewrite.
 
 ## Local run config versus submission manifest
 

@@ -74,12 +74,20 @@ export const PACT_HARBOR_SMOKE_TASK_IDS_V1 = [
   'PAIR-A41',
 ] as const;
 
+// How often the backend scans the Harbor jobs directory for settled trials
+// while `harbor run` is executing. Each scan only parses trials that have not
+// been emitted yet, so the steady-state cost is proportional to new
+// completions, not to the run size.
+const HARBOR_STREAM_POLL_INTERVAL_MS_V1 = 2_000;
+
 export type HarborBackendV1Options = {
   repositoryRoot?: string;
   harborExecutable?: string;
   dockerExecutable?: string;
   imageName?: string;
   keepWorkingDirectory?: boolean;
+  /** Poll interval for streaming per-trial results while Harbor runs. */
+  streamPollIntervalMs?: number;
   /**
    * A locally BUILT SharedOS checkout staged into the image. Defaults to
    * PACT_SHAREDOS_DIR, then a `sharedos-repo` checkout beside the repository
@@ -93,6 +101,12 @@ export type HarborBackendV1Options = {
  * the container runs the authoritative per-task engine
  * (runSinglePactPairTaskV1). Any PACT-Pair task (up to the full 600-task
  * dataset) can be materialized and run.
+ *
+ * Per-trial results stream back to the host while the job is running: the
+ * backend polls the Harbor jobs directory and hands each settled trial to
+ * context.onTaskRun immediately, so the host's per-task checkpoint
+ * (results.jsonl and friends) survives a mid-job crash and a later run can
+ * resume instead of re-running completed trials.
  *
  * The in-container harness is still the deterministic scripted harness (see
  * container-entrypoint.ts); wiring a real-model harness across the container
@@ -113,6 +127,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
   private readonly imageName: string;
   private readonly keepWorkingDirectory: boolean;
   private readonly sharedOsDir: string | undefined;
+  private readonly streamPollIntervalMs: number;
 
   constructor(options: HarborBackendV1Options = {}) {
     this.repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot;
@@ -121,6 +136,8 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
     this.imageName = options.imageName ?? PACT_HARBOR_IMAGE_V1;
     this.keepWorkingDirectory = options.keepWorkingDirectory ?? false;
     this.sharedOsDir = options.sharedOsDir;
+    this.streamPollIntervalMs = options.streamPollIntervalMs
+      ?? HARBOR_STREAM_POLL_INTERVAL_MS_V1;
   }
 
   async run(
@@ -132,6 +149,10 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
     let commandFailure: unknown;
     let collected = new Map<string, PactExecutionTaskRunV1>();
     let trialFailures = new Map<string, string>();
+    // Task ids already handed to the host through onTaskRun. Streamed trials
+    // are checkpointed by the host as soon as they settle; the final sweep
+    // below only fills in what streaming did not deliver.
+    const emitted = new Set<string>();
     const execution: PactRunExecutionMetadataV1 = {
       backend: 'harbor',
       // Scripted parity packages never call a model; real-model packages run
@@ -224,7 +245,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
         sharedOsCommit: stagedSharedOs.commit,
       });
       try {
-        await runExternalCommand(
+        const harborRun = runExternalCommand(
           this.harborExecutable,
           [
             'run',
@@ -248,6 +269,18 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
           this.repositoryRoot,
           context.environment,
         );
+        // Streaming checkpoint: while Harbor is running, hand every settled
+        // trial to the host immediately so its per-task results.jsonl append
+        // survives a mid-run crash of this process or the orchestrator.
+        const streamed = await streamHarborTrialsV1({
+          jobsDirectory,
+          tasks: context.tasks,
+          untilSettled: harborRun,
+          pollIntervalMs: this.streamPollIntervalMs,
+          onTaskRun: context.onTaskRun,
+        });
+        for (const taskId of streamed) emitted.add(taskId);
+        await harborRun;
       } catch (error) {
         commandFailure = error;
       }
@@ -265,6 +298,9 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
       ? commandErrorMessage(commandFailure)
       : 'Harbor completed without a canonical PACT result artifact';
     for (const task of context.tasks) {
+      // Trials streamed during the run were already handed to the host once;
+      // emitting them again would duplicate their checkpoint lines.
+      if (emitted.has(task.taskId)) continue;
       const taskRun = collected.get(task.taskId)
         ?? await buildPactPairBackendErrorRunV1({
           config: context.config,
@@ -306,6 +342,105 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
   }
 }
 
+export type StreamHarborTrialsV1Options = {
+  jobsDirectory: string;
+  tasks: LoadedPactPairTaskV1[];
+  /** Settles (resolve or reject) when the `harbor run` command exits. */
+  untilSettled: Promise<unknown>;
+  pollIntervalMs: number;
+  onTaskRun?: (taskRun: PactExecutionTaskRunV1) => Promise<void>;
+};
+
+/**
+ * Streams settled Harbor trials to the host while the job is still running.
+ *
+ * Polls the jobs directory until the Harbor command settles, emitting every
+ * newly settled trial exactly once through onTaskRun (in canonical task order
+ * within each poll). Never throws: a transient scan or parse race only delays
+ * a trial to the next poll or to the caller's final collection sweep. The
+ * command's own failure is observed only as termination here — the caller
+ * still awaits the command promise for the real error.
+ *
+ * Returns the set of task ids emitted, so the caller can avoid handing those
+ * trials to the host a second time.
+ */
+export async function streamHarborTrialsV1(
+  options: StreamHarborTrialsV1Options,
+): Promise<Set<string>> {
+  const emitted = new Set<string>();
+  let running = true;
+  const settled = options.untilSettled.then(
+    () => { running = false; },
+    () => { running = false; },
+  );
+  while (running) {
+    await settledOrDelay(settled, options.pollIntervalMs);
+    if (!running) break;
+    try {
+      const trials = await collectSettledHarborTrialsV1(
+        options.jobsDirectory,
+        options.tasks,
+        emitted,
+      );
+      for (const task of options.tasks) {
+        const trial = trials.get(task.taskId);
+        if (!trial || emitted.has(task.taskId)) continue;
+        emitted.add(task.taskId);
+        await options.onTaskRun?.(trial);
+      }
+    } catch {
+      // Transient filesystem races while Harbor writes trial directories are
+      // expected; the affected trials are retried on the next poll.
+    }
+  }
+  return emitted;
+}
+
+async function settledOrDelay(
+  settled: Promise<unknown>,
+  delayMs: number,
+): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      settled,
+      new Promise<void>(resolve => { timer = setTimeout(resolve, delayMs); }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * Collects the trials that have SETTLED — Harbor has written the trial-level
+ * `result.json`, which happens only after the task container exited, so every
+ * container-written PACT artifact is complete on disk — excluding trials the
+ * caller already emitted. Trials whose artifacts fail to parse are silently
+ * skipped here (unlike the final sweep, which records them as failures):
+ * mid-run, an unreadable artifact is indistinguishable from a transient race.
+ */
+export async function collectSettledHarborTrialsV1(
+  jobsDirectory: string,
+  tasks: LoadedPactPairTaskV1[],
+  alreadyEmitted: ReadonlySet<string>,
+): Promise<Map<string, PactExecutionTaskRunV1>> {
+  const taskIdByDirectory = new Map(tasks.map(task => [
+    task.taskId.toLocaleLowerCase('en-US'),
+    task.taskId,
+  ] as const));
+  const markers = await findNamedFiles(jobsDirectory, 'result.json');
+  const settled = new Set<string>();
+  for (const marker of markers) {
+    const taskId = taskIdFromArtifactPath(marker, taskIdByDirectory);
+    if (taskId && !alreadyEmitted.has(taskId)) settled.add(taskId);
+  }
+  if (settled.size === 0) return new Map();
+  const { taskRuns } = await collectHarborTaskRunsV1(jobsDirectory, tasks, {
+    only: settled,
+  });
+  return taskRuns;
+}
+
 /**
  * Collects Harbor verifier artifacts back into host task runs. Fault isolation
  * and trust are per task:
@@ -320,6 +455,14 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
 export async function collectHarborTaskRunsV1(
   jobsDirectory: string,
   tasks: LoadedPactPairTaskV1[],
+  options: {
+    /**
+     * When set, only artifacts whose trial directory maps to one of these
+     * task ids are parsed (the streaming path scopes each poll to newly
+     * settled trials).
+     */
+    only?: ReadonlySet<string>;
+  } = {},
 ): Promise<{
   taskRuns: Map<string, PactExecutionTaskRunV1>;
   failures: Map<string, string>;
@@ -340,6 +483,7 @@ export async function collectHarborTaskRunsV1(
   const artifactPaths = await findNamedFiles(jobsDirectory, 'pact-result.json');
   for (const artifactPath of artifactPaths) {
     const pathTaskId = taskIdFromArtifactPath(artifactPath, taskIdByDirectory);
+    if (options.only && (!pathTaskId || !options.only.has(pathTaskId))) continue;
     let taskId = pathTaskId;
     try {
       const result = pactTaskResultV1Schema.parse(
@@ -427,6 +571,7 @@ export async function collectHarborTaskRunsV1(
       ? taskIdByDirectory.get(basename(taskPath))
       : undefined;
     if (!taskId || collected.has(taskId) || !value.exception_info) continue;
+    if (options.only && !options.only.has(taskId)) continue;
     const message = value.exception_info.exception_message;
     const traceback = value.exception_info.exception_traceback;
     recordFailure(taskId, [message, traceback]

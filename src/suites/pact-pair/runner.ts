@@ -19,6 +19,12 @@ import {
   type ExecutionBackendV1,
   type PactRunExecutionMetadataV1,
 } from '../../runner/v1/backends/index.js';
+import {
+  compactResumedRunArtifactsV1,
+  loadPactPairResumeStateV1,
+  PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1,
+  type PactPairResumeStateV1,
+} from './resume.js';
 import { loadPactPairTasksV1 } from './task-loader.js';
 import { loadCanonicalPactPairStoreV1 } from './workspace.js';
 import type {
@@ -59,19 +65,14 @@ export type {
 
 const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-/**
- * Private-artifact contract for a run output directory.
- *
- * Public artifacts (the output directory root) never contain gold labels,
- * gold facts, or raw workspace content: `run.json`, `summary.json`,
- * `results.jsonl`, and `checkpoint.json` carry only the public result shape.
- *
- * Everything derived from private gold — the full evaluation records
- * (`evaluation.jsonl`) and the raw traces (`trace.jsonl`) — lives under the
- * `private/` subdirectory and is written only when `output.saveTraces` is
- * true. With `saveTraces: false` no gold-bearing artifact is persisted at all.
- */
-export const PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1 = 'private' as const;
+// The private-artifact contract (and its documentation) lives in resume.ts
+// beside the code that re-reads the checkpoint artifacts; re-exported here for
+// compatibility.
+export {
+  PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1,
+  selectPactPairResumeTasksV1,
+  type PactPairResumeSelectionV1,
+} from './resume.js';
 export const PACT_PUBLIC_RUN_ARTIFACTS_V1 = [
   'run.json',
   'summary.json',
@@ -223,8 +224,21 @@ export type PactPairRunResultV1 = {
     reason: 'provider_configuration_error';
   };
   outputDirectory?: string;
+  /**
+   * Resume provenance: present exactly when this run result was produced by
+   * resuming a prior run directory. Each entry records one resume attempt and
+   * the task ids it re-executed (missing or infrastructure_error trials —
+   * completed trials are never re-run).
+   */
+  resumed?: true;
+  resumes?: PactPairRunResumeRecordV1[];
   summary: PactPairRunSummaryV1;
   tasks: PactPairTaskResultV1[];
+};
+
+export type PactPairRunResumeRecordV1 = {
+  at: string;
+  taskIds: string[];
 };
 
 export type RunPactPairBenchmarkV1Options = {
@@ -246,6 +260,15 @@ export type RunPactPairBenchmarkV1Options = {
   workingDirectory?: string;
   seed?: PairDataStore;
   writeOutputs?: boolean;
+  /**
+   * Path to a prior run's output directory to resume (relative paths resolve
+   * against workingDirectory). The current config and task selection must
+   * match the original exactly (digest-checked). Completed trials are
+   * retained verbatim and never re-executed; only missing and
+   * infrastructure_error trials run. Requires the original run to have used
+   * output.saveTraces: true.
+   */
+  resume?: string;
 };
 
 export async function runPactPairBenchmarkV1(
@@ -266,7 +289,7 @@ export async function runPactPairBenchmarkV1(
   });
   const now = options.now ?? (() => new Date());
   const startedAt = now();
-  const runId = options.runId
+  let runId = options.runId
     ?? `pact-${startedAt.toISOString().replace(/[:.]/g, '-')}-${randomUUID()}`;
   const rootDir = options.rootDir ?? repositoryRoot;
   const environment = options.environment ?? process.env;
@@ -297,61 +320,133 @@ export async function runPactPairBenchmarkV1(
     executor: options.executor
       ?? (options.harnessFactory || options.adapterFactory ? 'custom-harness' : 'model'),
   };
-  const outputDirectory = options.writeOutputs === false
-    ? undefined
-    : await prepareRunOutputDirectory({
-        workingDirectory: options.workingDirectory ?? process.cwd(),
-        configuredDirectory: runConfig.output.directory,
-        runId,
-        startedAt: startedAt.toISOString(),
-        model: runMetadataModelV1(runConfig.model),
-        execution: defaultExecution,
-        benchmark: runConfig.benchmark,
-        policyProvenance,
-        budget: runConfig.budget,
-        configDigest,
-        taskSetDigest,
-        sourceRevision,
-        selectedTasks: tasks.length,
-        saveTraces: runConfig.output.saveTraces,
-      });
+  let resumeState: PactPairResumeStateV1 | undefined;
+  let resumes: PactPairRunResumeRecordV1[] | undefined;
+  let outputDirectory: string | undefined;
+  let pendingTasks = tasks;
+  if (options.resume !== undefined) {
+    if (options.writeOutputs === false) {
+      throw new Error(
+        'resume requires writeOutputs: the run directory is the checkpoint',
+      );
+    }
+    if (options.runId !== undefined) {
+      throw new Error(
+        'resume keeps the original run id; do not combine resume with runId',
+      );
+    }
+    outputDirectory = resolve(
+      options.workingDirectory ?? process.cwd(),
+      options.resume,
+    );
+    resumeState = await loadPactPairResumeStateV1({
+      runDirectory: outputDirectory,
+      tasks,
+      configDigest,
+      taskSetDigest,
+    });
+    runId = resumeState.runId;
+    const pendingIds = new Set([
+      ...resumeState.selection.retryTaskIds,
+      ...resumeState.selection.missingTaskIds,
+    ]);
+    pendingTasks = tasks.filter(task => pendingIds.has(task.taskId));
+    resumes = [
+      ...(resumeState.metadata.resumes ?? []),
+      {
+        at: startedAt.toISOString(),
+        taskIds: pendingTasks.map(task => task.taskId),
+      },
+    ];
+    // Drop the artifact lines of the tasks about to re-run (their prior
+    // infrastructure_error records), then mark the run as running again with
+    // resume provenance. Completed trials keep their recorded lines verbatim.
+    await compactResumedRunArtifactsV1({
+      runDirectory: outputDirectory,
+      keepTaskIds: new Set(resumeState.selection.completedTaskIds),
+      saveTraces: runConfig.output.saveTraces,
+    });
+    await writeFile(join(outputDirectory, 'run.json'), prettyJson({
+      runId,
+      status: 'running',
+      startedAt: resumeState.startedAt,
+      model: runMetadataModelV1(runConfig.model),
+      execution: defaultExecution,
+      benchmark: runConfig.benchmark,
+      policyProvenance,
+      budget: runConfig.budget,
+      configDigest,
+      taskSetDigest,
+      selectedTasks: tasks.length,
+      ...(sourceRevision ? { sourceRevision } : {}),
+      resumed: true,
+      resumes,
+    }), 'utf8');
+  } else if (options.writeOutputs !== false) {
+    outputDirectory = await prepareRunOutputDirectory({
+      workingDirectory: options.workingDirectory ?? process.cwd(),
+      configuredDirectory: runConfig.output.directory,
+      runId,
+      startedAt: startedAt.toISOString(),
+      model: runMetadataModelV1(runConfig.model),
+      execution: defaultExecution,
+      benchmark: runConfig.benchmark,
+      policyProvenance,
+      budget: runConfig.budget,
+      configDigest,
+      taskSetDigest,
+      sourceRevision,
+      selectedTasks: tasks.length,
+      saveTraces: runConfig.output.saveTraces,
+    });
+  }
 
   const seed = options.seed ?? loadCanonicalPactPairStoreV1();
   const harnessFactory = options.harnessFactory
     ?? options.adapterFactory
     ?? (context => createOpenAICompatiblePactHarnessV1(context.config, { environment }));
+  const retainedRuns = resumeState?.retainedRuns ?? [];
   const taskRuns: PactPairSingleTaskRunV1[] = [];
 
-  const execution = await backend.run({
-    config: runConfig,
-    tasks,
-    seed,
-    runId,
-    now,
-    harnessFactory,
-    environment,
-    onTaskRun: async taskRun => {
-      taskRuns.push(taskRun);
-      if (outputDirectory) {
-        await appendTaskCheckpoint(
-          outputDirectory,
-          taskRun,
-          taskRuns.length,
-          tasks.length,
-          taskRuns.filter(run => run.result.status === 'infrastructure_error').length,
-          runConfig.output.saveTraces,
-        );
-      }
-    },
-  });
+  const execution = pendingTasks.length === 0
+    ? {}
+    : await backend.run({
+        config: runConfig,
+        tasks: pendingTasks,
+        seed,
+        runId,
+        now,
+        harnessFactory,
+        environment,
+        onTaskRun: async taskRun => {
+          taskRuns.push(taskRun);
+          if (outputDirectory) {
+            await appendTaskCheckpoint(
+              outputDirectory,
+              taskRun,
+              retainedRuns.length + taskRuns.length,
+              tasks.length,
+              taskRuns.filter(run => run.result.status === 'infrastructure_error').length,
+              runConfig.output.saveTraces,
+            );
+          }
+        },
+      });
   const aborted = execution.aborted;
   const executionMetadata = execution.execution ?? defaultExecution;
 
   const completedAt = now().toISOString();
-  const summary = summarizeTaskRuns(taskRuns);
+  // Canonical task order for the aggregate result: retained and freshly run
+  // trials interleave by selection order, so resumed and concurrent backends
+  // produce the same deterministic ordering as a serial fresh run.
+  const orderIndex = new Map(tasks.map((task, index) => [task.taskId, index] as const));
+  const mergedRuns = [...retainedRuns, ...taskRuns].sort((a, b) =>
+    (orderIndex.get(a.result.taskId) ?? Number.MAX_SAFE_INTEGER)
+    - (orderIndex.get(b.result.taskId) ?? Number.MAX_SAFE_INTEGER));
+  const summary = summarizeTaskRuns(mergedRuns);
   const result: PactPairRunResultV1 = {
     runId,
-    startedAt: startedAt.toISOString(),
+    startedAt: resumeState?.startedAt ?? startedAt.toISOString(),
     completedAt,
     status: summary.errors > 0 ? 'completed_with_errors' : 'completed',
     selectedTasks: tasks.length,
@@ -365,8 +460,9 @@ export async function runPactPairBenchmarkV1(
     ...(sourceRevision ? { sourceRevision } : {}),
     ...(aborted ? { aborted } : {}),
     ...(outputDirectory ? { outputDirectory } : {}),
+    ...(resumes ? { resumed: true as const, resumes } : {}),
     summary,
-    tasks: taskRuns.map(run => run.result),
+    tasks: mergedRuns.map(run => run.result),
   };
 
   if (outputDirectory) await finalizeRunOutputs(outputDirectory, result);
@@ -560,6 +656,7 @@ async function finalizeRunOutputs(
     provider: result.summary.provider,
     ...(result.sourceRevision ? { sourceRevision: result.sourceRevision } : {}),
     ...(result.aborted ? { aborted: result.aborted } : {}),
+    ...(result.resumed ? { resumed: true, resumes: result.resumes } : {}),
   };
   await Promise.all([
     writeFile(join(outputDirectory, 'run.json'), prettyJson(runMetadata), 'utf8'),

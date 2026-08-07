@@ -15,8 +15,11 @@ export type PactExecutionBackendRunContextV1 = {
   harnessFactory: PactHarnessFactoryV1;
   environment: Record<string, string | undefined>;
   /**
-   * Invoked once per completed trial, in task order. The host uses this for
-   * incremental checkpointing; backends must await it before continuing.
+   * Invoked exactly once per completed trial, as soon as the trial settles —
+   * in task order for serial backends, in completion order for concurrent
+   * ones (the host re-orders the aggregate result canonically). The host uses
+   * this for incremental checkpointing; backends must await it before
+   * continuing.
    */
   onTaskRun?: (taskRun: PactPairSingleTaskRunV1) => Promise<void>;
 };

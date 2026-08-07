@@ -362,8 +362,34 @@ export const pactRunMetadataV1Schema = z
       })
       .strict()
       .optional(),
+    /**
+     * Resume provenance: present exactly when this run directory was resumed.
+     * Each record lists the task ids one resume attempt re-executed (missing
+     * or infrastructure_error trials only — completed trials are retained and
+     * never re-run, so repeated resumes cannot best-of-N a task).
+     */
+    resumed: z.literal(true).optional(),
+    resumes: z
+      .array(
+        z
+          .object({
+            at: z.string().datetime({ offset: true }),
+            taskIds: z.array(z.string().min(1).max(128)).max(10_000),
+          })
+          .strict(),
+      )
+      .max(1_000)
+      .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((metadata, context) => {
+    if ((metadata.resumed === true) !== (metadata.resumes !== undefined)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'resumed and resumes must be present together',
+      });
+    }
+  });
 
 export const pactTraceEventV1Schema = z
   .object({
