@@ -155,18 +155,28 @@ a hard failure instead of a skip. The job needs the
 the private cross-org Aicoo-Team/SharedOS repo); a missing secret fails
 the job rather than skipping it, so schema drift can never merge green.
 
-## Next steps
+## Runner wiring (done)
 
-1. **Driver binding** — adapt PACT's model adapter to SharedOS's
-   `AgentTurnDriver` port (`open` → `next` loop) so the tested model
-   runs inside the guarded loop instead of PACT's own tool loop.
-2. **PACT-Pair world factory** — express the Pair workspace, tools, and
-   policy grants as an `EmbeddedWorldV1` under `src/suites/pact-pair/`
-   (dataset semantics stay in the suite, not in `src/execution/`).
-3. **Runner wiring** — exposing the adapter as an opt-in execution
-   backend in the runner config is an explicit future config version;
-   the current `pact-run/v1` config stays PACT-Pair-shaped for
-   compatibility.
+All three follow-ups above the line are implemented in
+`src/suites/pact-pair/sharedos-execution.ts` (see its header comment for
+the semantic decisions and their rationale):
+
+1. **Driver binding** — the PACT harness is bridged into SharedOS's
+   `AgentTurnDriver` port; one trial executes as exactly one bounded
+   kernel turn while PACT keeps owning budgets and cadence.
+2. **PACT-Pair world** — the nine deterministic Pair tools register as
+   SharedOS host tools (kernel-filtered registry + invocation gate at
+   surface granularity; folder-level scoping stays in
+   `executePactPairToolV1`), with grants host-constructed per trial from
+   the granted boundary plan.
+3. **Runner wiring** — `benchmark.execution.adapter:
+   'pact-public-runner' | 'sharedos-embedded'` in `pact-run/v1`
+   (optional; absence keeps existing config digests byte-identical and
+   selects the public runner). CLI override: `--execution.adapter`.
+   Result rows carry a public `sharedOs` identity block; kernel
+   runtime/audit events go to the private trace artifact. The default
+   stays `pact-public-runner` until 600-task parity between the paths is
+   demonstrated.
 
 Node floor: this repository declares `node >= 20.11`, matching the
 SharedOS supported floor (CI already tests Node 22).

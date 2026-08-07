@@ -226,6 +226,32 @@ export const pactRunBudgetV1Schema = pactBudgetV1Schema.pick({
   maxRuntimeMs: true,
 });
 
+/**
+ * Which execution substrate runs each trial's agent turn.
+ *
+ * - `pact-public-runner` (default): the in-repository tool loop in
+ *   `runSinglePactPairTaskV1` — the public benchmark path.
+ * - `sharedos-embedded`: every turn executes through the real SharedOS
+ *   permission kernel (`EmbeddedSharedOsAdapterV1`); requires a built
+ *   SharedOS checkout reachable via `PACT_SHAREDOS_DIR`.
+ *
+ * The default stays `pact-public-runner` until full 600-task parity between
+ * the two paths has been demonstrated; batch runs opt in explicitly. Never
+ * combine absolute outcome rates across adapters without demonstrated
+ * equivalence.
+ */
+export const pactExecutionAdapterIdV1Schema = z.enum([
+  'pact-public-runner',
+  'sharedos-embedded',
+]);
+export type PactExecutionAdapterIdV1 = z.infer<typeof pactExecutionAdapterIdV1Schema>;
+
+export const pactExecutionConfigV1Schema = z
+  .object({
+    adapter: pactExecutionAdapterIdV1Schema.default('pact-public-runner'),
+  })
+  .strict();
+
 export const pactExecutionBackendConfigV1Schema = z.discriminatedUnion('kind', [
   z
     .object({
@@ -256,6 +282,11 @@ export const pactRunConfigV1Schema = z
         requester: z.enum(PACT_PAIR_REQUESTERS_V1).default('R1'),
         gradingMode: z.enum(PACT_PAIR_GRADING_MODES_V1).default('category'),
         tasks: pactTaskFilterV1Schema,
+        // Kept optional (no default in the parsed representation) so existing
+        // configurations retain their byte-identical reproducibility digest;
+        // absence selects pact-public-runner through
+        // selectedPactExecutionAdapterV1 below.
+        execution: pactExecutionConfigV1Schema.optional(),
       })
       .strict()
       .superRefine((benchmark, context) => {
@@ -326,6 +357,12 @@ export function pactModelIdentifierV1(model: PactModelConfigV1): string {
 }
 export type PactTaskFilterV1 = z.infer<typeof pactTaskFilterV1Schema>;
 export type PactRunConfigV1 = z.infer<typeof pactRunConfigV1Schema>;
+
+export function selectedPactExecutionAdapterV1(
+  config: Pick<PactRunConfigV1, 'benchmark'>,
+): PactExecutionAdapterIdV1 {
+  return config.benchmark.execution?.adapter ?? 'pact-public-runner';
+}
 
 export function selectedPactExecutionBackendV1(
   config: Pick<PactRunConfigV1, 'backend'>,

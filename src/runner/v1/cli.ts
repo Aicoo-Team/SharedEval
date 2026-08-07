@@ -1,19 +1,35 @@
 #!/usr/bin/env node
 import {
   loadPactRunConfigV1,
+  pactExecutionAdapterIdV1Schema,
   resolvePactRunModelApiKeyV1,
+  selectedPactExecutionAdapterV1,
   selectedPactExecutionBackendV1,
+  type PactExecutionAdapterIdV1,
 } from './config.js';
 import { inspectPactBenchmarkV1, runPactBenchmarkV1 } from './runner.js';
 
 type CliOptions = {
   configPath: string;
   check: boolean;
+  executionAdapter?: PactExecutionAdapterIdV1;
 };
 
 export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<number> {
   const options = parseArguments(argv);
-  const config = await loadPactRunConfigV1(options.configPath);
+  let config = await loadPactRunConfigV1(options.configPath);
+  if (options.executionAdapter) {
+    // An explicit CLI override is part of run provenance: it changes the
+    // effective config, so it flows through the same strict schema and
+    // lands in the reproducibility digest like any config-file setting.
+    config = {
+      ...config,
+      benchmark: {
+        ...config.benchmark,
+        execution: { adapter: options.executionAdapter },
+      },
+    };
+  }
 
   if (options.check) {
     const inspection = inspectPactBenchmarkV1(config);
@@ -21,6 +37,7 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
       valid: true,
       config: config.sourcePath,
       backend: selectedPactExecutionBackendV1(config),
+      execution: { adapter: selectedPactExecutionAdapterV1(config) },
       model: {
         ...(config.model.provider === 'azure-openai'
           ? {
@@ -84,6 +101,7 @@ function parseArguments(argv: string[]): CliOptions {
   const args = argv[0] === 'run' ? argv.slice(1) : argv;
   let configPath: string | undefined;
   let check = false;
+  let executionAdapter: PactExecutionAdapterIdV1 | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -93,6 +111,21 @@ function parseArguments(argv: string[]): CliOptions {
     }
     if (argument === '--check') {
       check = true;
+      continue;
+    }
+    if (argument === '--execution.adapter') {
+      const value = args[index + 1];
+      if (!value || value.startsWith('-')) {
+        throw new Error(`${argument} requires an adapter id`);
+      }
+      executionAdapter = pactExecutionAdapterIdV1Schema.parse(value);
+      index += 1;
+      continue;
+    }
+    if (argument?.startsWith('--execution.adapter=')) {
+      executionAdapter = pactExecutionAdapterIdV1Schema.parse(
+        argument.slice('--execution.adapter='.length),
+      );
       continue;
     }
     if (argument === '--config' || argument === '-c') {
@@ -112,13 +145,19 @@ function parseArguments(argv: string[]): CliOptions {
   }
 
   if (!configPath) throw new Error(`Missing --config\n\n${usage()}`);
-  return { configPath, check };
+  return {
+    configPath,
+    check,
+    ...(executionAdapter === undefined ? {} : { executionAdapter }),
+  };
 }
 
 function usage(): string {
-  return `Usage: npm run benchmark -- --config <pact-run.yaml> [--check]\n\n` +
-    `  --config, -c  Strict pact-run/v1 YAML configuration\n` +
-    `  --check       Validate and count tasks without calling a model API\n`;
+  return `Usage: npm run benchmark -- --config <pact-run.yaml> [--check] [--execution.adapter <id>]\n\n` +
+    `  --config, -c          Strict pact-run/v1 YAML configuration\n` +
+    `  --check               Validate and count tasks without calling a model API\n` +
+    `  --execution.adapter   Override benchmark.execution.adapter\n` +
+    `                        (pact-public-runner | sharedos-embedded)\n`;
 }
 
 try {

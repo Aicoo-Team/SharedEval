@@ -145,6 +145,19 @@ export const pactTaskResultV1Schema = z
     violations: z.array(z.string().min(1).max(256)),
     error: z.string().min(1).max(2_000).optional(),
     finalizeError: z.string().min(1).max(2_000).optional(),
+    // Execution-substrate identity for trials run through a SharedOS
+    // adapter. Public identity block only — kernel runtime/audit events
+    // stay in the private trace artifact.
+    sharedOs: z
+      .object({
+        adapterId: z.string().min(1).max(64),
+        protocolVersion: z.string().min(1).max(16),
+        status: z.enum(['succeeded', 'denied', 'failed', 'cancelled']),
+        traceId: z.string().min(1).max(256),
+        latencyMs: z.number().nonnegative(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .superRefine((result, context) => {

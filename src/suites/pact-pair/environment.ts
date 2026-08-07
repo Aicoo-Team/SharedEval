@@ -18,7 +18,10 @@ import {
   type EvaluationResult,
 } from '../../evaluation/index.js';
 import type { PairDataStore } from './schemas.js';
-import type { PactRunConfigV1 } from '../../runner/v1/config.js';
+import {
+  selectedPactExecutionAdapterV1,
+  type PactRunConfigV1,
+} from '../../runner/v1/config.js';
 import {
   PactProviderRequestErrorV1,
   readPactProviderTelemetryV1,
@@ -107,6 +110,21 @@ export type PactPairTaskResultV1 = {
   violations: string[];
   error?: string;
   finalizeError?: string;
+  /**
+   * Execution-substrate identity when the trial ran through a SharedOS
+   * adapter (`benchmark.execution.adapter: sharedos-embedded`). Absent on
+   * the public-runner path. Kernel runtime/audit events are private and go
+   * to trace.jsonl, never to this public row. Absolute outcome rates from
+   * different adapterIds must not be combined unless equivalence has been
+   * demonstrated.
+   */
+  sharedOs?: {
+    adapterId: string;
+    protocolVersion: string;
+    status: 'succeeded' | 'denied' | 'failed' | 'cancelled';
+    traceId: string;
+    latencyMs: number;
+  };
 };
 
 export type PactPairTraceEventV1 = {
@@ -148,6 +166,14 @@ export type RunSinglePactPairTaskV1Options = {
 export async function runSinglePactPairTaskV1(
   options: RunSinglePactPairTaskV1Options,
 ): Promise<PactPairSingleTaskRunV1> {
+  // The sharedos-embedded engine lives in its own module and is loaded only
+  // when a config opts in, so the default public-runner path never touches
+  // the SharedOS loader. Both execution backends (local and harbor) call
+  // this function, so the adapter switch applies to both automatically.
+  if (selectedPactExecutionAdapterV1(options.config) === 'sharedos-embedded') {
+    const { runSinglePactPairTaskViaSharedOsV1 } = await import('./sharedos-execution.js');
+    return runSinglePactPairTaskViaSharedOsV1(options);
+  }
   const startedAt = Date.now();
   const deadline = startedAt + options.config.budget.maxRuntimeMs;
   const trace: PactPairTraceEventV1[] = [];
@@ -465,7 +491,7 @@ export function toPublicEvaluation(
   };
 }
 
-function maximumBoundaryForTask(task: PactTaskIntroV1): PactBoundaryPlanV1 {
+export function maximumBoundaryForTask(task: PactTaskIntroV1): PactBoundaryPlanV1 {
   if (task.kind === 'qa') {
     return {
       access: {
@@ -544,7 +570,7 @@ function intersectMemoryRead(
   return rank[requested] <= rank[maximum] ? requested : maximum;
 }
 
-function deniedBoundary(): PactBoundaryPlanV1 {
+export function deniedBoundary(): PactBoundaryPlanV1 {
   return {
     access: {
       notes: { read: { scope: 'none' }, write: false },
@@ -554,7 +580,7 @@ function deniedBoundary(): PactBoundaryPlanV1 {
   };
 }
 
-function remainingBudget(
+export function remainingBudget(
   config: PactRunConfigV1,
   turns: number,
   toolCalls: number,
@@ -567,7 +593,7 @@ function remainingBudget(
   };
 }
 
-async function withinDeadline<T>(
+export async function withinDeadline<T>(
   promise: Promise<T>,
   deadline: number,
   label: string,
@@ -587,21 +613,21 @@ async function withinDeadline<T>(
   }
 }
 
-class PactRunnerTimeoutError extends Error {
+export class PactRunnerTimeoutError extends Error {
   constructor(label: string) {
     super(`Timed out during ${label}`);
     this.name = 'PactRunnerTimeoutError';
   }
 }
 
-class PactRunnerProtocolError extends Error {
+export class PactRunnerProtocolError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'PactRunnerProtocolError';
   }
 }
 
-function classifyRunnerFailure(error: unknown): string {
+export function classifyRunnerFailure(error: unknown): string {
   if (error instanceof PactRunnerTimeoutError) return 'max_runtime_ms_exceeded';
   if (error instanceof PactRunnerProtocolError) return 'adapter_protocol_error';
   if (error instanceof PactProviderRequestErrorV1 && error.fatalConfiguration) {
@@ -610,7 +636,7 @@ function classifyRunnerFailure(error: unknown): string {
   return 'runner_error';
 }
 
-function sanitizeError(error: unknown, secret?: string): string {
+export function sanitizeError(error: unknown, secret?: string): string {
   let message = error instanceof Error ? error.message : String(error);
   const normalizedSecret = secret?.trim();
   if (normalizedSecret) {
@@ -619,7 +645,7 @@ function sanitizeError(error: unknown, secret?: string): string {
   return message.slice(0, 2_000) || 'Unknown runner error';
 }
 
-function redactDecisionCredential(
+export function redactDecisionCredential(
   decision: PactDecisionV1,
   rawSecret?: string,
 ): PactDecisionV1 {
