@@ -128,6 +128,7 @@ Private research or product repositories:
 - [Dataset manifests and extensions](docs/datasets.md)
 - [Hugging Face export](docs/huggingface.md)
 - [PACT-Pair post-hoc evaluation tools](docs/pact-pair-evaluation-tools.md)
+- [SharedOS runner follow-ups](docs/sharedos-runner-follow-ups.md)
 - [Submission format](docs/submission_format.md)
 - [Metrics](docs/metrics.md)
 - [Leaderboard policy](docs/leaderboard.md)
