@@ -42,6 +42,18 @@ if [ "$HARBOR_VERSION" != "$REQUIRED_HARBOR_VERSION" ]; then
   exit 1
 fi
 
+# The image carries the prebuilt SharedOS checkout (packages/*/dist), staged
+# from the host by the Harbor backend — never cloned or built in-container.
+# A missing or unbuilt checkout is an environment gap, so it SKIPs like the
+# other prerequisites (and FAILs under PACT_HARBOR_SMOKE_REQUIRE=1).
+SHAREDOS_PIN="846cbf64830d1a77bf477b98fd3586cd5cdff02e"
+SHAREDOS_DIR="${PACT_SHAREDOS_DIR:-$ROOT/../sharedos-repo}"
+for package in contracts core os runtime testkit; do
+  if [ ! -f "$SHAREDOS_DIR/packages/$package/dist/index.js" ]; then
+    missing_prerequisite "SharedOS build not found at $SHAREDOS_DIR (missing packages/$package/dist). Clone Aicoo-Team/SharedOS at $SHAREDOS_PIN, run 'pnpm install --frozen-lockfile && pnpm build', or set PACT_SHAREDOS_DIR"
+  fi
+done
+
 if [ ! -d node_modules ]; then
   npm ci --silent
 fi
@@ -56,11 +68,28 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "[1/3] build the Node image and run six PACT-Pair trials through Harbor"
+echo "[1/4] build the Node image and run six PACT-Pair trials through Harbor"
 OUTPUT="$(npm run --silent benchmark -- --config examples/pact-run.harbor-smoke.yaml)"
 RUN_DIRECTORY="$(printf '%s' "$OUTPUT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["outputDirectory"])')"
 
-echo "[2/3] compare canonical artifacts with normalized local golden"
+echo "[2/4] verify the image carries the pinned SharedOS build (no in-container clone/build)"
+IMAGE_COMMIT="$(docker run --rm --network none pact-bench-harbor:p0 node -p \
+  "JSON.parse(require('fs').readFileSync('/opt/pact/sharedos/sharedos-provenance.json','utf8')).commit")"
+if [ "$IMAGE_COMMIT" != "$SHAREDOS_PIN" ]; then
+  echo "FAIL: image SharedOS provenance is ${IMAGE_COMMIT:-missing}; expected $SHAREDOS_PIN"
+  exit 1
+fi
+docker run --rm --network none pact-bench-harbor:p0 node -e '
+const { existsSync } = require("fs");
+const dir = process.env.PACT_SHAREDOS_DIR;
+if (dir !== "/opt/pact/sharedos") throw new Error("PACT_SHAREDOS_DIR is " + dir);
+for (const name of ["contracts", "core", "os", "runtime", "testkit"]) {
+  const entry = `${dir}/packages/${name}/dist/index.js`;
+  if (!existsSync(entry)) throw new Error(`missing ${entry}`);
+}
+' || { echo "FAIL: staged SharedOS build is incomplete inside the image"; exit 1; }
+
+echo "[3/4] compare canonical artifacts with normalized local golden"
 python3 - "$RUN_DIRECTORY" "$ROOT/tests/golden/pact-pair-smoke-v1" <<'PY'
 import json
 import pathlib
@@ -102,7 +131,7 @@ assert not (actual_dir / "trace.jsonl").exists()
 assert not (actual_dir / "evaluation.jsonl").exists()
 PY
 
-echo "[3/3] denied-egress probe: a Harbor-run container must not reach the network"
+echo "[4/4] denied-egress probe: a Harbor-run container must not reach the network"
 EGRESS_DIR="$(mktemp -d)"
 EGRESS_JOBS="$(mktemp -d)"
 TASK_DIR="$EGRESS_DIR/pact-egress-probe"

@@ -10,6 +10,8 @@
 !harbor/
 !harbor/environment/
 !harbor/environment/Dockerfile
+!harbor/environment/sharedos-stage/
+!harbor/environment/sharedos-stage/**
 !examples/
 !examples/submissions/
 !examples/submissions/typescript-basic/

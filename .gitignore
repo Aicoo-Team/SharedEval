@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# SharedOS build artifacts staged into the Harbor Docker build context by the
+# Harbor backend (regenerated on every run; provenance lives in the packages).
+harbor/environment/sharedos-stage/
 coverage/
 .DS_Store
 .env
