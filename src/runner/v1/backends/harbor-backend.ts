@@ -101,9 +101,9 @@ export type HarborBackendV1Options = {
  * checkout (staged, never cloned/built in-container), the model credential is
  * injected runtime-only through Harbor's env resolution, and real-model task
  * packages narrow egress to the configured model endpoint host over HTTPS 443
- * while scripted packages stay strictly no-network. Run artifacts therefore
- * record the effective executor as `scripted-harness`, never the
- * caller-selected model.
+ * while scripted packages stay strictly no-network. Run artifacts record the
+ * effective executor honestly: `scripted-harness` for scripted parity
+ * packages (which never call a model), `model` for real-model packages.
  */
 export class HarborBackendV1 implements ExecutionBackendV1 {
   readonly kind = 'harbor' as const;
@@ -134,7 +134,12 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
     let trialFailures = new Map<string, string>();
     const execution: PactRunExecutionMetadataV1 = {
       backend: 'harbor',
-      executor: 'scripted-harness',
+      // Scripted parity packages never call a model; real-model packages run
+      // the caller-configured model inside the container. The artifact must
+      // say which one actually produced the decisions.
+      executor: pactHarborScriptedModelV1(context.config.model)
+        ? 'scripted-harness'
+        : 'model',
       harbor: {
         version: PACT_HARBOR_VERSION_V1,
         image: this.imageName,

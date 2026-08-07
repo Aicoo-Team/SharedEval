@@ -132,8 +132,12 @@ assert not (actual_dir / "evaluation.jsonl").exists()
 PY
 
 echo "[4/4] denied-egress probe: a Harbor-run container must not reach the network"
-EGRESS_DIR="$(mktemp -d)"
-EGRESS_JOBS="$(mktemp -d)"
+# Pass an explicit template: macOS mktemp ignores TMPDIR without one and
+# falls back to /var/folders, which VM-based Docker runtimes (e.g. colima)
+# do not share with the VM — bind mounts under it silently come up empty.
+# On such hosts export TMPDIR to a Docker-shared path (e.g. under $HOME).
+EGRESS_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pact-egress-dir.XXXXXX")"
+EGRESS_JOBS="$(mktemp -d "${TMPDIR:-/tmp}/pact-egress-jobs.XXXXXX")"
 TASK_DIR="$EGRESS_DIR/pact-egress-probe"
 mkdir -p "$TASK_DIR/solution" "$TASK_DIR/tests" "$TASK_DIR/environment"
 
