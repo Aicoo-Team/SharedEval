@@ -6,7 +6,7 @@
   "description": "PACT-Bench: a multi-dataset engine for cross-boundary agent privacy and delegation evaluation.",
   "license": "MIT",
   "engines": {
-    "node": ">=18"
+    "node": ">=20.11"
   },
   "scripts": {
     "benchmark": "tsx src/runner/v1/cli.ts",
@@ -18,7 +18,8 @@
     "eval:pact-pair": "tsx src/suites/pact-pair/evaluation-tools/v1/cli.ts",
     "test:evaluation": "tsx --test tests/suites/pact-pair/evaluation-tools/v1/*.test.ts",
     "export:huggingface:pact-pair": "node scripts/huggingface/export-pact-pair.mjs --check",
-    "test": "tsx --test tests/protocol-v1/*.test.ts tests/runner-v1/*.test.ts tests/datasets/*.test.ts tests/evaluation/*.test.ts tests/suites/pact-pair/*.test.ts tests/suites/pact-pair/evaluation-tools/v1/*.test.ts",
+    "test": "tsx --test tests/protocol-v1/*.test.ts tests/runner-v1/*.test.ts tests/datasets/*.test.ts tests/evaluation/*.test.ts tests/execution/*.test.ts tests/suites/pact-pair/*.test.ts tests/suites/pact-pair/evaluation-tools/v1/*.test.ts",
+    "test:execution": "tsx --test tests/execution/*.test.ts",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
