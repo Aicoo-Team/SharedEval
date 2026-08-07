@@ -17,6 +17,7 @@ import {
   HarborBackendV1,
   LocalBackendV1,
   type ExecutionBackendV1,
+  type PactRunExecutionMetadataV1,
 } from '../../runner/v1/backends/index.js';
 import { loadPactPairTasksV1 } from './task-loader.js';
 import { loadCanonicalPactPairStoreV1 } from './workspace.js';
@@ -57,6 +58,26 @@ export type {
 } from './environment.js';
 
 const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+
+/**
+ * Private-artifact contract for a run output directory.
+ *
+ * Public artifacts (the output directory root) never contain gold labels,
+ * gold facts, or raw workspace content: `run.json`, `summary.json`,
+ * `results.jsonl`, and `checkpoint.json` carry only the public result shape.
+ *
+ * Everything derived from private gold — the full evaluation records
+ * (`evaluation.jsonl`) and the raw traces (`trace.jsonl`) — lives under the
+ * `private/` subdirectory and is written only when `output.saveTraces` is
+ * true. With `saveTraces: false` no gold-bearing artifact is persisted at all.
+ */
+export const PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1 = 'private' as const;
+export const PACT_PUBLIC_RUN_ARTIFACTS_V1 = [
+  'run.json',
+  'summary.json',
+  'results.jsonl',
+  'checkpoint.json',
+] as const;
 
 export type PactPairRunSummaryV1 = {
   total: number;
@@ -180,6 +201,13 @@ export type PactPairRunResultV1 = {
   status: 'completed' | 'completed_with_errors';
   selectedTasks: number;
   model: PactPairRunModelMetadataV1;
+  /**
+   * Execution provenance: which backend orchestrated the trials and which
+   * effective executor produced the decisions. `model` above records the
+   * caller-requested model configuration; when `execution.executor` is not
+   * 'model' the trials were NOT produced by that model.
+   */
+  execution: PactRunExecutionMetadataV1;
   benchmark: PactRunConfigV1['benchmark'];
   policyProvenance: {
     id: PactRunConfigV1['benchmark']['policy'];
@@ -204,6 +232,13 @@ export type RunPactPairBenchmarkV1Options = {
   /** @deprecated Use harnessFactory. */
   adapterFactory?: PactAdapterFactoryV1;
   executionBackend?: ExecutionBackendV1;
+  /**
+   * Label for the effective decision source recorded in run artifacts.
+   * Defaults to 'custom-harness' when a harnessFactory/adapterFactory is
+   * injected and 'model' otherwise; backends may override it (the Harbor
+   * backend always reports its scripted parity harness).
+   */
+  executor?: PactRunExecutionMetadataV1['executor'];
   environment?: Record<string, string | undefined>;
   now?: () => Date;
   runId?: string;
@@ -256,6 +291,12 @@ export async function runPactPairBenchmarkV1(
     file: PACT_POLICY_FILES_V1[runConfig.benchmark.policy],
     sha256: getPactPolicySha256V1(runConfig.benchmark.policy),
   };
+  const backend = resolveExecutionBackend(runConfig, options.executionBackend);
+  const defaultExecution: PactRunExecutionMetadataV1 = {
+    backend: backend.kind,
+    executor: options.executor
+      ?? (options.harnessFactory || options.adapterFactory ? 'custom-harness' : 'model'),
+  };
   const outputDirectory = options.writeOutputs === false
     ? undefined
     : await prepareRunOutputDirectory({
@@ -264,6 +305,7 @@ export async function runPactPairBenchmarkV1(
         runId,
         startedAt: startedAt.toISOString(),
         model: runMetadataModelV1(runConfig.model),
+        execution: defaultExecution,
         benchmark: runConfig.benchmark,
         policyProvenance,
         budget: runConfig.budget,
@@ -278,7 +320,6 @@ export async function runPactPairBenchmarkV1(
   const harnessFactory = options.harnessFactory
     ?? options.adapterFactory
     ?? (context => createOpenAICompatiblePactHarnessV1(context.config, { environment }));
-  const backend = resolveExecutionBackend(runConfig, options.executionBackend);
   const taskRuns: PactPairSingleTaskRunV1[] = [];
 
   const execution = await backend.run({
@@ -304,6 +345,7 @@ export async function runPactPairBenchmarkV1(
     },
   });
   const aborted = execution.aborted;
+  const executionMetadata = execution.execution ?? defaultExecution;
 
   const completedAt = now().toISOString();
   const summary = summarizeTaskRuns(taskRuns);
@@ -314,6 +356,7 @@ export async function runPactPairBenchmarkV1(
     status: summary.errors > 0 ? 'completed_with_errors' : 'completed',
     selectedTasks: tasks.length,
     model: runMetadataModelV1(runConfig.model),
+    execution: executionMetadata,
     benchmark: runConfig.benchmark,
     policyProvenance,
     budget: runConfig.budget,
@@ -392,6 +435,7 @@ async function prepareRunOutputDirectory(options: {
   runId: string;
   startedAt: string;
   model: PactPairRunModelMetadataV1;
+  execution: PactRunExecutionMetadataV1;
   benchmark: PactRunConfigV1['benchmark'];
   policyProvenance: PactPairRunResultV1['policyProvenance'];
   budget: PactRunConfigV1['budget'];
@@ -406,17 +450,34 @@ async function prepareRunOutputDirectory(options: {
   await mkdir(outputRoot, { recursive: true });
   // An existing run id is a provenance collision, not a directory to overwrite.
   await mkdir(outputDirectory);
+  // Gold-bearing artifacts live only under private/ and only when the
+  // retention switch (output.saveTraces) is on. See the private-artifact
+  // contract next to PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1.
+  if (options.saveTraces) {
+    await mkdir(privateArtifactDirectory(outputDirectory));
+  }
   await Promise.all([
     writeFile(join(outputDirectory, 'results.jsonl'), '', 'utf8'),
-    writeFile(join(outputDirectory, 'evaluation.jsonl'), '', 'utf8'),
     ...(options.saveTraces
-      ? [writeFile(join(outputDirectory, 'trace.jsonl'), '', 'utf8')]
+      ? [
+          writeFile(
+            join(privateArtifactDirectory(outputDirectory), 'evaluation.jsonl'),
+            '',
+            'utf8',
+          ),
+          writeFile(
+            join(privateArtifactDirectory(outputDirectory), 'trace.jsonl'),
+            '',
+            'utf8',
+          ),
+        ]
       : []),
     writeFile(join(outputDirectory, 'run.json'), prettyJson({
       runId: options.runId,
       status: 'running',
       startedAt: options.startedAt,
       model: options.model,
+      execution: options.execution,
       benchmark: options.benchmark,
       policyProvenance: options.policyProvenance,
       budget: options.budget,
@@ -427,6 +488,10 @@ async function prepareRunOutputDirectory(options: {
     }), 'utf8'),
   ]);
   return outputDirectory;
+}
+
+function privateArtifactDirectory(outputDirectory: string): string {
+  return join(outputDirectory, PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1);
 }
 
 async function appendTaskCheckpoint(
@@ -445,22 +510,26 @@ async function appendTaskCheckpoint(
   // evaluation.jsonl carries the full evaluation (including gold-fact matches)
   // plus the registered-evaluator metric contributions, so execution backends
   // running in a separate process can hand complete trials back to the host.
-  // Like trace.jsonl it is an internal artifact and must not ship with a run.
-  await appendFile(
-    join(outputDirectory, 'evaluation.jsonl'),
-    jsonLines([{
-      taskId: taskRun.result.taskId,
-      evaluation: taskRun.evaluation,
-      metrics: taskRun.evaluationResult.metrics,
-    }]),
-    'utf8',
-  );
-  if (saveTraces && taskRun.trace.length > 0) {
+  // Like trace.jsonl it contains private gold, so it is persisted only under
+  // the private/ artifact directory and only when the retention switch
+  // (output.saveTraces) is on; the public artifact set never contains gold.
+  if (saveTraces) {
     await appendFile(
-      join(outputDirectory, 'trace.jsonl'),
-      jsonLines(taskRun.trace),
+      join(outputDirectory, PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1, 'evaluation.jsonl'),
+      jsonLines([{
+        taskId: taskRun.result.taskId,
+        evaluation: taskRun.evaluation,
+        metrics: taskRun.evaluationResult.metrics,
+      }]),
       'utf8',
     );
+    if (taskRun.trace.length > 0) {
+      await appendFile(
+        join(outputDirectory, PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1, 'trace.jsonl'),
+        jsonLines(taskRun.trace),
+        'utf8',
+      );
+    }
   }
   await writeFile(join(outputDirectory, 'checkpoint.json'), prettyJson({
     status: 'running',
@@ -481,6 +550,7 @@ async function finalizeRunOutputs(
     startedAt: result.startedAt,
     completedAt: result.completedAt,
     model: result.model,
+    execution: result.execution,
     benchmark: result.benchmark,
     policyProvenance: result.policyProvenance,
     budget: result.budget,

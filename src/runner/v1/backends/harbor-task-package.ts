@@ -42,6 +42,7 @@ export async function materializeHarborDatasetV1(
         IMAGE_NAME: taskImageName,
         POLICY: options.config.benchmark.policy,
         REQUESTER: options.config.benchmark.requester,
+        GRADING_MODE: options.config.benchmark.gradingMode,
         MAX_TURNS: String(options.config.budget.maxTurns),
         MAX_TOOL_CALLS: String(options.config.budget.maxToolCalls),
         MAX_RUNTIME_MS: String(options.config.budget.maxRuntimeMs),

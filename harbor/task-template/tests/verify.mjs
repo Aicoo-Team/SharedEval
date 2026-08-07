@@ -15,15 +15,22 @@ try {
   }
 
   await mkdir(verifierDirectory, { recursive: true });
+  // evaluation.jsonl and trace.jsonl are private artifacts (they carry gold
+  // facts and workspace content); the container run writes them under
+  // private/ and this verifier hands them back to the host over Harbor's
+  // internal logs channel only.
   await Promise.all([
     copyFile(resultsPath, join(verifierDirectory, 'results.jsonl')),
     copyFile(
-      join(resultDirectory, 'evaluation.jsonl'),
+      join(resultDirectory, 'private', 'evaluation.jsonl'),
       join(verifierDirectory, 'evaluation.jsonl'),
     ),
     copyFile(join(resultDirectory, 'summary.json'), join(verifierDirectory, 'summary.json')),
     copyFile(join(resultDirectory, 'run.json'), join(verifierDirectory, 'run.json')),
-    copyFile(join(resultDirectory, 'trace.jsonl'), join(verifierDirectory, 'trace.jsonl')),
+    copyFile(
+      join(resultDirectory, 'private', 'trace.jsonl'),
+      join(verifierDirectory, 'trace.jsonl'),
+    ),
   ]);
   await writeFile(
     join(verifierDirectory, 'pact-result.json'),

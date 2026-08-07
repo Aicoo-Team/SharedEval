@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -230,7 +230,10 @@ test('redacts provider secrets and writes the documented output files', async t 
   const run = readFileSync(join(result.outputDirectory, 'run.json'), 'utf8');
   const summary = readFileSync(join(result.outputDirectory, 'summary.json'), 'utf8');
   const results = readFileSync(join(result.outputDirectory, 'results.jsonl'), 'utf8');
-  const trace = readFileSync(join(result.outputDirectory, 'trace.jsonl'), 'utf8');
+  const trace = readFileSync(
+    join(result.outputDirectory, 'private', 'trace.jsonl'),
+    'utf8',
+  );
   const combined = `${run}${summary}${results}${trace}`;
   pactRunMetadataV1Schema.parse(JSON.parse(run));
   pactRunSummaryV1Schema.parse(JSON.parse(summary));
@@ -249,6 +252,119 @@ test('redacts provider secrets and writes the documented output files', async t 
   assert.equal(existsSync(join(result.outputDirectory, 'checkpoint.json')), true);
   assert.match(run, /"taskSetDigest"/);
   assert.match(run, /"status": "completed_with_errors"/);
+});
+
+test('keeps gold out of the public artifact set when saveTraces is false', async t => {
+  const workingDirectory = mkdtempSync(join(tmpdir(), 'pact-runner-public-'));
+  t.after(() => rmSync(workingDirectory, { recursive: true, force: true }));
+
+  // PAIR-Q101 is a protected task; the adapter refuses, so any occurrence of
+  // its gold facts in an artifact could only come from the private gold.
+  const result = await runPactPairBenchmarkV1(configFor(['Q101'], false), {
+    adapterFactory: () => new ScriptedAdapter(() => ({
+      type: 'refuse',
+      reason: 'That information is private.',
+    })),
+    runId: 'private-artifact-contract-off',
+    workingDirectory,
+  });
+
+  assert.ok(result.outputDirectory);
+  // Retention guard: with saveTraces false, no gold-bearing artifact exists.
+  assert.equal(existsSync(join(result.outputDirectory, 'private')), false);
+  assert.equal(existsSync(join(result.outputDirectory, 'evaluation.jsonl')), false);
+  assert.equal(existsSync(join(result.outputDirectory, 'trace.jsonl')), false);
+  const publicFiles = readdirSync(result.outputDirectory).sort();
+  assert.deepEqual(publicFiles, [
+    'checkpoint.json',
+    'results.jsonl',
+    'run.json',
+    'summary.json',
+  ]);
+  const combined = publicFiles
+    .map(file => readFileSync(join(String(result.outputDirectory), file), 'utf8'))
+    .join('\n');
+  assert.doesNotMatch(
+    combined,
+    /gold_key_facts|expectedBehavior|matchedFacts|missedFacts|leakedFacts|minimumCorrect|goldCheck/,
+  );
+  // The protected gold content itself must not appear in any public artifact.
+  assert.doesNotMatch(combined, /[Pp]romotion|President/);
+});
+
+test('persists gold-bearing artifacts only under private/ when saveTraces is true', async t => {
+  const workingDirectory = mkdtempSync(join(tmpdir(), 'pact-runner-private-'));
+  t.after(() => rmSync(workingDirectory, { recursive: true, force: true }));
+
+  const result = await runPactPairBenchmarkV1(configFor(['Q101'], true), {
+    adapterFactory: () => new ScriptedAdapter(() => ({
+      type: 'refuse',
+      reason: 'That information is private.',
+    })),
+    runId: 'private-artifact-contract-on',
+    workingDirectory,
+  });
+
+  assert.ok(result.outputDirectory);
+  // The gold-bearing artifacts exist, but only inside private/.
+  assert.equal(existsSync(join(result.outputDirectory, 'evaluation.jsonl')), false);
+  assert.equal(existsSync(join(result.outputDirectory, 'trace.jsonl')), false);
+  const evaluation = readFileSync(
+    join(result.outputDirectory, 'private', 'evaluation.jsonl'),
+    'utf8',
+  );
+  assert.match(evaluation, /"expectedBehavior"/);
+  assert.match(evaluation, /"metrics"/);
+  assert.equal(
+    existsSync(join(result.outputDirectory, 'private', 'trace.jsonl')),
+    true,
+  );
+  // The public root remains free of gold even when private retention is on.
+  const publicFiles = readdirSync(result.outputDirectory)
+    .filter(file => file !== 'private')
+    .sort();
+  assert.deepEqual(publicFiles, [
+    'checkpoint.json',
+    'results.jsonl',
+    'run.json',
+    'summary.json',
+  ]);
+  const combined = publicFiles
+    .map(file => readFileSync(join(String(result.outputDirectory), file), 'utf8'))
+    .join('\n');
+  assert.doesNotMatch(
+    combined,
+    /gold_key_facts|expectedBehavior|matchedFacts|missedFacts|leakedFacts|minimumCorrect|goldCheck/,
+  );
+});
+
+test('records the effective executor in run results and metadata', async () => {
+  const injected = await runPactPairBenchmarkV1(configFor(['Q1']), {
+    adapterFactory: () => new ScriptedAdapter(() => ({
+      type: 'answer',
+      content: 'Project Alpha launches on March 15, 2026.',
+    })),
+    runId: 'execution-provenance-custom',
+    writeOutputs: false,
+  });
+  assert.deepEqual(injected.execution, {
+    backend: 'local',
+    executor: 'custom-harness',
+  });
+
+  const scripted = await runPactPairBenchmarkV1(configFor(['Q1']), {
+    adapterFactory: () => new ScriptedAdapter(() => ({
+      type: 'answer',
+      content: 'Project Alpha launches on March 15, 2026.',
+    })),
+    executor: 'scripted-harness',
+    runId: 'execution-provenance-scripted',
+    writeOutputs: false,
+  });
+  assert.deepEqual(scripted.execution, {
+    backend: 'local',
+    executor: 'scripted-harness',
+  });
 });
 
 test('refuses to overwrite an existing run directory', async t => {

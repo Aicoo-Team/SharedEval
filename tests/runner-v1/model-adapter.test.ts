@@ -660,6 +660,62 @@ test('records unreadable successful HTTP responses as invalid responses', async 
   assert.equal(request.outcome, 'invalid_response');
 });
 
+test('never follows provider redirects and fails closed without retrying', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const fetchMock = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(input), init });
+    return new Response(null, {
+      status: 307,
+      headers: { location: 'https://attacker.example/v1/chat/completions' },
+    });
+  }) as typeof fetch;
+  const adapter = createAdapter(fetchMock);
+  await adapter.initialize(validRunInitV1);
+
+  await assert.rejects(
+    adapter.step(taskObservation(deniedAccessV1)),
+    (error: unknown) => error instanceof PactProviderRequestErrorV1
+      && /redirect/i.test(error.message)
+      && error.retryable === false
+      && error.status === 307,
+  );
+  // The credential must be sent exactly once, to the configured origin, with
+  // redirect-following disabled — never replayed against the Location target.
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://api.example.com/v1/chat/completions');
+  assert.equal(calls[0].init?.redirect, 'manual');
+  const request = readPactProviderTelemetryV1(adapter)?.requests[0];
+  assert.ok(request);
+  assert.equal(request.httpStatus, 307);
+  assert.equal(request.retryable, false);
+  assert.equal(request.outcome, 'provider_error');
+});
+
+test('fails closed on Azure redirects so the api-key header never crosses origins', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const fetchMock = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(input), init });
+    return new Response(null, {
+      status: 302,
+      headers: { location: 'https://other-tenant.example/openai/v1/chat/completions' },
+    });
+  }) as typeof fetch;
+  const adapter = new OpenAICompatiblePactAdapterV1(azureConfig(), {
+    fetch: fetchMock,
+    environment: { PACT_MODEL_API_KEY: 'azure-test-key' },
+  });
+  await adapter.initialize(validRunInitV1);
+
+  await assert.rejects(
+    adapter.step(taskObservation(deniedAccessV1)),
+    (error: unknown) => error instanceof PactProviderRequestErrorV1
+      && /redirect/i.test(error.message)
+      && error.retryable === false,
+  );
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].init?.redirect, 'manual');
+});
+
 function createAdapter(fetchImplementation: typeof fetch): OpenAICompatiblePactAdapterV1 {
   return new OpenAICompatiblePactAdapterV1(validConfig(), {
     fetch: fetchImplementation,

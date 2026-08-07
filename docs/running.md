@@ -293,10 +293,21 @@ uv tool install harbor==0.5.0
 bash scripts/verify_harbor.sh
 ```
 
+The backend enforces the pinned orchestrator: it checks `harbor --version`
+and refuses to run under anything other than Harbor 0.5.0, because the task
+packages rely on that release's `allow_internet = false` network-isolation
+semantics. `run.json` records the execution provenance for every run — the
+backend, the effective executor (`scripted-harness` for containerized parity
+trials, never the caller-selected model), the Harbor version, and the
+immutable image identity.
+
 The script builds the authoritative TypeScript environment as a Node image,
-runs the six-task smoke set through Harbor's local Docker backend, and compares
-the canonical results with committed local golden artifacts. It prints `SKIP`
-and exits successfully if Docker or Harbor is unavailable. See
+runs the six-task smoke set through Harbor's local Docker backend, compares
+the canonical results with committed local golden artifacts, and then runs a
+denied-egress probe that fails if a Harbor-run container can reach the
+network. It prints `SKIP` and exits successfully if Docker or Harbor is
+unavailable; set `PACT_HARBOR_SMOKE_REQUIRE=1` (as CI does) to fail instead of
+skipping when the prerequisites are expected. See
 `examples/pact-run.harbor-smoke.yaml` for the smoke configuration and
 `examples/pact-run.harbor-split-01.yaml` for a curated 60-task split.
 
@@ -322,7 +333,9 @@ Every run creates a collision-resistant
 explicit run ID is rejected instead of overwritten. The directory contains:
 
 - `run.json` — sanitized requested config, run status, selected-task count,
-  Git revision, config/task-set digests, policy file/hash, and aggregate actual
+  Git revision, config/task-set digests, policy file/hash, execution
+  provenance (backend, effective executor, and — for Harbor — orchestrator
+  version and immutable image identity), and aggregate actual
   provider/model/token/cost provenance;
 - `results.jsonl` — appended after every task, including that task's requested
   model, actual served model/provider, response identifiers, tokens, and cost
@@ -332,8 +345,16 @@ explicit run ID is rejected instead of overwritten. The directory contains:
   and finalized with the run status;
 - `summary.json` — aggregate QA/action utility and safety counts plus provider
   accounting completeness;
-- `trace.jsonl` — appended task decisions and tool events, only when
-  `output.saveTraces` is `true`.
+- `private/trace.jsonl` — appended task decisions and tool events, only when
+  `output.saveTraces` is `true`;
+- `private/evaluation.jsonl` — the full per-task evaluations (including gold
+  facts) and metric contributions, only when `output.saveTraces` is `true`.
+
+The directory root is the public artifact set and never contains gold labels,
+gold facts, or raw workspace content. Everything derived from private gold
+lives under `private/` and is only persisted when the `output.saveTraces`
+retention switch is on; treat that subdirectory as sensitive and never publish
+it with a run.
 
 The requested model string is intent; `providerTelemetry` and
 `summary.provider.servedModels/providers` are the observed route. Token/cost

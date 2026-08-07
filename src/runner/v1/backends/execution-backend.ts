@@ -21,11 +21,34 @@ export type PactExecutionBackendRunContextV1 = {
   onTaskRun?: (taskRun: PactPairSingleTaskRunV1) => Promise<void>;
 };
 
+/**
+ * What actually produced the decisions in this run. `executor` names the
+ * effective decision source — the deterministic scripted parity harness, a
+ * caller-injected harness, or the configured model adapter — so run artifacts
+ * can never imply that a scripted trial exercised the caller-selected model.
+ * Harbor runs additionally pin the orchestrator version and the immutable
+ * local image identity (`docker image inspect .Id` content digest).
+ */
+export type PactRunExecutionMetadataV1 = {
+  backend: 'local' | 'harbor';
+  executor: 'model' | 'scripted-harness' | 'custom-harness';
+  harbor?: {
+    version: string;
+    image: string;
+    imageId?: string;
+  };
+};
+
 export type PactExecutionBackendRunResultV1 = {
   aborted?: {
     afterTaskId: string;
     reason: 'provider_configuration_error';
   };
+  /**
+   * Backend-reported execution provenance. When absent the host derives it
+   * from the configured backend and the harness source it was given.
+   */
+  execution?: PactRunExecutionMetadataV1;
 };
 
 export type PactExecutionTaskRunV1 = PactPairSingleTaskRunV1;

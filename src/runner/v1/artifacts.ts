@@ -16,6 +16,7 @@ import {
   pactRunBudgetV1Schema,
   pactRunConfigV1Schema,
 } from './config.js';
+import { PACT_PAIR_POLICIES_V1 } from '../../suites/pact-pair/task-loader.js';
 import type {
   PactPairPublicActionEvaluationV1,
   PactPairPublicEvaluationV1,
@@ -295,9 +296,33 @@ export const pactRunModelMetadataV1Schema = z.discriminatedUnion('provider', [
 
 const policyProvenanceSchema = z
   .object({
-    id: z.enum(['D0', 'D1', 'D2', 'D3', 'D4', 'D5']),
+    // The full host policy surface (D0–D5, matched ablations, REL_*): Harbor
+    // and local runs share one grading configuration space, so artifact
+    // parsing must not silently reject the non-dial policies.
+    id: z.enum(PACT_PAIR_POLICIES_V1),
     file: z.string().min(1).max(512),
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+
+/**
+ * Execution provenance in run.json: `backend` is the orchestrator, `executor`
+ * the effective decision source. `scripted-harness` marks deterministic
+ * parity trials that never called the configured model. Harbor runs pin the
+ * orchestrator version and the immutable local image identity.
+ */
+const runExecutionMetadataV1Schema = z
+  .object({
+    backend: z.enum(['local', 'harbor']),
+    executor: z.enum(['model', 'scripted-harness', 'custom-harness']),
+    harbor: z
+      .object({
+        version: z.string().min(1).max(64),
+        image: z.string().min(1).max(512),
+        imageId: z.string().regex(/^sha256:[0-9a-f]{64}$/).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -308,6 +333,7 @@ export const pactRunMetadataV1Schema = z
     startedAt: z.string().datetime({ offset: true }),
     completedAt: z.string().datetime({ offset: true }).optional(),
     model: pactRunModelMetadataV1Schema,
+    execution: runExecutionMetadataV1Schema.optional(),
     benchmark: pactRunConfigV1Schema.shape.benchmark,
     policyProvenance: policyProvenanceSchema,
     budget: pactRunBudgetV1Schema,

@@ -6,7 +6,7 @@ import {
   rm,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   pactTaskEvaluationRecordV1Schema,
@@ -15,12 +15,15 @@ import {
   type PactTaskResultV1,
 } from '../artifacts.js';
 import { buildPactPairBackendErrorRunV1 } from '../../../suites/pact-pair/environment.js';
+import { pactPairMetricContributionsV1 } from '../../../suites/pact-pair/evaluation.js';
+import type { PactPairEvaluationV1 } from '../../../suites/pact-pair/evaluator.js';
 import type { LoadedPactPairTaskV1 } from '../../../suites/pact-pair/task-loader.js';
 import type {
   ExecutionBackendV1,
   PactExecutionBackendRunContextV1,
   PactExecutionBackendRunResultV1,
   PactExecutionTaskRunV1,
+  PactRunExecutionMetadataV1,
 } from './execution-backend.js';
 import { mapWithConcurrencyV1 } from './concurrency.js';
 import {
@@ -36,6 +39,12 @@ const defaultRepositoryRoot = join(
   '..',
 );
 
+/**
+ * The only Harbor release this backend is validated against. The task packages
+ * rely on v0.5.0 config semantics — most importantly `allow_internet = false`
+ * being the field that actually disables container networking — so the backend
+ * refuses to run under any other version instead of silently degrading.
+ */
 export const PACT_HARBOR_VERSION_V1 = '0.5.0' as const;
 export const PACT_HARBOR_IMAGE_V1 = 'pact-bench-harbor:p0' as const;
 
@@ -75,7 +84,8 @@ export type HarborBackendV1Options = {
  * The in-container harness is still the deterministic no-network scripted
  * harness (see container-entrypoint.ts); wiring a real-model harness across the
  * container boundary is deferred P1 work pending the harness-contract (D3),
- * transport, and networking decisions.
+ * transport, and networking decisions. Run artifacts therefore record the
+ * effective executor as `scripted-harness`, never the caller-selected model.
  */
 export class HarborBackendV1 implements ExecutionBackendV1 {
   readonly kind = 'harbor' as const;
@@ -102,8 +112,20 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
     let commandFailure: unknown;
     let collected = new Map<string, PactExecutionTaskRunV1>();
     let trialFailures = new Map<string, string>();
+    const execution: PactRunExecutionMetadataV1 = {
+      backend: 'harbor',
+      executor: 'scripted-harness',
+      harbor: {
+        version: PACT_HARBOR_VERSION_V1,
+        image: this.imageName,
+      },
+    };
 
     try {
+      // Fail closed on any orchestrator drift: the task packages encode
+      // v0.5.0 semantics (allow_internet, verifier layout), so an unknown or
+      // different Harbor version must not run trials at all.
+      await this.assertCompatibleHarborVersion(context.environment);
       await runExternalCommand(
         this.dockerExecutable,
         [
@@ -117,6 +139,15 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
         this.repositoryRoot,
         context.environment,
       );
+      const imageId = (await runExternalCommand(
+        this.dockerExecutable,
+        ['image', 'inspect', '--format', '{{.Id}}', this.imageName],
+        this.repositoryRoot,
+        context.environment,
+      )).trim();
+      if (/^sha256:[0-9a-f]{64}$/.test(imageId) && execution.harbor) {
+        execution.harbor.imageId = imageId;
+      }
       await mapWithConcurrencyV1(
         context.tasks,
         HARBOR_IMAGE_TAG_CONCURRENCY_V1,
@@ -168,7 +199,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
         commandFailure = error;
       }
       ({ taskRuns: collected, failures: trialFailures } =
-        await collectHarborTaskRuns(jobsDirectory, context.tasks));
+        await collectHarborTaskRunsV1(jobsDirectory, context.tasks));
     } catch (error) {
       commandFailure = error;
     } finally {
@@ -192,79 +223,224 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
         });
       await context.onTaskRun?.(taskRun);
     }
-    return {};
+    return { execution };
+  }
+
+  private async assertCompatibleHarborVersion(
+    environment: Record<string, string | undefined>,
+  ): Promise<void> {
+    let output: string;
+    try {
+      output = await runExternalCommand(
+        this.harborExecutable,
+        ['--version'],
+        this.repositoryRoot,
+        environment,
+      );
+    } catch (error) {
+      throw new Error(
+        `Unable to determine the Harbor version (need ${PACT_HARBOR_VERSION_V1}): ${
+          commandErrorMessage(error)
+        }`,
+      );
+    }
+    const version = /\d+\.\d+\.\d+(?:[.\w-]*)?/.exec(output)?.[0];
+    if (version !== PACT_HARBOR_VERSION_V1) {
+      throw new Error(
+        `Unsupported Harbor version ${version ?? '(unknown)'}; this backend requires exactly ${PACT_HARBOR_VERSION_V1} (its task packages depend on v0.5.0 network-isolation semantics)`,
+      );
+    }
   }
 }
 
-async function collectHarborTaskRuns(
+/**
+ * Collects Harbor verifier artifacts back into host task runs. Fault isolation
+ * and trust are per task:
+ *
+ * - one malformed or inconsistent artifact only fails its own task; every
+ *   other valid result is still collected;
+ * - the container-reported evaluation is cross-checked against the host-loaded
+ *   task (kind and expected behaviors) and its metric contributions are
+ *   recomputed on the host from the evaluation itself — a container cannot
+ *   inject arbitrary metric rows into the run summary.
+ */
+export async function collectHarborTaskRunsV1(
   jobsDirectory: string,
   tasks: LoadedPactPairTaskV1[],
 ): Promise<{
   taskRuns: Map<string, PactExecutionTaskRunV1>;
   failures: Map<string, string>;
 }> {
-  const artifactPaths = await findNamedFiles(jobsDirectory, 'pact-result.json');
-  const collected = new Map<string, PactExecutionTaskRunV1>();
-  for (const artifactPath of artifactPaths) {
-    const result = pactTaskResultV1Schema.parse(
-      JSON.parse(await readFile(artifactPath, 'utf8')),
-    ) as PactTaskResultV1;
-    if (collected.has(result.taskId)) {
-      throw new Error(`Harbor emitted duplicate PACT result for ${result.taskId}`);
-    }
-    const tracePath = join(dirname(artifactPath), 'trace.jsonl');
-    const trace = await readJsonLines(tracePath, pactTraceEventV1Schema);
-    // The container appends one evaluation.jsonl record per trial; each
-    // container runs exactly one task, so exactly one record must match.
-    const evaluationRecords = await readJsonLines(
-      join(dirname(artifactPath), 'evaluation.jsonl'),
-      pactTaskEvaluationRecordV1Schema,
-    );
-    const evaluationRecord = evaluationRecords.find(record =>
-      record.taskId === result.taskId);
-    if (!evaluationRecord || evaluationRecords.length !== 1) {
-      throw new Error(
-        `Harbor emitted ${evaluationRecords.length} evaluation records for ${result.taskId}; expected exactly one`,
-      );
-    }
-    const evaluation = evaluationRecord.evaluation as
-      PactExecutionTaskRunV1['evaluation'];
-    collected.set(result.taskId, {
-      result,
-      trace,
-      evaluation,
-      evaluationResult: {
-        metrics: evaluationRecord.metrics,
-        details: evaluation,
-      },
-    });
-  }
+  const tasksById = new Map(tasks.map(task => [task.taskId, task] as const));
   const taskIdByDirectory = new Map(tasks.map(task => [
     task.taskId.toLocaleLowerCase('en-US'),
     task.taskId,
   ] as const));
+  const collected = new Map<string, PactExecutionTaskRunV1>();
   const failures = new Map<string, string>();
+  const recordFailure = (taskId: string | undefined, message: string) => {
+    if (!taskId) return;
+    const existing = failures.get(taskId);
+    failures.set(taskId, existing ? `${existing}\n${message}` : message);
+  };
+
+  const artifactPaths = await findNamedFiles(jobsDirectory, 'pact-result.json');
+  for (const artifactPath of artifactPaths) {
+    const pathTaskId = taskIdFromArtifactPath(artifactPath, taskIdByDirectory);
+    let taskId = pathTaskId;
+    try {
+      const result = pactTaskResultV1Schema.parse(
+        JSON.parse(await readFile(artifactPath, 'utf8')),
+      ) as PactTaskResultV1;
+      taskId = result.taskId;
+      const task = tasksById.get(result.taskId);
+      if (!task) {
+        throw new Error(
+          `Harbor emitted a PACT result for unselected task ${result.taskId}`,
+        );
+      }
+      if (pathTaskId && pathTaskId !== result.taskId) {
+        throw new Error(
+          `Harbor artifact for ${pathTaskId} claims task ${result.taskId}`,
+        );
+      }
+      if (collected.has(result.taskId)) {
+        throw new Error(`Harbor emitted duplicate PACT result for ${result.taskId}`);
+      }
+      const tracePath = join(dirname(artifactPath), 'trace.jsonl');
+      const trace = await readJsonLines(tracePath, pactTraceEventV1Schema);
+      // The container appends one evaluation.jsonl record per trial; each
+      // container runs exactly one task, so exactly one record must match.
+      const evaluationRecords = await readJsonLines(
+        join(dirname(artifactPath), 'evaluation.jsonl'),
+        pactTaskEvaluationRecordV1Schema,
+      );
+      const evaluationRecord = evaluationRecords.find(record =>
+        record.taskId === result.taskId);
+      if (!evaluationRecord || evaluationRecords.length !== 1) {
+        throw new Error(
+          `Harbor emitted ${evaluationRecords.length} evaluation records for ${result.taskId}; expected exactly one`,
+        );
+      }
+      const evaluation = evaluationRecord.evaluation as PactPairEvaluationV1;
+      assertEvaluationMatchesHostTask(evaluation, task);
+      // Recompute the metric contributions on the host from the evaluation.
+      // The container's own metric rows are validated against the recomputed
+      // values and then discarded — only host-derived contributions enter the
+      // run summary.
+      const recomputedMetrics = pactPairMetricContributionsV1(evaluation);
+      assertMetricsMatch(
+        result.taskId,
+        recomputedMetrics,
+        evaluationRecord.metrics,
+      );
+      collected.set(result.taskId, {
+        result,
+        trace,
+        evaluation,
+        evaluationResult: {
+          metrics: recomputedMetrics,
+          details: evaluation,
+        },
+      });
+    } catch (error) {
+      recordFailure(
+        taskId,
+        `Harbor returned an invalid trial artifact: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
   const resultPaths = await findNamedFiles(jobsDirectory, 'result.json');
   for (const resultPath of resultPaths) {
-    const value = JSON.parse(await readFile(resultPath, 'utf8')) as {
+    let value: {
       task_id?: { path?: unknown };
       exception_info?: {
         exception_message?: unknown;
         exception_traceback?: unknown;
       } | null;
     };
+    try {
+      value = JSON.parse(await readFile(resultPath, 'utf8')) as typeof value;
+    } catch {
+      // A malformed Harbor trial record only loses that trial's failure
+      // detail; affected tasks still fall back to the generic backend error.
+      continue;
+    }
     const taskPath = value.task_id?.path;
     const taskId = typeof taskPath === 'string'
       ? taskIdByDirectory.get(basename(taskPath))
       : undefined;
-    if (!taskId || !value.exception_info) continue;
+    if (!taskId || collected.has(taskId) || !value.exception_info) continue;
     const message = value.exception_info.exception_message;
     const traceback = value.exception_info.exception_traceback;
-    failures.set(taskId, [message, traceback]
+    recordFailure(taskId, [message, traceback]
       .filter((part): part is string => typeof part === 'string' && part.length > 0)
       .join('\n'));
   }
   return { taskRuns: collected, failures };
+}
+
+function taskIdFromArtifactPath(
+  artifactPath: string,
+  taskIdByDirectory: Map<string, string>,
+): string | undefined {
+  for (const segment of artifactPath.split(sep)) {
+    const normalized = segment.toLocaleLowerCase('en-US');
+    const direct = taskIdByDirectory.get(normalized);
+    if (direct) return direct;
+    // Harbor trial directories may suffix the task name (for example
+    // `pair-q1__<uuid>`); match on the leading task-directory component.
+    const prefix = normalized.split('__')[0];
+    if (prefix) {
+      const byPrefix = taskIdByDirectory.get(prefix);
+      if (byPrefix) return byPrefix;
+    }
+  }
+  return undefined;
+}
+
+function assertEvaluationMatchesHostTask(
+  evaluation: PactPairEvaluationV1,
+  task: LoadedPactPairTaskV1,
+): void {
+  if (evaluation.kind !== task.kind) {
+    throw new Error(
+      `Harbor evaluation kind ${evaluation.kind} does not match host task kind ${task.kind} for ${task.taskId}`,
+    );
+  }
+  if (evaluation.expectedBehavior !== task.expectedBehavior) {
+    throw new Error(
+      `Harbor evaluation expectedBehavior ${evaluation.expectedBehavior} does not match host gold ${task.expectedBehavior} for ${task.taskId}`,
+    );
+  }
+  if (
+    evaluation.kind === 'qa'
+    && task.kind === 'qa'
+    && evaluation.benchmarkExpectedBehavior !== task.benchmarkExpectedBehavior
+  ) {
+    throw new Error(
+      `Harbor evaluation benchmarkExpectedBehavior ${evaluation.benchmarkExpectedBehavior} does not match host gold ${task.benchmarkExpectedBehavior} for ${task.taskId}`,
+    );
+  }
+}
+
+function assertMetricsMatch(
+  taskId: string,
+  recomputed: readonly { metric: string; numerator: number; denominator: number }[],
+  reported: readonly { metric: string; numerator: number; denominator: number }[],
+): void {
+  const key = (rows: readonly { metric: string; numerator: number; denominator: number }[]) =>
+    JSON.stringify([...rows]
+      .map(row => [row.metric, row.numerator, row.denominator])
+      .sort());
+  if (key(recomputed) !== key(reported)) {
+    throw new Error(
+      `Harbor container metric contributions do not match the host recomputation for ${taskId}`,
+    );
+  }
 }
 
 async function findNamedFiles(
@@ -307,8 +483,8 @@ async function runExternalCommand(
   args: string[],
   cwd: string,
   environment: Record<string, string | undefined>,
-): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
+): Promise<string> {
+  return await new Promise<string>((resolve, reject) => {
     const child = spawn(executable, args, {
       cwd,
       env: { ...process.env, ...environment },
@@ -326,7 +502,7 @@ async function runExternalCommand(
     )));
     child.on('close', (code, signal) => {
       if (code === 0) {
-        resolve();
+        resolve(output);
         return;
       }
       reject(new PactBackendCommandError(

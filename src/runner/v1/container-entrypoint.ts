@@ -1,25 +1,48 @@
 #!/usr/bin/env node
 import { basename, dirname, resolve } from 'node:path';
-import { pactRunConfigV1Schema } from './config.js';
+import { pactRunConfigV1Schema, type PactRunConfigV1 } from './config.js';
 import { runPactPairBenchmarkV1 } from './runner.js';
 import { createScriptedPactHarnessV1 } from './scripted-harness.js';
+import {
+  PACT_PAIR_GRADING_MODES_V1,
+  PACT_PAIR_POLICIES_V1,
+  PACT_PAIR_REQUESTERS_V1,
+  type PactPairGradingModeV1,
+  type PactPairPolicyV1,
+  type PactPairRequesterIdV1,
+} from '../../suites/pact-pair/task-loader.js';
 
-type ContainerOptions = {
+export type ContainerOptionsV1 = {
   taskId: string;
   outputDirectory: string;
-  policy: 'D0' | 'D1' | 'D2' | 'D3' | 'D4' | 'D5';
-  requester: 'R0' | 'R1' | 'R2' | 'R3' | 'R4';
+  policy: PactPairPolicyV1;
+  requester: PactPairRequesterIdV1;
+  gradingMode: PactPairGradingModeV1;
   maxTurns: number;
   maxToolCalls: number;
   maxRuntimeMs: number;
 };
 
-export async function mainPactContainerV1(
-  argv = process.argv.slice(2),
-): Promise<number> {
-  const options = parseContainerOptions(argv);
-  const absoluteOutput = resolve(options.outputDirectory);
-  const config = pactRunConfigV1Schema.parse({
+/**
+ * Builds the in-container run configuration from the materialized task
+ * arguments. Exported so parity tests can prove that the container evaluates a
+ * task under exactly the grading configuration the host would use locally:
+ * the full policy surface (D0–D5, matched ablations, REL_*) plus gradingMode
+ * flow through the same strict config schema as the host run.
+ */
+export function buildPactContainerRunConfigV1(
+  options: Pick<
+    ContainerOptionsV1,
+    | 'taskId'
+    | 'policy'
+    | 'requester'
+    | 'gradingMode'
+    | 'maxTurns'
+    | 'maxToolCalls'
+    | 'maxRuntimeMs'
+  > & { outputDirectoryName: string },
+): PactRunConfigV1 {
+  return pactRunConfigV1Schema.parse({
     apiVersion: 'pact-run/v1',
     kind: 'RunConfig',
     backend: { kind: 'local' },
@@ -33,7 +56,14 @@ export async function mainPactContainerV1(
     benchmark: {
       policy: options.policy,
       requester: options.requester,
-      tasks: { kind: 'all', ids: [options.taskId] },
+      gradingMode: options.gradingMode,
+      // REL_* policies are validated for QA selections only; deriving the
+      // filter kind from the task id keeps the strict schema satisfied while
+      // still selecting exactly this one task.
+      tasks: {
+        kind: options.taskId.startsWith('PAIR-A') ? 'action' : 'qa',
+        ids: [options.taskId],
+      },
     },
     budget: {
       maxTurns: options.maxTurns,
@@ -41,12 +71,26 @@ export async function mainPactContainerV1(
       maxRuntimeMs: options.maxRuntimeMs,
     },
     output: {
-      directory: basename(absoluteOutput),
+      directory: options.outputDirectoryName,
       saveTraces: true,
     },
   });
+}
+
+export async function mainPactContainerV1(
+  argv = process.argv.slice(2),
+): Promise<number> {
+  const options = parseContainerOptions(argv);
+  const absoluteOutput = resolve(options.outputDirectory);
+  const config = buildPactContainerRunConfigV1({
+    ...options,
+    outputDirectoryName: basename(absoluteOutput),
+  });
   const result = await runPactPairBenchmarkV1(config, {
     harnessFactory: () => createScriptedPactHarnessV1(),
+    // The container always runs the deterministic scripted parity harness —
+    // never a caller-selected model — and its artifacts must say so.
+    executor: 'scripted-harness',
     environment: {},
     runId: `harbor-${options.taskId}`,
     workingDirectory: dirname(absoluteOutput),
@@ -59,7 +103,7 @@ export async function mainPactContainerV1(
   return result.summary.errors === 0 ? 0 : 1;
 }
 
-function parseContainerOptions(argv: string[]): ContainerOptions {
+function parseContainerOptions(argv: string[]): ContainerOptionsV1 {
   const values = new Map<string, string>();
   for (let index = 0; index < argv.length; index += 2) {
     const key = argv[index];
@@ -74,16 +118,23 @@ function parseContainerOptions(argv: string[]): ContainerOptions {
     throw new Error(`Invalid PACT task id: ${taskId}`);
   }
   const policy = required(values, 'policy');
-  if (!/^D[0-5]$/.test(policy)) throw new Error(`Invalid PACT policy: ${policy}`);
+  if (!(PACT_PAIR_POLICIES_V1 as readonly string[]).includes(policy)) {
+    throw new Error(`Invalid PACT policy: ${policy}`);
+  }
   const requester = required(values, 'requester');
-  if (!/^R[0-4]$/.test(requester)) {
+  if (!(PACT_PAIR_REQUESTERS_V1 as readonly string[]).includes(requester)) {
     throw new Error(`Invalid PACT requester: ${requester}`);
+  }
+  const gradingMode = required(values, 'grading-mode');
+  if (!(PACT_PAIR_GRADING_MODES_V1 as readonly string[]).includes(gradingMode)) {
+    throw new Error(`Invalid PACT grading mode: ${gradingMode}`);
   }
   return {
     taskId,
     outputDirectory: required(values, 'output-directory'),
-    policy: policy as ContainerOptions['policy'],
-    requester: requester as ContainerOptions['requester'],
+    policy: policy as PactPairPolicyV1,
+    requester: requester as PactPairRequesterIdV1,
+    gradingMode: gradingMode as PactPairGradingModeV1,
     maxTurns: positiveInteger(values, 'max-turns'),
     maxToolCalls: nonNegativeInteger(values, 'max-tool-calls'),
     maxRuntimeMs: positiveInteger(values, 'max-runtime-ms'),

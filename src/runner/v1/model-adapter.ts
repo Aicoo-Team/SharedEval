@@ -556,6 +556,9 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
         attempts = attempt;
         let response: Response;
         try {
+          // Never follow redirects: the request carries a provider credential
+          // (authorization bearer or Azure api-key header), and a transparent
+          // redirect could replay that header against a different origin.
           response = await this.fetchImplementation(this.completionUrl, {
             method: 'POST',
             headers: {
@@ -563,6 +566,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
               'content-type': 'application/json',
             },
             body: JSON.stringify(body),
+            redirect: 'manual',
             signal: abortController.signal,
           });
         } catch {
@@ -590,6 +594,21 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
         failureRetryable = response.ok
           ? false
           : isRetryableProviderStatus(response.status);
+        if (isRedirectProviderResponse(response)) {
+          // Fail closed instead of re-sending the credential to wherever the
+          // Location header points (it may be a different origin).
+          failureRetryable = false;
+          failureStatus = response.status || undefined;
+          await cancelProviderResponseBody(response);
+          throw new PactProviderRequestErrorV1(
+            'OpenAI-compatible provider responded with a redirect; refusing to resend credentials',
+            {
+              // An opaque-redirect response reports status 0; omit it there.
+              ...(response.status ? { status: response.status } : {}),
+              retryable: false,
+            },
+          );
+        }
         if (!response.ok) {
           const retryable = failureRetryable;
           const retryDelay = providerRetryDelayMs(response, attempt);
@@ -886,6 +905,13 @@ function resolveProviderRequestTargetV1(
 
 function isRetryableProviderStatus(status: number): boolean {
   return [408, 409, 429].includes(status) || status >= 500;
+}
+
+function isRedirectProviderResponse(response: Response): boolean {
+  // With redirect: 'manual', undici surfaces redirects either as the raw 3xx
+  // response or as an opaque-redirect filtered response (status 0).
+  return (response.status >= 300 && response.status < 400)
+    || response.type === 'opaqueredirect';
 }
 
 function providerRetryDelayMs(response: Response, attempt: number): number {
