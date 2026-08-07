@@ -82,6 +82,36 @@ test('converts OpenAI-compatible runner and terminal tool calls into decisions',
   assert.equal(secondBody.messages.at(-1).tool_call_id, 'provider-call-1');
 });
 
+test('targets the Azure deployment URL with the api-key header', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const responses = [
+    completionWithTool('azure-call-1', 'pact_answer', { content: 'Azure answer.' }),
+  ];
+  const fetchMock = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(input), init });
+    return jsonResponse(responses.shift());
+  }) as typeof fetch;
+  const adapter = new OpenAICompatiblePactAdapterV1(azureConfig(), {
+    fetch: fetchMock,
+    environment: { PACT_MODEL_API_KEY: 'azure-test-key' },
+  });
+  await adapter.initialize(validRunInitV1);
+
+  const decision = await adapter.step(taskObservation(deniedAccessV1));
+  assert.deepEqual(decision, { type: 'answer', content: 'Azure answer.' });
+
+  assert.equal(calls.length, 1);
+  assert.equal(
+    calls[0].url,
+    'https://contoso.openai.azure.com/openai/v1/chat/completions',
+  );
+  const headers = new Headers(calls[0].init?.headers);
+  assert.equal(headers.get('api-key'), 'azure-test-key');
+  assert.equal(headers.get('authorization'), null);
+  const body = JSON.parse(String(calls[0].init?.body)) as { model: string };
+  assert.equal(body.model, 'gpt-4o-eval');
+});
+
 test('supports refusal and text-only compatibility fallbacks', async () => {
   const responses = [
     completionWithTool('provider-refuse', 'pact_refuse', { reason: 'That information is private.' }),
@@ -630,6 +660,62 @@ test('records unreadable successful HTTP responses as invalid responses', async 
   assert.equal(request.outcome, 'invalid_response');
 });
 
+test('never follows provider redirects and fails closed without retrying', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const fetchMock = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(input), init });
+    return new Response(null, {
+      status: 307,
+      headers: { location: 'https://attacker.example/v1/chat/completions' },
+    });
+  }) as typeof fetch;
+  const adapter = createAdapter(fetchMock);
+  await adapter.initialize(validRunInitV1);
+
+  await assert.rejects(
+    adapter.step(taskObservation(deniedAccessV1)),
+    (error: unknown) => error instanceof PactProviderRequestErrorV1
+      && /redirect/i.test(error.message)
+      && error.retryable === false
+      && error.status === 307,
+  );
+  // The credential must be sent exactly once, to the configured origin, with
+  // redirect-following disabled — never replayed against the Location target.
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://api.example.com/v1/chat/completions');
+  assert.equal(calls[0].init?.redirect, 'manual');
+  const request = readPactProviderTelemetryV1(adapter)?.requests[0];
+  assert.ok(request);
+  assert.equal(request.httpStatus, 307);
+  assert.equal(request.retryable, false);
+  assert.equal(request.outcome, 'provider_error');
+});
+
+test('fails closed on Azure redirects so the api-key header never crosses origins', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const fetchMock = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(input), init });
+    return new Response(null, {
+      status: 302,
+      headers: { location: 'https://other-tenant.example/openai/v1/chat/completions' },
+    });
+  }) as typeof fetch;
+  const adapter = new OpenAICompatiblePactAdapterV1(azureConfig(), {
+    fetch: fetchMock,
+    environment: { PACT_MODEL_API_KEY: 'azure-test-key' },
+  });
+  await adapter.initialize(validRunInitV1);
+
+  await assert.rejects(
+    adapter.step(taskObservation(deniedAccessV1)),
+    (error: unknown) => error instanceof PactProviderRequestErrorV1
+      && /redirect/i.test(error.message)
+      && error.retryable === false,
+  );
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].init?.redirect, 'manual');
+});
+
 function createAdapter(fetchImplementation: typeof fetch): OpenAICompatiblePactAdapterV1 {
   return new OpenAICompatiblePactAdapterV1(validConfig(), {
     fetch: fetchImplementation,
@@ -650,6 +736,34 @@ function validConfig(overrides: Partial<PactRunConfigV1> = {}): PactRunConfigV1 
     },
     benchmark: {
       dataset: 'pact-pair',
+      policy: 'D2',
+      requester: 'R1',
+      tasks: { kind: 'all' },
+    },
+    budget: {
+      maxTurns: 8,
+      maxToolCalls: 4,
+      maxRuntimeMs: 60_000,
+    },
+    output: {
+      directory: 'runs',
+      saveTraces: false,
+    },
+    ...overrides,
+  });
+}
+
+function azureConfig(overrides: Partial<PactRunConfigV1> = {}): PactRunConfigV1 {
+  return pactRunConfigV1Schema.parse({
+    apiVersion: 'pact-run/v1',
+    kind: 'RunConfig',
+    model: {
+      provider: 'azure-openai',
+      endpoint: 'https://contoso.openai.azure.com/openai/v1',
+      deployment: 'gpt-4o-eval',
+      apiKeyEnv: 'PACT_MODEL_API_KEY',
+    },
+    benchmark: {
       policy: 'D2',
       requester: 'R1',
       tasks: { kind: 'all' },

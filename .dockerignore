@@ -2,8 +2,16 @@
 !package.json
 !package-lock.json
 !tsconfig.json
+!tsconfig.harbor.json
 !src/
 !src/**
+!dataset/
+!dataset/**
+!harbor/
+!harbor/environment/
+!harbor/environment/Dockerfile
+!harbor/environment/sharedos-stage/
+!harbor/environment/sharedos-stage/**
 !examples/
 !examples/submissions/
 !examples/submissions/typescript-basic/

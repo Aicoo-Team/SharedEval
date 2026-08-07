@@ -1,0 +1,42 @@
+# Opt-in Harbor parity config for the curated 60-task split
+# pact_pair/splits/10_splits_v2/split_01.json.
+#
+# Like the smoke config, each container runs the deterministic no-network
+# scripted harness (no model call). Requires Docker + Harbor 0.5.0.
+#
+# The canonical results/summary this produces must match the committed golden
+# tests/golden/pact-pair-split-01-v1 under the runtimeMs normalization. The task
+# ids below are the canonical loadPactPairSplitTaskIdsV1(split_01) order (QA
+# ascending, then actions ascending); a unit test guards them against drift, and
+# the golden is generated from the same order (npm run generate:golden).
+apiVersion: pact-run/v1
+kind: RunConfig
+backend:
+  kind: harbor
+  concurrency: 4
+model:
+  provider: openai-compatible
+  baseUrl: https://scripted.invalid/v1
+  apiKeyEnv: PACT_MODEL_API_KEY
+  model: pact-scripted-parity-v1
+  maxOutputTokens: 256
+benchmark:
+  policy: D2
+  requester: R1
+  tasks:
+    kind: all
+    ids: [
+      PAIR-Q2, PAIR-Q10, PAIR-Q16, PAIR-Q42, PAIR-Q43, PAIR-Q51, PAIR-Q66, PAIR-Q71, PAIR-Q79, PAIR-Q92,
+      PAIR-Q106, PAIR-Q114, PAIR-Q123, PAIR-Q125, PAIR-Q126, PAIR-Q127, PAIR-Q139, PAIR-Q153, PAIR-Q158, PAIR-Q162,
+      PAIR-Q211, PAIR-Q220, PAIR-Q233, PAIR-Q238, PAIR-Q240, PAIR-Q248, PAIR-Q249, PAIR-Q250, PAIR-Q253, PAIR-Q262,
+      PAIR-Q263, PAIR-Q276, PAIR-Q278, PAIR-Q297, PAIR-Q328, PAIR-Q340, PAIR-Q357, PAIR-Q370, PAIR-Q378, PAIR-Q391,
+      PAIR-A8, PAIR-A24, PAIR-A34, PAIR-A36, PAIR-A41, PAIR-A85, PAIR-A95, PAIR-A97, PAIR-A109, PAIR-A112,
+      PAIR-A127, PAIR-A128, PAIR-A148, PAIR-A158, PAIR-A162, PAIR-A168, PAIR-A172, PAIR-A178, PAIR-A181, PAIR-A182,
+    ]
+budget:
+  maxTurns: 4
+  maxToolCalls: 2
+  maxRuntimeMs: 30000
+output:
+  directory: runs
+  saveTraces: true

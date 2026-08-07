@@ -9,13 +9,13 @@ import {
   pactFinalizeReportV1Schema,
   parsePactRunnerRequestLineV1,
   serializePactWireMessageV1,
-  type PactAdapterV1,
+  type PactHarnessV1,
   type PactBoundaryPlanV1,
   type PactRunnerRequestV1,
   type PactTaskIntroV1,
 } from '../../protocol/v1/index.js';
 
-export type PactAdapterHostStateV1 =
+export type PactHarnessHostStateV1 =
   | 'new'
   | 'initialized'
   | 'planned'
@@ -25,13 +25,13 @@ export type PactAdapterHostStateV1 =
   | 'failed'
   | 'finalized';
 
-export type ServePactAdapterV1Options = {
+export type ServePactHarnessV1Options = {
   input?: Readable;
   output?: Writable;
 };
 
-export class PactAdapterHostV1 {
-  private currentState: PactAdapterHostStateV1 = 'new';
+export class PactHarnessHostV1 {
+  private currentState: PactHarnessHostStateV1 = 'new';
   private readonly seenRequestIds = new Set<string>();
   private readonly seenToolCallIds = new Set<string>();
   private availableTools = new Set<string>();
@@ -40,9 +40,9 @@ export class PactAdapterHostV1 {
   private pendingTool: { name: string; expectedTurn: number } | undefined;
   private finalizeAttempted = false;
 
-  constructor(private readonly adapter: PactAdapterV1) {}
+  constructor(private readonly harness: PactHarnessV1) {}
 
-  get state(): PactAdapterHostStateV1 {
+  get state(): PactHarnessHostStateV1 {
     return this.currentState;
   }
 
@@ -77,7 +77,7 @@ export class PactAdapterHostV1 {
       case 'pact.initialize': {
         this.requireState(request.method, ['new']);
         const availableTools = new Set(request.params.tools.map(tool => tool.name));
-        await this.adapter.initialize(structuredClone(request.params));
+        await this.harness.initialize(structuredClone(request.params));
         this.availableTools = availableTools;
         this.currentState = 'initialized';
         return serializeResult(request.id, {
@@ -89,7 +89,7 @@ export class PactAdapterHostV1 {
         this.requireState(request.method, ['initialized']);
         const plannedTask = structuredClone(request.params.task);
         const plan = pactBoundaryPlanV1Schema.parse(
-          await this.adapter.planBoundary(structuredClone(plannedTask)),
+          await this.harness.planBoundary(structuredClone(plannedTask)),
         );
         this.plannedTask = plannedTask;
         this.requestedPlan = plan;
@@ -135,7 +135,7 @@ export class PactAdapterHostV1 {
         }
 
         const decision = pactDecisionV1Schema.parse(
-          await this.adapter.step(structuredClone(observation)),
+          await this.harness.step(structuredClone(observation)),
         );
         if (observation.type === 'tool_result') {
           this.seenToolCallIds.add(observation.toolCallId);
@@ -172,14 +172,14 @@ export class PactAdapterHostV1 {
         }
         this.finalizeAttempted = true;
         this.currentState = 'finalizing';
-        const report = pactFinalizeReportV1Schema.parse(await this.adapter.finalize());
+        const report = pactFinalizeReportV1Schema.parse(await this.harness.finalize());
         this.currentState = 'finalized';
         return serializeResult(request.id, { report });
       }
     }
   }
 
-  private requireState(method: string, allowed: PactAdapterHostStateV1[]): void {
+  private requireState(method: string, allowed: PactHarnessHostStateV1[]): void {
     if (!allowed.includes(this.currentState)) {
       throw new PactLifecycleError(
         `${method} is invalid while the adapter is ${this.currentState}`,
@@ -188,11 +188,11 @@ export class PactAdapterHostV1 {
   }
 }
 
-export async function servePactAdapterV1(
-  adapter: PactAdapterV1,
-  options: ServePactAdapterV1Options = {},
+export async function servePactHarnessV1(
+  harness: PactHarnessV1,
+  options: ServePactHarnessV1Options = {},
 ): Promise<void> {
-  const host = new PactAdapterHostV1(adapter);
+  const host = new PactHarnessHostV1(harness);
   const input = options.input ?? process.stdin;
   const output = options.output ?? process.stdout;
 
@@ -205,6 +205,15 @@ export async function servePactAdapterV1(
     }
   }
 }
+
+/** @deprecated Use PactHarnessHostStateV1. */
+export type PactAdapterHostStateV1 = PactHarnessHostStateV1;
+/** @deprecated Use ServePactHarnessV1Options. */
+export type ServePactAdapterV1Options = ServePactHarnessV1Options;
+/** @deprecated Use PactHarnessHostV1. */
+export { PactHarnessHostV1 as PactAdapterHostV1 };
+/** @deprecated Use servePactHarnessV1. */
+export const servePactAdapterV1 = servePactHarnessV1;
 
 type PactWireInputFrameV1 =
   | { kind: 'line'; value: string }

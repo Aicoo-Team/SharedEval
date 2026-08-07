@@ -100,10 +100,11 @@ plane. The intended deployment split is:
 - **Aicoo** may host dataset and submission intake, permissions, run requests,
   and leaderboard presentation. Public reading can remain unauthenticated;
   creating or mutating a submission should require an Aicoo identity/API key.
-- **Execution backends** run an approved suite. The current implementation is
-  local TypeScript. An isolated container backend such as Harbor can be added
-  behind the same runner boundary; it is not the dataset registry or scoring
-  API.
+- **Execution backends** run an approved suite. The default is the local
+  TypeScript backend. An opt-in Harbor/Docker backend runs the same per-task
+  engine inside one isolated container per task, currently with the
+  deterministic no-network parity harness only; an execution backend is not the
+  dataset registry or scoring API.
 
 No hosted intake endpoint is deployed by this repository today. Keeping that
 product API in Aicoo lets authentication and abuse controls evolve without
