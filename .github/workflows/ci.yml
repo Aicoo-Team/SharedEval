@@ -63,3 +63,66 @@ jobs:
           --file examples/submissions/typescript-basic/Dockerfile
           --tag pact-typescript-basic:ci
           .
+
+  # Runs the execution test suite (including the differential schema
+  # conformance fixtures) against a REAL SharedOS build pinned to the
+  # commit the PACT-side mirrors were verified against. Semantics are
+  # fail-closed: a missing checkout token or a missing SharedOS build
+  # fails the job — "SharedOS unavailable" must never merge green.
+  # Requires the SHAREDOS_CHECKOUT_TOKEN secret (a PAT that can read
+  # Aicoo-Team/SharedOS) and this job marked as required in branch
+  # protection.
+  sharedos-conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      # Pin: the SharedOS commit the v1 contracts were verified against.
+      SHAREDOS_PIN: 846cbf64830d1a77bf477b98fd3586cd5cdff02e
+
+    steps:
+      - name: Require SharedOS checkout token
+        env:
+          SHAREDOS_CHECKOUT_TOKEN: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
+        run: |
+          if [ -z "$SHAREDOS_CHECKOUT_TOKEN" ]; then
+            echo "::error::SHAREDOS_CHECKOUT_TOKEN secret is not configured. This job must fail rather than skip: configure a PAT with read access to Aicoo-Team/SharedOS in the repository secrets."
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check out SharedOS (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: Aicoo-Team/SharedOS
+          ref: ${{ env.SHAREDOS_PIN }}
+          token: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
+          path: sharedos-repo
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install PACT dependencies
+        run: npm ci
+
+      - name: Build SharedOS
+        working-directory: sharedos-repo
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Run execution tests against the pinned SharedOS build
+        env:
+          PACT_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
+          PACT_REQUIRE_SHAREDOS: '1'
+        run: npm run test:execution

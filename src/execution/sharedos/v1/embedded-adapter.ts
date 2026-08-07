@@ -21,6 +21,7 @@
 import {
   digestObjectV1,
   sharedOsTurnRequestV1Schema,
+  sharedOsWorldHandleV1Schema,
   sharedOsWorldInitV1Schema,
   SHAREDOS_PROTOCOL_VERSION_V1,
   type SharedOsModelProvenanceV1,
@@ -53,11 +54,25 @@ export type EmbeddedWorldV1 = {
   owner: SoAddress;
   /** The agent whose turn-opening grant is issued (the requester). */
   sender: SoAddress;
-  /** Canonical world value; its digest must equal the host-measured one. */
+  /**
+   * Canonical world value; its digest must equal the host-measured one.
+   * Digest scope (deliberately narrow): the digest attests THIS value —
+   * the declarative task state — and nothing else. `setup()` and
+   * `senderGrants()` are imperative code and can materialize kernel
+   * state the digest does not cover; they are versioned with the suite
+   * in this repository, so executable-world reproducibility is
+   * digest + suite code version, never the digest alone.
+   */
   canonicalWorld: unknown;
-  /** Register resource providers and tool handlers on the fresh kernel. */
+  /**
+   * Register resource providers and tool handlers on the fresh kernel.
+   * Not covered by the world digest — see `canonicalWorld`.
+   */
   setup(kernel: SoKernel, modules: SharedOsModulesV1): void | Promise<void>;
-  /** Grants for the sender beyond the per-tick execution grant. */
+  /**
+   * Grants for the sender beyond the per-tick execution grant.
+   * Not covered by the world digest — see `canonicalWorld`.
+   */
   senderGrants(modules: SharedOsModulesV1, namespaceId: string): unknown[];
   /**
    * `granted` (default) issues the per-tick recipient-scoped execution
@@ -87,6 +102,10 @@ type WorldState = {
   test: SoTestKernel;
   recipient: SoAddress;
   namespaceId: string;
+  /** Digest recorded at init; caller-provided handles must match it. */
+  worldDigestAtInit: string;
+  /** Expectation from init; verified against the kernel before each turn. */
+  expectedVisibleTools: readonly string[];
 };
 
 function defaultIdGen(): SharedOsIdGenV1 {
@@ -147,6 +166,8 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
       test,
       recipient: parsed.recipient as SoAddress,
       namespaceId: parsed.namespaceId,
+      worldDigestAtInit: materializedDigest,
+      expectedVisibleTools: [...parsed.expectedVisibleTools],
     });
     return {
       worldId: parsed.worldId,
@@ -160,12 +181,27 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
     request: SharedOsTurnRequestV1,
   ): Promise<SharedOsTurnResultV1[]> {
     const parsed = sharedOsTurnRequestV1Schema.parse(request);
-    const state = this.worlds.get(handle.worldId);
+    const parsedHandle = sharedOsWorldHandleV1Schema.parse(handle);
+    const state = this.worlds.get(parsedHandle.worldId);
     if (!state) {
       throw new SharedOsWorldGateErrorV1(
-        handle.worldId,
+        parsedHandle.worldId,
         'unknown_world',
-        `World ${handle.worldId} was never initialized or is closed.`,
+        `World ${parsedHandle.worldId} was never initialized or is closed.`,
+      );
+    }
+    // A handle is a claim, not a lookup key: its namespace and digest
+    // must match what init recorded, or the turn must not run.
+    if (
+      parsedHandle.namespaceId !== state.namespaceId
+      || parsedHandle.worldDigestAtInit !== state.worldDigestAtInit
+    ) {
+      throw new SharedOsWorldGateErrorV1(
+        parsedHandle.worldId,
+        'handle_mismatch',
+        `Handle for world ${parsedHandle.worldId} does not match init: `
+        + `namespace ${parsedHandle.namespaceId} vs ${state.namespaceId}, `
+        + `digest ${parsedHandle.worldDigestAtInit} vs ${state.worldDigestAtInit}.`,
       );
     }
     const { modules } = this.options;
@@ -201,6 +237,23 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
     };
 
     const tools = await test.kernel.listTools(context);
+    // expectedVisibleTools is enforced, not advisory: if SharedOS's
+    // permission filtering yields a different effective tool set than
+    // the host declared at init, refuse to run the turn.
+    const effectiveTools = [...new Set(tools.map(tool => tool.name))].sort();
+    const expectedTools = [...new Set(state.expectedVisibleTools)].sort();
+    if (
+      effectiveTools.length !== expectedTools.length
+      || effectiveTools.some((name, index) => name !== expectedTools[index])
+    ) {
+      throw new SharedOsWorldGateErrorV1(
+        parsedHandle.worldId,
+        'visible_tools_mismatch',
+        `World ${parsedHandle.worldId} effective tool set `
+        + `[${effectiveTools.join(', ')}] does not match expectedVisibleTools `
+        + `[${expectedTools.join(', ')}]; refusing to run the turn.`,
+      );
+    }
     const toolCalls: SharedOsToolCallRecordV1[] = [];
     const executor = new modules.runtime.TurnExecutor(
       test.kernel,
@@ -260,7 +313,7 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
 
     return [{
       turnId: parsed.turnId,
-      worldId: handle.worldId,
+      worldId: parsedHandle.worldId,
       adapterId: 'sharedos-embedded',
       protocolVersion: SHAREDOS_PROTOCOL_VERSION_V1,
       traceId: result.traceId,

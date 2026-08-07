@@ -96,6 +96,88 @@ test('addresses are discriminated by kind, mirroring SharedOS', () => {
   assert.equal(legacyShape.success, false);
 });
 
+test('the execution recipient must be an agent: SharedOS ExecutionRequest.agent is agent-only', () => {
+  const base = {
+    worldId: 'world-1',
+    taskId: 'qa:127',
+    namespaceId: 'run-0001',
+    workspaceDigest: WORLD_DIGEST,
+    expectedVisibleTools: ['memory.search'],
+  };
+  assert.equal(
+    sharedOsWorldInitV1Schema.safeParse({
+      ...base,
+      recipient: { kind: 'agent', agentId: 'responder' },
+    }).success,
+    true,
+  );
+  // A human recipient parsed fine on the PACT side pre-fix but the
+  // SharedOS runtime rejects it; the mirror must reject it too.
+  assert.equal(
+    sharedOsWorldInitV1Schema.safeParse({
+      ...base,
+      recipient: { kind: 'human', userId: 'owner-1' },
+    }).success,
+    false,
+  );
+});
+
+test('identifiers mirror SharedOS IdentifierSchema: trimmed, non-empty, max 256 chars', () => {
+  const base = {
+    worldId: 'world-1',
+    taskId: 'qa:127',
+    namespaceId: 'run-0001',
+    recipient: { kind: 'agent', agentId: 'responder' },
+    workspaceDigest: WORLD_DIGEST,
+    expectedVisibleTools: [],
+  };
+  // Whitespace-only agent id trims to empty and must be rejected.
+  assert.equal(
+    sharedOsWorldInitV1Schema.safeParse({
+      ...base,
+      recipient: { kind: 'agent', agentId: '   ' },
+    }).success,
+    false,
+  );
+  assert.equal(
+    sharedOsWorldInitV1Schema.safeParse({ ...base, namespaceId: '  \t ' }).success,
+    false,
+  );
+  // Over-long identifiers must be rejected, exactly at the 256 boundary.
+  assert.equal(
+    sharedOsWorldInitV1Schema.safeParse({ ...base, worldId: 'w'.repeat(256) }).success,
+    true,
+  );
+  assert.equal(
+    sharedOsWorldInitV1Schema.safeParse({ ...base, worldId: 'w'.repeat(257) }).success,
+    false,
+  );
+  // Surrounding whitespace is trimmed, matching SharedOS normalization.
+  const padded = sharedOsWorldInitV1Schema.safeParse({ ...base, worldId: '  world-1  ' });
+  assert.equal(padded.success, true);
+  assert.equal(padded.success && padded.data.worldId, 'world-1');
+});
+
+test('turn payload must be JSON-safe, mirroring SharedOS JsonValueSchema', () => {
+  const message = { intent: 'go', purpose: 'benchmark' };
+  assert.equal(
+    sharedOsTurnMessageV1Schema.safeParse({
+      ...message,
+      payload: { taskId: 'qa:127', nested: [1, 'two', null, { ok: true }] },
+    }).success,
+    true,
+  );
+  // bigint does not round-trip through JSON; SharedOS rejects it at the
+  // kernel boundary, so the PACT mirror rejects it at parse time.
+  for (const payload of [1n, { budget: 1n }, Number.NaN, Infinity, new Date()]) {
+    assert.equal(
+      sharedOsTurnMessageV1Schema.safeParse({ ...message, payload }).success,
+      false,
+      `payload ${String(payload)} must be rejected as non-JSON-safe`,
+    );
+  }
+});
+
 test('turn results carry adapter identity, protocol version, trace, and events', () => {
   const parsed = sharedOsTurnResultV1Schema.safeParse({
     turnId: 'turn-1',

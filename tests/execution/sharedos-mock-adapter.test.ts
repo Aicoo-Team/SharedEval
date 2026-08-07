@@ -165,6 +165,36 @@ test('malformed turn requests are rejected before execution', async () => {
   );
 });
 
+test('a handle with a foreign namespace or digest fails closed', async () => {
+  const adapter = makeAdapter();
+  const handle = await adapter.initWorld(worldInit());
+  await assert.rejects(
+    () => adapter.runTurn({ ...handle, namespaceId: 'run-other' }, turnRequest('turn-1')),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1 && error.reason === 'handle_mismatch',
+  );
+  await assert.rejects(
+    () => adapter.runTurn({ ...handle, worldDigestAtInit: 'e'.repeat(64) }, turnRequest('turn-1')),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1 && error.reason === 'handle_mismatch',
+  );
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-1'));
+  assert.equal(result.status, 'succeeded');
+});
+
+test('expectedVisibleTools is enforced against the world tool set before any turn', async () => {
+  const adapter = makeAdapter();
+  const handle = await adapter.initWorld(
+    worldInit({ expectedVisibleTools: ['memory.search', 'memory.write'] }),
+  );
+  await assert.rejects(
+    () => adapter.runTurn(handle, turnRequest('turn-1')),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1
+      && error.reason === 'visible_tools_mismatch',
+  );
+});
+
 test('closeWorld releases the world; later turns fail closed', async () => {
   const adapter = makeAdapter();
   const handle = await adapter.initWorld(worldInit());

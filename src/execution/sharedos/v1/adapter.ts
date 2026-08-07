@@ -23,11 +23,22 @@ import type {
 export type SharedOsClockV1 = { nowMs(): number };
 export type SharedOsIdGenV1 = { next(prefix: string): string };
 
-/** Thrown when world init fails closed; no turn may run afterwards. */
+/**
+ * Thrown when the world gate fails closed — at init (digest mismatch,
+ * empty world) or before a turn (unknown world, a handle whose
+ * namespace/digest do not match what init recorded, or an effective
+ * tool set that disagrees with `expectedVisibleTools`). No turn may run
+ * afterwards.
+ */
 export class SharedOsWorldGateErrorV1 extends Error {
   constructor(
     readonly worldId: string,
-    readonly reason: 'digest_mismatch' | 'empty_world' | 'unknown_world',
+    readonly reason:
+      | 'digest_mismatch'
+      | 'empty_world'
+      | 'unknown_world'
+      | 'handle_mismatch'
+      | 'visible_tools_mismatch',
     message: string,
   ) {
     super(message);

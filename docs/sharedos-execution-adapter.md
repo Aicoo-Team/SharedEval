@@ -36,12 +36,29 @@ Two adapter boundaries must not be conflated (per the integration guide):
 | `DEFAULT_TURN_TIMEOUT_MS_V1 = 120_000`        | `TurnExecutor` `defaultTimeoutMs ?? 120_000`                 |
 | `MAX_TURN_TIMEOUT_MS_V1 = 300_000`            | `MAX_EXECUTION_TIMEOUT_MS`                                   |
 | `MAX_TURN_STEPS_V1 = 1_000`                   | `ExecutionOptionsSchema.maxSteps.max(1_000)`                 |
+| `sharedOsIdentifierV1Schema` (trim, 1–256)    | `IdentifierSchema` (`z.string().trim().min(1).max(256)`)     |
+| `sharedOsJsonValueV1Schema` (JSON-safe)       | `JsonValueSchema` (rejects undefined/bigint/Date/NaN/±Inf)   |
+| recipient: agent address only                 | `ExecutionRequestSchema.agent` = `AgentAddressSchema`        |
 | address `{kind: 'agent'\|'human', …}`         | `AddressSchema` discriminated union (also group/service)     |
 | `namespaceId` on world init/handle            | `AccessContext.namespaceId` (fresh namespace per run)        |
-| message `{intent, purpose, payload}`          | `MessageEnvelope` model-relevant fields; purpose required    |
+| message `{intent, purpose, payload}`          | `MessageEnvelope` model-relevant fields; purpose required,   |
+|                                               | intent/purpose trimmed, payload `JsonValueSchema`            |
 | status `succeeded\|denied\|failed\|cancelled` | `ExecutionResultSchema` discriminants (timeout ⇒ cancelled)  |
 | `events[]` passthrough                        | append-only `ExecutionEvent[]` on every result               |
 | `adapterId` + `protocolVersion` on results    | integration guide: results retain adapter id + version      |
+
+Drift between the PACT mirror and the SharedOS source is guarded by
+**differential conformance fixtures**
+(`tests/execution/sharedos-conformance.test.ts`): the same fixtures are
+parsed by both schema sets and the accept/reject decision must agree.
+The seed fixtures are the three drift cases caught in review — a human
+execution recipient, a bigint payload, and a whitespace-only identifier
+— plus boundary cases (256/257-char ids, extra keys, NaN/Infinity/Date)
+and a full PACT-turn → SharedOS `ExecutionRequest` mapping check. The
+fixtures run whenever a SharedOS build is reachable and are enforced in
+CI against a pinned SharedOS commit (see below). They are the interim
+substitute for consuming `@sharedos/contracts` directly, which awaits
+the lead's packaging decision.
 
 Adapter identifiers follow the guide: `sharedos-embedded`,
 `sharedos-http`, `pact-public-runner`, plus `mock-sharedos` for the mock.
@@ -64,6 +81,29 @@ Security semantics encoded structurally:
 - Absent, undiscoverable, and exhausted tools all surface as the same
   public `tool_unavailable`; the public vocabulary cannot express grant
   state.
+- **`expectedVisibleTools` is enforced, not advisory**: before any turn
+  runs, the adapter compares the effective (permission-filtered) tool
+  set against the expectation declared at init and fails closed
+  (`visible_tools_mismatch`) on disagreement. SharedOS stays the
+  authority on what the model sees; PACT refuses to run when authority
+  and expectation disagree.
+- **A world handle is a claim, not a lookup key**: `runTurn` verifies
+  the caller-provided handle's `namespaceId` and `worldDigestAtInit`
+  against what init recorded and fails closed (`handle_mismatch`) on
+  any difference.
+
+**Digest scope (deliberately narrow):** `workspaceDigest` /
+`worldDigestAtInit` attest the *declarative* canonical world value and
+nothing else. The world factory's imperative `setup()` and grant wiring
+can materialize kernel state the digest does not cover; that code is
+versioned with the suite in this repository, so reproducibility of the
+executable world is **digest + suite code version**, never the digest
+alone. We chose narrowing the claim over digesting the full materialized
+world: hashing imperative setup output would require a canonical
+serialization of kernel state (providers, handlers, grants — including
+functions), which SharedOS does not define and PACT would have to
+invent, creating a second drift surface. The narrow claim is honest,
+cheap, and auditable.
 
 The mock (`MockSharedOsAdapterV1`) injects seven incident classes:
 timeout, no-response, denied, duplicate emission, served-model drift,
@@ -100,10 +140,20 @@ the real SharedOS kernel and `TurnExecutor`:
 **Package consumption (interim):** `@sharedos/*` is private and
 unpublished, so the binding dynamically loads a locally built checkout —
 `PACT_SHAREDOS_DIR`, defaulting to `../sharedos-repo` — through minimal
-structural types (`embedded-types.ts`). Integration tests skip with an
-explicit logged reason when no build is present (CI stays green without
-repo access). Switching to a proper workspace/git dependency is a lead
-decision; the adapter body is unaffected by that swap.
+structural types (`embedded-types.ts`). Switching to a proper
+workspace/git dependency is a lead decision; the adapter body is
+unaffected by that swap.
+
+**CI enforcement:** locally, integration/conformance tests skip with an
+explicit logged reason when no SharedOS build is present. In CI that is
+no longer sufficient — the required `sharedos-conformance` job
+(`.github/workflows/ci.yml`) checks out Aicoo-Team/SharedOS **pinned to
+commit `846cbf6`**, builds it, and runs `npm run test:execution` with
+`PACT_REQUIRE_SHAREDOS=1`, under which an unavailable SharedOS build is
+a hard failure instead of a skip. The job needs the
+`SHAREDOS_CHECKOUT_TOKEN` repository secret (a PAT with read access to
+the private cross-org Aicoo-Team/SharedOS repo); a missing secret fails
+the job rather than skipping it, so schema drift can never merge green.
 
 ## Next steps
 

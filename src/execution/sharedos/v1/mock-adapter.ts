@@ -22,6 +22,7 @@
  */
 import {
   sharedOsTurnRequestV1Schema,
+  sharedOsWorldHandleV1Schema,
   sharedOsWorldInitV1Schema,
   SHAREDOS_PROTOCOL_VERSION_V1,
   type SharedOsModelProvenanceV1,
@@ -96,7 +97,14 @@ export class MockSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
   private readonly clock: SharedOsClockV1;
   private readonly idGen: SharedOsIdGenV1;
   private readonly attemptsByTurnId = new Map<string, number>();
-  private readonly openWorlds = new Set<string>();
+  private readonly openWorlds = new Map<
+    string,
+    {
+      namespaceId: string;
+      worldDigestAtInit: string;
+      expectedVisibleTools: readonly string[];
+    }
+  >();
 
   constructor(options: MockSharedOsAdapterOptionsV1) {
     this.worlds = options.worlds;
@@ -131,7 +139,11 @@ export class MockSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
         + `${parsed.workspaceDigest}, runtime materialized ${world.workspaceDigest}.`,
       );
     }
-    this.openWorlds.add(parsed.worldId);
+    this.openWorlds.set(parsed.worldId, {
+      namespaceId: parsed.namespaceId,
+      worldDigestAtInit: world.workspaceDigest,
+      expectedVisibleTools: [...parsed.expectedVisibleTools],
+    });
     return {
       worldId: parsed.worldId,
       namespaceId: parsed.namespaceId,
@@ -144,11 +156,45 @@ export class MockSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
     request: SharedOsTurnRequestV1,
   ): Promise<SharedOsTurnResultV1[]> {
     const parsed = sharedOsTurnRequestV1Schema.parse(request);
-    if (!this.openWorlds.has(handle.worldId)) {
+    const parsedHandle = sharedOsWorldHandleV1Schema.parse(handle);
+    const open = this.openWorlds.get(parsedHandle.worldId);
+    if (!open) {
       throw new SharedOsWorldGateErrorV1(
-        handle.worldId,
+        parsedHandle.worldId,
         'unknown_world',
-        `World ${handle.worldId} was never initialized or is closed.`,
+        `World ${parsedHandle.worldId} was never initialized or is closed.`,
+      );
+    }
+    // A handle is a claim, not a lookup key: namespace and digest must
+    // match what init recorded (mirrors the embedded adapter).
+    if (
+      parsedHandle.namespaceId !== open.namespaceId
+      || parsedHandle.worldDigestAtInit !== open.worldDigestAtInit
+    ) {
+      throw new SharedOsWorldGateErrorV1(
+        parsedHandle.worldId,
+        'handle_mismatch',
+        `Handle for world ${parsedHandle.worldId} does not match init: `
+        + `namespace ${parsedHandle.namespaceId} vs ${open.namespaceId}, `
+        + `digest ${parsedHandle.worldDigestAtInit} vs ${open.worldDigestAtInit}.`,
+      );
+    }
+    // expectedVisibleTools is enforced before any turn runs, exactly
+    // like the embedded adapter's pre-turn check against the kernel.
+    const effectiveTools = [
+      ...new Set(this.worlds[parsedHandle.worldId]?.visibleTools ?? []),
+    ].sort();
+    const expectedTools = [...new Set(open.expectedVisibleTools)].sort();
+    if (
+      effectiveTools.length !== expectedTools.length
+      || effectiveTools.some((name, index) => name !== expectedTools[index])
+    ) {
+      throw new SharedOsWorldGateErrorV1(
+        parsedHandle.worldId,
+        'visible_tools_mismatch',
+        `World ${parsedHandle.worldId} effective tool set `
+        + `[${effectiveTools.join(', ')}] does not match expectedVisibleTools `
+        + `[${expectedTools.join(', ')}]; refusing to run the turn.`,
       );
     }
     const script = this.turns[parsed.turnId] ?? {};
@@ -158,11 +204,11 @@ export class MockSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
     const traceId = this.idGen.next('trace');
     const base = {
       turnId: parsed.turnId,
-      worldId: handle.worldId,
+      worldId: parsedHandle.worldId,
       adapterId: 'mock-sharedos' as const,
       protocolVersion: SHAREDOS_PROTOCOL_VERSION_V1,
       traceId,
-      toolCalls: this.scriptedToolCalls(handle.worldId, script),
+      toolCalls: this.scriptedToolCalls(parsedHandle.worldId, script),
       events: this.turnEvents(parsed.turnId, traceId),
       provenance: this.provenance,
       usage: { inputTokens: 128, outputTokens: 64 },
@@ -221,7 +267,7 @@ export class MockSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
         return [this.succeededResult(base, script)];
       case 'empty-world':
         throw new SharedOsWorldGateErrorV1(
-          handle.worldId,
+          parsedHandle.worldId,
           'empty_world',
           'empty-world is an init-time fault; it cannot occur during a turn.',
         );

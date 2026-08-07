@@ -23,6 +23,13 @@ import {
 const loaded = await loadSharedOsModulesV1();
 const skip = loaded.ok ? false : loaded.reason;
 if (!loaded.ok) {
+  // In the pinned-SharedOS conformance CI job, an unavailable SharedOS
+  // build is a failure, never a green skip.
+  if (process.env.PACT_REQUIRE_SHAREDOS) {
+    throw new Error(
+      `PACT_REQUIRE_SHAREDOS is set but SharedOS could not be loaded: ${loaded.reason}`,
+    );
+  }
   console.log(`[sharedos-embedded] skipping integration tests: ${loaded.reason}`);
 }
 
@@ -195,7 +202,11 @@ test('worlds are isolated: another world sees neither tools nor state of the fir
     clock: { nowMs: () => (tick += 10) },
   });
   const handleA = await adapter.initWorld(worldInit({ worldId: 'world-a', namespaceId: 'run-a' }));
-  const handleB = await adapter.initWorld(worldInit({ worldId: 'world-b', namespaceId: 'run-b' }));
+  // world-b registers no tools, so its declared expectation is empty —
+  // expectedVisibleTools is enforced, not advisory.
+  const handleB = await adapter.initWorld(
+    worldInit({ worldId: 'world-b', namespaceId: 'run-b', expectedVisibleTools: [] }),
+  );
   assert.notEqual(handleA.namespaceId, handleB.namespaceId);
 
   const [resultA] = await adapter.runTurn(handleA, turnRequest('turn-a'));
@@ -312,6 +323,44 @@ test('world gate fails closed on digest mismatch before any kernel is built', { 
     () => adapter.initWorld(worldInit({ workspaceDigest: 'f'.repeat(64) })),
     (error: unknown) =>
       error instanceof SharedOsWorldGateErrorV1 && error.reason === 'digest_mismatch',
+  );
+});
+
+test('a handle with a foreign namespace or digest fails closed before any turn', { skip }, async () => {
+  assert.ok(loaded.ok);
+  const adapter = makeAdapter(loaded.modules, searchingDriver());
+  const handle = await adapter.initWorld(worldInit());
+
+  await assert.rejects(
+    () => adapter.runTurn({ ...handle, namespaceId: 'run-other' }, turnRequest('turn-1')),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1 && error.reason === 'handle_mismatch',
+    'a handle claiming another namespace must not run a turn',
+  );
+  await assert.rejects(
+    () => adapter.runTurn({ ...handle, worldDigestAtInit: 'f'.repeat(64) }, turnRequest('turn-1')),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1 && error.reason === 'handle_mismatch',
+    'a handle claiming another digest must not run a turn',
+  );
+  // The genuine handle still works afterwards.
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-1'));
+  assert.equal(result.status, 'succeeded');
+});
+
+test('expectedVisibleTools is enforced: a mismatching effective tool set fails closed', { skip }, async () => {
+  assert.ok(loaded.ok);
+  const adapter = makeAdapter(loaded.modules, searchingDriver());
+  const handle = await adapter.initWorld(
+    worldInit({ expectedVisibleTools: ['memory.search', 'memory.write'] }),
+  );
+  // The kernel only makes memory.search visible under the sender grants,
+  // so the declared expectation cannot be met and the turn must not run.
+  await assert.rejects(
+    () => adapter.runTurn(handle, turnRequest('turn-1')),
+    (error: unknown) =>
+      error instanceof SharedOsWorldGateErrorV1
+      && error.reason === 'visible_tools_mismatch',
   );
 });
 
