@@ -180,3 +180,6 @@ the semantic decisions and their rationale):
 
 Node floor: this repository declares `node >= 20.11`, matching the
 SharedOS supported floor (CI already tests Node 22).
+
+Post-merge package, CI, provenance, Harbor, and public-submission work is
+tracked in [SharedOS runner follow-ups](sharedos-runner-follow-ups.md).
