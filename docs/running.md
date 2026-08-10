@@ -324,6 +324,7 @@ From a normal PACT clone, prepare a sibling SharedOS checkout with its declared
 pnpm version:
 
 ```bash
+PACT_CHECKOUT="$(pwd)"
 git clone https://github.com/Aicoo-Team/SharedOS.git ../SharedOS
 git -C ../SharedOS checkout 846cbf64830d1a77bf477b98fd3586cd5cdff02e
 cd ../SharedOS
@@ -332,7 +333,7 @@ corepack prepare pnpm@9.15.0 --activate
 corepack pnpm --version  # must report 9.15.0
 corepack pnpm install --frozen-lockfile
 corepack pnpm build
-cd ../PACT
+cd "$PACT_CHECKOUT"
 ```
 
 SharedOS requires Node.js 20.11 or newer and pins pnpm 9.15.0 in its

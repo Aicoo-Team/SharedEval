@@ -54,6 +54,7 @@ which matches CI. A normal clone is usually named `../SharedOS`, so point PACT
 at that directory explicitly:
 
 ```bash
+PACT_CHECKOUT="$(pwd)"
 git clone https://github.com/Aicoo-Team/SharedOS.git ../SharedOS
 cd ../SharedOS
 corepack enable
@@ -61,7 +62,7 @@ corepack prepare pnpm@9.15.0 --activate
 corepack pnpm --version  # must report 9.15.0
 corepack pnpm install --frozen-lockfile
 corepack pnpm build
-cd ../PACT
+cd "$PACT_CHECKOUT"
 PACT_SHAREDOS_DIR=../SharedOS npm test
 ```
 
