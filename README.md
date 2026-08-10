@@ -45,6 +45,50 @@ npm run type-check
 schemas in `src/` and parses the canonical protocol manifest. The dedicated
 sample commands validate its bundle and exercise the adapter lifecycle.
 
+### Optional SharedOS-backed checks
+
+The standard validation and smoke commands do not require SharedOS. The
+SharedOS conformance/integration tests and Harbor backend do require a locally
+built SharedOS checkout. PACT looks for it at `../sharedos-repo` by default,
+which matches CI. A normal clone is usually named `../SharedOS`, so point PACT
+at that directory explicitly:
+
+```bash
+git clone https://github.com/Aicoo-Team/SharedOS.git ../SharedOS
+cd ../SharedOS
+corepack enable
+corepack prepare pnpm@9.15.0 --activate
+corepack pnpm --version  # must report 9.15.0
+corepack pnpm install --frozen-lockfile
+corepack pnpm build
+cd ../PACT
+PACT_SHAREDOS_DIR=../SharedOS npm test
+```
+
+Without a reachable build, `npm test` logs that the SharedOS-dependent cases
+were skipped and may still exit successfully. Supplying `PACT_SHAREDOS_DIR`
+ensures those cases run against the checkout you built.
+
+SharedOS declares pnpm 9.15.0 in its `packageManager` field. Activate that
+version and invoke it through Corepack instead of relying on whichever global
+pnpm version happens to be available.
+
+The Harbor verification is optional for local development. By design,
+`scripts/verify_harbor.sh` prints `SKIP` and exits successfully when Docker,
+Harbor, or the SharedOS build is unavailable; a skip does not mean the Harbor
+benchmark ran. Use the strict form when all prerequisites are expected, as CI
+does. The Harbor image also requires the SharedOS checkout at the pinned
+revision documented in the detailed running guide:
+
+```bash
+PACT_HARBOR_SMOKE_REQUIRE=1 \
+  PACT_SHAREDOS_DIR=../SharedOS \
+  bash scripts/verify_harbor.sh
+```
+
+See [Running PACT locally](docs/running.md#optional-harbor-execution-backend)
+for the Harbor 0.5.0 requirement and full backend contract.
+
 To run PACT-Pair against your own OpenAI-compatible model API:
 
 ```bash

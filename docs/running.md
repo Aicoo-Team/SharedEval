@@ -294,6 +294,11 @@ uv tool install harbor==0.5.0
 bash scripts/verify_harbor.sh
 ```
 
+The verification command is permissive for optional local development: it
+prints `SKIP` and exits with status 0 when Docker, Harbor, or a built SharedOS
+checkout is missing. That result means the Harbor smoke did not run. CI uses
+strict prerequisite handling so an unavailable dependency fails the job.
+
 The backend enforces the pinned orchestrator: it checks `harbor --version`
 and refuses to run under anything other than Harbor 0.5.0, because the task
 packages rely on that release's `allow_internet = false` network-isolation
@@ -314,6 +319,38 @@ staging fails closed on drift, and the commit is recorded both inside the
 image (`sharedos-provenance.json`) and in every task package
 (`[metadata] sharedos_commit`). The container never clones or builds SharedOS
 — that would require network access and break the no-network principle.
+
+From a normal PACT clone, prepare a sibling SharedOS checkout with its declared
+pnpm version:
+
+```bash
+git clone https://github.com/Aicoo-Team/SharedOS.git ../SharedOS
+git -C ../SharedOS checkout 846cbf64830d1a77bf477b98fd3586cd5cdff02e
+cd ../SharedOS
+corepack enable
+corepack prepare pnpm@9.15.0 --activate
+corepack pnpm --version  # must report 9.15.0
+corepack pnpm install --frozen-lockfile
+corepack pnpm build
+cd ../PACT
+```
+
+SharedOS requires Node.js 20.11 or newer and pins pnpm 9.15.0 in its
+`packageManager` field. Activating and invoking the pinned version through
+Corepack avoids accidentally building it with an unrelated global pnpm
+release. Because the default clone directory (`../SharedOS`) differs from
+PACT's CI-oriented default (`../sharedos-repo`), pass the path explicitly when
+running the smoke:
+
+```bash
+PACT_HARBOR_SMOKE_REQUIRE=1 \
+  PACT_SHAREDOS_DIR=../SharedOS \
+  bash scripts/verify_harbor.sh
+```
+
+`PACT_HARBOR_SMOKE_REQUIRE=1` changes only missing-prerequisite handling: it
+turns a local `SKIP` into a failure. It does not install prerequisites or alter
+the benchmark itself.
 
 **Secret injection (O-003 decision 1).** `PACT_MODEL_API_KEY` is runtime-only.
 Real-model task packages declare the Harbor env template
@@ -338,15 +375,12 @@ PACT harness pinning all provider traffic to the configured endpoint (its URL
 validator is not relaxed for containers) with the recorded `allowed_egress`
 as the auditable contract.
 
-The script checks for a built SharedOS checkout (skipping like the other
-prerequisites when absent), builds the authoritative TypeScript environment as
-a Node image, verifies the image carries the pinned SharedOS build, runs the
-six-task smoke set through Harbor's local Docker backend, compares the
-canonical results with committed local golden artifacts, and then runs a
-denied-egress probe that fails if a Harbor-run container can reach the
-network. It prints `SKIP` and exits successfully if Docker, Harbor, or the
-SharedOS build is unavailable; set `PACT_HARBOR_SMOKE_REQUIRE=1` (as CI does)
-to fail instead of skipping when the prerequisites are expected. See
+The script checks for a built SharedOS checkout, builds the authoritative
+TypeScript environment as a Node image, verifies the image carries the pinned
+SharedOS build, runs the six-task smoke set through Harbor's local Docker
+backend, compares the canonical results with committed local golden artifacts,
+and then runs a denied-egress probe that fails if a Harbor-run container can
+reach the network. See
 `examples/pact-run.harbor-smoke.yaml` for the smoke configuration and
 `examples/pact-run.harbor-split-01.yaml` for a curated 60-task split.
 
