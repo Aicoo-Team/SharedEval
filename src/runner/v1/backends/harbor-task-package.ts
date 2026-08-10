@@ -12,7 +12,7 @@ import {
   type PactModelConfigV1,
   type PactRunConfigV1,
 } from '../config.js';
-import type { LoadedPactPairTaskV1 } from '../task-loader.js';
+import { PACT_PAIR_HARBOR_DATASET_RUNTIME_V1 } from '../../../suites/pact-pair/harbor.js';
 import { mapWithConcurrencyV1 } from './concurrency.js';
 import {
   PACT_SHAREDOS_COMMIT_V1,
@@ -23,12 +23,58 @@ import {
 // full-dataset selection does not open thousands of files concurrently.
 const HARBOR_MATERIALIZE_CONCURRENCY_V1 = 16;
 
+/** The only task surface the packager needs: a canonical task id. */
+export type PactHarborPackagedTaskV1 = { taskId: string };
+
+/**
+ * Dataset-identity parameters for the Harbor container path, owned by the
+ * suite/dataset layer (src/suites/<dataset>/harbor.ts). The shared packager,
+ * orchestrator, and container entrypoint consume this descriptor instead of
+ * hardcoding any dataset's task-id shape, template assets, or entrypoint
+ * arguments — PACT-Pair and PACT-Net flow through the exact same mechanism.
+ */
+export type PactHarborDatasetRuntimeV1 = {
+  /** Dataset id as it appears in run configs (benchmark.dataset). */
+  datasetId: string;
+  /**
+   * Canonical task-id gate. The packager refuses to materialize a package for
+   * a non-conforming id, and the container entrypoint enforces the same
+   * pattern before running a trial.
+   */
+  taskIdPattern: RegExp;
+  /** Task-template directory segments under the repository root. */
+  templateSegments: readonly string[];
+  /**
+   * Dataset-specific replacement tokens (entrypoint arguments, task naming).
+   * Merged over the shared tokens (task identity, image, budget, network,
+   * SharedOS provenance, model env section) for each materialized task.
+   */
+  replacements(context: {
+    config: PactRunConfigV1;
+    task: PactHarborPackagedTaskV1;
+  }): Record<string, string>;
+};
+
+/** Absolute template directory for a dataset runtime. */
+export function pactHarborTemplateDirectoryV1(
+  repositoryRoot: string,
+  runtime: PactHarborDatasetRuntimeV1,
+): string {
+  return join(repositoryRoot, ...runtime.templateSegments);
+}
+
 export type MaterializeHarborDatasetV1Options = {
   datasetDirectory: string;
   templateDirectory: string;
   imageName: string;
   config: PactRunConfigV1;
-  tasks: LoadedPactPairTaskV1[];
+  tasks: readonly PactHarborPackagedTaskV1[];
+  /**
+   * Dataset runtime supplying the task-id gate and the dataset-specific
+   * replacement tokens. Defaults to the built-in PACT-Pair runtime so
+   * existing pair callers keep producing byte-identical packages.
+   */
+  runtime?: PactHarborDatasetRuntimeV1;
   /**
    * SharedOS source and executable-bundle provenance recorded in every task
    * package. Defaults to the verified pair; the Harbor backend passes the
@@ -82,6 +128,7 @@ export function pactHarborAllowedEgressV1(model: PactModelConfigV1): string {
 export async function materializeHarborDatasetV1(
   options: MaterializeHarborDatasetV1Options,
 ): Promise<void> {
+  const runtime = options.runtime ?? PACT_PAIR_HARBOR_DATASET_RUNTIME_V1;
   const scripted = pactHarborScriptedModelV1(options.config.model);
   // Computed once, before any file is written: an endpoint that violates the
   // O-003 egress contract must fail the whole materialization.
@@ -94,9 +141,19 @@ export async function materializeHarborDatasetV1(
         options.config.model,
         selectedPactExecutionAdapterV1(options.config),
       );
+  for (const task of options.tasks) {
+    // Fail closed before any file is written: a package whose id the
+    // container entrypoint would reject must never be materialized.
+    if (!runtime.taskIdPattern.test(task.taskId)) {
+      throw new Error(
+        `Task id ${task.taskId} does not match the ${runtime.datasetId} `
+        + `Harbor task-id pattern ${runtime.taskIdPattern}`,
+      );
+    }
+  }
   await mkdir(options.datasetDirectory, { recursive: true });
   await mapWithConcurrencyV1(
-    options.tasks,
+    [...options.tasks],
     HARBOR_MATERIALIZE_CONCURRENCY_V1,
     async task => {
       const taskDirectory = join(
@@ -109,9 +166,7 @@ export async function materializeHarborDatasetV1(
         TASK_ID: task.taskId,
         TASK_SLUG: task.taskId.toLocaleLowerCase('en-US'),
         IMAGE_NAME: taskImageName,
-        POLICY: options.config.benchmark.policy,
-        REQUESTER: options.config.benchmark.requester,
-        GRADING_MODE: options.config.benchmark.gradingMode,
+        ...runtime.replacements({ config: options.config, task }),
         MAX_TURNS: String(options.config.budget.maxTurns),
         MAX_TOOL_CALLS: String(options.config.budget.maxToolCalls),
         MAX_RUNTIME_MS: String(options.config.budget.maxRuntimeMs),

@@ -13,6 +13,7 @@ import {
   pactTaskResultV1Schema,
   pactTraceEventV1Schema,
   type PactTaskResultV1,
+  type PactTraceEventV1,
 } from '../artifacts.js';
 import { buildPactPairBackendErrorRunV1 } from '../../../suites/pact-pair/environment.js';
 import { pactPairMetricContributionsV1 } from '../../../suites/pact-pair/evaluation.js';
@@ -26,7 +27,10 @@ import type {
   PactRunExecutionMetadataV1,
 } from './execution-backend.js';
 import { mapWithConcurrencyV1 } from './concurrency.js';
-import { PACT_MODEL_API_KEY_ENV_V1 } from '../config.js';
+import {
+  PACT_MODEL_API_KEY_ENV_V1,
+  type PactRunConfigV1,
+} from '../config.js';
 import {
   defaultHostSharedOsDirV1,
   pactHarborSharedOsStageDirV1,
@@ -36,7 +40,11 @@ import {
   harborTaskImageName,
   materializeHarborDatasetV1,
   pactHarborScriptedModelV1,
+  pactHarborTemplateDirectoryV1,
+  type PactHarborDatasetRuntimeV1,
+  type PactHarborPackagedTaskV1,
 } from './harbor-task-package.js';
+import { PACT_PAIR_HARBOR_DATASET_RUNTIME_V1 } from '../../../suites/pact-pair/harbor.js';
 
 const defaultRepositoryRoot = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -126,186 +134,331 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
   async run(
     context: PactExecutionBackendRunContextV1,
   ): Promise<PactExecutionBackendRunResultV1> {
-    const workingDirectory = await mkdtemp(join(tmpdir(), 'pact-harbor-'));
-    const datasetDirectory = join(workingDirectory, 'tasks');
-    const jobsDirectory = join(workingDirectory, 'jobs');
-    let commandFailure: unknown;
-    let collected = new Map<string, PactExecutionTaskRunV1>();
-    let trialFailures = new Map<string, string>();
-    const execution: PactRunExecutionMetadataV1 = {
-      backend: 'harbor',
-      // Scripted parity packages never call a model; real-model packages run
-      // the caller-configured model inside the container. The artifact must
-      // say which one actually produced the decisions.
-      executor: pactHarborScriptedModelV1(context.config.model)
-        ? 'scripted-harness'
-        : 'model',
-      harbor: {
-        version: PACT_HARBOR_VERSION_V1,
-        image: this.imageName,
-      },
-    };
-
-    try {
-      // Fail closed on any orchestrator drift: the task packages encode
-      // v0.5.0 semantics (allow_internet, verifier layout), so an unknown or
-      // different Harbor version must not run trials at all.
-      await this.assertCompatibleHarborVersion(context.environment);
-      // Harbor resolves task-package env templates from its own process
-      // environment; the subprocess below inherits process.env overlaid with
-      // context.environment, so check the same view here.
-      const runtimeEnvironment: Record<string, string | undefined> = {
-        ...process.env,
-        ...context.environment,
-      };
-      const scriptedRun = pactHarborScriptedModelV1(context.config.model);
-      if (!scriptedRun && !runtimeEnvironment[PACT_MODEL_API_KEY_ENV_V1]?.trim()) {
-        // O-003 decision 1: the credential is injected runtime-only through
-        // Harbor's env resolution, so a real-model run needs it on the host.
-        // Failing here beats one opaque per-trial resolution failure later.
-        throw new Error(
-          `Model credential environment variable ${PACT_MODEL_API_KEY_ENV_V1} `
-          + 'is not set. Harbor injects it into containers at runtime only '
-          + '(never via the task package or image), so real-model Harbor runs '
-          + 'require it in the host environment.',
-        );
-      }
-      // Stage the prebuilt SharedOS checkout into the Docker build context so
-      // the image COPY below carries it (no in-container clone/build). The
-      // staged commit is recorded in every task package for provenance.
-      const stagedSharedOs = await stageSharedOsBuildV1({
-        sharedOsDir: this.sharedOsDir
-          ?? defaultHostSharedOsDirV1(this.repositoryRoot, runtimeEnvironment),
-        stageDirectory: pactHarborSharedOsStageDirV1(this.repositoryRoot),
-      });
-      await runExternalCommand(
-        this.dockerExecutable,
-        [
-          'build',
-          '--file',
-          join(this.repositoryRoot, 'harbor', 'environment', 'Dockerfile'),
-          '--tag',
-          this.imageName,
-          this.repositoryRoot,
-        ],
-        this.repositoryRoot,
-        context.environment,
-      );
-      const imageId = (await runExternalCommand(
-        this.dockerExecutable,
-        ['image', 'inspect', '--format', '{{.Id}}', this.imageName],
-        this.repositoryRoot,
-        context.environment,
-      )).trim();
-      if (/^sha256:[0-9a-f]{64}$/.test(imageId) && execution.harbor) {
-        execution.harbor.imageId = imageId;
-      }
-      await mapWithConcurrencyV1(
-        context.tasks,
-        HARBOR_IMAGE_TAG_CONCURRENCY_V1,
-        task => runExternalCommand(
-          this.dockerExecutable,
-          [
-            'image',
-            'tag',
-            this.imageName,
-            harborTaskImageName(this.imageName, task.taskId),
-          ],
-          this.repositoryRoot,
-          context.environment,
-        ),
-      );
-      await materializeHarborDatasetV1({
-        datasetDirectory,
-        templateDirectory: join(this.repositoryRoot, 'harbor', 'task-template'),
-        imageName: this.imageName,
-        config: context.config,
-        tasks: context.tasks,
-        sharedOsCommit: stagedSharedOs.commit,
-        sharedOsRuntimeDigest: stagedSharedOs.runtimeDigest,
-      });
-      try {
-        await runExternalCommand(
-          this.harborExecutable,
-          [
-            'run',
-            '--path',
-            datasetDirectory,
-            '--agent',
-            'oracle',
-            '--jobs-dir',
-            jobsDirectory,
-            '--job-name',
-            safeJobName(context.runId),
-            '--n-concurrent',
-            String(context.config.backend?.kind === 'harbor'
-              ? context.config.backend.concurrency
-              : 4),
-            '--max-retries',
-            '0',
-            '--yes',
-            '--quiet',
-          ],
-          this.repositoryRoot,
-          context.environment,
-        );
-      } catch (error) {
-        commandFailure = error;
-      }
-      ({ taskRuns: collected, failures: trialFailures } =
-        await collectHarborTaskRunsV1(jobsDirectory, context.tasks));
-    } catch (error) {
-      commandFailure = error;
-    } finally {
-      if (!this.keepWorkingDirectory) {
-        await rm(workingDirectory, { recursive: true, force: true });
-      }
-    }
-
-    const missingMessage = commandFailure
-      ? commandErrorMessage(commandFailure)
-      : 'Harbor completed without a canonical PACT result artifact';
+    const orchestration = await runHarborTrialsV1({
+      repositoryRoot: this.repositoryRoot,
+      harborExecutable: this.harborExecutable,
+      dockerExecutable: this.dockerExecutable,
+      imageName: this.imageName,
+      keepWorkingDirectory: this.keepWorkingDirectory,
+      ...(this.sharedOsDir === undefined ? {} : { sharedOsDir: this.sharedOsDir }),
+      runtime: PACT_PAIR_HARBOR_DATASET_RUNTIME_V1,
+      config: context.config,
+      tasks: context.tasks,
+      runId: context.runId,
+      environment: context.environment,
+      collect: jobsDirectory => collectHarborTaskRunsV1(jobsDirectory, context.tasks),
+    });
     for (const task of context.tasks) {
-      const taskRun = collected.get(task.taskId)
+      const taskRun = orchestration.taskRuns.get(task.taskId)
         ?? await buildPactPairBackendErrorRunV1({
           config: context.config,
           task,
           seed: context.seed,
           runId: context.runId,
           now: context.now,
-          message: trialFailures.get(task.taskId) ?? missingMessage,
+          message: orchestration.failures.get(task.taskId)
+            ?? orchestration.missingMessage,
         });
       await context.onTaskRun?.(taskRun);
     }
-    return { execution };
-  }
-
-  private async assertCompatibleHarborVersion(
-    environment: Record<string, string | undefined>,
-  ): Promise<void> {
-    let output: string;
-    try {
-      output = await runExternalCommand(
-        this.harborExecutable,
-        ['--version'],
-        this.repositoryRoot,
-        environment,
-      );
-    } catch (error) {
-      throw new Error(
-        `Unable to determine the Harbor version (need ${PACT_HARBOR_VERSION_V1}): ${
-          commandErrorMessage(error)
-        }`,
-      );
-    }
-    const version = /\d+\.\d+\.\d+(?:[.\w-]*)?/.exec(output)?.[0];
-    if (version !== PACT_HARBOR_VERSION_V1) {
-      throw new Error(
-        `Unsupported Harbor version ${version ?? '(unknown)'}; this backend requires exactly ${PACT_HARBOR_VERSION_V1} (its task packages depend on v0.5.0 network-isolation semantics)`,
-      );
-    }
+    return { execution: orchestration.execution };
   }
 }
+
+export type RunHarborTrialsV1Options<Run> = {
+  repositoryRoot?: string;
+  harborExecutable?: string;
+  dockerExecutable?: string;
+  imageName?: string;
+  keepWorkingDirectory?: boolean;
+  /** A locally BUILT SharedOS checkout; see HarborBackendV1Options. */
+  sharedOsDir?: string;
+  /** Dataset-identity parameters (task-id gate, template, entrypoint args). */
+  runtime: PactHarborDatasetRuntimeV1;
+  config: PactRunConfigV1;
+  tasks: readonly PactHarborPackagedTaskV1[];
+  runId: string;
+  environment: Record<string, string | undefined>;
+  /**
+   * Trust-boundary collection of the verifier artifacts back into host task
+   * runs (collectHarborDatasetTaskRunsV1 with the dataset's artifact
+   * collection descriptor).
+   */
+  collect(jobsDirectory: string): Promise<{
+    taskRuns: Map<string, Run>;
+    failures: Map<string, string>;
+  }>;
+};
+
+export type RunHarborTrialsV1Result<Run> = {
+  execution: PactRunExecutionMetadataV1;
+  taskRuns: Map<string, Run>;
+  failures: Map<string, string>;
+  /** Fallback message for selected tasks without a collected run. */
+  missingMessage: string;
+};
+
+/**
+ * Dataset-generic Harbor orchestration: version gate, runtime-only credential
+ * preflight, SharedOS staging, image build + per-task tags, task-package
+ * materialization through the dataset runtime, the `harbor run` invocation,
+ * and artifact collection. Every dataset suite (PACT-Pair via
+ * HarborBackendV1, PACT-Net via runPactNetTasksViaHarborV1) goes through this
+ * one path; only the dataset runtime and the collection differ.
+ */
+export async function runHarborTrialsV1<Run>(
+  options: RunHarborTrialsV1Options<Run>,
+): Promise<RunHarborTrialsV1Result<Run>> {
+  const repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot;
+  const harborExecutable = options.harborExecutable ?? 'harbor';
+  const dockerExecutable = options.dockerExecutable ?? 'docker';
+  const imageName = options.imageName ?? PACT_HARBOR_IMAGE_V1;
+  const workingDirectory = await mkdtemp(join(tmpdir(), 'pact-harbor-'));
+  const datasetDirectory = join(workingDirectory, 'tasks');
+  const jobsDirectory = join(workingDirectory, 'jobs');
+  let commandFailure: unknown;
+  let collected = new Map<string, Run>();
+  let trialFailures = new Map<string, string>();
+  const execution: PactRunExecutionMetadataV1 = {
+    backend: 'harbor',
+    // Scripted parity packages never call a model; real-model packages run
+    // the caller-configured model inside the container. The artifact must
+    // say which one actually produced the decisions.
+    executor: pactHarborScriptedModelV1(options.config.model)
+      ? 'scripted-harness'
+      : 'model',
+    harbor: {
+      version: PACT_HARBOR_VERSION_V1,
+      image: imageName,
+    },
+  };
+
+  try {
+    // Fail closed on any orchestrator drift: the task packages encode
+    // v0.5.0 semantics (allow_internet, verifier layout), so an unknown or
+    // different Harbor version must not run trials at all.
+    await assertCompatibleHarborVersion(
+      harborExecutable,
+      repositoryRoot,
+      options.environment,
+    );
+    // Harbor resolves task-package env templates from its own process
+    // environment; the subprocess below inherits process.env overlaid with
+    // options.environment, so check the same view here.
+    const runtimeEnvironment: Record<string, string | undefined> = {
+      ...process.env,
+      ...options.environment,
+    };
+    const scriptedRun = pactHarborScriptedModelV1(options.config.model);
+    if (!scriptedRun && !runtimeEnvironment[PACT_MODEL_API_KEY_ENV_V1]?.trim()) {
+      // O-003 decision 1: the credential is injected runtime-only through
+      // Harbor's env resolution, so a real-model run needs it on the host.
+      // Failing here beats one opaque per-trial resolution failure later.
+      throw new Error(
+        `Model credential environment variable ${PACT_MODEL_API_KEY_ENV_V1} `
+        + 'is not set. Harbor injects it into containers at runtime only '
+        + '(never via the task package or image), so real-model Harbor runs '
+        + 'require it in the host environment.',
+      );
+    }
+    // Stage the prebuilt SharedOS checkout into the Docker build context so
+    // the image COPY below carries it (no in-container clone/build). The
+    // staged commit is recorded in every task package for provenance.
+    const stagedSharedOs = await stageSharedOsBuildV1({
+      sharedOsDir: options.sharedOsDir
+        ?? defaultHostSharedOsDirV1(repositoryRoot, runtimeEnvironment),
+      stageDirectory: pactHarborSharedOsStageDirV1(repositoryRoot),
+    });
+    await runExternalCommand(
+      dockerExecutable,
+      [
+        'build',
+        '--file',
+        join(repositoryRoot, 'harbor', 'environment', 'Dockerfile'),
+        '--tag',
+        imageName,
+        repositoryRoot,
+      ],
+      repositoryRoot,
+      options.environment,
+    );
+    const imageId = (await runExternalCommand(
+      dockerExecutable,
+      ['image', 'inspect', '--format', '{{.Id}}', imageName],
+      repositoryRoot,
+      options.environment,
+    )).trim();
+    if (/^sha256:[0-9a-f]{64}$/.test(imageId) && execution.harbor) {
+      execution.harbor.imageId = imageId;
+    }
+    await mapWithConcurrencyV1(
+      [...options.tasks],
+      HARBOR_IMAGE_TAG_CONCURRENCY_V1,
+      task => runExternalCommand(
+        dockerExecutable,
+        [
+          'image',
+          'tag',
+          imageName,
+          harborTaskImageName(imageName, task.taskId),
+        ],
+        repositoryRoot,
+        options.environment,
+      ),
+    );
+    await materializeHarborDatasetV1({
+      datasetDirectory,
+      templateDirectory: pactHarborTemplateDirectoryV1(
+        repositoryRoot,
+        options.runtime,
+      ),
+      imageName,
+      config: options.config,
+      tasks: options.tasks,
+      runtime: options.runtime,
+      sharedOsCommit: stagedSharedOs.commit,
+      sharedOsRuntimeDigest: stagedSharedOs.runtimeDigest,
+    });
+    try {
+      await runExternalCommand(
+        harborExecutable,
+        [
+          'run',
+          '--path',
+          datasetDirectory,
+          '--agent',
+          'oracle',
+          '--jobs-dir',
+          jobsDirectory,
+          '--job-name',
+          safeJobName(options.runId),
+          '--n-concurrent',
+          String(options.config.backend?.kind === 'harbor'
+            ? options.config.backend.concurrency
+            : 4),
+          '--max-retries',
+          '0',
+          '--yes',
+          '--quiet',
+        ],
+        repositoryRoot,
+        options.environment,
+      );
+    } catch (error) {
+      commandFailure = error;
+    }
+    ({ taskRuns: collected, failures: trialFailures } =
+      await options.collect(jobsDirectory));
+  } catch (error) {
+    commandFailure = error;
+  } finally {
+    if (!(options.keepWorkingDirectory ?? false)) {
+      await rm(workingDirectory, { recursive: true, force: true });
+    }
+  }
+
+  return {
+    execution,
+    taskRuns: collected,
+    failures: trialFailures,
+    missingMessage: commandFailure
+      ? commandErrorMessage(commandFailure)
+      : 'Harbor completed without a canonical PACT result artifact',
+  };
+}
+
+async function assertCompatibleHarborVersion(
+  harborExecutable: string,
+  repositoryRoot: string,
+  environment: Record<string, string | undefined>,
+): Promise<void> {
+  let output: string;
+  try {
+    output = await runExternalCommand(
+      harborExecutable,
+      ['--version'],
+      repositoryRoot,
+      environment,
+    );
+  } catch (error) {
+    throw new Error(
+      `Unable to determine the Harbor version (need ${PACT_HARBOR_VERSION_V1}): ${
+        commandErrorMessage(error)
+      }`,
+    );
+  }
+  const version = /\d+\.\d+\.\d+(?:[.\w-]*)?/.exec(output)?.[0];
+  if (version !== PACT_HARBOR_VERSION_V1) {
+    throw new Error(
+      `Unsupported Harbor version ${version ?? '(unknown)'}; this backend requires exactly ${PACT_HARBOR_VERSION_V1} (its task packages depend on v0.5.0 network-isolation semantics)`,
+    );
+  }
+}
+
+/** One metric row as reported by (and recomputed for) a Harbor trial. */
+export type PactHarborMetricRowV1 = {
+  metric: string;
+  numerator: number;
+  denominator: number;
+};
+
+/**
+ * Dataset-specific trust-boundary parameters for collecting Harbor verifier
+ * artifacts: the strict artifact schemas, the gold cross-check against the
+ * host-loaded task, and the host-side metric recomputation. Owned by the
+ * suite layer next to the dataset's own artifact types.
+ */
+export type PactHarborArtifactCollectionV1<
+  Task extends PactHarborPackagedTaskV1,
+  ResultRow extends PactHarborPackagedTaskV1,
+  TraceEvent,
+  Evaluation,
+> = {
+  resultSchema: { parse(value: unknown): ResultRow };
+  traceEventSchema: { parse(value: unknown): TraceEvent };
+  evaluationRecordSchema: {
+    parse(value: unknown): {
+      taskId: string;
+      evaluation: unknown;
+      metrics: PactHarborMetricRowV1[];
+    };
+  };
+  /** Fail closed when the container's evaluation contradicts host gold. */
+  assertEvaluationMatchesHostTask(evaluation: Evaluation, task: Task): void;
+  /** Host-side recomputation of the evaluation's metric contributions. */
+  metricContributions(evaluation: Evaluation): readonly PactHarborMetricRowV1[];
+};
+
+export type PactHarborCollectedTaskRunV1<ResultRow, TraceEvent, Evaluation> = {
+  result: ResultRow;
+  trace: TraceEvent[];
+  evaluation: Evaluation;
+  evaluationResult: {
+    metrics: readonly PactHarborMetricRowV1[];
+    details: Evaluation;
+  };
+};
+
+/**
+ * The PACT-Pair artifact collection: schemas from runner/v1/artifacts.ts, the
+ * pair gold cross-check, and the pair metric recomputation.
+ */
+const PACT_PAIR_HARBOR_ARTIFACT_COLLECTION_V1: PactHarborArtifactCollectionV1<
+  LoadedPactPairTaskV1,
+  PactTaskResultV1,
+  PactTraceEventV1,
+  PactPairEvaluationV1
+> = {
+  resultSchema: {
+    parse: value => pactTaskResultV1Schema.parse(value) as PactTaskResultV1,
+  },
+  traceEventSchema: {
+    parse: value => pactTraceEventV1Schema.parse(value) as PactTraceEventV1,
+  },
+  evaluationRecordSchema: pactTaskEvaluationRecordV1Schema,
+  assertEvaluationMatchesHostTask,
+  metricContributions: pactPairMetricContributionsV1,
+};
 
 /**
  * Collects Harbor verifier artifacts back into host task runs. Fault isolation
@@ -325,12 +478,43 @@ export async function collectHarborTaskRunsV1(
   taskRuns: Map<string, PactExecutionTaskRunV1>;
   failures: Map<string, string>;
 }> {
+  // The generic collected shape is structurally a PactPairSingleTaskRunV1.
+  return collectHarborDatasetTaskRunsV1(
+    jobsDirectory,
+    tasks,
+    PACT_PAIR_HARBOR_ARTIFACT_COLLECTION_V1,
+  );
+}
+
+/**
+ * Dataset-generic Harbor artifact collection (the trust-boundary walk shared
+ * by every dataset suite). All dataset-specific validation flows through the
+ * collection descriptor; the per-task fault isolation, path/duplicate checks,
+ * exactly-one-evaluation rule, and metric-row verification are identical for
+ * every dataset.
+ */
+export async function collectHarborDatasetTaskRunsV1<
+  Task extends PactHarborPackagedTaskV1,
+  ResultRow extends PactHarborPackagedTaskV1,
+  TraceEvent,
+  Evaluation,
+>(
+  jobsDirectory: string,
+  tasks: readonly Task[],
+  collection: PactHarborArtifactCollectionV1<Task, ResultRow, TraceEvent, Evaluation>,
+): Promise<{
+  taskRuns: Map<string, PactHarborCollectedTaskRunV1<ResultRow, TraceEvent, Evaluation>>;
+  failures: Map<string, string>;
+}> {
   const tasksById = new Map(tasks.map(task => [task.taskId, task] as const));
   const taskIdByDirectory = new Map(tasks.map(task => [
     task.taskId.toLocaleLowerCase('en-US'),
     task.taskId,
   ] as const));
-  const collected = new Map<string, PactExecutionTaskRunV1>();
+  const collected = new Map<
+    string,
+    PactHarborCollectedTaskRunV1<ResultRow, TraceEvent, Evaluation>
+  >();
   const failures = new Map<string, string>();
   const recordFailure = (taskId: string | undefined, message: string) => {
     if (!taskId) return;
@@ -343,9 +527,9 @@ export async function collectHarborTaskRunsV1(
     const pathTaskId = taskIdFromArtifactPath(artifactPath, taskIdByDirectory);
     let taskId = pathTaskId;
     try {
-      const result = pactTaskResultV1Schema.parse(
+      const result = collection.resultSchema.parse(
         JSON.parse(await readFile(artifactPath, 'utf8')),
-      ) as PactTaskResultV1;
+      );
       taskId = result.taskId;
       const task = tasksById.get(result.taskId);
       if (!task) {
@@ -362,12 +546,12 @@ export async function collectHarborTaskRunsV1(
         throw new Error(`Harbor emitted duplicate PACT result for ${result.taskId}`);
       }
       const tracePath = join(dirname(artifactPath), 'trace.jsonl');
-      const trace = await readJsonLines(tracePath, pactTraceEventV1Schema);
+      const trace = await readJsonLines(tracePath, collection.traceEventSchema);
       // The container appends one evaluation.jsonl record per trial; each
       // container runs exactly one task, so exactly one record must match.
       const evaluationRecords = await readJsonLines(
         join(dirname(artifactPath), 'evaluation.jsonl'),
-        pactTaskEvaluationRecordV1Schema,
+        collection.evaluationRecordSchema,
       );
       const evaluationRecord = evaluationRecords.find(record =>
         record.taskId === result.taskId);
@@ -376,13 +560,13 @@ export async function collectHarborTaskRunsV1(
           `Harbor emitted ${evaluationRecords.length} evaluation records for ${result.taskId}; expected exactly one`,
         );
       }
-      const evaluation = evaluationRecord.evaluation as PactPairEvaluationV1;
-      assertEvaluationMatchesHostTask(evaluation, task);
+      const evaluation = evaluationRecord.evaluation as Evaluation;
+      collection.assertEvaluationMatchesHostTask(evaluation, task);
       // Recompute the metric contributions on the host from the evaluation.
       // The container's own metric rows are validated against the recomputed
       // values and then discarded — only host-derived contributions enter the
       // run summary.
-      const recomputedMetrics = pactPairMetricContributionsV1(evaluation);
+      const recomputedMetrics = collection.metricContributions(evaluation);
       assertMetricsMatch(
         result.taskId,
         recomputedMetrics,
