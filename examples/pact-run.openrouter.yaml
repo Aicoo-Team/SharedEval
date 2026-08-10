@@ -13,8 +13,10 @@ benchmark:
   policy: D2_SUBMITTED
   requester: R1
   gradingMode: category
+
   tasks:
     kind: all
+    ids: [Q1, A1]
 
 budget:
   maxTurns: 8
