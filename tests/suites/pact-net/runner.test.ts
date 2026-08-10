@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { pactRunConfigV1Schema } from '../../../src/runner/v1/config.js';
 import {
+  createPactNetModelHarnessV1,
   createScriptedPactNetHarnessV1,
   runPactNetBenchmarkV1,
 } from '../../../src/suites/pact-net/index.js';
@@ -215,11 +216,104 @@ test('persists gold-bearing artifacts only under private/ when saveTraces is on'
   assert.doesNotMatch(combined, GOLD_MARKERS);
 });
 
-test('requires an injected harness and the local backend', async () => {
-  await assert.rejects(
-    runPactNetBenchmarkV1(configFor(['NET-Q-0001']), { writeOutputs: false }),
-    /no model-backed harness yet/,
-  );
+test('a model-executed run never persists the provider credential', async t => {
+  const workingDirectory = mkdtempSync(join(tmpdir(), 'pact-net-model-'));
+  t.after(() => rmSync(workingDirectory, { recursive: true, force: true }));
+  const secret = 'net-secret-api-key-579f';
+  const environment = { PACT_MODEL_API_KEY: secret };
+  const responses = [
+    {
+      choices: [{
+        message: {
+          content: null,
+          tool_calls: [{
+            id: 'call-1',
+            type: 'function',
+            function: {
+              name: 'get_note',
+              arguments: JSON.stringify({ title: 'Elasticsearch Implementation Plan' }),
+            },
+          }],
+        },
+      }],
+    },
+    {
+      choices: [{
+        message: {
+          content: null,
+          tool_calls: [{
+            id: 'call-2',
+            type: 'function',
+            function: {
+              name: 'pact_answer',
+              arguments: JSON.stringify({ content: 'It replaces PostgreSQL search.' }),
+            },
+          }],
+        },
+      }],
+    },
+  ];
+  const fetchMock = (async () => new Response(JSON.stringify(responses.shift()), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  })) as typeof fetch;
+
+  const result = await runPactNetBenchmarkV1(configFor(['NET-Q-0001'], true), {
+    harnessFactory: context => createPactNetModelHarnessV1(
+      context.config,
+      context.publicTask,
+      { fetch: fetchMock, environment },
+    ),
+    executor: 'model',
+    environment,
+    runId: 'net-model-key-isolation',
+    workingDirectory,
+  });
+
+  assert.equal(result.status, 'completed');
+  assert.deepEqual(result.execution, { backend: 'local', executor: 'model' });
+  const task = result.tasks[0];
+  assert.ok(task);
+  assert.equal(task.status, 'ok');
+  assert.equal(task.finalDecision.type, 'answer');
+  assert.equal(task.providerTelemetry?.totals.requests, 2);
+
+  // Walk every artifact this run wrote — public and private — and assert
+  // the credential value appears nowhere.
+  assert.ok(result.outputDirectory);
+  const files: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else files.push(path);
+    }
+  };
+  walk(result.outputDirectory);
+  assert.ok(files.some(file => file.endsWith('trace.jsonl')));
+  for (const file of files) {
+    assert.equal(
+      readFileSync(file, 'utf8').includes(secret),
+      false,
+      `credential leaked into ${file}`,
+    );
+  }
+});
+
+test('defaults to the model executor and requires the local backend', async () => {
+  // Without an injected harness the run is model-backed: provenance says so,
+  // and a missing provider credential surfaces as per-task infrastructure
+  // errors — never as silently scripted trials.
+  const result = await runPactNetBenchmarkV1(configFor(['NET-Q-0001']), {
+    environment: {},
+    runId: 'net-default-model-no-key',
+    writeOutputs: false,
+  });
+  assert.deepEqual(result.execution, { backend: 'local', executor: 'model' });
+  assert.equal(result.status, 'completed_with_errors');
+  assert.equal(result.tasks[0]?.status, 'infrastructure_error');
+  assert.match(String(result.tasks[0]?.error), /PACT_MODEL_API_KEY is not set/);
+
   const harborConfig = pactRunConfigV1Schema.parse({
     apiVersion: 'pact-run/v1',
     kind: 'RunConfig',

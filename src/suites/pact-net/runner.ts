@@ -16,6 +16,7 @@ import {
   type PactNetPolicyV1,
 } from './task-loader.js';
 import { loadPactNetAgentStoresV1 } from './workspace.js';
+import { createPactNetModelHarnessV1 } from './model-harness.js';
 import {
   runSinglePactNetTaskV1,
   type PactNetHarnessFactoryV1,
@@ -115,6 +116,13 @@ export type PactNetRunResultV1 = {
     dataset: 'pact-net';
     policy: PactNetPolicyV1;
     tasks: PactRunConfigV1['benchmark']['tasks'];
+    /**
+     * Execution-adapter selection, present only when the config sets it
+     * explicitly (absence keeps existing run.json payloads byte-identical
+     * and means pact-public-runner) — Pair precedent, where run.json's
+     * benchmark block carries `execution` verbatim from the config.
+     */
+    execution?: NonNullable<PactRunConfigV1['benchmark']['execution']>;
   };
   budget: PactRunConfigV1['budget'];
   configDigest: string;
@@ -132,12 +140,16 @@ export type PactNetRunResultV1 = {
 
 export type RunPactNetBenchmarkV1Options = {
   /**
-   * Required in the current skeleton: PACT-Net has no model-backed harness
-   * yet (the OpenAI-compatible Pair harness implements the Pair adapter
-   * protocol and Pair prompts). Scripted or test harnesses are injected here;
-   * the model harness is an explicit follow-up.
+   * Decision source override. When absent the OpenAI-compatible PACT-Net
+   * model harness (model-harness.ts) backs every trial with the configured
+   * provider; scripted or test harnesses are injected here.
    */
   harnessFactory?: PactNetHarnessFactoryV1;
+  /**
+   * Label for the effective decision source recorded in run artifacts.
+   * Defaults to 'custom-harness' when a harnessFactory is injected and
+   * 'model' otherwise (Pair precedent).
+   */
   executor?: PactRunExecutionMetadataV1['executor'];
   environment?: Record<string, string | undefined>;
   now?: () => Date;
@@ -173,13 +185,6 @@ export async function runPactNetBenchmarkV1(
   if (selectedPactExecutionBackendV1(runConfig).kind !== 'local') {
     throw new Error('PACT-Net currently supports only the local execution backend');
   }
-  const harnessFactory = options.harnessFactory;
-  if (!harnessFactory) {
-    throw new Error(
-      'PACT-Net has no model-backed harness yet; inject options.harnessFactory '
-      + '(scripted or custom). The model harness is a tracked follow-up.',
-    );
-  }
   const policy = requirePactNetPolicyV1(runConfig.benchmark.policy);
   const now = options.now ?? (() => new Date());
   const startedAt = now();
@@ -198,18 +203,26 @@ export async function runPactNetBenchmarkV1(
   });
   if (tasks.length === 0) throw new Error('PACT-Net task selection is empty');
   const stores = options.stores ?? loadPactNetAgentStoresV1({ rootDir });
+  const harnessFactory = options.harnessFactory
+    ?? (context => createPactNetModelHarnessV1(context.config, context.publicTask, {
+      environment,
+    }));
 
   const benchmarkMetadata: PactNetRunResultV1['benchmark'] = {
     dataset: 'pact-net',
     policy,
     tasks: runConfig.benchmark.tasks,
+    ...(runConfig.benchmark.execution
+      ? { execution: runConfig.benchmark.execution }
+      : {}),
   };
   const configDigest = digestJson(runConfig);
   const taskSetDigest = digestJson(tasks);
   const sourceRevision = resolveSourceRevision(rootDir);
   const execution: PactRunExecutionMetadataV1 = {
     backend: 'local',
-    executor: options.executor ?? 'custom-harness',
+    executor: options.executor
+      ?? (options.harnessFactory ? 'custom-harness' : 'model'),
   };
   const outputDirectory = options.writeOutputs === false
     ? undefined

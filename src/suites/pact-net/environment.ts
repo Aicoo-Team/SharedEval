@@ -9,7 +9,11 @@ import {
   evaluateWithRegisteredEvaluator,
   type EvaluationResult,
 } from '../../evaluation/index.js';
-import type { PactRunConfigV1 } from '../../runner/v1/config.js';
+import {
+  selectedPactExecutionAdapterV1,
+  type PactRunConfigV1,
+} from '../../runner/v1/config.js';
+import type { PactProviderTelemetryV1 } from '../../runner/v1/model-adapter.js';
 import {
   classifyRunnerFailure,
   PactRunnerProtocolError,
@@ -36,8 +40,12 @@ const availableToolNames = new Set(PACT_NET_TOOL_SPECS_V1.map(tool => tool.name)
  * that contract's RunInit carries the submission-protocol track enum, which is
  * intentionally PACT-Pair-only today (extending it is a protocol change owned
  * by the lead). The Net harness is therefore a minimal in-process step
- * interface; wiring PACT-Net into the public adapter protocol — and into the
- * sharedos-embedded execution adapter — is an explicit follow-up.
+ * interface, backed either by the scripted harness, an injected test harness,
+ * or the OpenAI-compatible model harness (model-harness.ts). Trials execute
+ * through the in-process tool loop below or — when the config selects
+ * `benchmark.execution.adapter: sharedos-embedded` — through the real
+ * SharedOS kernel (sharedos-execution.ts). Wiring PACT-Net into the public
+ * adapter protocol remains an explicit follow-up.
  */
 export type PactNetObservationV1 =
   | {
@@ -106,6 +114,14 @@ export type PactNetPublicEvaluationV1 =
   | PactNetPublicQaEvaluationV1
   | PactNetPublicActionEvaluationV1;
 
+export type PactNetSharedOsResultIdentityV1 = {
+  adapterId: string;
+  protocolVersion: string;
+  status: 'succeeded' | 'denied' | 'failed' | 'cancelled';
+  traceId: string;
+  latencyMs: number;
+};
+
 export type PactNetTaskResultV1 = {
   taskId: string;
   kind: LoadedPactNetTaskV1['kind'];
@@ -123,9 +139,16 @@ export type PactNetTaskResultV1 = {
     runtimeMs: number;
   };
   toolCalls: PactNetToolCallRecordV1[];
+  /** Present only for model-executed trials (Pair precedent). */
+  providerTelemetry?: PactProviderTelemetryV1;
   violations: string[];
   error?: string;
   finalizeError?: string;
+  /**
+   * Execution-adapter identity block, present only when the trial ran
+   * through the sharedos-embedded adapter (Pair precedent).
+   */
+  sharedOs?: PactNetSharedOsResultIdentityV1;
 };
 
 export type PactNetTraceEventV1 = {
@@ -165,6 +188,12 @@ export type RunSinglePactNetTaskV1Options = {
 export async function runSinglePactNetTaskV1(
   options: RunSinglePactNetTaskV1Options,
 ): Promise<PactNetSingleTaskRunV1> {
+  if (selectedPactExecutionAdapterV1(options.config) === 'sharedos-embedded') {
+    // Lazy import so the SharedOS loader machinery is touched only when the
+    // config explicitly opts into the embedded adapter (Pair precedent).
+    const { runSinglePactNetTaskViaSharedOsV1 } = await import('./sharedos-execution.js');
+    return runSinglePactNetTaskViaSharedOsV1(options);
+  }
   const startedAt = Date.now();
   const deadline = startedAt + options.config.budget.maxRuntimeMs;
   const trace: PactNetTraceEventV1[] = [];
@@ -181,6 +210,7 @@ export async function runSinglePactNetTaskV1(
   };
   let errorMessage: string | undefined;
   let finalizeError: string | undefined;
+  let providerTelemetry: PactProviderTelemetryV1 | undefined;
   let terminalReceived = false;
 
   const record = (event: string, data: unknown) => {
@@ -204,7 +234,7 @@ export async function runSinglePactNetTaskV1(
       reason: `${options.task.targetAgent} is not in ${options.task.sourceAgent}'s contact list`,
     };
     record('routing_blocked', { finalDecision });
-    return finishTask({
+    return finishPactNetTaskV1({
       options,
       workspace,
       before,
@@ -234,7 +264,7 @@ export async function runSinglePactNetTaskV1(
       type: 'task',
       turn: 0,
       task: structuredClone(options.task.publicTask),
-      budgetRemaining: remainingBudget(options.config, turns, toolCallCount, deadline),
+      budgetRemaining: remainingPactNetBudgetV1(options.config, turns, toolCallCount, deadline),
     };
 
     while (turns < options.config.budget.maxTurns) {
@@ -299,7 +329,7 @@ export async function runSinglePactNetTaskV1(
         toolName: decision.toolName,
         output: executed.output,
         isError: executed.isError,
-        budgetRemaining: remainingBudget(options.config, turns, toolCallCount, deadline),
+        budgetRemaining: remainingPactNetBudgetV1(options.config, turns, toolCallCount, deadline),
       };
     }
 
@@ -334,9 +364,12 @@ export async function runSinglePactNetTaskV1(
         record('finalize_error', { message: finalizeError });
       }
     }
+    if (harness) {
+      providerTelemetry = readPactNetProviderTelemetryV1(harness);
+    }
   }
 
-  return finishTask({
+  return finishPactNetTaskV1({
     options,
     workspace,
     before,
@@ -348,12 +381,36 @@ export async function runSinglePactNetTaskV1(
     toolCallCount,
     startedAt,
     record,
+    ...(providerTelemetry === undefined ? {} : { providerTelemetry }),
     ...(errorMessage === undefined ? {} : { errorMessage }),
     ...(finalizeError === undefined ? {} : { finalizeError }),
   });
 }
 
-async function finishTask(input: {
+type PactNetProviderTelemetrySourceV1 = {
+  getProviderTelemetryV1(): PactProviderTelemetryV1;
+};
+
+/**
+ * Reads provider telemetry from a harness that exposes it (the model
+ * harness). Structural, so scripted and test harnesses need no stub —
+ * mirrors `readPactProviderTelemetryV1` in the Pair model adapter.
+ */
+export function readPactNetProviderTelemetryV1(
+  harness: PactNetHarnessV1,
+): PactProviderTelemetryV1 | undefined {
+  const candidate = harness as PactNetHarnessV1 & Partial<PactNetProviderTelemetrySourceV1>;
+  if (typeof candidate.getProviderTelemetryV1 !== 'function') return undefined;
+  return candidate.getProviderTelemetryV1();
+}
+
+/**
+ * Shared trial epilogue: snapshot diff, registered evaluation, public
+ * projection, result assembly, and the completion trace event. Used by the
+ * in-process loop above and by the sharedos-embedded execution path
+ * (sharedos-execution.ts), so both adapters score and persist identically.
+ */
+export async function finishPactNetTaskV1(input: {
   options: RunSinglePactNetTaskV1Options;
   workspace: PactNetWorkspaceV1;
   before: PactNetAgentStoreV1;
@@ -365,8 +422,10 @@ async function finishTask(input: {
   toolCallCount: number;
   startedAt: number;
   record: (event: string, data: unknown) => void;
+  providerTelemetry?: PactProviderTelemetryV1;
   errorMessage?: string;
   finalizeError?: string;
+  sharedOs?: PactNetSharedOsResultIdentityV1;
 }): Promise<PactNetSingleTaskRunV1> {
   const { options } = input;
   const after = input.workspace.snapshot();
@@ -404,9 +463,11 @@ async function finishTask(input: {
       runtimeMs: Date.now() - input.startedAt,
     },
     toolCalls: input.toolCalls,
+    ...(input.providerTelemetry ? { providerTelemetry: input.providerTelemetry } : {}),
     violations: input.violations,
     ...(input.errorMessage ? { error: input.errorMessage } : {}),
     ...(input.finalizeError ? { finalizeError: input.finalizeError } : {}),
+    ...(input.sharedOs ? { sharedOs: input.sharedOs } : {}),
   };
   input.record('task_completed', {
     finalDecision: input.finalDecision,
@@ -463,7 +524,7 @@ export function toPublicPactNetEvaluationV1(
   };
 }
 
-function remainingBudget(
+export function remainingPactNetBudgetV1(
   config: PactRunConfigV1,
   turns: number,
   toolCalls: number,

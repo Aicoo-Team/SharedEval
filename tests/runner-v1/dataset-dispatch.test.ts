@@ -78,12 +78,13 @@ ${benchmark}
     () => parsePactRunConfigV1Yaml(yamlFor('  dataset: pact-net\n  gradingMode: relationship')),
     /gradingMode does not apply to pact-net/,
   );
-  assert.throws(
-    () => parsePactRunConfigV1Yaml(yamlFor(
-      '  dataset: pact-net\n  execution:\n    adapter: sharedos-embedded',
-    )),
-    /does not support the sharedos-embedded adapter/,
-  );
+  // The sharedos-embedded execution adapter is a supported pact-net path
+  // (model-backed trials through the real kernel; see
+  // src/suites/pact-net/sharedos-execution.ts).
+  const sharedOsNet = parsePactRunConfigV1Yaml(yamlFor(
+    '  dataset: pact-net\n  execution:\n    adapter: sharedos-embedded',
+  ));
+  assert.equal(sharedOsNet.benchmark.execution?.adapter, 'sharedos-embedded');
   // The default D2 with an explicit pact-net dataset parses cleanly.
   const parsed = parsePactRunConfigV1Yaml(yamlFor('  dataset: pact-net'));
   assert.equal(parsed.benchmark.dataset, 'pact-net');

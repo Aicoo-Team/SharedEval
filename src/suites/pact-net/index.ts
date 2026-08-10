@@ -5,5 +5,7 @@ export * from './tools.js';
 export * from './evaluator.js';
 export * from './evaluation.js';
 export * from './environment.js';
+export * from './prompt.js';
+export * from './model-harness.js';
 export * from './runner.js';
 export * from './scripted-harness.js';

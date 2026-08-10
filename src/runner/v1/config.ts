@@ -328,13 +328,6 @@ export const pactRunConfigV1Schema = z
               message: 'gradingMode does not apply to pact-net; grading is relational-label based',
             });
           }
-          if (benchmark.execution?.adapter === 'sharedos-embedded') {
-            context.addIssue({
-              code: z.ZodIssueCode.custom,
-              path: ['execution', 'adapter'],
-              message: 'pact-net does not support the sharedos-embedded adapter yet',
-            });
-          }
           return;
         }
         if (!benchmark.policy.startsWith('REL_')) return;
