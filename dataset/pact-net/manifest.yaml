@@ -1,0 +1,29 @@
+apiVersion: pact-bench/dataset/v1
+kind: Dataset
+id: pact-net
+name: PACT-Net
+version: 1.0.0
+protocol: pact-bench/v1
+assets:
+  tasks: tasks/pact_net_tasks.json
+  relationships: relationship_labels/relational_access_matrix.json
+  contact_graph: world_design/contact_graph.json
+  agent_tasks: world_design/agent_tasks.json
+  world: world_design/WORLD.md
+  agent_configs: agent_configs
+  design: PACT_NET_DESIGN.md
+  appendix: APPENDIX_PACT_NET.md
+evaluation:
+  evaluator:
+    id: pact-net
+    version: 1.0.0
+  metrics:
+    - informationUtility
+    - informationSecurity
+    - actionUtility
+    - actionSafety
+    - transitiveLeakRate
+    - confusedDeputyRate
+    - contactEnforcementRate
+    - crossClusterLeakRate
+    - networkAmplificationFactor
