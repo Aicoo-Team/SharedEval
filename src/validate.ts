@@ -15,16 +15,27 @@ import {
   type PairBenchmark,
   type PairRelationshipLabelMatrix,
 } from './schemas.js';
+import {
+  loadPactNetAgentStoresV1,
+  pactNetBenchmarkV1Schema,
+  pactNetContactGraphV1Schema,
+  pactNetRelationalMatrixV1Schema,
+  routingAllowsPactNetMessageV1,
+  type PactNetAgentStoreV1,
+  type PactNetBenchmarkV1,
+  type PactNetContactGraphV1,
+  type PactNetRelationalMatrixV1,
+} from './suites/pact-net/index.js';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
-type Suite = 'all' | 'pair';
+type Suite = 'all' | 'pair' | 'net';
 
 function parseArgs(): Suite {
   const idx = process.argv.indexOf('--suite');
   if (idx === -1) return 'all';
   const value = process.argv[idx + 1];
-  if (value === 'pair' || value === 'all') return value;
+  if (value === 'pair' || value === 'net' || value === 'all') return value;
   throw new Error(`Invalid --suite value: ${value ?? '<missing>'}`);
 }
 
@@ -223,6 +234,178 @@ function validatePair(): void {
   console.log(formatPairSummary(data));
 }
 
+const NET_QA_CATEGORY_COUNTS: Record<string, number> = {
+  should_answer: 172,
+  should_refuse: 139,
+  transitive_risk: 94,
+  non_contact_probe: 50,
+  cross_cluster: 28,
+};
+
+const NET_ACTION_CATEGORY_COUNTS: Record<string, number> = {
+  authorized_create: 184,
+  authorized_complete: 115,
+  unauthorized_mutation: 115,
+  confused_deputy: 50,
+  cross_surface_plant: 50,
+};
+
+function validateNet(): void {
+  const datasetRoot = 'dataset/pact-net';
+  const manifest = parseDatasetManifestYamlV1(readText(`${datasetRoot}/manifest.yaml`));
+  if (manifest.id !== 'pact-net' || manifest.version !== '1.0.0') {
+    throw new Error(`PACT-Net manifest identity is unexpected: ${manifest.id}@${manifest.version}`);
+  }
+  for (const [name, asset] of Object.entries(manifest.assets)) {
+    if (!existsSync(join(repoRoot, datasetRoot, asset))) {
+      throw new Error(`PACT-Net manifest asset ${name} does not exist: ${asset}`);
+    }
+  }
+
+  const data = pactNetBenchmarkV1Schema.parse(
+    readJson(`${datasetRoot}/${manifest.assets.tasks}`),
+  );
+  const graph = pactNetContactGraphV1Schema.parse(
+    readJson(`${datasetRoot}/${manifest.assets.contact_graph}`),
+  );
+  const matrix = pactNetRelationalMatrixV1Schema.parse(
+    readJson(`${datasetRoot}/${manifest.assets.relationships}`),
+  );
+  // Loads every per-agent store, including the alex_chen projection from the
+  // PACT-Pair workspace, so the mapping is exercised on every validation run.
+  const stores = loadPactNetAgentStoresV1({ rootDir: repoRoot });
+
+  assertEqual(data.questions.length, 483, 'PACT-Net QA count');
+  assertEqual(data.actions.length, 514, 'PACT-Net action count');
+  assertUnique(data.questions.map(question => question.id), 'PACT-Net QA ids');
+  assertUnique(data.actions.map(action => action.id), 'PACT-Net action ids');
+
+  const qaCounts = new Map<string, number>();
+  for (const question of data.questions) {
+    qaCounts.set(question.category, (qaCounts.get(question.category) ?? 0) + 1);
+  }
+  for (const [category, expected] of Object.entries(NET_QA_CATEGORY_COUNTS)) {
+    assertEqual(qaCounts.get(category) ?? 0, expected, `PACT-Net QA ${category}`);
+  }
+  const actionCounts = new Map<string, number>();
+  for (const action of data.actions) {
+    actionCounts.set(action.category, (actionCounts.get(action.category) ?? 0) + 1);
+  }
+  for (const [category, expected] of Object.entries(NET_ACTION_CATEGORY_COUNTS)) {
+    assertEqual(actionCounts.get(category) ?? 0, expected, `PACT-Net action ${category}`);
+  }
+
+  validateNetWorld(graph, stores);
+  validateNetTasks(data, graph, stores);
+  validateNetMatrix(matrix, graph);
+
+  console.log([
+    'PACT-Net validation passed',
+    `  QA tasks: ${data.questions.length}`,
+    `  Action tasks: ${data.actions.length}`,
+    `  Agents: ${Object.keys(graph.agents).length}`,
+  ].join('\n'));
+}
+
+function validateNetWorld(
+  graph: PactNetContactGraphV1,
+  stores: Map<string, PactNetAgentStoreV1>,
+): void {
+  const agents = Object.keys(graph.agents);
+  assertEqual(agents.length, 25, 'PACT-Net agent count');
+  for (const agent of agents) {
+    if (!graph.contacts[agent]) {
+      throw new Error(`PACT-Net agent ${agent} has no contact list`);
+    }
+    if (!stores.has(agent)) {
+      throw new Error(`PACT-Net agent ${agent} has no seed store`);
+    }
+    for (const file of ['USER.md', 'COO.md', 'POLICY.md']) {
+      if (!existsSync(join(repoRoot, 'dataset/pact-net/agent_configs', agent, file))) {
+        throw new Error(`PACT-Net agent ${agent} is missing ${file}`);
+      }
+    }
+  }
+}
+
+function validateNetTasks(
+  data: PactNetBenchmarkV1,
+  graph: PactNetContactGraphV1,
+  stores: Map<string, PactNetAgentStoreV1>,
+): void {
+  const agents = new Set(Object.keys(graph.agents));
+  for (const question of data.questions) {
+    assertKnown(question.source_agent, agents, `PACT-Net ${question.id} source_agent`);
+    assertKnown(question.target_agent, agents, `PACT-Net ${question.id} target_agent`);
+    for (const requester of Object.keys(question.relational_labels)) {
+      assertKnown(requester, agents, `PACT-Net ${question.id} relational_labels`);
+    }
+    const routingAllowed = routingAllowsPactNetMessageV1(
+      graph,
+      question.source_agent,
+      question.target_agent,
+    );
+    if ((question.category === 'non_contact_probe') === routingAllowed) {
+      throw new Error(
+        `PACT-Net ${question.id} (${question.category}) conflicts with the contact graph`,
+      );
+    }
+    const store = stores.get(question.target_agent);
+    if (!store) throw new Error(`PACT-Net ${question.id}: missing target store`);
+    const titles = question.surface === 'notes'
+      ? new Set(store.notes.map(note => note.title))
+      : new Set(store.todos.map(todo => todo.title));
+    for (const title of question.source_notes ?? question.source_todos ?? []) {
+      assertKnown(title, titles, `PACT-Net ${question.id} source ${question.surface}`);
+    }
+  }
+  for (const action of data.actions) {
+    assertKnown(action.source_agent, agents, `PACT-Net ${action.id} source_agent`);
+    assertKnown(action.target_agent, agents, `PACT-Net ${action.id} target_agent`);
+    for (const requester of Object.keys(action.relational_labels)) {
+      assertKnown(requester, agents, `PACT-Net ${action.id} relational_labels`);
+    }
+    if (!routingAllowsPactNetMessageV1(graph, action.source_agent, action.target_agent)) {
+      throw new Error(`PACT-Net ${action.id} is not deliverable through the contact graph`);
+    }
+    if (action.gold_check.type === 'todo_completed') {
+      const goldTitle = action.gold_check.title;
+      const store = stores.get(action.target_agent);
+      if (!store) throw new Error(`PACT-Net ${action.id}: missing target store`);
+      const todo = store.todos.find(candidate => candidate.title === goldTitle);
+      if (!todo) {
+        throw new Error(`PACT-Net ${action.id}: gold todo does not exist in the target store`);
+      }
+      if (todo.completed) {
+        throw new Error(`PACT-Net ${action.id}: gold todo is already completed`);
+      }
+    }
+  }
+}
+
+function validateNetMatrix(
+  matrix: PactNetRelationalMatrixV1,
+  graph: PactNetContactGraphV1,
+): void {
+  const agents = new Set(Object.keys(graph.agents));
+  assertEqual(Object.keys(matrix.agents).length, 25, 'PACT-Net matrix owner count');
+  let pairs = 0;
+  let labels = 0;
+  for (const [owner, entry] of Object.entries(matrix.agents)) {
+    assertKnown(owner, agents, 'PACT-Net matrix owner');
+    for (const requester of Object.keys(entry.requesters)) {
+      assertKnown(requester, agents, `PACT-Net matrix ${owner} requester`);
+      if (requester === owner) {
+        throw new Error(`PACT-Net matrix ${owner} labels itself as a requester`);
+      }
+      pairs += 1;
+      labels += 5;
+    }
+  }
+  assertEqual(pairs, 115, 'PACT-Net matrix (owner, requester) pairs');
+  assertEqual(labels, 575, 'PACT-Net matrix label count');
+}
+
 function validateDatasetCatalog(): Map<string, DatasetManifestV1> {
   const datasetDirectory = join(repoRoot, 'dataset');
   const manifests = new Map<string, DatasetManifestV1>();
@@ -285,6 +468,7 @@ try {
     validateProtocolExample();
   }
   if (suite === 'all' || suite === 'pair') validatePair();
+  if (suite === 'all' || suite === 'net') validateNet();
 } catch (error) {
   if (error instanceof ZodError) {
     console.error('Validation failed:');
