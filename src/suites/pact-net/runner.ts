@@ -10,6 +10,8 @@ import {
   type PactRunConfigV1,
 } from '../../runner/v1/config.js';
 import type { PactRunExecutionMetadataV1 } from '../../runner/v1/backends/index.js';
+import { pactHarborScriptedModelV1 } from '../../runner/v1/backends/harbor-task-package.js';
+import { runPactNetTasksViaHarborV1 } from './harbor.js';
 import {
   loadPactNetTasksV1,
   requirePactNetPolicyV1,
@@ -159,6 +161,19 @@ export type RunPactNetBenchmarkV1Options = {
   /** Seed-store override keyed by agent id; defaults to the dataset stores. */
   stores?: Map<string, PactNetAgentStoreV1>;
   writeOutputs?: boolean;
+  /**
+   * Harbor-backend overrides (executables, image, staging), used when the
+   * config selects `backend: harbor`. Tests inject nonexistent executables
+   * here to exercise the backend-error mapping without Docker.
+   */
+  harbor?: {
+    repositoryRoot?: string;
+    harborExecutable?: string;
+    dockerExecutable?: string;
+    imageName?: string;
+    keepWorkingDirectory?: boolean;
+    sharedOsDir?: string;
+  };
 };
 
 export async function runPactNetBenchmarkV1(
@@ -182,9 +197,7 @@ export async function runPactNetBenchmarkV1(
       `runPactNetBenchmarkV1 requires benchmark.dataset pact-net, got ${runConfig.benchmark.dataset}`,
     );
   }
-  if (selectedPactExecutionBackendV1(runConfig).kind !== 'local') {
-    throw new Error('PACT-Net currently supports only the local execution backend');
-  }
+  const backendSelection = selectedPactExecutionBackendV1(runConfig);
   const policy = requirePactNetPolicyV1(runConfig.benchmark.policy);
   const now = options.now ?? (() => new Date());
   const startedAt = now();
@@ -219,11 +232,21 @@ export async function runPactNetBenchmarkV1(
   const configDigest = digestJson(runConfig);
   const taskSetDigest = digestJson(tasks);
   const sourceRevision = resolveSourceRevision(rootDir);
-  const execution: PactRunExecutionMetadataV1 = {
-    backend: 'local',
-    executor: options.executor
-      ?? (options.harnessFactory ? 'custom-harness' : 'model'),
-  };
+  // Pair precedent: for the Harbor backend the effective executor is derived
+  // from the model endpoint (scripted `.invalid` parity packages never call a
+  // model), and any injected harness is irrelevant — the container decides.
+  const execution: PactRunExecutionMetadataV1 = backendSelection.kind === 'harbor'
+    ? {
+        backend: 'harbor',
+        executor: pactHarborScriptedModelV1(runConfig.model)
+          ? 'scripted-harness'
+          : 'model',
+      }
+    : {
+        backend: 'local',
+        executor: options.executor
+          ?? (options.harnessFactory ? 'custom-harness' : 'model'),
+      };
   const outputDirectory = options.writeOutputs === false
     ? undefined
     : await prepareRunOutputDirectory({
@@ -243,20 +266,8 @@ export async function runPactNetBenchmarkV1(
       });
 
   const taskRuns: PactNetSingleTaskRunV1[] = [];
-  for (const task of tasks) {
-    const seed = stores.get(task.targetAgent);
-    if (!seed) {
-      throw new Error(`PACT-Net task ${task.taskId} targets agent ${task.targetAgent} with no seed store`);
-    }
-    const taskRun = await runSinglePactNetTaskV1({
-      config: runConfig,
-      task,
-      seed,
-      runId,
-      now,
-      harnessFactory,
-      environment,
-    });
+  let executionMetadata = execution;
+  const checkpointTaskRun = async (taskRun: PactNetSingleTaskRunV1) => {
     taskRuns.push(taskRun);
     if (outputDirectory) {
       await appendTaskCheckpoint(
@@ -267,6 +278,56 @@ export async function runPactNetBenchmarkV1(
         taskRuns.filter(run => run.result.status === 'infrastructure_error').length,
         runConfig.output.saveTraces,
       );
+    }
+  };
+  if (backendSelection.kind === 'harbor') {
+    // Per-task container execution through the shared Harbor orchestration;
+    // trials come back through the Net artifact trust boundary (harbor.ts)
+    // and are checkpointed in host task order, exactly like local trials.
+    const harborRun = await runPactNetTasksViaHarborV1({
+      config: runConfig,
+      tasks,
+      stores,
+      runId,
+      now,
+      environment,
+      repositoryRoot: options.harbor?.repositoryRoot ?? rootDir,
+      ...(options.harbor?.harborExecutable === undefined
+        ? {}
+        : { harborExecutable: options.harbor.harborExecutable }),
+      ...(options.harbor?.dockerExecutable === undefined
+        ? {}
+        : { dockerExecutable: options.harbor.dockerExecutable }),
+      ...(options.harbor?.imageName === undefined
+        ? {}
+        : { imageName: options.harbor.imageName }),
+      ...(options.harbor?.keepWorkingDirectory === undefined
+        ? {}
+        : { keepWorkingDirectory: options.harbor.keepWorkingDirectory }),
+      ...(options.harbor?.sharedOsDir === undefined
+        ? {}
+        : { sharedOsDir: options.harbor.sharedOsDir }),
+    });
+    executionMetadata = harborRun.execution;
+    for (const taskRun of harborRun.taskRuns) {
+      await checkpointTaskRun(taskRun);
+    }
+  } else {
+    for (const task of tasks) {
+      const seed = stores.get(task.targetAgent);
+      if (!seed) {
+        throw new Error(`PACT-Net task ${task.taskId} targets agent ${task.targetAgent} with no seed store`);
+      }
+      const taskRun = await runSinglePactNetTaskV1({
+        config: runConfig,
+        task,
+        seed,
+        runId,
+        now,
+        harnessFactory,
+        environment,
+      });
+      await checkpointTaskRun(taskRun);
     }
   }
 
@@ -279,7 +340,7 @@ export async function runPactNetBenchmarkV1(
     status: summary.errors > 0 ? 'completed_with_errors' : 'completed',
     selectedTasks: tasks.length,
     model: runMetadataModelV1(runConfig.model),
-    execution,
+    execution: executionMetadata,
     benchmark: benchmarkMetadata,
     budget: runConfig.budget,
     configDigest,

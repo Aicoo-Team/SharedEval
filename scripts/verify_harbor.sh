@@ -67,10 +67,12 @@ fi
 RUN_DIRECTORY=""
 EGRESS_DIR=""
 EGRESS_JOBS=""
+NET_RUN_DIRECTORY=""
 cleanup() {
   [ -n "$RUN_DIRECTORY" ] && rm -rf "$RUN_DIRECTORY"
   [ -n "$EGRESS_DIR" ] && rm -rf "$EGRESS_DIR"
   [ -n "$EGRESS_JOBS" ] && rm -rf "$EGRESS_JOBS"
+  [ -n "$NET_RUN_DIRECTORY" ] && rm -rf "$NET_RUN_DIRECTORY"
 }
 trap cleanup EXIT
 
@@ -222,6 +224,60 @@ fi
 if [ "$(tr -d '[:space:]' < "$REWARD_FILE")" != "1" ]; then
   echo "FAIL: Harbor container reached the network (egress was not denied)"
   exit 1
+fi
+
+# Optional PACT-Net leg (parameterized entry; the four steps above are the
+# unchanged pair contract CI depends on). Enable with PACT_HARBOR_NET_SMOKE=1
+# to run the seven scripted PACT-Net trials through Harbor with the same
+# no-network task packages and assert the Net artifact contract.
+if [ "${PACT_HARBOR_NET_SMOKE:-0}" = "1" ]; then
+  echo "[net] run seven scripted PACT-Net trials through Harbor (no-network packages)"
+  NET_OUTPUT="$(npm run --silent benchmark -- --config examples/pact-run.harbor-net-smoke.yaml)"
+  NET_RUN_DIRECTORY="$(printf '%s' "$NET_OUTPUT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["outputDirectory"])')"
+
+  echo "[net] verify the Net run artifacts and the private-artifact contract"
+  python3 - "$NET_RUN_DIRECTORY" <<'PY'
+import json
+import pathlib
+import sys
+
+run_dir = pathlib.Path(sys.argv[1])
+
+summary = json.loads((run_dir / "summary.json").read_text())
+assert summary["total"] == 7, f"expected 7 Net trials, got {summary['total']}"
+assert summary["observed"] == 7, "every Net trial must be observed"
+assert summary["errors"] == 0, "scripted Net trials must not error"
+assert summary["scorable"] == 5 and summary["correct"] == 5, (
+    "scripted Net summary drifted from the local scripted expectations"
+)
+assert summary["routingBlocked"] == 1, "the non-contact probe must be routing-blocked"
+
+results = [
+    json.loads(line)
+    for line in (run_dir / "results.jsonl").read_text().splitlines()
+    if line
+]
+assert len(results) == 7
+assert all(result["status"] == "ok" for result in results)
+
+run_metadata = json.loads((run_dir / "run.json").read_text())
+execution = run_metadata.get("execution") or {}
+assert execution.get("backend") == "harbor", "run.json must record the harbor backend"
+assert execution.get("executor") == "scripted-harness", (
+    "run.json must record the scripted harness as the effective executor"
+)
+harbor_meta = execution.get("harbor") or {}
+assert harbor_meta.get("version") == "0.5.0", "run.json must pin the Harbor version"
+assert str(harbor_meta.get("imageId", "")).startswith("sha256:"), (
+    "run.json must record the immutable image identity"
+)
+# Private-artifact contract: gold-bearing artifacts live under private/ only.
+assert (run_dir / "private" / "trace.jsonl").stat().st_size > 0
+assert (run_dir / "private" / "evaluation.jsonl").stat().st_size > 0
+assert not (run_dir / "trace.jsonl").exists()
+assert not (run_dir / "evaluation.jsonl").exists()
+PY
+  echo "HARBOR NET OK — seven scripted PACT-Net Docker trials verified."
 fi
 
 echo "HARBOR OK — six Docker trials match the normalized local golden and container egress is denied."

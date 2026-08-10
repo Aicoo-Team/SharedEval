@@ -1,5 +1,13 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -300,7 +308,7 @@ test('a model-executed run never persists the provider credential', async t => {
   }
 });
 
-test('defaults to the model executor and requires the local backend', async () => {
+test('defaults to the model executor and dispatches backend:harbor to the container path', async t => {
   // Without an injected harness the run is model-backed: provenance says so,
   // and a missing provider credential surfaces as per-task infrastructure
   // errors — never as silently scripted trials.
@@ -314,7 +322,50 @@ test('defaults to the model executor and requires the local backend', async () =
   assert.equal(result.tasks[0]?.status, 'infrastructure_error');
   assert.match(String(result.tasks[0]?.error), /PACT_MODEL_API_KEY is not set/);
 
+  // backend:harbor is no longer rejected: the run dispatches to the shared
+  // Harbor orchestration. With nonexistent executables the version gate fails
+  // first, so every selected task maps to a canonical backend-error row while
+  // the run still records honest harbor provenance — the scripted `.invalid`
+  // endpoint means the executor is the scripted harness, and any injected
+  // host harness is irrelevant to containerized trials.
   const harborConfig = pactRunConfigV1Schema.parse({
+    apiVersion: 'pact-run/v1',
+    kind: 'RunConfig',
+    backend: { kind: 'harbor', concurrency: 2 },
+    model: {
+      provider: 'openai-compatible',
+      baseUrl: 'https://scripted.invalid/v1',
+      apiKeyEnv: 'PACT_MODEL_API_KEY',
+      model: 'pact-scripted-parity-v1',
+      maxOutputTokens: 256,
+    },
+    benchmark: { dataset: 'pact-net', tasks: { kind: 'all', ids: ['NET-Q-0001', 'NET-A-0001'] } },
+  });
+  const harborResult = await runPactNetBenchmarkV1(harborConfig, {
+    environment: {},
+    runId: 'net-harbor-command-failure',
+    writeOutputs: false,
+    harbor: {
+      harborExecutable: 'pact-nonexistent-harbor-binary',
+      dockerExecutable: 'pact-nonexistent-docker-binary',
+    },
+  });
+  assert.equal(harborResult.execution.backend, 'harbor');
+  assert.equal(harborResult.execution.executor, 'scripted-harness');
+  assert.equal(harborResult.execution.harbor?.version, '0.5.0');
+  assert.equal(harborResult.status, 'completed_with_errors');
+  assert.equal(harborResult.summary.total, 2);
+  assert.equal(harborResult.summary.errors, 2);
+  for (const task of harborResult.tasks) {
+    assert.equal(task.status, 'infrastructure_error');
+    assert.deepEqual(task.violations, ['backend_error']);
+    assert.match(task.error ?? '', /pact-nonexistent-harbor-binary/);
+    assert.match(task.error ?? '', /Harbor version/);
+  }
+
+  // A real-model Harbor run (non-.invalid endpoint) demands the runtime-only
+  // credential on the host before any container work happens.
+  const realModelHarborConfig = pactRunConfigV1Schema.parse({
     apiVersion: 'pact-run/v1',
     kind: 'RunConfig',
     backend: { kind: 'harbor' },
@@ -326,13 +377,32 @@ test('defaults to the model executor and requires the local backend', async () =
     },
     benchmark: { dataset: 'pact-net', tasks: { kind: 'all', ids: ['NET-Q-0001'] } },
   });
-  await assert.rejects(
-    runPactNetBenchmarkV1(harborConfig, {
-      harnessFactory: createScriptedPactNetHarnessV1,
+  // A fake harbor that passes the version gate, so the failure surfaced is
+  // the runtime-only credential preflight (O-003 decision 1) rather than the
+  // version mismatch.
+  const fakeHarborDirectory = mkdtempSync(join(tmpdir(), 'pact-net-fake-harbor-'));
+  t.after(() => rmSync(fakeHarborDirectory, { recursive: true, force: true }));
+  const fakeHarbor = join(fakeHarborDirectory, 'fake-harbor');
+  writeFileSync(fakeHarbor, '#!/bin/sh\necho "harbor 0.5.0"\n', 'utf8');
+  chmodSync(fakeHarbor, 0o755);
+  const previousKey = process.env.PACT_MODEL_API_KEY;
+  delete process.env.PACT_MODEL_API_KEY;
+  try {
+    const realModelResult = await runPactNetBenchmarkV1(realModelHarborConfig, {
+      environment: {},
+      runId: 'net-harbor-missing-credential',
       writeOutputs: false,
-    }),
-    /only the local execution backend/,
-  );
+      harbor: {
+        harborExecutable: fakeHarbor,
+        dockerExecutable: 'pact-nonexistent-docker-binary',
+      },
+    });
+    assert.equal(realModelResult.execution.executor, 'model');
+    assert.equal(realModelResult.tasks[0]?.status, 'infrastructure_error');
+    assert.match(realModelResult.tasks[0]?.error ?? '', /PACT_MODEL_API_KEY/);
+  } finally {
+    if (previousKey !== undefined) process.env.PACT_MODEL_API_KEY = previousKey;
+  }
 });
 
 test('refuses to overwrite an existing run directory', async t => {

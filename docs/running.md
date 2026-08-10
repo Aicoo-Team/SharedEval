@@ -385,6 +385,23 @@ reach the network. See
 `examples/pact-run.harbor-smoke.yaml` for the smoke configuration and
 `examples/pact-run.harbor-split-01.yaml` for a curated 60-task split.
 
+**PACT-Net over Harbor.** `pact-net` run configs may select the same
+`backend: harbor`. Dataset identity is parameterized, not special-cased: each
+suite exports a Harbor dataset runtime (`src/suites/<dataset>/harbor.ts`) that
+supplies its task-id gate, task-template directory
+(`harbor/task-template-net/` for Net), and entrypoint tokens; the shared
+packager, orchestrator, and container entrypoint consume that descriptor, and
+the container dispatches on `--dataset` (defaulting to pact-pair, so existing
+pair packages are byte-identical). Net trials keep LOCAL semantics in the
+container — one task per container against a fresh seed-store clone, routing
+enforced before the harness, gold-bearing artifacts only under `private/` —
+and come back through a Net-specific artifact trust boundary (strict schemas,
+gold cross-checks, host-recomputed metrics) in
+`src/suites/pact-net/harbor.ts`. `examples/pact-run.harbor-net-smoke.yaml`
+runs the seven scripted Net tasks as no-network packages; set
+`PACT_HARBOR_NET_SMOKE=1` when invoking `scripts/verify_harbor.sh` to append
+that Net leg to the unchanged pair checks.
+
 ## Isolation and privacy
 
 Each task receives a fresh clone of
