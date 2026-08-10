@@ -1,166 +1,92 @@
-\# OpenRouter Benchmark Configuration
+# OpenRouter Benchmark Configuration
 
+## Overview
 
+This configuration runs the PACT benchmark through OpenRouter using its OpenAI-compatible API.
 
-\## Overview
+The example uses `openai/gpt-5-mini` and the `pact-pair` dataset.
 
+## Configuration
 
+* Provider: OpenAI-compatible
+* Endpoint: OpenRouter
+* Model: `openai/gpt-5-mini`
+* Benchmark dataset: `pact-pair`
+* Policy: `D2_SUBMITTED`
+* Requester: `R1`
+* Grading mode: `category`
+* Maximum turns: 8
+* Maximum tool calls: 4
+* Maximum runtime per task: 60 seconds
 
-This change adds an OpenRouter configuration for running the PACT benchmark through an OpenAI-compatible model endpoint.
+The example configuration selects a small task subset by default so that it can be run as a low-cost smoke test.
 
+To run the complete benchmark, remove the `ids:` line from the `tasks` section. The full `pact-pair` dataset contains 600 tasks.
 
+## API key
 
-\## Configuration
+Set the OpenRouter API key through the `PACT_MODEL_API_KEY` environment variable.
 
+### Bash
 
-
-\* Provider: OpenAI-compatible
-
-\* Endpoint: OpenRouter
-
-\* Model: `openai/gpt-5-mini`
-
-\* Benchmark dataset: `pact-pair`
-
-\* Task selection: `all`
-
-\* Selected tasks: 600
-
-\* Maximum turns: 8
-
-\* Maximum tool calls: 4
-
-\* Maximum runtime per task: 60 seconds
-
-
-
-The API key is supplied through the `PACT\_MODEL\_API\_KEY` environment variable and is not committed to the repository.
-
-
-
-\## Benchmark command
-
-
-
-```powershell
-
-npm run benchmark -- --config examples\\pact-run.openrouter.yaml
-
+```bash
+export PACT_MODEL_API_KEY="YOUR_OPENROUTER_API_KEY"
 ```
 
+### PowerShell
 
+```powershell
+$env:PACT_MODEL_API_KEY="YOUR_OPENROUTER_API_KEY"
+```
 
-\## Initial benchmark result
+Do not commit the API key or any other credentials to the repository.
 
+## Run the smoke test
 
+With the default task subset in `examples/pact-run.openrouter.yaml`, run:
 
-The full 600-task benchmark was selected successfully. The initial run progressed through task `PAIR-Q78` before being stopped by a provider-side error.
+```bash
+npm run benchmark -- --config examples/pact-run.openrouter.yaml
+```
 
+This runs the small configured subset and is recommended for verifying the OpenRouter setup before starting a larger batch.
 
+## Run all 600 tasks
 
-Results before the interruption:
-
-
-
-\* Selected: 600 tasks
-
-\* Attempted: 78
-
-\* Observed: 77
-
-\* Scorable: 77
-
-\* Correct: 68
-
-\* Incorrect: 9
-
-\* Infrastructure errors: 1
-
-\* Accuracy: 88.31%
-
-\* Successful provider requests: 190
-
-\* Failed provider requests: 1
-
-\* Recorded cost: approximately `$0.1608`
-
-
-
-\## Provider interruption
-
-
-
-Task `PAIR-Q78` returned:
-
-
+To run the complete `pact-pair` benchmark, remove the `ids:` line from the `tasks` section of:
 
 ```text
-
-HTTP 402
-
-OpenAI-compatible provider request failed with HTTP 402
-
+examples/pact-run.openrouter.yaml
 ```
-
-
-
-The PACT runner classified this as `provider\_configuration\_error` and stopped the benchmark.
-
-
-
-The failure occurred before task execution:
-
-
-
-\* Turns: 0
-
-\* Tool calls: 0
-
-\* Runtime: 148 ms
-
-
-
-Therefore, the interruption was provider-side rather than a benchmark-task execution failure.
-
-
-
-\## Reproducibility
-
-
-
-To reproduce the benchmark, provide a valid OpenRouter API key through:
-
-
-
-```powershell
-
-$env:PACT\_MODEL\_API\_KEY="YOUR\_OPENROUTER\_API\_KEY"
-
-```
-
-
 
 Then run:
 
-
-
-```powershell
-
-npm run benchmark -- --config examples\\pact-run.openrouter.yaml
-
+```bash
+npm run benchmark -- --config examples/pact-run.openrouter.yaml
 ```
 
+The full run requires sufficient OpenRouter provider credits.
 
+## Output
 
-The API key must not be committed to the repository.
+Each benchmark run creates a run directory under `runs/` containing the benchmark summary and execution artifacts.
 
+The command prints a JSON summary containing information such as:
 
+* number of selected and attempted tasks
+* correct answers
+* errors and violations
+* provider request counts
+* token usage
+* recorded cost
+* benchmark metrics
 
-\## Status
+For reproducible batch runs and future resume support, use `saveTraces: true` when appropriate.
 
+## Security and limitations
 
-
-The OpenRouter configuration has been validated successfully against the PACT runner. A complete 600-task execution requires sufficient provider credits to avoid interruption by HTTP 402.
-
-
-
+* Keep `PACT_MODEL_API_KEY` out of source control.
+* Benchmark requests are sent to the configured OpenRouter endpoint.
+* OpenRouter availability, model availability, rate limits, and account credits can affect benchmark execution.
+* A provider-side failure does not necessarily indicate a benchmark or task failure.
+* The default smoke test intentionally uses a small subset rather than the full 600-task dataset to avoid unexpectedly starting a paid batch run.
