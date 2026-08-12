@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { aggregateEvaluationResults } from '../../evaluation/index.js';
 import {
   pactRunConfigV1Schema,
+  selectedPactExecutionAdapterV1,
   selectedPactExecutionBackendV1,
   type PactRunConfigV1,
 } from '../../runner/v1/config.js';
@@ -198,6 +199,21 @@ export async function runPactNetBenchmarkV1(
     );
   }
   const backendSelection = selectedPactExecutionBackendV1(runConfig);
+  if (
+    backendSelection.kind === 'local'
+    && selectedPactExecutionAdapterV1(runConfig) === 'sharedos-embedded'
+  ) {
+    // Fail-loud contract of the explicitly selected sharedos-embedded
+    // adapter: preflight the SharedOS build once, at run level, before any
+    // task executes or any output artifact is written. A missing or
+    // unloadable PACT_SHAREDOS_DIR rejects the whole run here instead of
+    // degrading into one infrastructure_error row per selected task. The
+    // Harbor backend performs its own SharedOS staging preflight
+    // (harbor-backend.ts); lazy import for the same reason as the per-task
+    // dispatch in environment.ts.
+    const { preflightPactNetSharedOsV1 } = await import('./sharedos-execution.js');
+    await preflightPactNetSharedOsV1();
+  }
   const policy = requirePactNetPolicyV1(runConfig.benchmark.policy);
   const now = options.now ?? (() => new Date());
   const startedAt = now();

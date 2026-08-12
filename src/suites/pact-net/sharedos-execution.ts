@@ -240,6 +240,17 @@ async function requireSharedOsModulesV1(): Promise<SharedOsModulesV1> {
 }
 
 /**
+ * Run-level preflight for the explicitly selected `sharedos-embedded`
+ * adapter: loads (and caches) the SharedOS build once, before any task
+ * executes or any output artifact is written. A missing or unloadable
+ * `PACT_SHAREDOS_DIR` therefore rejects the whole run loudly instead of
+ * degrading into one infrastructure_error row per selected task.
+ */
+export async function preflightPactNetSharedOsV1(): Promise<void> {
+  await requireSharedOsModulesV1();
+}
+
+/**
  * Test-only injection point: lets suite tests substitute a scripted
  * SharedOS module surface (for incident classes the real kernel cannot be
  * asked to produce on demand, e.g. a denied turn admission). The runner
@@ -312,8 +323,16 @@ export async function runSinglePactNetTaskViaSharedOsV1(
     });
   }
 
+  // Outside the per-task try (Pair precedent): requireSharedOsModulesV1's
+  // deliberate fail-loud error is a run-level configuration failure, so it
+  // must propagate past the broad catch below instead of being classified
+  // as one more per-task infrastructure_error row. The runner additionally
+  // preflights the adapter before any task executes or output is written
+  // (preflightPactNetSharedOsV1); this rethrow keeps direct per-task calls
+  // equally loud. Routing-blocked dyads returned above never load SharedOS.
+  const modules = internals.modules ?? await requireSharedOsModulesV1();
+
   try {
-    const modules = internals.modules ?? await requireSharedOsModulesV1();
     const activeHarness = await withinDeadline(
       Promise.resolve().then(() => options.harnessFactory({
         config: structuredClone(options.config),
