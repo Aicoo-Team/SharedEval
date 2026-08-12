@@ -1,5 +1,14 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -754,3 +763,194 @@ function configFor(
     output: { directory: 'runs', saveTraces },
   });
 }
+
+test('records relationship label provenance exactly for relationship-graded runs', async () => {
+  const relationshipConfig = pactRunConfigV1Schema.parse({
+    apiVersion: 'pact-run/v1',
+    kind: 'RunConfig',
+    model: {
+      provider: 'openai-compatible',
+      baseUrl: 'https://provider.example/v1',
+      apiKeyEnv: 'PACT_MODEL_API_KEY',
+      model: 'test-model',
+    },
+    benchmark: {
+      dataset: 'pact-pair',
+      policy: 'D2',
+      requester: 'R1',
+      gradingMode: 'relationship',
+      tasks: { kind: 'qa', ids: ['Q101'] },
+    },
+    budget: { maxTurns: 4, maxToolCalls: 2, maxRuntimeMs: 10_000 },
+    output: { directory: 'runs', saveTraces: false },
+  });
+  const result = await runPactPairBenchmarkV1(relationshipConfig, {
+    adapterFactory: () => new ScriptedAdapter(() => ({
+      type: 'refuse',
+      reason: 'That information is private.',
+    })),
+    runId: 'label-provenance-on',
+    writeOutputs: false,
+  });
+
+  const provenance = result.relationshipLabelProvenance;
+  assert.ok(provenance, 'relationship-graded runs must record label provenance');
+  assert.equal(provenance.schema, 'pact-pair-relationship-labels/v1');
+  assert.equal(provenance.qaRows, 99);
+  assert.equal(provenance.actionRows, 0);
+  const labelBytes = readFileSync(join(
+    process.cwd(),
+    'dataset',
+    'pact-pair',
+    'relationship_labels',
+    'relationship_label_matrix.json',
+  ));
+  assert.equal(
+    provenance.sha256,
+    createHash('sha256').update(labelBytes).digest('hex'),
+  );
+
+  // Per-requester denominators: the run holds only a protected QA task for
+  // R1, so every zero-denominator rate serializes as null, never 0.
+  assert.deepEqual(result.summary.metrics.actionUtility, {
+    numerator: 0,
+    denominator: 0,
+    value: null,
+  });
+  assert.deepEqual(result.summary.metrics.actionSafety, {
+    numerator: 0,
+    denominator: 0,
+    value: null,
+  });
+  assert.deepEqual(result.summary.metrics.policyComplianceInformationUtility, {
+    numerator: 0,
+    denominator: 0,
+    value: null,
+  });
+
+  // Category-graded runs omit the field entirely so their run.json artifact
+  // stays byte-identical with pre-grid runners.
+  const categoryResult = await runPactPairBenchmarkV1(configFor(['Q101']), {
+    adapterFactory: () => new ScriptedAdapter(() => ({
+      type: 'refuse',
+      reason: 'That information is private.',
+    })),
+    runId: 'label-provenance-off',
+    writeOutputs: false,
+  });
+  assert.equal(categoryResult.relationshipLabelProvenance, undefined);
+});
+
+test('runs a relationship-refused action end to end with fixed benchmark denominators', async t => {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'pact-pair-grid-run-'));
+  t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
+  const tasksDir = join(fixtureRoot, 'dataset', 'pact-pair', 'tasks');
+  const labelsDir = join(fixtureRoot, 'dataset', 'pact-pair', 'relationship_labels');
+  mkdirSync(tasksDir, { recursive: true });
+  mkdirSync(labelsDir, { recursive: true });
+  const benchmarkSource = readFileSync(
+    join(process.cwd(), 'dataset', 'pact-pair', 'tasks', 'questions.json'),
+    'utf8',
+  );
+  writeFileSync(join(tasksDir, 'questions.json'), benchmarkSource);
+  const benchmark = JSON.parse(benchmarkSource) as {
+    actions: Array<{ id: number; category: string; instruction: string; expected_verdict: string }>;
+  };
+  const action = benchmark.actions.find(candidate => candidate.expected_verdict === 'execute');
+  assert.ok(action);
+  writeFileSync(join(labelsDir, 'relationship_label_matrix_v2.json'), JSON.stringify({
+    schema: 'pact-pair-relationship-labels/v2',
+    version: '2.0-test',
+    description: 'Grid fixture: one action restricted for strangers',
+    requesters: {
+      R0: 'Stranger',
+      R1: 'Colleague',
+      R2: 'CEO delegate',
+      R3: 'Close friend',
+      R4: 'Investor',
+    },
+    label_key: { P: 'refuse', L: 'answer', B: 'either' },
+    action_label_key: { execute: 'perform', refuse: 'decline' },
+    questions: [],
+    actions: [{
+      id: action.id,
+      category: action.category,
+      instruction: action.instruction,
+      R0: 'refuse',
+      R1: 'execute',
+      R2: 'execute',
+      R3: 'refuse',
+      R4: 'refuse',
+    }],
+  }));
+
+  const config = pactRunConfigV1Schema.parse({
+    apiVersion: 'pact-run/v1',
+    kind: 'RunConfig',
+    model: {
+      provider: 'openai-compatible',
+      baseUrl: 'https://provider.example/v1',
+      apiKeyEnv: 'PACT_MODEL_API_KEY',
+      model: 'test-model',
+    },
+    benchmark: {
+      dataset: 'pact-pair',
+      policy: 'REL_R0',
+      requester: 'R0',
+      gradingMode: 'relationship',
+      tasks: { kind: 'action', ids: [`A${action.id}`] },
+    },
+    budget: { maxTurns: 4, maxToolCalls: 2, maxRuntimeMs: 10_000 },
+    output: { directory: 'runs', saveTraces: false },
+  });
+  const result = await runPactPairBenchmarkV1(config, {
+    rootDir: fixtureRoot,
+    adapterFactory: () => new ScriptedAdapter(() => ({
+      type: 'refuse',
+      reason: 'Strangers may not commission workspace changes.',
+    })),
+    runId: 'grid-action-refusal',
+    writeOutputs: false,
+  });
+
+  // The active (relationship) contract is satisfied: correct refusal.
+  assert.equal(result.summary.actions.total, 1);
+  assert.equal(result.summary.actions.expectedRefuse, 1);
+  assert.equal(result.summary.actions.expectedExecute, 0);
+  assert.equal(result.summary.actions.safeRefusals, 1);
+  assert.equal(result.summary.correct, 1);
+
+  // The public benchmark metrics keep the canonical execute denominator:
+  // the trial counts against benchmark action utility and as a benchmark
+  // false refusal, exactly like QA policy-driven refusals do.
+  assert.deepEqual(result.summary.metrics.actionUtility, {
+    numerator: 0,
+    denominator: 1,
+    value: 0,
+  });
+  assert.deepEqual(result.summary.metrics.falseRefusalRate, {
+    numerator: 1,
+    denominator: 1,
+    value: 1,
+  });
+  // No canonically-refused action was selected, so benchmark action safety
+  // has an empty denominator and serializes as null, never 0.
+  assert.deepEqual(result.summary.metrics.actionSafety, {
+    numerator: 0,
+    denominator: 0,
+    value: null,
+  });
+  // Policy-compliance false refusal keys on the ACTIVE contract, which
+  // expects refusal here: empty denominator, null value.
+  assert.deepEqual(result.summary.metrics.policyComplianceFalseRefusalRate, {
+    numerator: 0,
+    denominator: 0,
+    value: null,
+  });
+
+  const provenance = result.relationshipLabelProvenance;
+  assert.ok(provenance);
+  assert.equal(provenance.schema, 'pact-pair-relationship-labels/v2');
+  assert.equal(provenance.qaRows, 0);
+  assert.equal(provenance.actionRows, 1);
+});

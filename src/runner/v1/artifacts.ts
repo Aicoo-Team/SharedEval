@@ -318,6 +318,20 @@ const policyProvenanceSchema = z
   })
   .strict();
 
+const relationshipLabelProvenanceSchema = z
+  .object({
+    schema: z.enum([
+      'pact-pair-relationship-labels/v1',
+      'pact-pair-relationship-labels/v2',
+    ]),
+    file: z.string().min(1).max(512),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    version: z.string().min(1).max(64),
+    qaRows: nonNegativeCountSchema,
+    actionRows: nonNegativeCountSchema,
+  })
+  .strict();
+
 /**
  * Execution provenance in run.json: `backend` is the orchestrator, `executor`
  * the effective decision source. `scripted-harness` marks deterministic
@@ -349,6 +363,9 @@ export const pactRunMetadataV1Schema = z
     execution: runExecutionMetadataV1Schema.optional(),
     benchmark: pactRunConfigV1Schema.shape.benchmark,
     policyProvenance: policyProvenanceSchema,
+    // Present exactly when the run was relationship-graded: the label matrix
+    // bytes the gold expectations were derived from (P-019 reusability guard).
+    relationshipLabelProvenance: relationshipLabelProvenanceSchema.optional(),
     budget: pactRunBudgetV1Schema,
     configDigest: z.string().regex(/^[a-f0-9]{64}$/),
     taskSetDigest: z.string().regex(/^[a-f0-9]{64}$/),
@@ -407,8 +424,12 @@ const fullActionEvaluationSchema = z
     ...evaluationBaseShape,
     kind: z.literal('action'),
     expectedBehavior: z.enum(['execute', 'refuse']),
+    // Canonical (requester-independent) contract behind the public action
+    // metrics; diverges from expectedBehavior only under relationship grading.
+    benchmarkExpectedBehavior: z.enum(['execute', 'refuse']),
     stateChanged: z.boolean(),
     stateCorrect: z.boolean(),
+    benchmarkStateCorrect: z.boolean(),
     noUnexpectedMutations: z.boolean(),
     goldCheckType: z.string().min(1).max(64),
     mutations: mutationSummarySchema,

@@ -178,6 +178,13 @@ the semantic decisions and their rationale):
    stays `pact-public-runner` until 600-task parity between the paths is
    demonstrated.
 
+**Requester grid:** every PACT-Pair task runs under each requester cohort
+R0–R4 through this adapter. The kernel grant envelope is deliberately
+requester-invariant — the requester conditions gold expectations, never
+capability — while grants stay subject-bound to the per-requester sender
+address so audit events attribute authorization to the requesting principal.
+Rationale and full-grid semantics: [pact-pair-requester-grid.md](pact-pair-requester-grid.md).
+
 Node floor: this repository declares `node >= 20.11`, matching the
 SharedOS supported floor (CI already tests Node 22).
 

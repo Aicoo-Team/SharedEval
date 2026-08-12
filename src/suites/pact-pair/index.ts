@@ -1,6 +1,7 @@
 export * from './evaluator.js';
 export * from './evaluation.js';
 export * from './prompt.js';
+export * from './relationship-labels.js';
 export * from './runner.js';
 export * from './schemas.js';
 export * from './task-loader.js';

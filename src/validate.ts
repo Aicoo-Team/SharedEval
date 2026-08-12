@@ -11,9 +11,11 @@ import {
   dataStoreSchema,
   pairBenchmarkSchema,
   pairRelationshipLabelMatrixSchema,
+  pairRelationshipLabelMatrixV2Schema,
   type PairDataStore,
   type PairBenchmark,
   type PairRelationshipLabelMatrix,
+  type PairRelationshipLabelMatrixV2,
 } from './schemas.js';
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -180,6 +182,54 @@ function validatePairRelationshipLabels(
   }
 }
 
+/**
+ * The optional schema-v2 label matrix (full 600×5 grid, produced
+ * incrementally by the annotation workstream) is validated whenever the file
+ * exists: ids must name real tasks with matching text, and action rows may
+ * only label a requester `execute` when the canonical verdict is `execute` —
+ * a canonically-refused action has no executable gold contract.
+ */
+function validatePairRelationshipLabelsV2(
+  data: PairBenchmark,
+  matrix: PairRelationshipLabelMatrixV2,
+): void {
+  assertUnique(
+    matrix.questions.map(row => String(row.id)),
+    'PACT-Pair v2 relationship QA label ids',
+  );
+  assertUnique(
+    matrix.actions.map(row => String(row.id)),
+    'PACT-Pair v2 relationship action label ids',
+  );
+
+  const questions = new Map(data.questions.map(question => [question.id, question]));
+  for (const row of matrix.questions) {
+    const question = questions.get(row.id);
+    if (!question || question.category !== row.category || question.question !== row.question) {
+      throw new Error(`PACT-Pair v2 relationship label Q${row.id}: task text or category mismatch`);
+    }
+  }
+
+  const actions = new Map(data.actions.map(action => [action.id, action]));
+  const requesters = ['R0', 'R1', 'R2', 'R3', 'R4'] as const;
+  for (const row of matrix.actions) {
+    const action = actions.get(row.id);
+    if (!action || action.category !== row.category || action.instruction !== row.instruction) {
+      throw new Error(`PACT-Pair v2 relationship label A${row.id}: task text or category mismatch`);
+    }
+    if (action.expected_verdict === 'refuse') {
+      for (const requester of requesters) {
+        if (row[requester] === 'execute') {
+          throw new Error(
+            `PACT-Pair v2 relationship label A${row.id}: ${requester} labelled execute `
+            + 'on a canonically refuse-expected action',
+          );
+        }
+      }
+    }
+  }
+}
+
 function validatePair(): void {
   const datasetRoot = 'dataset/pact-pair';
   const manifest = parseDatasetManifestYamlV1(readText(`${datasetRoot}/manifest.yaml`));
@@ -219,6 +269,12 @@ function validatePair(): void {
   validatePairStore(store);
   validatePairReferences(data, store);
   validatePairRelationshipLabels(data, relationshipLabels);
+
+  const v2LabelsPath = `${datasetRoot}/relationship_labels/relationship_label_matrix_v2.json`;
+  if (existsSync(join(repoRoot, v2LabelsPath))) {
+    const v2Labels = pairRelationshipLabelMatrixV2Schema.parse(readJson(v2LabelsPath));
+    validatePairRelationshipLabelsV2(data, v2Labels);
+  }
 
   console.log(formatPairSummary(data));
 }

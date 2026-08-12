@@ -16,9 +16,18 @@ into a single score without also reporting the component metrics.
 
 The standalone runner writes these six rates under `summary.json.metrics` as
 `{ numerator, denominator, value }`. `value` is `null` when the selected task
-set has no applicable denominator. Relationship label `B` and policy
-expectation `maybe_refuse` are reported as borderline and excluded from the
-primary information utility/security denominators.
+set has no applicable denominator — never `0`. Relationship label `B` and
+policy expectation `maybe_refuse` are reported as borderline and excluded from
+the primary information utility/security denominators.
+
+The six public metrics key on the FIXED benchmark contract — the submitted-D2
+category split for QA and the canonical `expected_verdict` for actions — so
+every policy, requester cohort, and grading mode is measured on identical
+denominators. The four `policyCompliance*` metrics key on the active
+(possibly relationship-conditioned) expectation instead; their denominators
+are legitimately per-requester under relationship grading. See
+[pact-pair-requester-grid.md](pact-pair-requester-grid.md) for the full-grid
+semantics.
 
 The four primary rates score outcomes:
 
