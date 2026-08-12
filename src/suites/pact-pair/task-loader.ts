@@ -4,10 +4,16 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
   pairBenchmarkSchema,
-  pairRelationshipLabelMatrixSchema,
   type PairAction,
   type PairQuestion,
 } from './schemas.js';
+import {
+  loadPactPairRelationshipLabelSetV2,
+  PACT_PAIR_REQUESTERS_V1,
+  type PactPairRelationshipLabelSetV2,
+  type PactPairRequesterIdV1,
+  type PactPairRelationshipLabelV1,
+} from './relationship-labels.js';
 import {
   pactTaskIntroV1Schema,
   type PactIdentityV1,
@@ -34,13 +40,15 @@ export const PACT_PAIR_POLICIES_V1 = [
   'REL_R3',
   'REL_R4',
 ] as const;
-export const PACT_PAIR_REQUESTERS_V1 = ['R0', 'R1', 'R2', 'R3', 'R4'] as const;
+export { PACT_PAIR_REQUESTERS_V1 } from './relationship-labels.js';
 export const PACT_PAIR_GRADING_MODES_V1 = ['category', 'relationship'] as const;
 
 export type PactPairPolicyV1 = typeof PACT_PAIR_POLICIES_V1[number];
-export type PactPairRequesterIdV1 = typeof PACT_PAIR_REQUESTERS_V1[number];
+export type {
+  PactPairRequesterIdV1,
+  PactPairRelationshipLabelV1,
+} from './relationship-labels.js';
 export type PactPairGradingModeV1 = typeof PACT_PAIR_GRADING_MODES_V1[number];
-export type PactPairRelationshipLabelV1 = 'L' | 'P' | 'B';
 export type PactPairQaExpectationV1 = 'answer' | 'refuse' | 'either';
 export type PactPairActionExpectationV1 = 'execute' | 'refuse';
 
@@ -82,7 +90,20 @@ export type LoadedPactPairQaTaskV1 = LoadedPactPairTaskBaseV1 & {
 export type LoadedPactPairActionTaskV1 = LoadedPactPairTaskBaseV1 & {
   kind: 'action';
   action: PairAction;
+  /**
+   * Active grading contract. Under category grading this is the canonical
+   * `expected_verdict`; under relationship grading it is the requester's
+   * label from the v2 matrix (loading fails loudly when a selected action
+   * has no label — there is no silent category fallback).
+   */
   expectedBehavior: PactPairActionExpectationV1;
+  /**
+   * Requester-independent canonical contract (`expected_verdict`), the fixed
+   * denominator behind the public action metrics — the action counterpart of
+   * the QA `benchmarkExpectedBehavior` key.
+   */
+  benchmarkExpectedBehavior: PactPairActionExpectationV1;
+  relationshipLabel?: PactPairActionExpectationV1;
 };
 
 export type LoadedPactPairTaskV1 =
@@ -171,37 +192,23 @@ export function loadPactPairTasksV1(
     .categories;
   const categories = uniqueCategoryMap(rawCategories);
 
-  const relationshipMatrix = pairRelationshipLabelMatrixSchema.parse(
-    readJson(
-      join(
-        rootDir,
-        'dataset',
-        'pact-pair',
-        'relationship_labels',
-        'relationship_label_matrix.json',
-      ),
-    ),
-  );
-  const relationshipRows = new Map(
-    relationshipMatrix.labels.map(row => [row.id, row] as const),
-  );
+  const relationshipLabels = loadPactPairRelationshipLabelSetV2(rootDir);
+  validateRelationshipLabelSet(relationshipLabels, benchmark);
+  const unlabeledTaskIds = new Set<string>();
 
   const qaTasks = benchmark.questions.map(question => {
     const category = categories.get(question.category);
     if (!category) {
       throw new Error(`PACT-Pair question Q${question.id} has unknown category ${question.category}`);
     }
-    const relationshipRow = relationshipRows.get(question.id);
-    if (
-      relationshipRow
-      && (
-        relationshipRow.category !== question.category
-        || relationshipRow.question !== question.question
-      )
-    ) {
-      throw new Error(`PACT-Pair relationship row Q${question.id} does not match the task`);
+    const relationshipLabel = relationshipLabels.qa.get(question.id)
+      ?.labels[options.requester];
+    if (options.gradingMode === 'relationship' && !relationshipLabel) {
+      // Constructed but poisoned: returning this task under relationship
+      // grading is forbidden (no silent category fallback), and the selection
+      // gate below fails loudly if it survives filtering.
+      unlabeledTaskIds.add(`PAIR-Q${question.id}`);
     }
-    const relationshipLabel = relationshipRow?.[options.requester];
     const expectedBehavior = options.gradingMode === 'relationship' && relationshipLabel
       ? expectationFromRelationshipLabel(relationshipLabel)
       : expectationFromCategory(category, options.policy);
@@ -237,6 +244,14 @@ export function loadPactPairTasksV1(
 
   const actionTasks = benchmark.actions.map(action => {
     const taskId = `PAIR-A${action.id}`;
+    const relationshipLabel = relationshipLabels.actions.get(action.id)
+      ?.labels[options.requester];
+    if (options.gradingMode === 'relationship' && !relationshipLabel) {
+      unlabeledTaskIds.add(taskId);
+    }
+    const expectedBehavior = options.gradingMode === 'relationship' && relationshipLabel
+      ? relationshipLabel
+      : action.expected_verdict;
     const publicTask = pactTaskIntroV1Schema.parse({
       taskId,
       kind: 'action',
@@ -256,7 +271,9 @@ export function loadPactPairTasksV1(
       gradingMode: options.gradingMode,
       category: action.category,
       action,
-      expectedBehavior: action.expected_verdict,
+      expectedBehavior,
+      benchmarkExpectedBehavior: action.expected_verdict,
+      ...(relationshipLabel ? { relationshipLabel } : {}),
       publicTask,
     } satisfies LoadedPactPairActionTaskV1;
   });
@@ -269,7 +286,87 @@ export function loadPactPairTasksV1(
       : [...qaTasks, ...actionTasks];
 
   const selected = selectIds(candidates, options.ids, kind);
-  return options.limit === undefined ? selected : selected.slice(0, options.limit);
+  const limited = options.limit === undefined
+    ? selected
+    : selected.slice(0, options.limit);
+  assertRelationshipLabelCoverage(limited, unlabeledTaskIds, relationshipLabels);
+  return limited;
+}
+
+/**
+ * Relationship grading requires a label for every task that will actually
+ * run. Falling back to category expectations silently would mix two gold
+ * targets in one run, so a coverage gap is a hard, loud error instead.
+ */
+function assertRelationshipLabelCoverage(
+  tasks: LoadedPactPairTaskV1[],
+  unlabeledTaskIds: Set<string>,
+  labels: PactPairRelationshipLabelSetV2,
+): void {
+  if (unlabeledTaskIds.size === 0) return;
+  const missing = tasks
+    .map(task => task.taskId)
+    .filter(taskId => unlabeledTaskIds.has(taskId));
+  if (missing.length === 0) return;
+  const preview = missing.slice(0, 20).join(', ');
+  const suffix = missing.length > 20 ? `, … (${missing.length} tasks total)` : '';
+  throw new Error(
+    'PACT-Pair relationship grading requires a relationship label for every '
+    + `selected task, but ${missing.length} selected task(s) have none in `
+    + `${labels.provenance.file} (${labels.provenance.schema}, version `
+    + `${labels.provenance.version}): ${preview}${suffix}. Restrict the task `
+    + 'selection to labelled tasks or extend the label matrix; category '
+    + 'fallback is not applied.',
+  );
+}
+
+/**
+ * Every matrix row must match a canonical task by id and text, and action
+ * rows may only label a requester `execute` when the canonical
+ * `expected_verdict` is `execute` — a canonically-refused action has no
+ * executable gold contract, so the relationship axis can only restrict.
+ */
+function validateRelationshipLabelSet(
+  labels: PactPairRelationshipLabelSetV2,
+  benchmark: { questions: PairQuestion[]; actions: PairAction[] },
+): void {
+  const questionsById = new Map(
+    benchmark.questions.map(question => [question.id, question] as const),
+  );
+  for (const row of labels.qa.values()) {
+    const question = questionsById.get(row.id);
+    if (!question) {
+      throw new Error(`PACT-Pair relationship row Q${row.id} does not match any task`);
+    }
+    if (row.category !== question.category || row.question !== question.question) {
+      throw new Error(`PACT-Pair relationship row Q${row.id} does not match the task`);
+    }
+  }
+  const actionsById = new Map(
+    benchmark.actions.map(action => [action.id, action] as const),
+  );
+  for (const row of labels.actions.values()) {
+    const action = actionsById.get(row.id);
+    if (!action) {
+      throw new Error(`PACT-Pair relationship row A${row.id} does not match any task`);
+    }
+    if (row.category !== action.category || row.instruction !== action.instruction) {
+      throw new Error(`PACT-Pair relationship row A${row.id} does not match the task`);
+    }
+    if (action.expected_verdict === 'refuse') {
+      const escalations = PACT_PAIR_REQUESTERS_V1.filter(
+        requester => row.labels[requester] === 'execute',
+      );
+      if (escalations.length > 0) {
+        throw new Error(
+          `PACT-Pair relationship row A${row.id} labels ${escalations.join(', ')} `
+          + 'execute, but the canonical action is refuse-expected and has no '
+          + 'executable gold contract; relationship labels may only restrict '
+          + 'canonically-executable actions',
+        );
+      }
+    }
+  }
 }
 
 function validateOptions(options: LoadPactPairTasksV1Options): void {
@@ -290,9 +387,9 @@ function validateOptions(options: LoadPactPairTasksV1Options): void {
     if (options.gradingMode !== 'relationship') {
       throw new Error(`${options.policy} requires relationship grading`);
     }
-    if ((options.kind ?? 'all') !== 'qa') {
-      throw new Error(`${options.policy} is validated only for QA tasks`);
-    }
+    // Action and mixed selections are permitted; relationship grading then
+    // requires v2 action labels for every selected action and fails loudly
+    // (assertRelationshipLabelCoverage) while those labels are being produced.
   }
   if (options.kind && !['all', 'qa', 'action'].includes(options.kind)) {
     throw new Error(`Unsupported PACT-Pair task kind ${String(options.kind)}`);

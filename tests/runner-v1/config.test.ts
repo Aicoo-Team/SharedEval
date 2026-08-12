@@ -351,17 +351,19 @@ benchmark:
 `),
     /REL_R3 requires relationship grading/,
   );
-  assert.throws(
-    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+  // Action and mixed selections are accepted for relationship policies at
+  // the config layer; the task loader enforces v2 relationship-label
+  // coverage for every selected task and fails loudly on gaps.
+  const relationshipActions = parsePactRunConfigV1Yaml(`${minimalConfig}
 benchmark:
   policy: REL_R3
   requester: R3
   gradingMode: relationship
   tasks:
     kind: action
-`),
-    /REL_R3 is validated only for QA tasks/,
-  );
+`);
+  assert.equal(relationshipActions.benchmark.policy, 'REL_R3');
+  assert.equal(relationshipActions.benchmark.tasks.kind, 'action');
 });
 
 test('rejects token and cost budgets that the compatible runner cannot enforce', () => {
