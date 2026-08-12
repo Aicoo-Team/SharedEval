@@ -72,7 +72,9 @@ cleanup() {
   [ -n "$RUN_DIRECTORY" ] && rm -rf "$RUN_DIRECTORY"
   [ -n "$EGRESS_DIR" ] && rm -rf "$EGRESS_DIR"
   [ -n "$EGRESS_JOBS" ] && rm -rf "$EGRESS_JOBS"
-  [ -n "$NET_RUN_DIRECTORY" ] && rm -rf "$NET_RUN_DIRECTORY"
+  # `if` (not `&&`) so an unset Net leg cannot turn the EXIT trap — and with
+  # it the whole script's exit status — into a failure.
+  if [ -n "$NET_RUN_DIRECTORY" ]; then rm -rf "$NET_RUN_DIRECTORY"; fi
 }
 trap cleanup EXIT
 
