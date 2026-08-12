@@ -28,6 +28,7 @@ import {
 } from '../../src/runner/v1/config.js';
 import { runPactPairBenchmarkV1 } from '../../src/runner/v1/runner.js';
 import { createScriptedPactHarnessV1 } from '../../src/runner/v1/scripted-harness.js';
+import { loadCanonicalPactPairStoreV1 } from '../../src/suites/pact-pair/workspace.js';
 import {
   loadPactPairSplitTaskIdsV1,
   loadPactPairTasksV1,
@@ -463,6 +464,101 @@ test('streams each settled trial to the host once while the job runs', async t =
   finishJob();
   const emitted = await streaming;
   assert.deepEqual([...emitted].sort(), ['PAIR-Q1', 'PAIR-Q101']);
+});
+
+test('retries and durably emits a trial whose host checkpoint rejects once', async t => {
+  const fixture = await buildVerifierFixture(t, ['PAIR-Q1']);
+  let finishJob = () => {};
+  const jobDone = new Promise<void>(resolve => { finishJob = resolve; });
+  const emissions: string[] = [];
+  let attempts = 0;
+  const streaming = streamHarborTrialsV1({
+    jobsDirectory: fixture.jobsDirectory,
+    tasks: fixture.tasks,
+    untilSettled: jobDone,
+    pollIntervalMs: 10,
+    onTaskRun: async taskRun => {
+      attempts += 1;
+      // The host's checkpoint append fails once (e.g. a transient write
+      // error), then recovers.
+      if (attempts === 1) throw new Error('checkpoint write failed');
+      emissions.push(taskRun.result.taskId);
+    },
+  });
+
+  await writeTrialCompletionMarker(fixture, 'PAIR-Q1');
+  // The rejected callback must not mark the trial emitted: the next poll
+  // hands the same settled trial to the host again, exactly once more.
+  await waitFor(() => emissions.length >= 1);
+  assert.equal(attempts, 2);
+  assert.deepEqual(emissions, ['PAIR-Q1']);
+
+  // Once durably checkpointed, later polls never re-emit it.
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.deepEqual(emissions, ['PAIR-Q1']);
+
+  finishJob();
+  const emitted = await streaming;
+  assert.deepEqual([...emitted], ['PAIR-Q1']);
+});
+
+test('a persistently failing host checkpoint leaves the trial un-emitted', async t => {
+  const fixture = await buildVerifierFixture(t, ['PAIR-Q1']);
+  let finishJob = () => {};
+  const jobDone = new Promise<void>(resolve => { finishJob = resolve; });
+  let attempts = 0;
+  const streaming = streamHarborTrialsV1({
+    jobsDirectory: fixture.jobsDirectory,
+    tasks: fixture.tasks,
+    untilSettled: jobDone,
+    pollIntervalMs: 10,
+    onTaskRun: async () => {
+      attempts += 1;
+      throw new Error('checkpoint write failed');
+    },
+  });
+
+  await writeTrialCompletionMarker(fixture, 'PAIR-Q1');
+  // A callback failure is retried on every poll — never swallowed as a scan
+  // race that would leave the trial permanently marked emitted.
+  await waitFor(() => attempts >= 3);
+  finishJob();
+  const emitted = await streaming;
+  // The id stays out of the emitted set, so the caller's final sweep hands
+  // the trial to the host once more (and fails loudly if that also rejects)
+  // instead of silently skipping a never-checkpointed trial.
+  assert.equal(emitted.size, 0);
+});
+
+test('Harbor run fails loudly when the host checkpoint keeps failing', async () => {
+  // The final sweep must propagate a rejected onTaskRun instead of completing
+  // a run whose trials were never durably checkpointed. The nonexistent
+  // toolchain keeps this Docker-free: the sweep still hands every task's
+  // (backend-error) run to the host checkpoint, whose failure must surface.
+  const backend = new HarborBackendV1({
+    dockerExecutable: 'pact-nonexistent-docker-binary',
+    harborExecutable: 'pact-nonexistent-harbor-binary',
+  });
+  await assert.rejects(
+    backend.run({
+      config: configFor('harbor', ['PAIR-Q1']),
+      tasks: loadPactPairTasksV1({
+        policy: 'D2',
+        requester: 'R1',
+        gradingMode: 'category',
+        ids: ['PAIR-Q1'],
+      }),
+      seed: loadCanonicalPactPairStoreV1(),
+      runId: 'harbor-checkpoint-failure',
+      now: () => new Date('2026-01-01T00:00:00Z'),
+      harnessFactory: () => createScriptedPactHarnessV1(),
+      environment: {},
+      onTaskRun: async () => {
+        throw new Error('host checkpoint permanently failing');
+      },
+    }),
+    /host checkpoint permanently failing/,
+  );
 });
 
 async function writeTrialCompletionMarker(

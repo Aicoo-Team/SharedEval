@@ -356,13 +356,22 @@ export type StreamHarborTrialsV1Options = {
  *
  * Polls the jobs directory until the Harbor command settles, emitting every
  * newly settled trial exactly once through onTaskRun (in canonical task order
- * within each poll). Never throws: a transient scan or parse race only delays
- * a trial to the next poll or to the caller's final collection sweep. The
- * command's own failure is observed only as termination here — the caller
+ * within each poll). Never throws, but failures are handled by kind:
+ *
+ * - a transient scan or parse race while Harbor is still writing trial
+ *   directories only delays the affected trials to the next poll (or to the
+ *   caller's final collection sweep);
+ * - a rejected onTaskRun (the host failed to durably checkpoint the trial)
+ *   leaves the task id OUT of the emitted set, so the next poll hands the
+ *   trial to the host again — and if it never succeeds, the caller's final
+ *   sweep re-emits it and propagates the failure loudly instead of silently
+ *   dropping a settled trial.
+ *
+ * The command's own failure is observed only as termination here — the caller
  * still awaits the command promise for the real error.
  *
- * Returns the set of task ids emitted, so the caller can avoid handing those
- * trials to the host a second time.
+ * Returns the set of task ids durably emitted (onTaskRun resolved), so the
+ * caller can avoid handing those trials to the host a second time.
  */
 export async function streamHarborTrialsV1(
   options: StreamHarborTrialsV1Options,
@@ -376,21 +385,33 @@ export async function streamHarborTrialsV1(
   while (running) {
     await settledOrDelay(settled, options.pollIntervalMs);
     if (!running) break;
+    let trials: Map<string, PactExecutionTaskRunV1>;
     try {
-      const trials = await collectSettledHarborTrialsV1(
+      trials = await collectSettledHarborTrialsV1(
         options.jobsDirectory,
         options.tasks,
         emitted,
       );
-      for (const task of options.tasks) {
-        const trial = trials.get(task.taskId);
-        if (!trial || emitted.has(task.taskId)) continue;
-        emitted.add(task.taskId);
-        await options.onTaskRun?.(trial);
-      }
     } catch {
       // Transient filesystem races while Harbor writes trial directories are
       // expected; the affected trials are retried on the next poll.
+      continue;
+    }
+    for (const task of options.tasks) {
+      const trial = trials.get(task.taskId);
+      if (!trial || emitted.has(task.taskId)) continue;
+      try {
+        await options.onTaskRun?.(trial);
+      } catch {
+        // The host checkpoint failed — this is NOT a filesystem scan race, so
+        // the task must not be marked emitted: the next poll retries it, and
+        // a persistent failure surfaces loudly from the caller's final sweep.
+        continue;
+      }
+      // Mark emitted only after the host checkpoint succeeded: an id in this
+      // set is skipped by every later poll and by the final sweep, so adding
+      // it earlier would silently un-checkpoint a settled trial.
+      emitted.add(task.taskId);
     }
   }
   return emitted;
