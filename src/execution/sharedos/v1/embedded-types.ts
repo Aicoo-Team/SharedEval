@@ -106,7 +106,7 @@ export type SharedOsModulesV1 = {
     ) => { execute(request: Record<string, unknown>): Promise<SoExecutionResult> };
   } & Record<string, unknown>;
   os: {
-    createMemoryTools(provider: unknown): unknown[];
+    createFileTools(provider: unknown): readonly unknown[];
   } & Record<string, unknown>;
   testkit: {
     createTestKernel(): SoTestKernel;
