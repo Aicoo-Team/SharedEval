@@ -35,7 +35,7 @@ if (!loaded.ok) {
 
 const CANONICAL_WORLD = {
   taskId: 'qa:127',
-  memory: { 'project-x': ['SharedOS keeps authority outside the message.'] },
+  files: { 'Memory/project-x.md': ['SharedOS keeps authority outside the message.'] },
 };
 const WORLD_DIGEST = digestObjectV1(CANONICAL_WORLD);
 const PROVENANCE = { requestedId: 'scripted', resolvedId: 'scripted-v1', servedId: 'scripted-v1' };
@@ -51,7 +51,7 @@ function worldInit(overrides: Partial<SharedOsWorldInitV1> = {}): SharedOsWorldI
     namespaceId: 'run-0001',
     recipient: { kind: 'agent', agentId: responder.agentId },
     workspaceDigest: WORLD_DIGEST,
-    expectedVisibleTools: ['memory.search'],
+    expectedVisibleTools: ['files.search'],
     ...overrides,
   };
 }
@@ -72,29 +72,30 @@ function makeWorld(
   return {
     owner,
     sender: requester,
+    enabledToolNamespaces: ['files'],
     canonicalWorld: CANONICAL_WORLD,
     async setup(kernel) {
-      const memory = new modules.testkit.InMemoryResourceProvider(
-        'memory',
+      const files = new modules.testkit.InMemoryResourceProvider(
+        'files',
         async operation => ({
           operationId: operation.operationId,
           status: 'succeeded',
-          output: { hits: CANONICAL_WORLD.memory['project-x'] },
+          output: { hits: CANONICAL_WORLD.files['Memory/project-x.md'] },
           completedAt: (operation.context as { now: string }).now,
         }),
       );
-      for (const handler of modules.os.createMemoryTools(memory)) {
+      for (const handler of modules.os.createFileTools(files)) {
         kernel.registerTool(handler);
       }
     },
     senderGrants: (m, namespaceId) => [
       m.testkit.createTestGrant({
-        id: 'grant-search-memory',
+        id: 'grant-search-files',
         namespaceId,
         subject: requester,
         issuer: owner,
         capabilities: [{
-          resource: { namespace: 'memory', path: ['project-x'], owner },
+          resource: { namespace: 'files', path: ['Memory'], owner },
           actions: ['search'],
           scope: 'descendants',
         }],
@@ -105,7 +106,7 @@ function makeWorld(
   };
 }
 
-/** Scripted agent: search memory once, then complete with what it found. */
+/** Scripted agent: search the file-backed memory root, then complete. */
 function searchingDriver(capture?: { request?: SoAgentTurnRequest }): SoTurnDriver {
   return {
     async open(request) {
@@ -119,8 +120,8 @@ function searchingDriver(capture?: { request?: SoAgentTurnRequest }): SoTurnDriv
               type: 'tool_call',
               call: {
                 id: 'call-1',
-                tool: 'memory.search',
-                arguments: { path: ['project-x'], query: 'authority' },
+                tool: 'files.search',
+                arguments: { path: ['Memory'], query: 'authority' },
                 traceId,
                 requestedAt: now,
               },
@@ -167,7 +168,7 @@ test('an authorized turn runs through the production kernel and succeeds', { ski
   assert.equal(result.adapterId, 'sharedos-embedded');
   assert.match(result.output ?? '', /authority outside the message/);
   assert.deepEqual(result.toolCalls, [
-    { callId: 'call-1', name: 'memory.search', publicStatus: 'ok' },
+    { callId: 'call-1', name: 'files.search', publicStatus: 'ok' },
   ]);
   const types = result.events.map(event => event.type);
   assert.ok(types.includes('turn.started'), `events: ${types.join(',')}`);
@@ -276,8 +277,8 @@ test('a tool outside the grant surface returns public tool_unavailable, and the 
               type: 'tool_call',
               call: {
                 id: 'call-forbidden',
-                tool: 'memory.write',
-                arguments: { path: ['project-x'], content: 'exfil' },
+                tool: 'files.append',
+                arguments: { path: ['Memory', 'project-x.md'], content: 'exfil' },
                 traceId,
                 requestedAt: now,
               },
@@ -294,6 +295,22 @@ test('a tool outside the grant surface returns public tool_unavailable, and the 
   assert.equal(result.status, 'succeeded');
   assert.equal(result.toolCalls.length, 1);
   assert.equal(result.toolCalls[0].publicStatus, 'tool_unavailable');
+});
+
+test('a disabled tool namespace stays unavailable even when the capability is granted', { skip }, async () => {
+  assert.ok(loaded.ok);
+  const adapter = makeAdapter(
+    loaded.modules,
+    searchingDriver(),
+    { enabledToolNamespaces: [] },
+  );
+  const handle = await adapter.initWorld(worldInit({ expectedVisibleTools: [] }));
+  const [result] = await adapter.runTurn(handle, turnRequest('turn-namespace-off'));
+
+  assert.equal(result.status, 'succeeded');
+  assert.deepEqual(result.toolCalls, [
+    { callId: 'call-1', name: 'files.search', publicStatus: 'tool_unavailable' },
+  ]);
 });
 
 test('the model-facing request is sanitized: no grants, no authority, no gold', { skip }, async () => {
@@ -313,7 +330,7 @@ test('the model-facing request is sanitized: no grants, no authority, no gold', 
     'nothing gold-shaped may appear in the model-facing request',
   );
   const visibleTools = capture.request.tools.map(tool => tool.name);
-  assert.deepEqual(visibleTools, ['memory.search'], 'only granted tools are visible');
+  assert.deepEqual(visibleTools, ['files.search'], 'only granted tools are visible');
 });
 
 test('world gate fails closed on digest mismatch before any kernel is built', { skip }, async () => {
@@ -352,9 +369,9 @@ test('expectedVisibleTools is enforced: a mismatching effective tool set fails c
   assert.ok(loaded.ok);
   const adapter = makeAdapter(loaded.modules, searchingDriver());
   const handle = await adapter.initWorld(
-    worldInit({ expectedVisibleTools: ['memory.search', 'memory.write'] }),
+    worldInit({ expectedVisibleTools: ['files.search', 'files.append'] }),
   );
-  // The kernel only makes memory.search visible under the sender grants,
+  // The kernel only makes files.search visible under the sender grants,
   // so the declared expectation cannot be met and the turn must not run.
   await assert.rejects(
     () => adapter.runTurn(handle, turnRequest('turn-1')),

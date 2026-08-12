@@ -10,6 +10,13 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
+import {
+  SHAREDOS_PROVENANCE_FILE_V1,
+  SHAREDOS_RUNTIME_PACKAGES_V1,
+  SHAREDOS_VERIFIED_REVISION_V1,
+  SHAREDOS_VERIFIED_RUNTIME_DIGEST_V1,
+  verifySharedOsBuildV1,
+} from '../../../execution/sharedos/v1/load-sharedos.js';
 
 /**
  * Host-side staging of a locally BUILT SharedOS checkout into the Harbor
@@ -34,43 +41,43 @@ import { basename, join, resolve } from 'node:path';
  * at any other commit: image provenance must be truthful, never aspirational.
  */
 export const PACT_SHAREDOS_COMMIT_V1 =
-  '846cbf64830d1a77bf477b98fd3586cd5cdff02e' as const;
+  SHAREDOS_VERIFIED_REVISION_V1;
+
+export const PACT_SHAREDOS_RUNTIME_DIGEST_V1 =
+  SHAREDOS_VERIFIED_RUNTIME_DIGEST_V1;
 
 export const PACT_SHAREDOS_REPOSITORY_V1 = 'Aicoo-Team/SharedOS' as const;
 
 /**
  * Packages the runtime loader depends on (core/runtime/os/testkit are
  * imported directly; contracts is their shared dependency). Staging requires
- * a built dist for each of these and fails otherwise. Any additional built
- * workspace packages (client, http, ...) are staged opportunistically.
+ * a built dist for each of these and fails otherwise. Only this verified
+ * runtime closure is staged; unrelated workspace packages cannot silently
+ * expand the executable bundle.
  */
-export const PACT_SHAREDOS_LOADER_PACKAGES_V1 = [
-  'contracts',
-  'core',
-  'os',
-  'runtime',
-  'testkit',
-] as const;
+export const PACT_SHAREDOS_LOADER_PACKAGES_V1 = SHAREDOS_RUNTIME_PACKAGES_V1;
 
 /** Where the staged checkout lands inside the image (PACT_SHAREDOS_DIR). */
 export const PACT_CONTAINER_SHAREDOS_DIR_V1 = '/opt/pact/sharedos' as const;
 
-export const PACT_SHAREDOS_PROVENANCE_FILE_V1 = 'sharedos-provenance.json' as const;
+export const PACT_SHAREDOS_PROVENANCE_FILE_V1 = SHAREDOS_PROVENANCE_FILE_V1;
 
 /**
  * Host-side SharedOS checkout resolution: `PACT_SHAREDOS_DIR` wins, otherwise
- * a `sharedos-repo` checkout beside the repository — the exact convention of
- * src/execution/sharedos/v1/load-sharedos.ts, so a host that can run the
- * embedded adapter can also build the Harbor image without extra setup.
+ * prefer a `SharedOS` sibling and fall back to CI's `sharedos-repo` sibling —
+ * the exact convention of src/execution/sharedos/v1/load-sharedos.ts.
  */
 export function defaultHostSharedOsDirV1(
   repositoryRoot: string,
   environment: Record<string, string | undefined> = process.env,
 ): string {
   const configured = environment.PACT_SHAREDOS_DIR?.trim();
-  return configured
-    ? resolve(configured)
-    : resolve(repositoryRoot, '..', 'sharedos-repo');
+  if (configured) return resolve(configured);
+  const candidates = [
+    resolve(repositoryRoot, '..', 'SharedOS'),
+    resolve(repositoryRoot, '..', 'sharedos-repo'),
+  ];
+  return candidates.find(candidate => existsSync(candidate)) ?? candidates[0];
 }
 
 /** The staging directory inside the Docker build context (gitignored). */
@@ -125,10 +132,13 @@ export type StageSharedOsBuildV1Options = {
   stageDirectory: string;
   /** Commit the checkout must be at. Defaults to the verified pin. */
   expectedCommit?: string;
+  /** Runtime digest the checkout must match. Defaults to the verified digest. */
+  expectedRuntimeDigest?: string;
 };
 
 export type StagedSharedOsBuildV1 = {
   commit: string;
+  runtimeDigest: string;
   packages: string[];
   stageDirectory: string;
 };
@@ -136,14 +146,14 @@ export type StagedSharedOsBuildV1 = {
 export type SharedOsProvenanceV1 = {
   repository: string;
   commit: string;
+  runtimeDigest: string;
   packages: string[];
   containerDir: string;
 };
 
 /**
- * Stages the per-package `dist` outputs (+ package.json manifests) of a built
- * SharedOS
- * checkout into the Docker build context, so the Harbor image Dockerfile can
+ * Stages the loader-critical `dist` outputs (+ package.json manifests) of a
+ * built SharedOS checkout into the Docker build context, so the Dockerfile can
  * COPY them and point `PACT_SHAREDOS_DIR` at the result.
  *
  * Layout of the stage (mirrors what load-sharedos.ts expects):
@@ -154,15 +164,18 @@ export type SharedOsProvenanceV1 = {
  *       so `@sharedos/*` bare imports and the loader's direct dist imports
  *       resolve to the same realpath — one module instance per package)
  *   node_modules/zod                   (the checkout's own resolved copy)
- *   sharedos-provenance.json           (repository + pinned commit provenance)
+ *   sharedos-provenance.json           (repository + pinned commit/digest provenance)
  *
- * Fails closed when a loader-critical dist is missing or when the checkout is
- * not at the pinned commit; it never falls back to cloning or building.
+ * Fails closed when a loader-critical dist is missing, the checkout is dirty,
+ * or its commit/runtime digest drifts; it never falls back to cloning or
+ * building.
  */
 export async function stageSharedOsBuildV1(
   options: StageSharedOsBuildV1Options,
 ): Promise<StagedSharedOsBuildV1> {
   const expectedCommit = options.expectedCommit ?? PACT_SHAREDOS_COMMIT_V1;
+  const expectedRuntimeDigest =
+    options.expectedRuntimeDigest ?? PACT_SHAREDOS_RUNTIME_DIGEST_V1;
   const packagesDirectory = join(options.sharedOsDir, 'packages');
 
   let entries;
@@ -192,6 +205,7 @@ export async function stageSharedOsBuildV1(
       + 'dist output and never builds SharedOS in-container.',
     );
   }
+  const runtimePackages = [...PACT_SHAREDOS_LOADER_PACKAGES_V1];
 
   const commit = await resolveSharedOsCommitV1(options.sharedOsDir);
   if (!commit) {
@@ -209,6 +223,14 @@ export async function stageSharedOsBuildV1(
     );
   }
 
+  const verification = verifySharedOsBuildV1(options.sharedOsDir, {
+    expectedRevision: expectedCommit,
+    expectedRuntimeDigest,
+  });
+  if (!verification.ok) {
+    throw new Error(verification.reason);
+  }
+
   const zodSource = ['contracts', 'os']
     .map(name => join(packagesDirectory, name, 'node_modules', 'zod'))
     .find(candidate => existsSync(join(candidate, 'package.json')));
@@ -223,7 +245,7 @@ export async function stageSharedOsBuildV1(
   await rm(options.stageDirectory, { recursive: true, force: true });
   const scopedLinkDirectory = join(options.stageDirectory, 'node_modules', '@sharedos');
   await mkdir(scopedLinkDirectory, { recursive: true });
-  for (const name of builtPackages) {
+  for (const name of runtimePackages) {
     const source = join(packagesDirectory, name);
     const target = join(options.stageDirectory, 'packages', name);
     await mkdir(target, { recursive: true });
@@ -246,7 +268,8 @@ export async function stageSharedOsBuildV1(
   const provenance: SharedOsProvenanceV1 = {
     repository: PACT_SHAREDOS_REPOSITORY_V1,
     commit,
-    packages: builtPackages,
+    runtimeDigest: verification.runtimeDigest,
+    packages: runtimePackages,
     containerDir: PACT_CONTAINER_SHAREDOS_DIR_V1,
   };
   await writeFile(
@@ -254,7 +277,19 @@ export async function stageSharedOsBuildV1(
     `${JSON.stringify(provenance, null, 2)}\n`,
     'utf8',
   );
-  return { commit, packages: builtPackages, stageDirectory: options.stageDirectory };
+  const stagedVerification = verifySharedOsBuildV1(options.stageDirectory, {
+    expectedRevision: commit,
+    expectedRuntimeDigest: verification.runtimeDigest,
+  });
+  if (!stagedVerification.ok) {
+    throw new Error(`Staged SharedOS verification failed: ${stagedVerification.reason}`);
+  }
+  return {
+    commit,
+    runtimeDigest: stagedVerification.runtimeDigest,
+    packages: runtimePackages,
+    stageDirectory: options.stageDirectory,
+  };
 }
 
 function isExcludedDistEntryV1(entryPath: string): boolean {

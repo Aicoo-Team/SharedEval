@@ -313,12 +313,13 @@ and the checkout's own `zod`) from the host into the Docker build context
 (`harbor/environment/sharedos-stage/`, gitignored), and the Dockerfile COPYs
 it to `/opt/pact/sharedos` with `PACT_SHAREDOS_DIR` pointing at it — the same
 loader contract as `src/execution/sharedos/v1/load-sharedos.ts`. The checkout
-is resolved from `PACT_SHAREDOS_DIR` on the host (default: `../sharedos-repo`)
-and must be at the verified commit `846cbf64830d1a77bf477b98fd3586cd5cdff02e`;
-staging fails closed on drift, and the commit is recorded both inside the
-image (`sharedos-provenance.json`) and in every task package
-(`[metadata] sharedos_commit`). The container never clones or builds SharedOS
-— that would require network access and break the no-network principle.
+is resolved from `PACT_SHAREDOS_DIR` on the host (otherwise `../SharedOS`, then
+`../sharedos-repo`) and must be at the verified commit
+`373b6347559e39e00b2a4f6bc934373833b40266`; staging fails closed on source or
+executable-bundle drift. The commit and runtime digest are recorded both inside
+the image (`sharedos-provenance.json`) and in every task package. The container
+never clones or builds SharedOS — that would require network access and break
+the no-network principle.
 
 From a normal PACT clone, prepare a sibling SharedOS checkout with its declared
 pnpm version:
@@ -326,7 +327,7 @@ pnpm version:
 ```bash
 PACT_CHECKOUT="$(pwd)"
 git clone https://github.com/Aicoo-Team/SharedOS.git ../SharedOS
-git -C ../SharedOS checkout 846cbf64830d1a77bf477b98fd3586cd5cdff02e
+git -C ../SharedOS checkout 373b6347559e39e00b2a4f6bc934373833b40266
 cd ../SharedOS
 corepack enable
 corepack prepare pnpm@9.15.0 --activate
@@ -339,9 +340,8 @@ cd "$PACT_CHECKOUT"
 SharedOS requires Node.js 20.11 or newer and pins pnpm 9.15.0 in its
 `packageManager` field. Activating and invoking the pinned version through
 Corepack avoids accidentally building it with an unrelated global pnpm
-release. Because the default clone directory (`../SharedOS`) differs from
-PACT's CI-oriented default (`../sharedos-repo`), pass the path explicitly when
-running the smoke:
+release. The loader recognizes the normal `../SharedOS` clone directly; the
+environment variable remains useful for non-sibling checkouts:
 
 ```bash
 PACT_HARBOR_SMOKE_REQUIRE=1 \

@@ -14,7 +14,10 @@ import {
 } from '../config.js';
 import type { LoadedPactPairTaskV1 } from '../task-loader.js';
 import { mapWithConcurrencyV1 } from './concurrency.js';
-import { PACT_SHAREDOS_COMMIT_V1 } from './harbor-sharedos.js';
+import {
+  PACT_SHAREDOS_COMMIT_V1,
+  PACT_SHAREDOS_RUNTIME_DIGEST_V1,
+} from './harbor-sharedos.js';
 
 // Bound how many task directories are copied/token-replaced at once so a
 // full-dataset selection does not open thousands of files concurrently.
@@ -27,11 +30,13 @@ export type MaterializeHarborDatasetV1Options = {
   config: PactRunConfigV1;
   tasks: LoadedPactPairTaskV1[];
   /**
-   * SharedOS build provenance recorded in every task package
-   * ([metadata] sharedos_commit). Defaults to the verified pin; the Harbor
-   * backend passes the commit of the checkout it actually staged.
+   * SharedOS source and executable-bundle provenance recorded in every task
+   * package. Defaults to the verified pair; the Harbor backend passes the
+   * identity of the checkout it actually staged.
    */
   sharedOsCommit?: string;
+  /** Executable SharedOS bundle digest recorded beside the commit. */
+  sharedOsRuntimeDigest?: string;
 };
 
 /**
@@ -114,6 +119,8 @@ export async function materializeHarborDatasetV1(
           Math.ceil(options.config.budget.maxRuntimeMs / 1_000) + 30,
         ),
         SHAREDOS_COMMIT: options.sharedOsCommit ?? PACT_SHAREDOS_COMMIT_V1,
+        SHAREDOS_RUNTIME_DIGEST:
+          options.sharedOsRuntimeDigest ?? PACT_SHAREDOS_RUNTIME_DIGEST_V1,
         ALLOW_INTERNET: scripted ? 'false' : 'true',
         NETWORK_POLICY: scripted ? 'no-network' : 'model-endpoint-only',
         ALLOWED_EGRESS: allowedEgress,

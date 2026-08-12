@@ -2,7 +2,7 @@
 
 Status: active after PR [#9](https://github.com/xisen-w/PACT/pull/9)
 
-Last updated: 2026-08-08
+Last updated: 2026-08-13
 
 PR #9 establishes the alpha integration: PACT can execute a trial as one
 bounded turn through the real SharedOS kernel, locally or in a Harbor
@@ -24,19 +24,23 @@ third-party leaderboard execution path.
 - [x] Local and Harbor backends can run a real model with
   `benchmark.execution.adapter: sharedos-embedded`.
 - [x] The source integration is checked against SharedOS commit
-  `846cbf64830d1a77bf477b98fd3586cd5cdff02e` in trusted CI.
+  `373b6347559e39e00b2a4f6bc934373833b40266` in trusted CI.
+- [x] PACT consumes the files-first OS API and the default-off tool namespace
+  control plane.
 
 ## P0 — harden the interim source-checkout mode
 
 These items do not depend on an npm release and should land before source-mode
 runs are treated as reproducible results.
 
-- [ ] Reject a dirty SharedOS checkout and unexpected package versions before
+- [x] Reject a dirty SharedOS checkout and unexpected package versions before
   local execution or Harbor staging.
-- [ ] Hash every staged SharedOS manifest and `dist` file into a canonical
-  bundle digest; do not treat Git `HEAD` alone as executable provenance.
-- [ ] Record the SharedOS commit, bundle digest, package list, PACT revision,
-  and Harbor image ID in durable `run.json` metadata.
+- [x] Hash every loader-critical SharedOS manifest and executable `dist` file
+  into a canonical bundle digest; do not treat Git `HEAD` alone as executable
+  provenance.
+- [ ] Promote the SharedOS commit, bundle digest, and package list from the
+  staged provenance/task metadata into durable `run.json` beside the existing
+  PACT revision and Harbor image ID.
 - [ ] Propagate `PACT_EXECUTION_ADAPTER` for scripted Harbor tasks as well as
   real-model tasks, and fail if a requested `sharedos-embedded` run falls back
   to `pact-public-runner`.
