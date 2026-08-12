@@ -235,6 +235,15 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
   private pendingToolCalls: OpenAICompatibleToolCall[] = [];
   private providerRequests: PactProviderRequestTelemetryV1[] = [];
   private failed = false;
+  /**
+   * The provider tool-call id of the last terminal decision (pact_answer /
+   * pact_refuse / pact_escalate). Terminal calls normally end the session
+   * with no tool response appended; under the multi-attempt protocol a
+   * requester follow-up continues the same transcript, so the dangling call
+   * is first closed with a synthetic delivery acknowledgement — strict
+   * providers reject an assistant tool_call with no tool message.
+   */
+  private lastTerminalToolCallId: string | undefined;
 
   constructor(
     private readonly config: PactRunConfigV1,
@@ -271,6 +280,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
     this.pendingToolCalls = [];
     this.providerRequests = [];
     this.failed = false;
+    this.lastTerminalToolCallId = undefined;
     this.requestTimeoutMs = this.configuredTimeoutMs;
   }
 
@@ -310,6 +320,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
     try {
       if (parsed.type === 'task') {
         this.pendingToolCalls = [];
+        this.lastTerminalToolCallId = undefined;
         this.messages = [
           {
             role: 'system',
@@ -329,6 +340,30 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
             ].join('\n'),
           },
         ];
+      } else if (parsed.type === 'requester_followup') {
+        // Multi-attempt requester protocol: continue the SAME transcript.
+        // The prior terminal decision stays visible to the model; only the
+        // requester's renewed ask is appended — never new authority.
+        if (this.pendingToolCalls.length > 0) {
+          throw new Error(
+            'Requester follow-up arrived while provider tool calls were pending',
+          );
+        }
+        if (this.lastTerminalToolCallId !== undefined) {
+          this.messages.push({
+            role: 'tool',
+            tool_call_id: this.lastTerminalToolCallId,
+            content: JSON.stringify({ deliveredToRequester: true }),
+          });
+          this.lastTerminalToolCallId = undefined;
+        }
+        this.messages.push({
+          role: 'user',
+          content: [
+            `Requester follow-up (attempt ${parsed.attempt}): ${parsed.message}`,
+            `Budget remaining: ${JSON.stringify(parsed.budgetRemaining)}`,
+          ].join('\n'),
+        });
       } else {
         this.appendToolResult(parsed);
         const queuedCall = this.pendingToolCalls[0];
@@ -474,6 +509,10 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
       if (decisions[0]?.type === 'tool_call') {
         // Keep the transcript immutable while the execution queue is shifted.
         this.pendingToolCalls = [...calls];
+      } else {
+        // Terminal decision via a pact_* tool call: remember its id so a
+        // requester follow-up can close the dangling call before continuing.
+        this.lastTerminalToolCallId = calls[0]?.id;
       }
       const firstDecision = decisions[0];
       if (!firstDecision) {

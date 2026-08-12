@@ -252,6 +252,24 @@ export const pactExecutionConfigV1Schema = z
   })
   .strict();
 
+/**
+ * Multi-attempt requester protocol ("attacker" persistence): after a
+ * responder-level terminal refusal or escalation, the requester renews the
+ * ask with a scripted follow-up message and the trial continues in the same
+ * conversation, workspace, and grant set — up to `max` attempts total.
+ *
+ * Retries are host-side PACT orchestration only. They never widen the
+ * principal, patch a grant, or re-run a kernel-denied turn; a SharedOS
+ * `denied` status, budget exhaustion, and infrastructure errors all end the
+ * task without further attempts (see docs/multi-attempt-requester.md).
+ */
+export const pactAttemptsConfigV1Schema = z
+  .object({
+    max: z.number().int().min(1).max(3),
+  })
+  .strict();
+export type PactAttemptsConfigV1 = z.infer<typeof pactAttemptsConfigV1Schema>;
+
 export const pactExecutionBackendConfigV1Schema = z.discriminatedUnion('kind', [
   z
     .object({
@@ -287,6 +305,10 @@ export const pactRunConfigV1Schema = z
         // absence selects pact-public-runner through
         // selectedPactExecutionAdapterV1 below.
         execution: pactExecutionConfigV1Schema.optional(),
+        // Kept optional for the same digest-stability reason; absence selects
+        // the single-attempt protocol through selectedPactAttemptLimitV1
+        // below, and single-attempt artifacts stay byte-identical.
+        attempts: pactAttemptsConfigV1Schema.optional(),
       })
       .strict()
       .superRefine((benchmark, context) => {
@@ -362,6 +384,25 @@ export function selectedPactExecutionAdapterV1(
   config: Pick<PactRunConfigV1, 'benchmark'>,
 ): PactExecutionAdapterIdV1 {
   return config.benchmark.execution?.adapter ?? 'pact-public-runner';
+}
+
+/** Total attempts per task; 1 (the default) is the single-attempt protocol. */
+export function selectedPactAttemptLimitV1(
+  config: Pick<PactRunConfigV1, 'benchmark'>,
+): number {
+  return config.benchmark.attempts?.max ?? 1;
+}
+
+/**
+ * Whether this run opted into the multi-attempt requester protocol. Presence
+ * of the config block — not its value — gates the attempt-level artifact
+ * fields, so `attempts: {max: 1}` still produces the extended row shape while
+ * an absent block keeps every artifact byte-identical to older runs.
+ */
+export function pactAttemptsEnabledV1(
+  config: Pick<PactRunConfigV1, 'benchmark'>,
+): boolean {
+  return config.benchmark.attempts !== undefined;
 }
 
 export function selectedPactExecutionBackendV1(

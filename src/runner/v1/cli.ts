@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import {
   loadPactRunConfigV1,
+  pactAttemptsConfigV1Schema,
   pactExecutionAdapterIdV1Schema,
   resolvePactRunModelApiKeyV1,
   selectedPactExecutionAdapterV1,
   selectedPactExecutionBackendV1,
+  type PactAttemptsConfigV1,
   type PactExecutionAdapterIdV1,
 } from './config.js';
 import { inspectPactBenchmarkV1, runPactBenchmarkV1 } from './runner.js';
@@ -13,6 +15,7 @@ type CliOptions = {
   configPath: string;
   check: boolean;
   executionAdapter?: PactExecutionAdapterIdV1;
+  attempts?: PactAttemptsConfigV1;
 };
 
 export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<number> {
@@ -27,6 +30,17 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
       benchmark: {
         ...config.benchmark,
         execution: { adapter: options.executionAdapter },
+      },
+    };
+  }
+  if (options.attempts) {
+    // Same provenance rule as --execution.adapter: the override becomes part
+    // of the effective config and therefore of the reproducibility digest.
+    config = {
+      ...config,
+      benchmark: {
+        ...config.benchmark,
+        attempts: options.attempts,
       },
     };
   }
@@ -102,6 +116,10 @@ function parseArguments(argv: string[]): CliOptions {
   let configPath: string | undefined;
   let check = false;
   let executionAdapter: PactExecutionAdapterIdV1 | undefined;
+  let attempts: PactAttemptsConfigV1 | undefined;
+
+  const parseAttempts = (value: string): PactAttemptsConfigV1 =>
+    pactAttemptsConfigV1Schema.parse({ max: Number(value) });
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -128,6 +146,19 @@ function parseArguments(argv: string[]): CliOptions {
       );
       continue;
     }
+    if (argument === '--attempts.max') {
+      const value = args[index + 1];
+      if (!value || value.startsWith('-')) {
+        throw new Error(`${argument} requires an attempt count (1-3)`);
+      }
+      attempts = parseAttempts(value);
+      index += 1;
+      continue;
+    }
+    if (argument?.startsWith('--attempts.max=')) {
+      attempts = parseAttempts(argument.slice('--attempts.max='.length));
+      continue;
+    }
     if (argument === '--config' || argument === '-c') {
       const value = args[index + 1];
       if (!value || value.startsWith('-')) {
@@ -149,15 +180,19 @@ function parseArguments(argv: string[]): CliOptions {
     configPath,
     check,
     ...(executionAdapter === undefined ? {} : { executionAdapter }),
+    ...(attempts === undefined ? {} : { attempts }),
   };
 }
 
 function usage(): string {
-  return `Usage: npm run benchmark -- --config <pact-run.yaml> [--check] [--execution.adapter <id>]\n\n` +
+  return `Usage: npm run benchmark -- --config <pact-run.yaml> [--check] [--execution.adapter <id>] [--attempts.max <n>]\n\n` +
     `  --config, -c          Strict pact-run/v1 YAML configuration\n` +
     `  --check               Validate and count tasks without calling a model API\n` +
     `  --execution.adapter   Override benchmark.execution.adapter\n` +
-    `                        (pact-public-runner | sharedos-embedded)\n`;
+    `                        (pact-public-runner | sharedos-embedded)\n` +
+    `  --attempts.max        Enable the multi-attempt requester protocol with\n` +
+    `                        up to n attempts per task (1-3); rows then carry\n` +
+    `                        per-attempt records\n`;
 }
 
 try {

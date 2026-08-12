@@ -117,6 +117,15 @@ export class PactHarnessHostV1 {
               'granted access must not exceed the adapter boundary plan',
             );
           }
+        } else if (observation.type === 'requester_followup') {
+          // The out-of-process adapter-host lifecycle is single-attempt for
+          // now: a session ends at its first terminal decision ('decided'),
+          // so the multi-attempt requester protocol cannot reach a hosted
+          // adapter. Reject explicitly rather than mis-classifying the
+          // observation as a tool result.
+          throw new PactLifecycleError(
+            'the adapter host does not support requester follow-ups yet',
+          );
         } else {
           if (!this.pendingTool) {
             throw new PactLifecycleError('no tool call is awaiting a result');

@@ -52,8 +52,15 @@ import {
 } from '../../protocol/v1/index.js';
 import { evaluateWithRegisteredEvaluator } from '../../evaluation/index.js';
 import {
+  pactAttemptsEnabledV1,
   pactModelIdentifierV1,
+  selectedPactAttemptLimitV1,
 } from '../../runner/v1/config.js';
+import {
+  buildPactPairFollowUpMessageV1,
+  pactPairRetryEligibleV1,
+} from './attempts.js';
+import { evaluatePactPairQaV1 } from './evaluator.js';
 import { readPactProviderTelemetryV1 } from '../../runner/v1/model-adapter.js';
 import {
   EmbeddedSharedOsAdapterV1,
@@ -79,8 +86,10 @@ import {
   sanitizeError,
   toPublicEvaluation,
   withinDeadline,
+  type PactPairAttemptRecordV1,
   type PactPairSingleTaskRunV1,
   type PactPairTaskResultV1,
+  type PactPairToolCallRecordV1,
   type PactPairTraceEventV1,
   type RunSinglePactPairTaskV1Options,
 } from './environment.js';
@@ -231,6 +240,12 @@ class PactSharedOsProtocolError extends Error {
 type DriverState = {
   turns: number;
   toolCallCount: number;
+  /**
+   * 1-based attempt counter, advanced host-side between bounded turns. The
+   * driver reads it on each turn's 'start' input to choose between the task
+   * observation (attempt 1) and the scripted requester follow-up.
+   */
+  attempt: number;
   finalDecision: PactPairTerminalDecisionV1;
   terminalReceived: boolean;
   violations: string[];
@@ -272,9 +287,13 @@ export async function runSinglePactPairTaskViaSharedOsV1(
   let finalizeError: string | undefined;
   let providerTelemetry: PactPairSingleTaskRunV1['result']['providerTelemetry'];
   let turnResult: SharedOsTurnResultV1 | undefined;
+  const attemptRecords: PactPairAttemptRecordV1[] = [];
+  const kernelToolCalls: PactPairToolCallRecordV1[] = [];
+  const attemptsEnabled = pactAttemptsEnabledV1(options.config);
   const state: DriverState = {
     turns: 0,
     toolCallCount: 0,
+    attempt: 1,
     finalDecision: {
       type: 'escalate',
       reason: 'The runner did not receive a terminal decision.',
@@ -406,84 +425,154 @@ export async function runSinglePactPairTaskViaSharedOsV1(
       expectedVisibleTools,
     });
 
-    const timeoutMs = Math.max(
-      1,
-      Math.min(deadline - Date.now(), MAX_TURN_TIMEOUT_MS_V1),
-    );
-    const results = await adapter.runTurn(handle, {
-      turnId: `${options.task.taskId}:turn-1`,
-      message: {
-        intent: PACT_PAIR_SHAREDOS_INTENT_V1,
-        purpose: PACT_PAIR_SHAREDOS_PURPOSE_V1,
-        payload: { taskId: options.task.taskId },
-      },
-      options: { timeoutMs: Math.floor(timeoutMs) },
-    });
-    await adapter.closeWorld(handle);
+    // Multi-attempt requester protocol: each attempt is exactly one bounded
+    // SharedOS turn against the SAME world handle, principal, and grants —
+    // the retry renews the ask, never the authority. Attempt cadence, the
+    // retry decision, and budgets are host-side PACT policy; the kernel only
+    // ever sees one bounded turn at a time.
+    const maxAttempts = selectedPactAttemptLimitV1(options.config);
+    let attempt = 1;
+    while (true) {
+      state.attempt = attempt;
+      state.terminalReceived = false;
+      const attemptStartedAtMs = Date.now();
+      const attemptStartTurns = state.turns;
+      const attemptStartToolCalls = state.toolCallCount;
 
-    if (results.length !== 1) {
-      // The adapter returns an array precisely so duplicate emissions reach
-      // this collection gate instead of being hidden.
-      violations.push('sharedos_duplicate_emission');
-      throw new PactSharedOsProtocolError(
-        `SharedOS returned ${results.length} results for one turn`,
+      const timeoutMs = Math.max(
+        1,
+        Math.min(deadline - Date.now(), MAX_TURN_TIMEOUT_MS_V1),
       );
-    }
-    turnResult = results[0];
-    record('sharedos_turn', {
-      adapterId: turnResult.adapterId,
-      protocolVersion: turnResult.protocolVersion,
-      status: turnResult.status,
-      traceId: turnResult.traceId,
-      worldId: turnResult.worldId,
-      namespaceId: handle.namespaceId,
-      latencyMs: turnResult.latencyMs,
-      // Kernel runtime + audit events; private trace artifact only.
-      events: turnResult.events,
-    });
+      const results = await adapter.runTurn(handle, {
+        turnId: `${options.task.taskId}:turn-${attempt}`,
+        message: {
+          intent: PACT_PAIR_SHAREDOS_INTENT_V1,
+          purpose: PACT_PAIR_SHAREDOS_PURPOSE_V1,
+          payload: {
+            taskId: options.task.taskId,
+            ...(attemptsEnabled ? { attempt } : {}),
+          },
+        },
+        options: { timeoutMs: Math.floor(timeoutMs) },
+      });
 
-    // A host-side error captured inside the driver (harness failure,
-    // protocol violation, deadline) takes precedence over the kernel's
-    // 'failed' wrapper so classification matches the public runner.
-    if (state.error !== undefined) throw state.error;
+      if (results.length !== 1) {
+        // The adapter returns an array precisely so duplicate emissions reach
+        // this collection gate instead of being hidden.
+        violations.push('sharedos_duplicate_emission');
+        throw new PactSharedOsProtocolError(
+          `SharedOS returned ${results.length} results for one turn`,
+        );
+      }
+      turnResult = results[0];
+      for (const call of turnResult.toolCalls) {
+        kernelToolCalls.push({
+          id: call.callId,
+          name: call.name,
+          isError: call.publicStatus !== 'ok',
+        });
+      }
+      record('sharedos_turn', {
+        adapterId: turnResult.adapterId,
+        protocolVersion: turnResult.protocolVersion,
+        status: turnResult.status,
+        traceId: turnResult.traceId,
+        worldId: turnResult.worldId,
+        namespaceId: handle.namespaceId,
+        latencyMs: turnResult.latencyMs,
+        ...(attemptsEnabled ? { attempt } : {}),
+        // Kernel runtime + audit events; private trace artifact only.
+        events: turnResult.events,
+      });
 
-    switch (turnResult.status) {
-      case 'succeeded':
-        if (!state.terminalReceived && !hasBudgetViolation(violations)) {
-          throw new PactSharedOsProtocolError(
-            'SharedOS turn succeeded without a terminal decision',
+      // A host-side error captured inside the driver (harness failure,
+      // protocol violation, deadline) takes precedence over the kernel's
+      // 'failed' wrapper so classification matches the public runner.
+      if (state.error !== undefined) throw state.error;
+
+      switch (turnResult.status) {
+        case 'succeeded':
+          if (!state.terminalReceived && !hasBudgetViolation(violations)) {
+            throw new PactSharedOsProtocolError(
+              'SharedOS turn succeeded without a terminal decision',
+            );
+          }
+          break;
+        case 'denied':
+          // Kernel-refused admission is an experimental outcome — never an
+          // infrastructure retry, never a wider re-grant, and (below) never
+          // another attempt: with an unchanged principal and grant set the
+          // kernel's decision is deterministic, so a retry measures nothing.
+          violations.push('sharedos_turn_denied');
+          state.finalDecision = {
+            type: 'escalate',
+            reason: 'SharedOS denied the turn; no model turn was executed.',
+          };
+          break;
+        case 'cancelled':
+          // Kernel turn timeout maps to the public runner's timeout shape.
+          violations.push('max_runtime_ms_exceeded');
+          state.finalDecision = {
+            type: 'escalate',
+            reason: 'The runner did not receive a terminal decision.',
+          };
+          errorMessage = sanitizeError(
+            new Error(
+              `SharedOS cancelled the turn: ${turnResult.errorDetail ?? 'turn timeout'}`,
+            ),
+            secret,
           );
-        }
-        break;
-      case 'denied':
-        // Kernel-refused admission is an experimental outcome — never an
-        // infrastructure retry, never a wider re-grant.
-        violations.push('sharedos_turn_denied');
-        state.finalDecision = {
-          type: 'escalate',
-          reason: 'SharedOS denied the turn; no model turn was executed.',
+          break;
+        case 'failed':
+          violations.push('runner_error');
+          state.finalDecision = {
+            type: 'escalate',
+            reason: 'The runner did not receive a terminal decision.',
+          };
+          errorMessage = sanitizeError(
+            new Error(
+              `SharedOS turn failed: ${turnResult.errorDetail ?? 'no output produced'}`,
+            ),
+            secret,
+          );
+          break;
+      }
+
+      if (attemptsEnabled) {
+        const attemptRecord: PactPairAttemptRecordV1 = {
+          attempt,
+          decision: state.finalDecision,
+          decisionSource: state.terminalReceived ? 'responder' : 'runner',
+          budgetUsed: {
+            turns: state.turns - attemptStartTurns,
+            toolCalls: state.toolCallCount - attemptStartToolCalls,
+            runtimeMs: Date.now() - attemptStartedAtMs,
+          },
+          ...(options.task.kind === 'qa'
+            ? { leaked: evaluatePactPairQaV1(options.task, state.finalDecision).leaked }
+            : {}),
+          sharedOsStatus: turnResult.status,
         };
-        break;
-      case 'cancelled':
-        // Kernel turn timeout maps to the public runner's timeout shape.
-        violations.push('max_runtime_ms_exceeded');
-        errorMessage = sanitizeError(
-          new Error(
-            `SharedOS cancelled the turn: ${turnResult.errorDetail ?? 'turn timeout'}`,
-          ),
-          secret,
-        );
-        break;
-      case 'failed':
-        violations.push('runner_error');
-        errorMessage = sanitizeError(
-          new Error(
-            `SharedOS turn failed: ${turnResult.errorDetail ?? 'no output produced'}`,
-          ),
-          secret,
-        );
-        break;
+        attemptRecords.push(attemptRecord);
+        record('attempt_completed', attemptRecord);
+      }
+
+      // Retry only a responder-authored refusal/escalation from a
+      // successfully executed turn, with task budget remaining. Kernel
+      // denial, timeout, and failure end the task without further attempts.
+      if (
+        turnResult.status === 'succeeded'
+        && attempt < maxAttempts
+        && pactPairRetryEligibleV1(state.finalDecision, state.terminalReceived)
+        && state.turns < options.config.budget.maxTurns
+        && Date.now() < deadline
+      ) {
+        attempt += 1;
+        continue;
+      }
+      break;
     }
+    await adapter.closeWorld(handle);
   } catch (error) {
     errorMessage = sanitizeError(error, secret);
     violations.push(
@@ -536,11 +625,8 @@ export async function runSinglePactPairTaskViaSharedOsV1(
       toolCalls: state.toolCallCount,
       runtimeMs: Date.now() - startedAt,
     },
-    toolCalls: (turnResult?.toolCalls ?? []).map(call => ({
-      id: call.callId,
-      name: call.name,
-      isError: call.publicStatus !== 'ok',
-    })),
+    toolCalls: kernelToolCalls,
+    ...(attemptsEnabled ? { attempts: attemptRecords } : {}),
     ...(providerTelemetry ? { providerTelemetry } : {}),
     violations,
     ...(errorMessage ? { error: errorMessage } : {}),
@@ -603,12 +689,33 @@ function createPactPairTurnDriverV1(context: {
         next: async (input): Promise<SoTurnDecision> => {
           try {
             let observation: PactObservationV1;
-            if (input.type === 'start') {
+            if (input.type === 'start' && state.attempt === 1) {
               observation = pactObservationV1Schema.parse({
                 type: 'task',
                 turn: 0,
                 task: task.publicTask,
                 grantedAccess,
+                budgetRemaining: remainingBudget(
+                  config,
+                  state.turns,
+                  state.toolCallCount,
+                  deadline,
+                ),
+              });
+            } else if (input.type === 'start') {
+              // A later attempt's bounded turn opens with the scripted
+              // requester follow-up instead of re-introducing the task; the
+              // harness conversation and workspace persist across attempts.
+              const message = buildPactPairFollowUpMessageV1({
+                task: task.publicTask,
+                attempt: state.attempt,
+              });
+              record('requester_followup', { attempt: state.attempt, message });
+              observation = pactObservationV1Schema.parse({
+                type: 'requester_followup',
+                turn: state.turns,
+                attempt: state.attempt,
+                message,
                 budgetRemaining: remainingBudget(
                   config,
                   state.turns,

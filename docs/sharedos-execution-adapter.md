@@ -181,5 +181,11 @@ the semantic decisions and their rationale):
 Node floor: this repository declares `node >= 20.11`, matching the
 SharedOS supported floor (CI already tests Node 22).
 
+**Multi-attempt requester protocol:** `benchmark.attempts` (opt-in) makes
+PACT drive up to three bounded kernel turns per task against the same world
+handle, principal, and grants — host-side orchestration only, honoring the
+denied-is-experimental rule above (a kernel-denied turn is never retried).
+See [multi-attempt-requester.md](multi-attempt-requester.md).
+
 Post-merge package, CI, provenance, Harbor, and public-submission work is
 tracked in [SharedOS runner follow-ups](sharedos-runner-follow-ups.md).

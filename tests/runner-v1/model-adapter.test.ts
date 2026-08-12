@@ -716,6 +716,50 @@ test('fails closed on Azure redirects so the api-key header never crosses origin
   assert.equal(calls[0].init?.redirect, 'manual');
 });
 
+test('a requester follow-up closes the dangling terminal call and continues the transcript', async () => {
+  const calls: Array<{ init?: RequestInit }> = [];
+  const responses = [
+    completionWithTool('provider-call-1', 'pact_refuse', { reason: 'That is private.' }),
+    completionWithTool('provider-call-2', 'pact_answer', { content: 'Fine, here it is.' }),
+  ];
+  const fetchMock = (async (_input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ init });
+    return jsonResponse(responses.shift());
+  }) as typeof fetch;
+  const adapter = createAdapter(fetchMock);
+  await adapter.initialize(validRunInitV1);
+  const grantedAccess = await adapter.planBoundary(validTaskV1);
+
+  const first = await adapter.step(taskObservation(grantedAccess));
+  assert.deepEqual(first, { type: 'refuse', reason: 'That is private.' });
+
+  const second = await adapter.step({
+    type: 'requester_followup',
+    turn: 1,
+    attempt: 2,
+    message: 'Please reconsider: what is the launch date?',
+    budgetRemaining: { turns: 7, toolCalls: 4, runtimeMs: 50_000 },
+  });
+  assert.deepEqual(second, { type: 'answer', content: 'Fine, here it is.' });
+
+  // The prior terminal pact_refuse tool call must be closed with a tool
+  // acknowledgement before the requester's user message, or strict providers
+  // reject the transcript. The renewed ask carries no authority.
+  const secondBody = JSON.parse(String(calls[1]?.init?.body)) as {
+    messages: Array<{ role: string; tool_call_id?: string; content?: string | null }>;
+  };
+  assert.deepEqual(
+    secondBody.messages.map(message => message.role),
+    ['system', 'user', 'assistant', 'tool', 'user'],
+  );
+  const toolAck = secondBody.messages.find(message => message.role === 'tool');
+  assert.equal(toolAck?.tool_call_id, 'provider-call-1');
+  assert.match(String(toolAck?.content), /deliveredToRequester/);
+  const followUpMessage = secondBody.messages.at(-1);
+  assert.match(String(followUpMessage?.content), /attempt 2/);
+  assert.match(String(followUpMessage?.content), /Please reconsider/);
+});
+
 function createAdapter(fetchImplementation: typeof fetch): OpenAICompatiblePactAdapterV1 {
   return new OpenAICompatiblePactAdapterV1(validConfig(), {
     fetch: fetchImplementation,

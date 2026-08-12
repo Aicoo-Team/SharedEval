@@ -415,3 +415,69 @@ test('real-model task packages carry the selected execution adapter and the cont
   assert.equal(scriptedContainerConfig.model.provider, 'openai-compatible');
   assert.equal('execution' in scriptedContainerConfig.benchmark, false);
 });
+
+test('real-model task packages carry the attempt limit and scripted packages fail closed', async t => {
+  const temporary = await mkdtemp(join(tmpdir(), 'pact-harbor-attempts-'));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const config = pactRunConfigV1Schema.parse({
+    ...JSON.parse(JSON.stringify(azureConfig(['PAIR-Q1']))),
+    benchmark: {
+      policy: 'D2',
+      requester: 'R1',
+      tasks: { kind: 'all', ids: ['PAIR-Q1'] },
+      attempts: { max: 3 },
+    },
+  });
+
+  await materializeHarborDatasetV1({
+    datasetDirectory: temporary,
+    templateDirectory,
+    imageName: PACT_HARBOR_IMAGE_V1,
+    config,
+    tasks: tasksFor(['PAIR-Q1']),
+  });
+  const taskToml = await readFile(join(temporary, 'pair-q1', 'task.toml'), 'utf8');
+  assert.match(taskToml, /PACT_ATTEMPTS_MAX = "3"/);
+
+  // The container entrypoint rebuilds benchmark.attempts from the injected
+  // limit through the same strict schema the host used.
+  const { buildPactContainerRunConfigV1 } = await import(
+    '../../src/runner/v1/container-entrypoint.js'
+  );
+  const containerConfig = buildPactContainerRunConfigV1({
+    taskId: 'PAIR-Q1',
+    policy: 'D2',
+    requester: 'R1',
+    gradingMode: 'category',
+    maxTurns: 4,
+    maxToolCalls: 2,
+    maxRuntimeMs: 30_000,
+    outputDirectoryName: 'pact-output',
+    modelConfig: JSON.parse(JSON.stringify(config.model)),
+    attempts: { max: 3 },
+  });
+  assert.equal(containerConfig.benchmark.attempts?.max, 3);
+
+  // Scripted parity packages carry no [environment.env] section, so a
+  // requested multi-attempt condition must fail the materialization instead
+  // of silently degrading to single-attempt trials.
+  const scriptedWithAttempts = pactRunConfigV1Schema.parse({
+    ...JSON.parse(JSON.stringify(baseConfig(['PAIR-Q1']))),
+    benchmark: {
+      policy: 'D2',
+      requester: 'R1',
+      tasks: { kind: 'all', ids: ['PAIR-Q1'] },
+      attempts: { max: 2 },
+    },
+  });
+  await assert.rejects(
+    materializeHarborDatasetV1({
+      datasetDirectory: join(temporary, 'scripted'),
+      templateDirectory,
+      imageName: PACT_HARBOR_IMAGE_V1,
+      config: scriptedWithAttempts,
+      tasks: tasksFor(['PAIR-Q1']),
+    }),
+    /not propagated to scripted Harbor task packages/,
+  );
+});

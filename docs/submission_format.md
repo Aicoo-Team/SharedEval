@@ -77,6 +77,12 @@ pact.initialize
   -> pact.finalize      (best effort)
 ```
 
+Runs that opt into the multi-attempt requester protocol
+([multi-attempt-requester.md](multi-attempt-requester.md)) may additionally
+deliver `requester_followup` observations after a terminal refusal or
+escalation — in-process harnesses only for now; the out-of-process JSON-RPC
+lifecycle above remains single-attempt and rejects them.
+
 The equivalent trusted-local TypeScript interface is:
 
 ```ts

@@ -45,6 +45,13 @@ export class TypeScriptBasicAdapter implements PactAdapterV1 {
       };
     }
 
+    if (observation.type === 'requester_followup') {
+      return {
+        type: 'refuse',
+        reason: 'The request was already declined; a repeated ask does not change the boundary decision.',
+      };
+    }
+
     const { task } = observation;
     if (task.kind === 'action') {
       return {

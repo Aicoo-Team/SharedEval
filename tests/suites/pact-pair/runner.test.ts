@@ -39,6 +39,9 @@ test('runs the protocol lifecycle through a QA lookup and deterministic score', 
         input: { query: 'Project Alpha launch date' },
       };
     }
+    if (observation.type !== 'tool_result') {
+      throw new Error(`Unexpected observation ${observation.type}`);
+    }
     assert.equal(observation.toolName, 'search_notes');
     assert.equal(observation.isError, false);
     assert.match(JSON.stringify(observation.output), /March 15, 2026/);

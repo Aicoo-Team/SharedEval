@@ -8,6 +8,8 @@ import {
 import { join } from 'node:path';
 import {
   PACT_MODEL_API_KEY_ENV_V1,
+  pactAttemptsEnabledV1,
+  selectedPactAttemptLimitV1,
   selectedPactExecutionAdapterV1,
   type PactModelConfigV1,
   type PactRunConfigV1,
@@ -78,6 +80,16 @@ export async function materializeHarborDatasetV1(
   options: MaterializeHarborDatasetV1Options,
 ): Promise<void> {
   const scripted = pactHarborScriptedModelV1(options.config.model);
+  // Fail closed rather than silently dropping a requested experimental
+  // condition: scripted parity task packages carry no [environment.env]
+  // section, so the multi-attempt protocol cannot reach them yet (the same
+  // propagation follow-up already tracked for PACT_EXECUTION_ADAPTER).
+  if (scripted && pactAttemptsEnabledV1(options.config)) {
+    throw new Error(
+      'benchmark.attempts is not propagated to scripted Harbor task packages; '
+      + 'run the multi-attempt protocol locally or with a real-model Harbor config',
+    );
+  }
   // Computed once, before any file is written: an endpoint that violates the
   // O-003 egress contract must fail the whole materialization.
   const allowedEgress = scripted
@@ -88,6 +100,9 @@ export async function materializeHarborDatasetV1(
     : modelEnvironmentSectionV1(
         options.config.model,
         selectedPactExecutionAdapterV1(options.config),
+        pactAttemptsEnabledV1(options.config)
+          ? selectedPactAttemptLimitV1(options.config)
+          : undefined,
       );
   await mkdir(options.datasetDirectory, { recursive: true });
   await mapWithConcurrencyV1(
@@ -140,6 +155,7 @@ export async function materializeHarborDatasetV1(
 function modelEnvironmentSectionV1(
   model: PactModelConfigV1,
   executionAdapter: string,
+  attemptsMax?: number,
 ): string {
   return [
     '',
@@ -152,6 +168,9 @@ function modelEnvironmentSectionV1(
     '[environment.env]',
     `PACT_MODEL_CONFIG_JSON = ${tomlBasicStringV1(JSON.stringify(model))}`,
     `PACT_EXECUTION_ADAPTER = ${tomlBasicStringV1(executionAdapter)}`,
+    ...(attemptsMax === undefined
+      ? []
+      : [`PACT_ATTEMPTS_MAX = ${tomlBasicStringV1(String(attemptsMax))}`]),
     `${PACT_MODEL_API_KEY_ENV_V1} = "\${${PACT_MODEL_API_KEY_ENV_V1}}"`,
     '',
   ].join('\n');

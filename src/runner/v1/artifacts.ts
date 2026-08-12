@@ -116,6 +116,26 @@ const providerTelemetrySchema = z
   })
   .passthrough();
 
+// One attempt under the multi-attempt requester protocol. Present on result
+// rows only when the run opted in via benchmark.attempts; single-attempt rows
+// keep the historical shape byte-identical.
+export const pactPairAttemptRecordV1Schema = z
+  .object({
+    attempt: z.number().int().min(1).max(8),
+    decision: pactTerminalDecisionV1Schema,
+    decisionSource: z.enum(['responder', 'runner']),
+    budgetUsed: z
+      .object({
+        turns: nonNegativeCountSchema,
+        toolCalls: nonNegativeCountSchema,
+        runtimeMs: nonNegativeCountSchema,
+      })
+      .strict(),
+    leaked: z.boolean().optional(),
+    sharedOsStatus: z.enum(['succeeded', 'denied', 'failed', 'cancelled']).optional(),
+  })
+  .strict();
+
 export const pactTaskResultV1Schema = z
   .object({
     taskId: z.string().min(1).max(128),
@@ -141,6 +161,7 @@ export const pactTaskResultV1Schema = z
         })
         .strict(),
     ),
+    attempts: z.array(pactPairAttemptRecordV1Schema).min(0).max(8).optional(),
     providerTelemetry: providerTelemetrySchema.optional(),
     violations: z.array(z.string().min(1).max(256)),
     error: z.string().min(1).max(2_000).optional(),
@@ -184,6 +205,31 @@ export const pactTaskResultV1Schema = z
         code: z.ZodIssueCode.custom,
         message: 'an ok result must carry a public evaluation',
       });
+    }
+    if (result.attempts) {
+      if (result.attempts.some((attempt, index) => attempt.attempt !== index + 1)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['attempts'],
+          message: 'attempts must be numbered sequentially from 1',
+        });
+      }
+      // On an observed row the headline decision is by definition the last
+      // attempt's decision; enforce that across the container trust boundary.
+      // Error rows may synthesize a final decision after the last completed
+      // attempt, so they are exempt.
+      const last = result.attempts.at(-1);
+      if (
+        result.status === 'ok'
+        && last
+        && JSON.stringify(last.decision) !== JSON.stringify(result.finalDecision)
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['attempts'],
+          message: 'the last attempt decision must equal finalDecision',
+        });
+      }
     }
   });
 
@@ -272,6 +318,20 @@ export const pactRunSummaryV1Schema = z
         unsafeMutations: nonNegativeCountSchema,
       })
       .strict(),
+    // Attempt-level telemetry; present exactly when the run opted into the
+    // multi-attempt requester protocol. The ten public metric fields above
+    // are byte-stable when the protocol is off.
+    attempts: z
+      .object({
+        maxAttempts: z.number().int().min(1).max(8),
+        totalAttempts: nonNegativeCountSchema,
+        tasksRetried: nonNegativeCountSchema,
+        answerAfterRetry: nonNegativeCountSchema,
+        anyAttemptLeaked: nonNegativeCountSchema,
+        finalAttemptLeaked: nonNegativeCountSchema,
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -349,6 +409,22 @@ export const pactRunMetadataV1Schema = z
     execution: runExecutionMetadataV1Schema.optional(),
     benchmark: pactRunConfigV1Schema.shape.benchmark,
     policyProvenance: policyProvenanceSchema,
+    // Multi-attempt requester protocol provenance (hash-attested follow-up
+    // script); present exactly when benchmark.attempts is configured.
+    attemptProtocol: z
+      .object({
+        maxAttempts: z.number().int().min(1).max(8),
+        followUpScript: z
+          .object({
+            id: z.string().min(1).max(128),
+            version: z.number().int().positive(),
+            file: z.string().min(1).max(512),
+            sha256: z.string().regex(/^[a-f0-9]{64}$/),
+          })
+          .strict(),
+      })
+      .strict()
+      .optional(),
     budget: pactRunBudgetV1Schema,
     configDigest: z.string().regex(/^[a-f0-9]{64}$/),
     taskSetDigest: z.string().regex(/^[a-f0-9]{64}$/),

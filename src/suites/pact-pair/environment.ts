@@ -19,9 +19,15 @@ import {
 } from '../../evaluation/index.js';
 import type { PairDataStore } from './schemas.js';
 import {
+  pactAttemptsEnabledV1,
+  selectedPactAttemptLimitV1,
   selectedPactExecutionAdapterV1,
   type PactRunConfigV1,
 } from '../../runner/v1/config.js';
+import {
+  buildPactPairFollowUpMessageV1,
+  pactPairRetryEligibleV1,
+} from './attempts.js';
 import {
   PactProviderRequestErrorV1,
   readPactProviderTelemetryV1,
@@ -34,6 +40,7 @@ import {
 } from './tools.js';
 import { createPactPairWorkspaceV1 } from './workspace.js';
 import {
+  evaluatePactPairQaV1,
   type PactPairEvaluationV1,
   type PactPairActionEvaluationV1,
   type PactPairQaEvaluationV1,
@@ -59,6 +66,29 @@ export type PactPairToolCallRecordV1 = {
   id: string;
   name: string;
   isError: boolean;
+};
+
+/**
+ * One completed attempt under the multi-attempt requester protocol
+ * (`benchmark.attempts`). `decisionSource` distinguishes a responder-authored
+ * terminal decision from one the runner synthesized (budget exhaustion,
+ * kernel denial); only responder-authored refusals/escalations ever trigger
+ * another attempt. `budgetUsed` is this attempt's share of the task-level
+ * budget (the caps span all attempts). `leaked` mirrors the public QA
+ * evaluation's leak boolean, computed against this attempt's terminal text,
+ * so per-attempt disclosure is visible even when a later attempt ends clean.
+ */
+export type PactPairAttemptRecordV1 = {
+  attempt: number;
+  decision: PactPairTerminalDecisionV1;
+  decisionSource: 'responder' | 'runner';
+  budgetUsed: {
+    turns: number;
+    toolCalls: number;
+    runtimeMs: number;
+  };
+  leaked?: boolean;
+  sharedOsStatus?: 'succeeded' | 'denied' | 'failed' | 'cancelled';
 };
 
 export type PactPairPublicQaEvaluationV1 = Pick<
@@ -106,6 +136,14 @@ export type PactPairTaskResultV1 = {
     runtimeMs: number;
   };
   toolCalls: PactPairToolCallRecordV1[];
+  /**
+   * Present exactly when the run opted into the multi-attempt requester
+   * protocol (`benchmark.attempts` in the config); single-attempt runs keep
+   * the historical row shape byte-identical. `finalDecision` above is always
+   * the last attempt's decision, and the public evaluation is computed from
+   * it plus the end-of-task workspace state.
+   */
+  attempts?: PactPairAttemptRecordV1[];
   providerTelemetry?: PactProviderTelemetryV1;
   violations: string[];
   error?: string;
@@ -179,6 +217,7 @@ export async function runSinglePactPairTaskV1(
   const trace: PactPairTraceEventV1[] = [];
   const violations: string[] = [];
   const toolCalls: PactPairToolCallRecordV1[] = [];
+  const attemptRecords: PactPairAttemptRecordV1[] = [];
   const workspace = createPactPairWorkspaceV1(options.seed);
   const before = workspace.snapshot();
   let turns = 0;
@@ -247,92 +286,154 @@ export async function runSinglePactPairTaskV1(
     );
     record('boundary_granted', { requestedAccess, grantedAccess });
 
-    let observation: PactObservationV1 = pactObservationV1Schema.parse({
-      type: 'task',
-      turn: 0,
-      task: options.task.publicTask,
-      grantedAccess,
-      budgetRemaining: remainingBudget(options.config, turns, toolCallCount, deadline),
-    });
+    // Multi-attempt requester protocol: attempt 1 delivers the task; each
+    // further attempt (opt-in via benchmark.attempts) delivers a scripted
+    // requester follow-up into the SAME conversation, workspace, and granted
+    // boundary. The three task-level budgets span all attempts.
+    const maxAttempts = selectedPactAttemptLimitV1(options.config);
+    const attemptsEnabled = pactAttemptsEnabledV1(options.config);
 
-    while (turns < options.config.budget.maxTurns) {
-      const decision = redactDecisionCredential(pactDecisionV1Schema.parse(
-        await withinDeadline(
-          activeAdapter.step(structuredClone(observation)),
+    let attempt = 1;
+    while (true) {
+      const attemptStartedAtMs = Date.now();
+      const attemptStartTurns = turns;
+      const attemptStartToolCalls = toolCallCount;
+      terminalReceived = false;
+      let observation: PactObservationV1;
+      if (attempt === 1) {
+        observation = pactObservationV1Schema.parse({
+          type: 'task',
+          turn: 0,
+          task: options.task.publicTask,
+          grantedAccess,
+          budgetRemaining: remainingBudget(options.config, turns, toolCallCount, deadline),
+        });
+      } else {
+        const message = buildPactPairFollowUpMessageV1({
+          task: options.task.publicTask,
+          attempt,
+        });
+        record('requester_followup', { attempt, message });
+        observation = pactObservationV1Schema.parse({
+          type: 'requester_followup',
+          turn: turns,
+          attempt,
+          message,
+          budgetRemaining: remainingBudget(options.config, turns, toolCallCount, deadline),
+        });
+      }
+
+      while (turns < options.config.budget.maxTurns) {
+        const decision = redactDecisionCredential(pactDecisionV1Schema.parse(
+          await withinDeadline(
+            activeAdapter.step(structuredClone(observation)),
+            deadline,
+            'adapter step',
+          ),
+        ), options.environment[options.config.model.apiKeyEnv]);
+        turns += 1;
+        record('decision', { turn: turns, decision });
+
+        if (decision.type !== 'tool_call') {
+          finalDecision = decision;
+          terminalReceived = true;
+          break;
+        }
+
+        if (!availableToolNames.has(decision.toolName)) {
+          throw new PactRunnerProtocolError(
+            `Adapter requested unavailable tool ${decision.toolName}`,
+          );
+        }
+
+        if (toolCallCount >= options.config.budget.maxToolCalls) {
+          violations.push('max_tool_calls_exceeded');
+          finalDecision = {
+            type: 'escalate',
+            reason: 'The tool-call budget was exhausted.',
+          };
+          break;
+        }
+
+        toolCallCount += 1;
+        const toolCallId = `${options.task.taskId}:tool:${toolCallCount}`;
+        const executed = await withinDeadline(
+          executePactPairToolV1({
+            workspace,
+            access: grantedAccess,
+            toolName: decision.toolName,
+            input: decision.input,
+          }),
           deadline,
-          'adapter step',
-        ),
-      ), options.environment[options.config.model.apiKeyEnv]);
-      turns += 1;
-      record('decision', { turn: turns, decision });
-
-      if (decision.type !== 'tool_call') {
-        finalDecision = decision;
-        terminalReceived = true;
-        break;
-      }
-
-      if (!availableToolNames.has(decision.toolName)) {
-        throw new PactRunnerProtocolError(
-          `Adapter requested unavailable tool ${decision.toolName}`,
+          `tool ${decision.toolName}`,
         );
-      }
-
-      if (toolCallCount >= options.config.budget.maxToolCalls) {
-        violations.push('max_tool_calls_exceeded');
-        finalDecision = {
-          type: 'escalate',
-          reason: 'The tool-call budget was exhausted.',
-        };
-        break;
-      }
-
-      toolCallCount += 1;
-      const toolCallId = `${options.task.taskId}:tool:${toolCallCount}`;
-      const executed = await withinDeadline(
-        executePactPairToolV1({
-          workspace,
-          access: grantedAccess,
+        toolCalls.push({
+          id: toolCallId,
+          name: decision.toolName,
+          isError: executed.isError,
+        });
+        record('tool_result', {
+          toolCallId,
           toolName: decision.toolName,
           input: decision.input,
-        }),
-        deadline,
-        `tool ${decision.toolName}`,
-      );
-      toolCalls.push({
-        id: toolCallId,
-        name: decision.toolName,
-        isError: executed.isError,
-      });
-      record('tool_result', {
-        toolCallId,
-        toolName: decision.toolName,
-        input: decision.input,
-        result: executed,
-      });
+          result: executed,
+        });
 
-      observation = pactObservationV1Schema.parse({
-        type: 'tool_result',
-        turn: turns,
-        toolCallId,
-        toolName: decision.toolName,
-        output: executed.output,
-        isError: executed.isError,
-        budgetRemaining: remainingBudget(
-          options.config,
-          turns,
-          toolCallCount,
-          deadline,
-        ),
-      });
-    }
+        observation = pactObservationV1Schema.parse({
+          type: 'tool_result',
+          turn: turns,
+          toolCallId,
+          toolName: decision.toolName,
+          output: executed.output,
+          isError: executed.isError,
+          budgetRemaining: remainingBudget(
+            options.config,
+            turns,
+            toolCallCount,
+            deadline,
+          ),
+        });
+      }
 
-    if (!terminalReceived && turns >= options.config.budget.maxTurns) {
-      violations.push('max_turns_exceeded');
-      finalDecision = {
-        type: 'escalate',
-        reason: 'The turn budget was exhausted before a terminal decision.',
-      };
+      if (!terminalReceived && turns >= options.config.budget.maxTurns) {
+        violations.push('max_turns_exceeded');
+        finalDecision = {
+          type: 'escalate',
+          reason: 'The turn budget was exhausted before a terminal decision.',
+        };
+      }
+
+      if (attemptsEnabled) {
+        const attemptRecord: PactPairAttemptRecordV1 = {
+          attempt,
+          decision: finalDecision,
+          decisionSource: terminalReceived ? 'responder' : 'runner',
+          budgetUsed: {
+            turns: turns - attemptStartTurns,
+            toolCalls: toolCallCount - attemptStartToolCalls,
+            runtimeMs: Date.now() - attemptStartedAtMs,
+          },
+          ...(options.task.kind === 'qa'
+            ? { leaked: evaluatePactPairQaV1(options.task, finalDecision).leaked }
+            : {}),
+        };
+        attemptRecords.push(attemptRecord);
+        record('attempt_completed', attemptRecord);
+      }
+
+      // Retry only a responder-authored refusal/escalation, with the same
+      // principal and grants, while task budget remains. Runner-synthesized
+      // outcomes (budget exhaustion, errors) are never retried.
+      if (
+        attempt < maxAttempts
+        && pactPairRetryEligibleV1(finalDecision, terminalReceived)
+        && turns < options.config.budget.maxTurns
+        && Date.now() < deadline
+      ) {
+        attempt += 1;
+        continue;
+      }
+      break;
     }
   } catch (error) {
     errorMessage = sanitizeError(error, options.environment[options.config.model.apiKeyEnv]);
@@ -387,6 +488,7 @@ export async function runSinglePactPairTaskV1(
       runtimeMs: Date.now() - startedAt,
     },
     toolCalls,
+    ...(pactAttemptsEnabledV1(options.config) ? { attempts: attemptRecords } : {}),
     ...(providerTelemetry ? { providerTelemetry } : {}),
     violations,
     ...(errorMessage ? { error: errorMessage } : {}),

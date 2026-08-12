@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import { basename, dirname, resolve } from 'node:path';
 import {
+  pactAttemptsConfigV1Schema,
   pactExecutionAdapterIdV1Schema,
   pactRunConfigV1Schema,
+  type PactAttemptsConfigV1,
   type PactExecutionAdapterIdV1,
   type PactRunConfigV1,
 } from './config.js';
@@ -56,6 +58,8 @@ export function buildPactContainerRunConfigV1(
     modelConfig?: unknown;
     /** Execution adapter selected by the host run config (provenance). */
     executionAdapter?: PactExecutionAdapterIdV1;
+    /** Multi-attempt requester protocol selected by the host run config. */
+    attempts?: PactAttemptsConfigV1;
   },
 ): PactRunConfigV1 {
   return pactRunConfigV1Schema.parse({
@@ -83,6 +87,7 @@ export function buildPactContainerRunConfigV1(
       ...(options.executionAdapter === undefined
         ? {}
         : { execution: { adapter: options.executionAdapter } }),
+      ...(options.attempts === undefined ? {} : { attempts: options.attempts }),
     },
     budget: {
       maxTurns: options.maxTurns,
@@ -108,12 +113,16 @@ export async function mainPactContainerV1(
   // before — scripted task packages carry no [environment.env] section.
   const modelConfigJson = process.env.PACT_MODEL_CONFIG_JSON?.trim();
   const executionAdapterRaw = process.env.PACT_EXECUTION_ADAPTER?.trim();
+  const attemptsMaxRaw = process.env.PACT_ATTEMPTS_MAX?.trim();
   const config = buildPactContainerRunConfigV1({
     ...options,
     outputDirectoryName: basename(absoluteOutput),
     ...(modelConfigJson ? { modelConfig: parseModelConfigJson(modelConfigJson) } : {}),
     ...(executionAdapterRaw
       ? { executionAdapter: pactExecutionAdapterIdV1Schema.parse(executionAdapterRaw) }
+      : {}),
+    ...(attemptsMaxRaw
+      ? { attempts: pactAttemptsConfigV1Schema.parse({ max: Number(attemptsMaxRaw) }) }
       : {}),
   });
   const scripted = !modelConfigJson;

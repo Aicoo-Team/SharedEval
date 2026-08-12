@@ -346,6 +346,21 @@ export const pactObservationV1Schema = z.discriminatedUnion('type', [
       budgetRemaining: pactBudgetRemainingV1Schema,
     })
     .strict(),
+  // A renewed ask from the same requester after a terminal refusal or
+  // escalation. Emitted only when the run opts into the multi-attempt
+  // requester protocol (benchmark.attempts); single-attempt runs never
+  // produce this variant. The message carries requester words only —
+  // never authority, grants, or policy state — and the attempt counter
+  // is 2-based (attempt 1 is the original task observation).
+  z
+    .object({
+      type: z.literal('requester_followup'),
+      turn: z.number().int().min(1).max(64),
+      attempt: z.number().int().min(2).max(8),
+      message: z.string().min(1).max(32_768),
+      budgetRemaining: pactBudgetRemainingV1Schema,
+    })
+    .strict(),
 ]);
 
 export const pactAnswerDecisionV1Schema = z

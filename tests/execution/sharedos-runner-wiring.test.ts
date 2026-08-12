@@ -66,6 +66,7 @@ function sharedOsConfig(
     saveTraces?: boolean;
     maxToolCalls?: number;
     maxRuntimeMs?: number;
+    attempts?: { max: number };
   } = {},
 ) {
   return pactRunConfigV1Schema.parse({
@@ -83,6 +84,7 @@ function sharedOsConfig(
       requester: 'R1',
       tasks: { kind: 'all', ids },
       execution: { adapter: 'sharedos-embedded' },
+      ...(overrides.attempts ? { attempts: overrides.attempts } : {}),
     },
     budget: {
       maxTurns: 4,
@@ -123,7 +125,7 @@ async function runTask(options: {
 
 test('a QA trial runs through the real kernel with adapter identity on the result', { skip }, async () => {
   const adapter = new ScriptedAdapter(observation => {
-    if (observation.type === 'task') {
+    if (observation.type !== 'tool_result') {
       return {
         type: 'tool_call',
         toolName: 'search_notes',
@@ -195,7 +197,7 @@ test('an action trial mutates the world through the kernel and scores exactly', 
 test('a call outside the granted surface is kernel-filtered to tool_unavailable', { skip }, async () => {
   const adapter = new ScriptedAdapter(
     observation => {
-      if (observation.type === 'task') {
+      if (observation.type !== 'tool_result') {
         return {
           type: 'tool_call',
           toolName: 'search_todos',
@@ -249,7 +251,7 @@ test('the tool-call budget stays host-owned inside the kernel turn', { skip }, a
 
 test('a hanging harness maps to the public runner timeout shape', { skip }, async () => {
   const adapter = new ScriptedAdapter(async observation => {
-    if (observation.type === 'task') {
+    if (observation.type !== 'tool_result') {
       return {
         type: 'tool_call',
         toolName: 'search_notes',
@@ -319,6 +321,69 @@ test('the adapter switch is config-owned and defaults to the public runner', () 
     selectedPactExecutionAdapterV1(sharedOsConfig(['Q1'])),
     'sharedos-embedded',
   );
+});
+
+test('the multi-attempt protocol runs one bounded kernel turn per attempt', { skip }, async () => {
+  const adapter = new ScriptedAdapter(observation => {
+    if (observation.type === 'task') {
+      return { type: 'refuse', reason: 'I would rather not share that.' };
+    }
+    if (observation.type === 'requester_followup') {
+      assert.equal(observation.attempt, 2);
+      assert.equal(observation.turn, 1);
+      return {
+        type: 'answer',
+        content: 'Project Alpha launches on March 15, 2026.',
+      };
+    }
+    throw new Error(`Unexpected observation ${observation.type}`);
+  });
+
+  const run = await runTask({
+    ids: 'Q1',
+    adapter,
+    config: sharedOsConfig(['PAIR-Q1'], { attempts: { max: 3 } }),
+  });
+
+  assert.equal(run.result.status, 'ok');
+  assert.equal(run.result.finalDecision.type, 'answer');
+  // Same world, principal, and grants across attempts; one bounded turn each.
+  const kernelTurns = run.trace.filter(event => event.event === 'sharedos_turn');
+  assert.equal(kernelTurns.length, 2);
+  assert.deepEqual(
+    kernelTurns.map(event => (event.data as { attempt?: number }).attempt),
+    [1, 2],
+  );
+  const attempts = run.result.attempts;
+  assert.ok(attempts);
+  assert.deepEqual(
+    attempts.map(attempt => [
+      attempt.attempt,
+      attempt.decision.type,
+      attempt.decisionSource,
+      attempt.sharedOsStatus,
+    ]),
+    [
+      [1, 'refuse', 'responder', 'succeeded'],
+      [2, 'answer', 'responder', 'succeeded'],
+    ],
+  );
+  assert.equal(run.result.budgetUsed.turns, 2);
+  assert.equal(run.result.sharedOs?.adapterId, 'sharedos-embedded');
+  assert.equal(run.result.sharedOs?.status, 'succeeded');
+});
+
+test('single-attempt sharedos rows keep the historical shape', { skip }, async () => {
+  const adapter = new ScriptedAdapter(() => ({
+    type: 'refuse',
+    reason: 'I would rather not share that.',
+  }));
+  const run = await runTask({ ids: 'Q1', adapter });
+  assert.equal(run.result.status, 'ok');
+  assert.equal('attempts' in run.result, false);
+  const kernelTurns = run.trace.filter(event => event.event === 'sharedos_turn');
+  assert.equal(kernelTurns.length, 1);
+  assert.equal('attempt' in (kernelTurns[0]?.data as Record<string, unknown>), false);
 });
 
 class ScriptedAdapter implements PactAdapterV1 {

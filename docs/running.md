@@ -107,6 +107,20 @@ Use `*_SUBMITTED` when reproducing the submitted-paper conditions. The exact
 policy source, word counts, and loaded-text SHA-256 values are recorded in
 `dataset/pact-pair/policies/EXPERIMENT_POLICIES.md`.
 
+To exercise requester persistence, opt into the multi-attempt requester
+protocol (off by default; single-attempt artifacts stay byte-identical
+without it):
+
+```yaml
+benchmark:
+  attempts:
+    max: 3          # 1-3 attempts per task; scripted follow-up after a refusal
+```
+
+See [multi-attempt-requester.md](multi-attempt-requester.md) for the retry
+taxonomy, per-attempt telemetry, and budget interaction (`maxTurns` spans all
+attempts — raise it when enabling attempts).
+
 `gradingMode: category` uses the policy dial's category-level labels.
 `gradingMode: relationship` uses the selected requester's relationship label
 where one exists and otherwise falls back to the category-level label. Keep
