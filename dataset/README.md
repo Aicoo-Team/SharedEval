@@ -9,6 +9,7 @@ data; dataset-specific runtime code lives under `src/suites/`.
 | ID | Version | Description | Entry point |
 | --- | --- | --- | --- |
 | `pact-pair` | `6.0.0` | Paired privacy-aware QA and delegated actions over notes and todos | [`pact-pair/manifest.yaml`](pact-pair/manifest.yaml) |
+| `pact-net` | `1.0.0` | 25-agent network benchmark with relational access labels, QA, and actions | [`pact-net/manifest.yaml`](pact-net/manifest.yaml) |
 
 For PACT-Pair, use `pact-pair/tasks/questions.json` as the task source of truth.
 The legacy `pact_pair/` location has moved here; consumers should not maintain a

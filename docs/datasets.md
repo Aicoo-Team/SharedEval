@@ -9,6 +9,7 @@ matching suite under `src/suites/<dataset-id>/`.
 | Dataset | Manifest version | Protocol | Runtime status |
 | --- | --- | --- | --- |
 | `pact-pair` | `6.0.0` | `pact-bench/v1` | Built-in local runner and protocol-v1 suite |
+| `pact-net` | `1.0.0` | `pact-bench/v1` | Dataset assets only; no runtime suite yet |
 
 The canonical PACT-Pair root is `dataset/pact-pair/`. The former top-level
 `pact_pair/` location is not a second source of truth.
