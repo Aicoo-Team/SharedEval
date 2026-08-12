@@ -6,7 +6,7 @@
  * worlds, gold isolation, and evaluation. These schemas are the PACT side
  * of that boundary — a deliberate host-level abstraction over the
  * `@sharedos/contracts` wire schemas, verified against the SharedOS
- * repository at commit 846cbf6 (see docs/sharedos-execution-adapter.md
+ * repository at commit 373b634 (see docs/sharedos-execution-adapter.md
  * for the field-by-field mapping).
  *
  * Security semantics inherited from SharedOS and enforced structurally:

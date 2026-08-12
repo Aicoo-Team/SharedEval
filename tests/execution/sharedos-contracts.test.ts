@@ -69,7 +69,7 @@ test('world init requires a fresh namespace and a host-measured sha256 digest', 
     taskId: 'qa:127',
     namespaceId: 'run-0001',
     recipient: { kind: 'agent', agentId: 'responder' },
-    expectedVisibleTools: ['memory.search'],
+    expectedVisibleTools: ['files.search'],
   };
   assert.equal(
     sharedOsWorldInitV1Schema.safeParse({ ...base, workspaceDigest: WORLD_DIGEST }).success,
@@ -198,7 +198,7 @@ test('public tool status vocabulary cannot express grant state', () => {
     traceId: 'trace-1',
     status: 'succeeded',
     output: 'done',
-    toolCalls: [{ callId: 'call-1', name: 'memory.search', publicStatus: 'grant_exhausted' }],
+    toolCalls: [{ callId: 'call-1', name: 'files.search', publicStatus: 'grant_exhausted' }],
     events: [],
     provenance: { requestedId: 'm', resolvedId: 'm-v1', servedId: 'm-v1' },
     usage: null,

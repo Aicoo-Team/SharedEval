@@ -16,7 +16,7 @@ function worldInit(overrides: Partial<SharedOsWorldInitV1> = {}): SharedOsWorldI
     namespaceId: 'run-0001',
     recipient: { kind: 'agent', agentId: 'responder' },
     workspaceDigest: DIGEST,
-    expectedVisibleTools: ['memory.search'],
+    expectedVisibleTools: ['files.search'],
     ...overrides,
   };
 }
@@ -38,7 +38,7 @@ function makeAdapter(
 ) {
   return new MockSharedOsAdapterV1({
     worlds: {
-      'world-1': { workspaceDigest: DIGEST, visibleTools: ['memory.search'] },
+      'world-1': { workspaceDigest: DIGEST, visibleTools: ['files.search'] },
     },
     turns,
   });
@@ -65,7 +65,7 @@ test('init fails closed on digest mismatch, unknown world, and empty world', asy
 });
 
 test('a clean turn succeeds exactly once with adapter identity and events', async () => {
-  const adapter = makeAdapter({ 'turn-1': { output: 'the answer', toolCallNames: ['memory.search'] } });
+  const adapter = makeAdapter({ 'turn-1': { output: 'the answer', toolCallNames: ['files.search'] } });
   const handle = await adapter.initWorld(worldInit());
   assert.equal(handle.namespaceId, 'run-0001');
   const results = await adapter.runTurn(handle, turnRequest('turn-1'));
@@ -139,7 +139,7 @@ test('transient fault fails the first attempt and succeeds on retry', async () =
 
 test('absent and undiscoverable tools return the same public tool_unavailable', async () => {
   const adapter = makeAdapter({
-    'turn-u': { toolCallNames: ['memory.search', 'billing.charge', 'no-such-tool'] },
+    'turn-u': { toolCallNames: ['files.search', 'billing.charge', 'no-such-tool'] },
   });
   const handle = await adapter.initWorld(worldInit());
   const [result] = await adapter.runTurn(handle, turnRequest('turn-u'));

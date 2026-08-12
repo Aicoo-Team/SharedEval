@@ -209,7 +209,7 @@ PACT still creates the task, keeps gold host-side, freezes the resulting
 workspace, and computes the score after the SharedOS world is closed.
 
 For the currently pinned integration, build the sibling SharedOS checkout at
-revision `846cbf64830d1a77bf477b98fd3586cd5cdff02e`, then run the included
+revision `373b6347559e39e00b2a4f6bc934373833b40266`, then run the included
 one-task example:
 
 ```bash

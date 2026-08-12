@@ -469,6 +469,8 @@ const DEFAULT_PAIR_SENDER: SoAddress = {
   agentId: 'pact-pair-requester',
 };
 const PACT_PAIR_RESOURCE_NAMESPACE_V1 = 'pact-pair';
+const PACT_PAIR_TOOL_NAMESPACE_V1 = 'pact-pair';
+const PACT_PAIR_TOOL_SOURCE_V1 = 'pact';
 
 type PactPairSharedOsActionV1 = 'read' | 'write';
 type PactPairSharedOsSurfaceV1 = 'notes' | 'todos';
@@ -589,6 +591,7 @@ export type PactPairSharedOsCanonicalWorldV1 = {
   sender: SoAddress;
   purpose: string;
   executionGrant: 'granted' | 'withheld';
+  enabledToolNamespaces: string[];
   allTools: PactToolSpecV1[];
   visibleToolNames: string[];
 };
@@ -620,6 +623,7 @@ export function createPactPairEmbeddedWorldV1(
     sender: structuredClone(sender),
     purpose,
     executionGrant,
+    enabledToolNamespaces: [PACT_PAIR_TOOL_NAMESPACE_V1],
     allTools: PACT_PAIR_TOOL_SPECS_V1.map(tool => structuredClone(tool)),
     visibleToolNames: [...expectedVisibleTools],
   };
@@ -627,6 +631,7 @@ export function createPactPairEmbeddedWorldV1(
   const world: EmbeddedWorldV1 = {
     owner,
     sender,
+    enabledToolNamespaces: [PACT_PAIR_TOOL_NAMESPACE_V1],
     canonicalWorld,
     executionGrant,
     setup(kernel) {
@@ -690,6 +695,9 @@ type PairToolHandlerV1 = {
   definition: {
     name: string;
     description: string;
+    namespace: string;
+    source: string;
+    readWrite: 'read' | 'write';
     inputSchema: JsonObject;
     requiredCapability: {
       resource: {
@@ -724,6 +732,9 @@ function createPairToolHandler(
     definition: {
       name: spec.name,
       description: spec.description ?? `Execute PACT-Pair tool ${spec.name}.`,
+      namespace: PACT_PAIR_TOOL_NAMESPACE_V1,
+      source: PACT_PAIR_TOOL_SOURCE_V1,
+      readWrite: action,
       inputSchema: structuredClone(spec.inputSchema),
       requiredCapability: {
         resource: {

@@ -92,6 +92,9 @@ class ToolThenAnswerAdapter implements PactAdapterV1 {
 type CapturedHandler = {
   definition: {
     name: string;
+    namespace: string;
+    source: string;
+    readWrite: 'read' | 'write';
     requiredCapability: {
       resource: { namespace: string; path: string[] };
       action: string;
@@ -152,6 +155,14 @@ test('PACT adapter tool calls run through a registered Pair SharedOS handler', a
   assert.equal(handlers.length, PACT_PAIR_TOOL_SPECS_V1.length);
   const getNote = handlers.find(handler => handler.definition.name === 'get_note');
   assert.ok(getNote);
+  assert.deepEqual(
+    {
+      namespace: getNote.definition.namespace,
+      source: getNote.definition.source,
+      readWrite: getNote.definition.readWrite,
+    },
+    { namespace: 'pact-pair', source: 'pact', readWrite: 'read' },
+  );
   assert.deepEqual(getNote.definition.requiredCapability, {
     resource: {
       namespace: 'pact-pair',

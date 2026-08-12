@@ -20,9 +20,9 @@ const repositoryRoot = join(
 const RUNTIME_PACKAGES = ['core', 'runtime', 'os', 'testkit'] as const;
 const DIGEST_PACKAGES = ['contracts', ...RUNTIME_PACKAGES] as const;
 export const SHAREDOS_VERIFIED_REVISION_V1 =
-  '846cbf64830d1a77bf477b98fd3586cd5cdff02e' as const;
+  '373b6347559e39e00b2a4f6bc934373833b40266' as const;
 export const SHAREDOS_VERIFIED_DIST_DIGEST_V1 =
-  '9e4834fd80c9c41f6e989ec2a726fcd6424288f3cc17f9ff6f884a073fd166af' as const;
+  '10cc06d6ba787fc61de43546470ac0622357b4768d38f8bf5083184f600fa5fb' as const;
 
 export function defaultSharedOsDirV1(): string {
   if (process.env.PACT_SHAREDOS_DIR) return process.env.PACT_SHAREDOS_DIR;

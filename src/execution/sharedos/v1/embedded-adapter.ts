@@ -56,6 +56,8 @@ export type EmbeddedWorldV1 = {
   owner: SoAddress;
   /** The agent whose turn-opening grant is issued (the requester). */
   sender: SoAddress;
+  /** Explicit, host-selected tool families. An empty list is default-off. */
+  enabledToolNamespaces: readonly string[];
   /** Canonical world value; its digest must equal the host-measured one. */
   canonicalWorld: unknown;
   /** Register resource providers and tool handlers on the fresh kernel. */
@@ -230,6 +232,7 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
       owner: world.owner,
       purpose: parsed.message.purpose,
       traceId,
+      enabledToolNamespaces: [...world.enabledToolNamespaces],
       grants,
       now: nowIso(),
     };
