@@ -1,0 +1,41 @@
+{
+  "seed": 2026,
+  "annotators": {
+    "A": {
+      "rows": 82,
+      "unique_rows": 76,
+      "probes": 6
+    },
+    "B": {
+      "rows": 82,
+      "unique_rows": 76,
+      "probes": 6
+    },
+    "C": {
+      "rows": 81,
+      "unique_rows": 75,
+      "probes": 6
+    },
+    "D": {
+      "rows": 81,
+      "unique_rows": 75,
+      "probes": 6
+    },
+    "E": {
+      "rows": 81,
+      "unique_rows": 75,
+      "probes": 6
+    },
+    "F": {
+      "rows": 81,
+      "unique_rows": 75,
+      "probes": 6
+    }
+  },
+  "pools": {
+    "double_rows": 48,
+    "adjudicate_rows": 265,
+    "v11_b_rows": 38,
+    "audit_sample_rows": 15
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "seed": 2026,
+  "design": "full_coverage",
+  "rows_per_annotator": 401,
+  "probes": 12,
+  "annotators": {
+    "sara": {
+      "rows": 413,
+      "unique_rows": 401,
+      "probes": 12,
+      "cells": 2065
+    },
+    "abhinav": {
+      "rows": 413,
+      "unique_rows": 401,
+      "probes": 12,
+      "cells": 2065
+    },
+    "chenyu": {
+      "rows": 413,
+      "unique_rows": 401,
+      "probes": 12,
+      "cells": 2065
+    },
+    "trishit": {
+      "rows": 413,
+      "unique_rows": 401,
+      "probes": 12,
+      "cells": 2065
+    },
+    "E": {
+      "rows": 413,
+      "unique_rows": 401,
+      "probes": 12,
+      "cells": 2065
+    }
+  }
+}
