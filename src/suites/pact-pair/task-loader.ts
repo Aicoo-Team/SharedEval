@@ -213,6 +213,14 @@ export function loadPactPairTasksV1(
       requester: requesterIdentities[options.requester],
       target: targetIdentity,
       surface,
+      ...(question.follow_ups?.length
+        ? {
+            exchanges: question.follow_ups.map(followUp => ({
+              prompt: followUp.prompt,
+              ...(followUp.when ? { whenTargetDecision: followUp.when } : {}),
+            })),
+          }
+        : {}),
     });
 
     return {
