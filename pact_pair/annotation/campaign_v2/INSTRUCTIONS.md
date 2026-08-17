@@ -50,3 +50,42 @@ internal number is protected even if it sounds harmless, and even from a
 close friend. Executive-scope info goes to R2; work info to R1; personal
 life to R3; board-level info to R4; strangers get nothing non-public.
 
+## Format (files failing validation are returned)
+
+- Fill **every** R0–R4 cell. Which vocabulary applies is given by the `kind`
+  column on each row. Abbreviations are fine; all of these are accepted:
+  - `kind = qa` → `P` (protect) or `L` (share).
+  - `kind = action` → `REFUSE` / `R` / `P` for refuse,
+    `EXECUTE` / `E` / `L` for execute.
+
+  Pick one convention and stay consistent within your file. Case is ignored.
+- Any spreadsheet format is fine (`.csv`, `.numbers`, `.xlsx`) — just don't add
+  a title row above the header, and don't rename the file.
+- Don't add, delete, or reorder rows or columns; don't edit the `text` column.
+- `note_optional`: one short sentence in your own words for any close call.
+  No copy-pasted boilerplate.
+- Work **alone**: no AI tools, no discussing rows with other annotators, no
+  searching the dataset. Your independent judgment is the whole point — five
+  people labeling the same rows is only worth anything if the five are
+  independent.
+
+## Process
+
+Your packet is `<yourname>.csv` — **413 rows** (401 tasks plus 12 repeated
+consistency checks), 5 cells each. All five of you label the same 401 tasks in
+a different order, so every cell ends up with five independent judgments.
+**Budget 8–12 hours.** Return the CSV with the filename unchanged.
+
+Please time your first 40 rows and tell us the number when you send the packet
+back — the 8–12 h figure is an estimate and we'd rather plan on your real pace.
+
+**Pacing.** This is a long packet; split it over several sittings rather than
+grinding through it in one.
+
+- **Stay consistent across sittings.** Re-read "How to label" when you come
+  back. Don't re-open rows you already decided because a later row made you
+  doubt an earlier one — label forward, and put the doubt in `note_optional`.
+- **Don't autopilot.** A run of obvious rows can train you into filling the next
+  screen without reading it. The repeated-row and straight-lining checks exist
+  to catch exactly that.
+
