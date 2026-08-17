@@ -18,3 +18,7 @@ rebuttal/runs/*
 !rebuttal/runs/run_surface_lane.py
 results/raw/
 *.log
+
+# Internal working docs (not part of the public benchmark contract)
+notes/
+__pycache__/

@@ -106,9 +106,13 @@ const categoryExpectationSchema = z
 type CategoryExpectation = z.infer<typeof categoryExpectationSchema>;
 
 const requesterIdentities: Record<PactPairRequesterIdV1, PactIdentityV1> = {
+  // R0 was "Tina Rodriguez" through matrix v1.1 — an acknowledged design
+  // error (name collision with R1). Renamed 2026-08-14; the frozen v1.1
+  // matrix file still carries the old string, and R0 results from runs
+  // before the rename are not comparable with runs after it.
   R0: {
     id: 'R0',
-    displayName: 'Tina Rodriguez',
+    displayName: 'Riley Novak',
     relationship: 'stranger with no relationship context',
   },
   R1: {
