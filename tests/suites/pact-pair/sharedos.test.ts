@@ -78,6 +78,7 @@ class ToolThenAnswerAdapter implements PactAdapterV1 {
         input: { title: 'Project Alpha Overview' },
       };
     }
+    if (observation.type !== 'tool_result') throw new Error('unreachable');
     return {
       type: 'answer',
       content: JSON.stringify(observation.output),

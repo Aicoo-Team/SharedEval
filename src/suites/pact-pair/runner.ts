@@ -121,12 +121,33 @@ export type PactPairPublicEvaluationV1 =
   | PactPairPublicQaEvaluationV1
   | PactPairPublicActionEvaluationV1;
 
+/**
+ * One requester message and the terminal decision it drew.
+ *
+ * A single-exchange task produces exactly one record whose decision equals
+ * `finalDecision`; multi-exchange tasks produce one per requester message, in
+ * order. Keeping the per-exchange decision is what makes "the target refused
+ * at exchange 0 and complied at exchange 2" expressible — a task-level verdict
+ * alone cannot distinguish that from a target that complied immediately.
+ */
+export type PactPairExchangeRecordV1 = {
+  /** 0 is the opening prompt; 1+ are follow-ups, in dataset order. */
+  exchange: number;
+  prompt: string;
+  decision: PactPairTerminalDecisionV1;
+  /** 1-based adapter step on which this exchange began. */
+  firstTurn: number;
+  turnsUsed: number;
+};
+
 export type PactPairTaskResultV1 = {
   taskId: string;
   kind: LoadedPactPairTaskV1['kind'];
   status: 'ok' | 'denied' | 'infrastructure_error';
   publicTask: PactTaskIntroV1;
   finalDecision: PactPairTerminalDecisionV1;
+  /** Present for every run; length 1 unless the task declares `exchanges`. */
+  exchanges?: PactPairExchangeRecordV1[];
   grantedAccess: PactBoundaryPlanV1;
   evaluation: PactPairPublicEvaluationV1 | null;
   budgetUsed: {
@@ -509,6 +530,12 @@ async function runSinglePactPairTaskV1(options: {
   let sharedOsExecution: PactPairTaskResultV1['execution'];
   let sharedOsDenied = false;
   let terminalReceived = false;
+  /**
+   * One entry per requester message, in order. Single-exchange tasks end with
+   * exactly one entry and the existing `finalDecision` is its decision, so
+   * every current consumer keeps working unchanged.
+   */
+  const exchanges: PactPairExchangeRecordV1[] = [];
 
   const record = (event: string, data: unknown) => {
     if (!options.config.output.saveTraces) return;
@@ -646,6 +673,10 @@ async function runSinglePactPairTaskV1(options: {
         record('decision', { turn: turns, decision: finalDecision });
       }
     } else {
+      const followUps = options.task.publicTask.exchanges ?? [];
+      let exchangeIndex = 0;
+      let exchangeStartTurn = 0;
+
       let observation: PactObservationV1 = pactObservationV1Schema.parse({
         type: 'task',
         turn: 0,
@@ -668,7 +699,41 @@ async function runSinglePactPairTaskV1(options: {
         if (decision.type !== 'tool_call') {
           finalDecision = decision;
           terminalReceived = true;
-          break;
+          exchanges.push({
+            exchange: exchangeIndex,
+            prompt: exchangeIndex === 0
+              ? options.task.publicTask.prompt
+              : followUps[exchangeIndex - 1].prompt,
+            decision,
+            firstTurn: exchangeStartTurn + 1,
+            turnsUsed: turns - exchangeStartTurn,
+          });
+
+          // A terminal decision ends the EXCHANGE. It ends the TASK only when
+          // the requester has nothing further to say — otherwise the same
+          // target, workspace and adapter session are pressed again, which is
+          // the whole point of a graduated probe.
+          const next = followUps[exchangeIndex];
+          const applies =
+            next && (!next.whenTargetDecision || next.whenTargetDecision.includes(decision.type));
+          if (!applies) break;
+
+          exchangeIndex += 1;
+          exchangeStartTurn = turns;
+          terminalReceived = false;
+          record('requester_message', {
+            turn: turns,
+            exchange: exchangeIndex,
+            prompt: next.prompt,
+          });
+          observation = pactObservationV1Schema.parse({
+            type: 'requester_message',
+            turn: turns,
+            exchange: exchangeIndex,
+            prompt: next.prompt,
+            budgetRemaining: remainingBudget(options.config, turns, toolCallCount, deadline),
+          });
+          continue;
         }
 
         if (!availableToolNames.has(decision.toolName)) {
@@ -783,6 +848,7 @@ async function runSinglePactPairTaskV1(options: {
       : sharedOsDenied ? 'denied' : 'ok',
     publicTask: options.task.publicTask,
     finalDecision,
+    ...(exchanges.length > 0 ? { exchanges } : {}),
     grantedAccess,
     evaluation: publicEvaluation,
     budgetUsed: {

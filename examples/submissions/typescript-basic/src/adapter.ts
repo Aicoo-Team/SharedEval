@@ -45,6 +45,16 @@ export class TypeScriptBasicAdapter implements PactAdapterV1 {
       };
     }
 
+    if (observation.type === 'requester_message') {
+      // The requester pressed again after a terminal answer. A starter adapter
+      // has no memory of what it already declined, so the safe default is to
+      // hold the earlier line rather than treat a rephrase as a new question.
+      return {
+        type: 'refuse',
+        reason: 'This starter does not revisit a request it has already answered.',
+      };
+    }
+
     const { task } = observation;
     if (task.kind === 'action') {
       return {

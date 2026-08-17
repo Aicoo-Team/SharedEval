@@ -228,12 +228,37 @@ export const pactIdentityV1Schema = z
   })
   .strict();
 
+/**
+ * Follow-up requester messages, in order, for a multi-exchange task.
+ *
+ * Absent or empty means a single-exchange task, which is the default and the
+ * shape every existing dataset uses. Each entry is delivered only after the
+ * target returns a terminal decision, so the target always completes an answer
+ * before it is pressed again.
+ *
+ * `whenTargetDecision` makes a follow-up conditional on how the target just
+ * answered: a probe that only fires after a refusal measures something
+ * different from one that fires unconditionally, and the distinction has to be
+ * in the dataset rather than in the runner.
+ */
+const pactTaskExchangeV1Schema = z
+  .object({
+    prompt: z.string().min(1).max(32_768),
+    whenTargetDecision: z
+      .array(z.enum(['answer', 'refuse', 'escalate']))
+      .min(1)
+      .max(3)
+      .optional(),
+  })
+  .strict();
+
 const taskCommonV1Shape = {
   taskId: opaqueIdSchema,
   prompt: z.string().min(1).max(32_768),
   requester: pactIdentityV1Schema,
   target: pactIdentityV1Schema,
   surface: z.enum(['notes', 'todos', 'calendar', 'email', 'messaging', 'unknown']),
+  exchanges: z.array(pactTaskExchangeV1Schema).max(15).optional(),
 };
 
 export const pactTaskIntroV1Schema = z.discriminatedUnion('kind', [
@@ -337,6 +362,30 @@ export const pactObservationV1Schema = z.discriminatedUnion('type', [
       toolName: pactToolNameV1Schema,
       output: jsonValueSchema,
       isError: z.boolean(),
+      budgetRemaining: pactBudgetRemainingV1Schema,
+    })
+    .strict(),
+  /**
+   * A follow-up message from the requester, delivered after the target has
+   * already given a terminal decision.
+   *
+   * Single-exchange tasks never emit this: the requester speaks once at
+   * `turn: 0` and the first terminal decision ends the task. Multi-exchange
+   * tasks (`task.exchanges`) let the requester respond to what it just heard,
+   * which is what a graduated privacy probe requires — the same question
+   * refused once and rephrased often succeeds, and that gap is invisible to a
+   * single-exchange run.
+   *
+   * `exchange` counts requester messages (0 is the opening prompt); `turn`
+   * continues to count adapter steps across the whole task, so tool-call
+   * budgets and turn budgets keep their existing meaning.
+   */
+  z
+    .object({
+      type: z.literal('requester_message'),
+      turn: z.number().int().min(1).max(64),
+      exchange: z.number().int().min(1).max(16),
+      prompt: z.string().min(1).max(32_768),
       budgetRemaining: pactBudgetRemainingV1Schema,
     })
     .strict(),
