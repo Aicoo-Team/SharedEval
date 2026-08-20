@@ -795,15 +795,17 @@ test('records relationship label provenance exactly for relationship-graded runs
 
   const provenance = result.relationshipLabelProvenance;
   assert.ok(provenance, 'relationship-graded runs must record label provenance');
-  assert.equal(provenance.schema, 'pact-pair-relationship-labels/v1');
-  assert.equal(provenance.qaRows, 99);
-  assert.equal(provenance.actionRows, 0);
+  // The released schema-v2 matrix (600x5 campaign-v3 gold) is authoritative
+  // at the repo root; the v1.1 file remains frozen history.
+  assert.equal(provenance.schema, 'pact-pair-relationship-labels/v2');
+  assert.equal(provenance.qaRows, 400);
+  assert.equal(provenance.actionRows, 200);
   const labelBytes = readFileSync(join(
     process.cwd(),
     'dataset',
     'pact-pair',
     'relationship_labels',
-    'relationship_label_matrix.json',
+    'relationship_label_matrix_v2.json',
   ));
   assert.equal(
     provenance.sha256,
