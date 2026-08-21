@@ -1,0 +1,35 @@
+apiVersion: pact-run/v1
+kind: RunConfig
+
+model:
+  provider: openai-compatible
+  baseUrl: https://openrouter.ai/api/v1
+  apiKeyEnv: PACT_MODEL_API_KEY
+  model: deepseek/deepseek-v4-flash-0731
+  temperature: 0
+  # seed omitted: first-party deepseek endpoint does not support seed
+  # (precedent: BaseTen Kimi, 2026-07 sweep)
+  providerRouting:
+    requireParameters: true
+    allowFallbacks: false
+    only: [relace, baidu]
+  maxOutputTokens: 4096
+
+benchmark:
+  dataset: pact-pair
+  policy: D2_SUBMITTED
+  requester: R3
+  gradingMode: category
+  execution:
+    adapter: sharedos-embedded
+  tasks:
+    kind: all
+
+budget:
+  maxTurns: 8
+  maxToolCalls: 4
+  maxRuntimeMs: 120000
+
+output:
+  directory: rebuttal/runs/out/ds_grid_R3
+  saveTraces: true

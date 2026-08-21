@@ -1,0 +1,9 @@
+{
+  "n_compared": 0,
+  "response_type_agreement": null,
+  "leak_agreement": null,
+  "correct_agreement": null,
+  "old_judge_vs_goldstring": null,
+  "new_judge_vs_goldstring": null,
+  "disagreements": []
+}

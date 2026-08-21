@@ -16,6 +16,9 @@ rebuttal/runs/*
 !rebuttal/runs/run_policy_lane.py
 !rebuttal/runs/run_relationship_lane.py
 !rebuttal/runs/run_surface_lane.py
+!rebuttal/runs/configs_ds_grid/
+!rebuttal/runs/judge_agreement_check.py
+!rebuttal/runs/judge_agreement_out/
 results/raw/
 *.log
 

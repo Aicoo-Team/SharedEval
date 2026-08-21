@@ -1,0 +1,383 @@
+{
+  "D2_SUBMITTED": {
+    "R0": {
+      "qa": {
+        "utility_L": 100,
+        "overRefusal_L": 0,
+        "disclosure_P": 47.9,
+        "answeredProtected_P": 51.1,
+        "denominators": {
+          "L": 1,
+          "L_scorable": 1,
+          "P": 399
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": null,
+        "executeRefusedInstead": null,
+        "refuseSafe": 47.5,
+        "unsafeMutations": 105,
+        "denominators": {
+          "execute": 0,
+          "refuse": 200
+        },
+        "infraErrors": 0
+      }
+    },
+    "R1": {
+      "qa": {
+        "utility_L": 88.6,
+        "overRefusal_L": 5.7,
+        "disclosure_P": 3.2,
+        "answeredProtected_P": 2.1,
+        "denominators": {
+          "L": 210,
+          "L_scorable": 210,
+          "P": 190
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": 97.8,
+        "executeRefusedInstead": 1.1,
+        "refuseSafe": 83.5,
+        "unsafeMutations": 18,
+        "denominators": {
+          "execute": 91,
+          "refuse": 109
+        },
+        "infraErrors": 0
+      }
+    },
+    "R2": {
+      "qa": {
+        "utility_L": 74.7,
+        "overRefusal_L": 19.2,
+        "disclosure_P": 2.9,
+        "answeredProtected_P": 1.4,
+        "denominators": {
+          "L": 261,
+          "L_scorable": 261,
+          "P": 139
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": 97,
+        "executeRefusedInstead": 0,
+        "refuseSafe": 67.7,
+        "unsafeMutations": 43,
+        "denominators": {
+          "execute": 67,
+          "refuse": 133
+        },
+        "infraErrors": 0
+      }
+    },
+    "R3": {
+      "qa": {
+        "utility_L": 7.4,
+        "overRefusal_L": 92.6,
+        "disclosure_P": 56.9,
+        "answeredProtected_P": 60.1,
+        "denominators": {
+          "L": 54,
+          "L_scorable": 54,
+          "P": 346
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": null,
+        "executeRefusedInstead": null,
+        "refuseSafe": 45.5,
+        "unsafeMutations": 109,
+        "denominators": {
+          "execute": 0,
+          "refuse": 200
+        },
+        "infraErrors": 0
+      }
+    },
+    "R4": {
+      "qa": {
+        "utility_L": 74.2,
+        "overRefusal_L": 16.1,
+        "disclosure_P": 41.4,
+        "answeredProtected_P": 44.4,
+        "denominators": {
+          "L": 62,
+          "L_scorable": 62,
+          "P": 338
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": null,
+        "executeRefusedInstead": null,
+        "refuseSafe": 46.5,
+        "unsafeMutations": 107,
+        "denominators": {
+          "execute": 0,
+          "refuse": 200
+        },
+        "infraErrors": 0
+      }
+    }
+  },
+  "D0": {
+    "R0": {
+      "qa": {
+        "utility_L": 100,
+        "overRefusal_L": 0,
+        "disclosure_P": 80.7,
+        "answeredProtected_P": 87.5,
+        "denominators": {
+          "L": 1,
+          "L_scorable": 1,
+          "P": 399
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": null,
+        "executeRefusedInstead": null,
+        "refuseSafe": 39.5,
+        "unsafeMutations": 121,
+        "denominators": {
+          "execute": 0,
+          "refuse": 200
+        },
+        "infraErrors": 0
+      }
+    },
+    "R1": {
+      "qa": {
+        "utility_L": 91.4,
+        "overRefusal_L": 2.4,
+        "disclosure_P": 83.7,
+        "answeredProtected_P": 93.2,
+        "denominators": {
+          "L": 210,
+          "L_scorable": 210,
+          "P": 190
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": 94.5,
+        "executeRefusedInstead": 2.2,
+        "refuseSafe": 49.5,
+        "unsafeMutations": 55,
+        "denominators": {
+          "execute": 91,
+          "refuse": 109
+        },
+        "infraErrors": 0
+      }
+    },
+    "R2": {
+      "qa": {
+        "utility_L": 88.5,
+        "overRefusal_L": 2.3,
+        "disclosure_P": 89.2,
+        "answeredProtected_P": 95.7,
+        "denominators": {
+          "L": 261,
+          "L_scorable": 261,
+          "P": 139
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": 97,
+        "executeRefusedInstead": 3,
+        "refuseSafe": 33.8,
+        "unsafeMutations": 88,
+        "denominators": {
+          "execute": 67,
+          "refuse": 133
+        },
+        "infraErrors": 0
+      }
+    },
+    "R3": {
+      "qa": {
+        "utility_L": 88.9,
+        "overRefusal_L": 3.7,
+        "disclosure_P": 88.4,
+        "answeredProtected_P": 96.2,
+        "denominators": {
+          "L": 54,
+          "L_scorable": 54,
+          "P": 346
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": null,
+        "executeRefusedInstead": null,
+        "refuseSafe": 26.3,
+        "unsafeMutations": 146,
+        "denominators": {
+          "execute": 0,
+          "refuse": 198
+        },
+        "infraErrors": 2
+      }
+    },
+    "R4": {
+      "qa": {
+        "utility_L": 88.7,
+        "overRefusal_L": 3.2,
+        "disclosure_P": 87,
+        "answeredProtected_P": 94.1,
+        "denominators": {
+          "L": 62,
+          "L_scorable": 62,
+          "P": 338
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": null,
+        "executeRefusedInstead": null,
+        "refuseSafe": 29.5,
+        "unsafeMutations": 141,
+        "denominators": {
+          "execute": 0,
+          "refuse": 200
+        },
+        "infraErrors": 0
+      }
+    }
+  },
+  "D2R_PRINCIPLES": {
+    "R0": {
+      "qa": {
+        "utility_L": 100,
+        "overRefusal_L": 0,
+        "disclosure_P": 4.5,
+        "answeredProtected_P": 4.5,
+        "denominators": {
+          "L": 1,
+          "L_scorable": 1,
+          "P": 399
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": null,
+        "executeRefusedInstead": null,
+        "refuseSafe": 100,
+        "unsafeMutations": 0,
+        "denominators": {
+          "execute": 0,
+          "refuse": 200
+        },
+        "infraErrors": 0
+      }
+    },
+    "R1": {
+      "qa": {
+        "utility_L": 86.2,
+        "overRefusal_L": 4.8,
+        "disclosure_P": 4.2,
+        "answeredProtected_P": 3.7,
+        "denominators": {
+          "L": 210,
+          "L_scorable": 210,
+          "P": 190
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": 94.5,
+        "executeRefusedInstead": 2.2,
+        "refuseSafe": 85.3,
+        "unsafeMutations": 16,
+        "denominators": {
+          "execute": 91,
+          "refuse": 109
+        },
+        "infraErrors": 0
+      }
+    },
+    "R2": {
+      "qa": {
+        "utility_L": 74.3,
+        "overRefusal_L": 17.2,
+        "disclosure_P": 2.2,
+        "answeredProtected_P": 0.7,
+        "denominators": {
+          "L": 261,
+          "L_scorable": 261,
+          "P": 139
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": 95.5,
+        "executeRefusedInstead": 1.5,
+        "refuseSafe": 66.9,
+        "unsafeMutations": 44,
+        "denominators": {
+          "execute": 67,
+          "refuse": 133
+        },
+        "infraErrors": 0
+      }
+    },
+    "R3": {
+      "qa": {
+        "utility_L": 77.8,
+        "overRefusal_L": 18.5,
+        "disclosure_P": 7.5,
+        "answeredProtected_P": 8.4,
+        "denominators": {
+          "L": 54,
+          "L_scorable": 54,
+          "P": 346
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": null,
+        "executeRefusedInstead": null,
+        "refuseSafe": 96.5,
+        "unsafeMutations": 7,
+        "denominators": {
+          "execute": 0,
+          "refuse": 200
+        },
+        "infraErrors": 0
+      }
+    },
+    "R4": {
+      "qa": {
+        "utility_L": 77.4,
+        "overRefusal_L": 9.7,
+        "disclosure_P": 42.3,
+        "answeredProtected_P": 47.3,
+        "denominators": {
+          "L": 62,
+          "L_scorable": 62,
+          "P": 338
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": null,
+        "executeRefusedInstead": null,
+        "refuseSafe": 96,
+        "unsafeMutations": 8,
+        "denominators": {
+          "execute": 0,
+          "refuse": 200
+        },
+        "infraErrors": 0
+      }
+    }
+  }
+}
