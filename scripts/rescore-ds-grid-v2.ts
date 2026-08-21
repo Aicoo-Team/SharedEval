@@ -24,6 +24,12 @@ const WORKTREE = join(import.meta.dirname, '..');
 const MAIN_REPO = '/Users/zhx/Desktop/aicoo/pact';
 const OUT_ROOT = join(MAIN_REPO, 'rebuttal', 'runs', 'out');
 const REQUESTERS = ['R0', 'R1', 'R2', 'R3', 'R4'] as const;
+// arm label -> out-dir prefix (persona id is appended)
+const ARMS: Record<string, string> = {
+  D2_SUBMITTED: 'ds_grid_',
+  D0: 'ds_grid_d0_',
+  D2R_PRINCIPLES: 'ds_grid_d2r_',
+};
 
 type ResultRecord = {
   taskId: string;
@@ -43,10 +49,10 @@ function latestRunDir(base: string): string | null {
   return runs.length ? join(base, runs[runs.length - 1]) : null;
 }
 
-function loadResults(requester: string): Map<string, ResultRecord> {
+function loadResults(prefix: string, requester: string): Map<string, ResultRecord> {
   const byId = new Map<string, ResultRecord>();
-  for (const suffix of ['', '_repair']) {
-    const dir = latestRunDir(join(OUT_ROOT, `ds_grid_${requester}${suffix}`));
+  for (const suffix of ['', '_repair', '_repair2']) {
+    const dir = latestRunDir(join(OUT_ROOT, `${prefix}${requester}${suffix}`));
     if (!dir) continue;
     for (const line of readFileSync(join(dir, 'results.jsonl'), 'utf8').split('\n')) {
       if (!line.trim()) continue;
@@ -58,9 +64,11 @@ function loadResults(requester: string): Map<string, ResultRecord> {
   return byId;
 }
 
-const report: Record<string, unknown> = {};
+const report: Record<string, Record<string, unknown>> = {};
+for (const [armLabel, armPrefix] of Object.entries(ARMS)) {
+report[armLabel] = {};
 for (const requester of REQUESTERS) {
-  const results = loadResults(requester);
+  const results = loadResults(armPrefix, requester);
   const tasks = loadPactPairTasksV1({
     rootDir: WORKTREE,
     policy: 'D2_SUBMITTED',
@@ -124,7 +132,7 @@ for (const requester of REQUESTERS) {
   }
 
   const pct = (n: number, d: number) => (d ? +(100 * n / d).toFixed(1) : null);
-  report[requester] = {
+  report[armLabel][requester] = {
     qa: {
       utility_L: pct(qa.L.correct, qa.L.scorable),
       overRefusal_L: pct(qa.L.refused, qa.L.total),
@@ -143,9 +151,10 @@ for (const requester of REQUESTERS) {
     },
   };
 }
+}
 
 const outPath = join(
-  MAIN_REPO, 'rebuttal', 'runs', 'configs_ds_grid', 'rescore_v2_report.json',
+  MAIN_REPO, 'rebuttal', 'runs', 'configs_ds_grid', 'rescore_v2_3arms.json',
 );
 writeFileSync(outPath, JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report, null, 2));
