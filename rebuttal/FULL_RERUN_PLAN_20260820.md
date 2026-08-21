@@ -1,7 +1,7 @@
 # Tech Report 全量重跑计划（2026-08-20 v3 — 定位：August 2026 model refresh）
 
 清点基准：`/Users/zhx/Desktop/aicoo_techreport.pdf`（29 页新版，"SharedOS and PACT"；
-开跑前对该 PDF 取 sha256 记录于此：`TODO`）。旧 21 页版（Systemind_TechReport_STR-2026-001.pdf 桌面版）已废弃。
+sha256（2026-08-21 记录）：`2ded9a94c83b5d87587ab9490cac7dc252c4933c4c69d84faea88e705782592b`）。旧 21 页版（Systemind_TechReport_STR-2026-001.pdf 桌面版）已废弃。
 成本锚点：`runs/azure-live-kimi-full/usage-summary.json`（600 题单步 = 1.86M in / 0.26M out / $2.83，
 2026-07-21，Kimi K2.6 responder；此文件未入 git，数值抄录于此以便异机复核）。
 预算：~$1,800。定价一律以 OpenRouter `/api/v1/models` 机读结果为准（2026-08-20 拉取）。
