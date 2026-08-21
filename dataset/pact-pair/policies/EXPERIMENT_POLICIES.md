@@ -67,6 +67,21 @@ accepted for these policies since the full-grid extension; relationship
 grading then requires a schema-v2 label row for every selected task and fails
 loudly on gaps (see below).
 
+## Relationship-principles policies
+
+| Policy ID | Meaning | Words | SHA-256 |
+|---|---|---:|---|
+| `D2R_PRINCIPLES` | Single relationship→entitlement principles policy (working / close-personal / formal-oversight / none); oversight gets "work product in summary form" | 299 | `adfe9d596868259c82ee18e244a2a230c6cddde5f3f2b708645c2b9c8b13a81a` |
+| `D6_PRINCIPLES_TIGHT` | Same text with the oversight entitlement tightened to designated investor-reporting metrics and milestones | 319 | `bd01a4581cd7bb54489e5251c04aadd538bf29193bb6fd020a96e8b358551bb9` |
+
+Unlike the `REL_R*` family these are requester-agnostic single policies:
+valid with any requester and either grading mode. `D2R_PRINCIPLES` is frozen
+as the v1 finding text (its R4 oversight wording is deliberately kept, leaked
+interpretation and all); `D6_PRINCIPLES_TIGHT` is the follow-up arm, a new
+policy ID rather than an edit, so the two results stay separately citable.
+Both texts were authored from the requester relationship definitions only;
+relationship gold labels were not consulted (anti-circularity rule).
+
 ## Grading modes
 
 - `category` uses `categories[].expected_m*` and never replaces those labels
