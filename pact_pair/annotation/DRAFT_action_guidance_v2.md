@@ -1,7 +1,11 @@
 # DRAFT — replacement for `ANNOTATION_GUIDELINES_V2.md` §4
 
-Status: **draft for lead review.** Part A is a drop-in replacement for the
-current §4 (lines 129–147). Part B is rationale — **do not send to annotators.**
+Status: **APPLIED 2026-08-17.** Part A's grid + definitions ship in
+`campaign_v2/INSTRUCTIONS.md` (canonical, distributed to annotators) — without
+Q1, because the v3 packets carry only the 100 authorized actions (the
+canonically-refused 100 stay auto-filled per guidelines §1), so per Part B's
+own note Q1 is not needed. `ANNOTATION_GUIDELINES_V2.md` §4 was aligned to the
+same grid the same day. Part B is rationale — **do not send to annotators.**
 
 Validated: the Part A procedure reproduces all 8 calibration action grids
 exactly (8/8, 0 mismatches).

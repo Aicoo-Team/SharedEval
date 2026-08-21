@@ -84,6 +84,13 @@ Runner 侧 v2 loader/schema 已冻结（`relationship_label_matrix_v2.json`，sc
 - 标注人资格：non-author 优先（保持论文 "non-author annotators" 表述可延续）；开工前先做 20 条校准集，一致率 < 80% 的先对齐再上。
 - 工具：复用 rebuttal 的 annotation viewer（`pact/rebuttal/viewer/`）或 Google Sheet 导出 CSV，字段：task_id, requester, ai_votes, human_label, annotator_id, notes。
 
+## 3.9 Phase 2 验收状态（2026-08-19）
+
+五份回件（E / abhinav / chenyu / sara / trishit，v3 全量 413 行包）经 `campaign_v2/acceptance_qc_v3.py` 验收：**五份全部真实作业、结构合格**。Fleiss κ：QA **0.587**、actions **0.764**（历史 ACT 0.491 → 大幅改善，符合"机械填充移除 + 二值化 + 表格化 instructions"的预期）；两两最高 91%（E–sara），远低于 98% 抄袭红线；5 人奇数票制下平票 0。归档：回件 CSV 进 `campaign_v2/filled_v3/`（.numbers 已转换），多数票 `qc_v3_majority.csv`（2,005 格全覆盖），分歧导出 `qc_v3_disagreements.csv`（682 格非全票）。
+已裁决（2026-08-19）：① trishit 词表映射采纳；② E 用桌面 .numbers 版（E 的 pass 兼任 verify 记录——`verified_labels.jsonl` 由其生成，source=d_self_pass_via_E）；③ v1.1 的 39 个 B 格按预定二值平票规则机械归 P（逐格带 rationale 留痕，lead 可逐格推翻）。
+
+**Matrix v2.0-rc1 已编译**：`campaign_v2/relationship_label_matrix_v2.draft.json`（400 QA + 200 actions，无 B，action 完整性校验通过：canonical-refuse 全 refuse）。分布：QA P/L 比 = R0 399/1（唯一 L 是 Q90 公司 tagline，公开事实）、R1 190/210、R2 139/261、R3 346/54、R4 338/62；actions e/r = R0 0/200、R1 91/109、R2 67/133、R3 0/200、R4 0/200。待 lead 过目后走 dataset 发布（版本号/manifest/HF exporter 硬编码 99 行等工程项见外部 review 清单）。
+
 ## 4. Phase 3 — QC + 冻结
 
 - 指标：按 surface × requester 报 **Cohen/Fleiss κ**（历史基线 0.654/0.501/0.491，moderate 属预期；borderline 切片单独报）、多数可判率、AI-vs-human 翻转率。
