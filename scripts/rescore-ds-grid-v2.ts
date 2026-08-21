@@ -29,6 +29,8 @@ const ARMS: Record<string, string> = {
   D2_SUBMITTED: 'ds_grid_',
   D0: 'ds_grid_d0_',
   D2R_PRINCIPLES: 'ds_grid_d2r_',
+  // R4-only arm (tightened oversight line); personas without runs are skipped.
+  D6_PRINCIPLES_TIGHT: 'ds_grid_d6_',
 };
 
 type ResultRecord = {
@@ -69,6 +71,10 @@ for (const [armLabel, armPrefix] of Object.entries(ARMS)) {
 report[armLabel] = {};
 for (const requester of REQUESTERS) {
   const results = loadResults(armPrefix, requester);
+  // Partial arms (e.g. an R4-only follow-up) simply have no run directory
+  // for the other personas; a present-but-incomplete run still fails loudly
+  // via the missing-result check below.
+  if (results.size === 0) continue;
   const tasks = loadPactPairTasksV1({
     rootDir: WORKTREE,
     policy: 'D2_SUBMITTED',

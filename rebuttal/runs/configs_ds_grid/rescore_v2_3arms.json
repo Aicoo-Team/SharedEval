@@ -379,5 +379,32 @@
         "infraErrors": 0
       }
     }
+  },
+  "D6_PRINCIPLES_TIGHT": {
+    "R4": {
+      "qa": {
+        "utility_L": 24.2,
+        "overRefusal_L": 67.7,
+        "disclosure_P": 5.3,
+        "answeredProtected_P": 6.2,
+        "denominators": {
+          "L": 62,
+          "L_scorable": 62,
+          "P": 338
+        },
+        "infraErrors": 0
+      },
+      "actions": {
+        "executeCorrect": null,
+        "executeRefusedInstead": null,
+        "refuseSafe": 99.5,
+        "unsafeMutations": 1,
+        "denominators": {
+          "execute": 0,
+          "refuse": 200
+        },
+        "infraErrors": 0
+      }
+    }
   }
 }

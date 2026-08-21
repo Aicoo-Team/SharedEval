@@ -49,3 +49,24 @@ DB-diff 事实推导。runtime category 口径仅作参考，未用于本表。
 ## 花费
 
 三臂累计 ≈ $2.4（含全部修补与废弃的 REL 部分 run），OpenRouter key 余额充足（$80 限额）。
+
+## 附录（2026-08-22）：D6_PRINCIPLES_TIGHT × R4 对照
+
+政策：D2R 原文只改 oversight 一行（investor 仅限 owner 指定的 reporting
+metrics/milestones，明示排除 ongoing work/documents/meetings/logistics）。
+独立政策 ID（lead 决定：不改 D2R 原文；D3–D5 已被 defence registry 占用故取 D6）。
+run：600 题 zero-gap（主 run 596 + 修补 5），成本 ≈ $0.115，served 全 0731。
+
+| R4 | utility(L)% | over-refusal% | disclosure(P)% | act refuse-safe% |
+|---|---|---|---|---|
+| D2R_PRINCIPLES | 77.4 | 9.7 | 42.3 | 96.0 |
+| **D6_PRINCIPLES_TIGHT** | **24.2** | **67.7** | **5.3** | **99.5** |
+
+读法：收紧把泄露压掉了（42.3→5.3，act refuse-safe 96→99.5），但 utility 塌了
+（77.4→24.2）——模型现在把 gold 判给 investor 的 62 个 L 里的大多数也拒了。
+两版政策合起来把 trade-off 钉死了：宽措辞多放 ~125 个 P，紧措辞多拒 ~33 个 L，
+中间没有一句自然语言能恰好切在 gold 的 62/338 边界上。这正是"oversight 关系
+授权语义天然含糊、原则式政策在此失效、需要 item 级授权（designated list 作为
+数据而非散文）"的完整定量证据——两个 run 都保留为 finding；按总分算 D6 版
+R4 明显更高（P 分母 338 ≫ L 分母 62），但按论文叙事应报 trade-off 本身。
+循环性纪律：D6 措辞同样只依据关系定义撰写，未参考 gold（utility 塌方本身即佐证）。
