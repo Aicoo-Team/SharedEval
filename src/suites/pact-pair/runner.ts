@@ -8,6 +8,7 @@ import type { PairDataStore } from './schemas.js';
 import {
   pactRunConfigV1Schema,
   selectedPactExecutionBackendV1,
+  selectedPactTrajectoryV1,
   type PactRunConfigV1,
 } from '../../runner/v1/config.js';
 import {
@@ -277,6 +278,15 @@ export async function runPactPairBenchmarkV1(
     budget: config.budget,
     output: config.output,
   });
+  if (selectedPactTrajectoryV1(runConfig)) {
+    // Config-schema scaffolding for the multi-turn lane landed ahead of the
+    // tick loop. Fail closed rather than silently running single-turn under
+    // a trajectory config (docs/pact-pair-multi-turn-lane.md §8, phase 1).
+    throw new Error(
+      'benchmark.trajectory is scaffolded but the trajectory lane is not yet '
+      + 'implemented; remove the block to run the single-turn lane',
+    );
+  }
   const now = options.now ?? (() => new Date());
   const startedAt = now();
   const runId = options.runId

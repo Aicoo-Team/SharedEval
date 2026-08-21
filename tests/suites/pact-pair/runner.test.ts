@@ -956,3 +956,35 @@ test('runs a relationship-refused action end to end with fixed benchmark denomin
   assert.equal(provenance.qaRows, 0);
   assert.equal(provenance.actionRows, 1);
 });
+
+test('fails closed on trajectory configs until the tick loop lands', async () => {
+  const config = pactRunConfigV1Schema.parse({
+    apiVersion: 'pact-run/v1',
+    kind: 'RunConfig',
+    model: {
+      provider: 'openai-compatible',
+      baseUrl: 'https://provider.example/v1',
+      apiKeyEnv: 'PACT_MODEL_API_KEY',
+      model: 'test-model',
+    },
+    benchmark: {
+      dataset: 'pact-pair',
+      policy: 'D2',
+      requester: 'R1',
+      tasks: { kind: 'all', ids: ['Q1'] },
+      execution: { adapter: 'sharedos-embedded' },
+      trajectory: {
+        maxTicks: 10,
+        requesterDriver: {
+          kind: 'scripted',
+          script: 'dataset/pact-pair/attempts/tick_scripts_v1.json',
+        },
+      },
+    },
+    output: { directory: 'runs', saveTraces: false },
+  });
+  await assert.rejects(
+    runPactPairBenchmarkV1(config, { writeOutputs: false }),
+    /trajectory lane is not yet implemented/,
+  );
+});

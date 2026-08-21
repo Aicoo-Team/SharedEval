@@ -187,9 +187,12 @@ Per trajectory run directory (one run = one config = N trajectories):
 
 ## 8. Implementation plan (phased, each phase lands green)
 
-1. **Scaffold** — config block + accessors, vocabulary types, trajectory/tick
-   artifact schemas in `artifacts.ts`, `trajectoryProtocol` in `run.json`.
-   Tests: config digest invariance, schema round-trips.
+1. **Scaffold** (landed with this doc) — `benchmark.trajectory` config block
+   (optional, no default: existing digests byte-identical) + accessor +
+   fail-closed runner guard so a trajectory config can never silently run
+   single-turn. Tests: parse/validate, digest-shape invariance, guard.
+   Trajectory/tick artifact schemas and `trajectoryProtocol` land with the
+   tick loop, whose code fixes their exact shape.
 2. **Tick loop (embedded)** — trajectory runner in the suite: persistent
    world handle, per-tick re-baselined grading, per-tick append. Scripted
    requester driver + ScriptedAdapter responder in tests; smoke config
