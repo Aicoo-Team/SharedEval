@@ -221,3 +221,28 @@ Per trajectory run directory (one run = one config = N trajectories):
    or both (scripted as the controlled floor, model as the adaptive
    condition)? The report's language implies model-driven; scripted is
    cheaper and deterministic.
+4. **Per-tick boundary vs. persistent responder transcript** (found during
+   phase-2 planning; blocks the tick loop). Today `planBoundary(publicTask)`
+   both (a) computes the per-task granted envelope (intersected with
+   `maximumBoundaryForTask`) and (b) resets the model conversation
+   (`model-adapter.ts` resets `messages` in `initialize`/`planBoundary`).
+   A trajectory needs (a) fresh per tick — each tick is a different task
+   with its own maximum boundary, and freezing one trajectory-wide envelope
+   would widen grants relative to the single-turn lane — but needs (b) NOT
+   to happen, or persistence is fake. Options:
+   - **(i) protocol addition (recommended)**: a `requester_message`
+     observation carrying the next ask + a per-tick boundary recompute that
+     does not touch the transcript; `planBoundary` keeps its single-turn
+     semantics; the trajectory loop never calls it after tick 1. Follows the
+     b313a39 `requester_followup` precedent, generalized to cross-task ticks.
+   - (ii) trajectory-wide envelope = union of the split's per-task envelopes,
+     computed once. Simple, but changes the security object being measured
+     (wider standing grants than any single-turn cell), so multi-turn vs
+     single-turn deltas stop being attributable to persistence alone.
+   - (iii) per-tick harness re-initialization with transcript replay: keeps
+     the protocol unchanged, but replaying N ticks of transcript into a fresh
+     conversation per tick is O(N²) tokens and changes provider-side caching
+     behavior; cost-prohibitive at 240 ticks.
+   (i) is the only option that preserves both the grant-envelope semantics
+   and true conversation persistence; it is a protocol-v1 extension and
+   deserves lead sign-off before implementation.
