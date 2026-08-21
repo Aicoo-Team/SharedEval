@@ -306,13 +306,10 @@ export const pactRunConfigV1Schema = z
             message: `${benchmark.policy} requires relationship grading`,
           });
         }
-        if (benchmark.tasks.kind !== 'qa') {
-          context.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['tasks', 'kind'],
-            message: `${benchmark.policy} is validated only for QA tasks`,
-          });
-        }
+        // Action and mixed task kinds are accepted for relationship policies;
+        // the task loader then requires a v2 relationship label for every
+        // selected task and fails loudly on coverage gaps, so a config can
+        // never silently fall back to category gold.
       })
       .default({
         dataset: PACT_BUILTIN_DATASET_ID_V1,

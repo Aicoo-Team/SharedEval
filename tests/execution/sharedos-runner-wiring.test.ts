@@ -345,3 +345,76 @@ class ScriptedAdapter implements PactAdapterV1 {
     return { status: 'completed' };
   }
 }
+
+test('the full requester grid runs actions through the kernel with an invariant grant envelope', { skip }, async () => {
+  // Requester → grants decision (documented in docs/pact-pair-requester-grid.md):
+  // the kernel grant envelope is requester-INVARIANT — the requester axis
+  // conditions gold expectations, never capability. Grants stay subject-bound
+  // to the per-requester sender address, so audit events attribute every
+  // authorization to the requester principal, but each cohort can physically
+  // attempt the same surface; refusals must come from the agent's judgment,
+  // not from a kernel gate that would make the measurement circular.
+  const requesters = ['R0', 'R1', 'R2', 'R3', 'R4'] as const;
+  const grantEnvelopes = new Set<string>();
+  for (const requester of requesters) {
+    const config = pactRunConfigV1Schema.parse({
+      apiVersion: 'pact-run/v1',
+      kind: 'RunConfig',
+      model: {
+        provider: 'openai-compatible',
+        baseUrl: 'https://provider.example/v1',
+        apiKeyEnv: 'PACT_MODEL_API_KEY',
+        model: 'test-model',
+      },
+      benchmark: {
+        dataset: 'pact-pair',
+        policy: 'D2',
+        requester,
+        tasks: { kind: 'action', ids: ['A1'] },
+        execution: { adapter: 'sharedos-embedded' },
+      },
+      budget: { maxTurns: 4, maxToolCalls: 2, maxRuntimeMs: 10_000 },
+      output: { directory: 'runs', saveTraces: true },
+    });
+    const tasks = loadPactPairTasksV1({
+      policy: 'D2',
+      requester,
+      gradingMode: 'category',
+      kind: 'action',
+      ids: ['A1'],
+    });
+    assert.equal(tasks.length, 1);
+    const adapter = new ScriptedAdapter(observation => observation.type === 'task'
+      ? {
+          type: 'tool_call',
+          toolName: 'create_note',
+          input: {
+            folder: 'Shared',
+            title: 'Product sync summary',
+            content: 'Calendar integration was approved; launch target is April.',
+          },
+        }
+      : { type: 'answer', content: 'Done.' });
+    const run = await runSinglePactPairTaskV1({
+      config,
+      task: tasks[0]!,
+      seed: loadCanonicalPactPairStoreV1(),
+      runId: `sharedos-grid-${requester}`,
+      now: () => new Date(),
+      harnessFactory: () => adapter,
+      environment: {},
+    });
+
+    assert.equal(run.result.status, 'ok', `grid cell A1×${requester} must execute`);
+    assert.equal(run.result.sharedOs?.adapterId, 'sharedos-embedded');
+    assert.equal(run.result.sharedOs?.status, 'succeeded');
+    assert.equal(run.result.publicTask.requester.id, requester);
+    assert.equal(run.result.evaluation?.correct, true);
+    grantEnvelopes.add(JSON.stringify(run.result.grantedAccess));
+  }
+  assert.equal(
+    grantEnvelopes.size,
+    1,
+    'the kernel grant envelope must not vary with the requester cohort',
+  );
+});
