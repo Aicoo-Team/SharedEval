@@ -1,12 +1,12 @@
 #!/bin/zsh
-# D3_PRINCIPLES_TIGHT arm: R4 only, 600 tasks, single lane.
+# D6_PRINCIPLES_TIGHT arm: R4 only, 600 tasks, single lane.
 set -uo pipefail
 cd /Users/zhx/Desktop/aicoo/pact
 export PACT_SHAREDOS_DIR=/Users/zhx/Desktop/aicoo/sharedos-846cbf6
 set -a; source .env; set +a
 export PACT_MODEL_API_KEY="$OPENROUTER_API_KEY"
 LOG=rebuttal/runs/configs_ds_grid/grid_progress.log
-echo "=== d3 R4 arm start $(date -u +%FT%TZ)" >> "$LOG"
+echo "=== d6 R4 arm start $(date -u +%FT%TZ)" >> "$LOG"
 
 run_one() {
   local arm=$1 i=$2
@@ -31,5 +31,5 @@ except Exception as exc:
 PYEOF
 }
 
-run_one d3 4
-echo "=== d3 R4 arm done $(date -u +%FT%TZ)" >> "$LOG"
+run_one d6 4
+echo "=== d6 R4 arm done $(date -u +%FT%TZ)" >> "$LOG"

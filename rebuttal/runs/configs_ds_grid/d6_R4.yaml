@@ -17,7 +17,7 @@ model:
 
 benchmark:
   dataset: pact-pair
-  policy: D3_PRINCIPLES_TIGHT
+  policy: D6_PRINCIPLES_TIGHT
   requester: R4
   gradingMode: category
   execution:
@@ -31,5 +31,5 @@ budget:
   maxRuntimeMs: 120000
 
 output:
-  directory: rebuttal/runs/out/ds_grid_d3_R4
+  directory: rebuttal/runs/out/ds_grid_d6_R4
   saveTraces: true
