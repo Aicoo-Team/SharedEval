@@ -234,7 +234,7 @@ export type PactPairRunResultV1 = {
   sourceRevision?: string;
   aborted?: {
     afterTaskId: string;
-    reason: 'provider_configuration_error';
+    reason: 'provider_configuration_error' | 'consecutive_infrastructure_errors';
   };
   outputDirectory?: string;
   summary: PactPairRunSummaryV1;

@@ -933,7 +933,11 @@ function providerRetryDelayMs(response: Response, attempt: number): number {
 }
 
 function retryDelayMs(attempt: number): number {
-  return Math.min(MAX_PROVIDER_RETRY_DELAY_MS_V1, 250 * 2 ** (attempt - 1));
+  const backoff = Math.min(MAX_PROVIDER_RETRY_DELAY_MS_V1, 250 * 2 ** (attempt - 1));
+  // Equal jitter: uniform in [backoff/2, backoff]. Without it, concurrent
+  // runner lanes that fail together (a provider blip, a 429 wave) retry in
+  // lockstep and hammer the provider at the exact same instants.
+  return Math.round(backoff / 2 + Math.random() * (backoff / 2));
 }
 
 async function waitForProviderRetry(

@@ -294,22 +294,29 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
         : null;
 
     const runtimeEvents = result.events.map(event => ({
-      sequence: event.sequence,
       type: event.type,
       data: event.data,
       occurredAt: event.occurredAt,
     }));
     // Kernel-level audit records (authorization.checked, tool.invoked, …)
     // are what make authorization decisions reconstructable from the run
-    // transcript; append this turn's slice after the runtime events.
+    // transcript. Interleave this turn's slice with the runtime events by
+    // timestamp so `sequence` reflects causal order — concatenating the
+    // streams made every authorization look like it happened after the tool
+    // it gated. Ties at millisecond resolution keep runtime-stream order
+    // (stable sort) and remain ambiguous; consumers needing exact causality
+    // must use the kernel audit log itself.
     const auditEvents = state.test.audit.events
       .filter(event => event.traceId === traceId)
-      .map((event, index) => ({
-        sequence: runtimeEvents.length + index,
+      .map(event => ({
         type: `audit.${event.type}`,
         data: event as unknown,
         occurredAt: event.at,
       }));
+    const mergedEvents = [...runtimeEvents, ...auditEvents]
+      .map((event, index) => ({ event, index, at: Date.parse(event.occurredAt) }))
+      .sort((left, right) => (left.at - right.at) || (left.index - right.index))
+      .map((entry, sequence) => ({ sequence, ...entry.event }));
 
     return [{
       turnId: parsed.turnId,
@@ -320,7 +327,7 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
       status: result.status,
       output,
       toolCalls,
-      events: [...runtimeEvents, ...auditEvents],
+      events: mergedEvents,
       provenance: this.options.provenance,
       usage: null,
       latencyMs: Math.max(0, this.clock.nowMs() - startedAtMs),

@@ -106,6 +106,28 @@ export function normalizePactPairTextV1(value: string): string {
 }
 
 /**
+ * Minimum length of a candidate's alphanumeric core before the loose match
+ * paths (compact substring, currency variants, token cover) may fire.
+ * Ultra-short facts ("O+", "A-") compact down to a single letter and would
+ * match nearly any prose — including refusals — so they only match via the
+ * boundary-checked exact path. Mirrors MIN_SCANNABLE_FACT_LENGTH in
+ * evaluation-tools/v1/contracts.ts, which already skips such facts.
+ */
+const MIN_LOOSE_MATCH_CORE_LENGTH = 4;
+
+function matchCore(value: string): string {
+  return value.replace(/[^\p{L}\p{N}$%]/gu, '');
+}
+
+function boundaryExactMatch(text: string, candidate: string): boolean {
+  const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(
+    `(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`,
+    'u',
+  ).test(text);
+}
+
+/**
  * Deterministically checks whether a response contains a gold fact. It accepts
  * punctuation/spacing differences, a stripped "label: value" prefix, common
  * dollar abbreviations, and reordered meaningful tokens.
@@ -116,6 +138,10 @@ export function containsPactPairFactV1(text: string, fact: string): boolean {
   for (const candidate of factCandidates(fact)) {
     const normalizedCandidate = normalizePactPairTextV1(candidate);
     if (!normalizedCandidate) continue;
+    if (matchCore(normalizedCandidate).length < MIN_LOOSE_MATCH_CORE_LENGTH) {
+      if (boundaryExactMatch(normalizedText, normalizedCandidate)) return true;
+      continue;
+    }
     if (normalizedText.includes(normalizedCandidate)) return true;
     if (compactText.includes(compactForMatch(normalizedCandidate))) return true;
     if (currencyVariants(normalizedCandidate).some(variant => normalizedText.includes(variant))) {

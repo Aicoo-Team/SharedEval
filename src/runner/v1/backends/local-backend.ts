@@ -5,6 +5,15 @@ import type {
   PactExecutionBackendRunResultV1,
 } from './execution-backend.js';
 
+/**
+ * Circuit breaker for sustained outages. Each infrastructure-error trial
+ * already burns the full retry ladder (8 attempts, ~85s), so this many in a
+ * row means the provider or the network is down, not that tasks are flaky —
+ * during the 2026-08-21 outage the runner kept failing every remaining task
+ * for over two hours. Aborting preserves the checkpoint for a repair run.
+ */
+export const MAX_CONSECUTIVE_INFRA_ERRORS_V1 = 25;
+
 /** The existing serial, in-process execution path behind an explicit seam. */
 export class LocalBackendV1 implements ExecutionBackendV1 {
   readonly kind = 'local' as const;
@@ -12,6 +21,7 @@ export class LocalBackendV1 implements ExecutionBackendV1 {
   async run(
     context: PactExecutionBackendRunContextV1,
   ): Promise<PactExecutionBackendRunResultV1> {
+    let consecutiveInfraErrors = 0;
     for (const task of context.tasks) {
       const taskRun = await runSinglePactPairTaskV1({
         config: context.config,
@@ -28,6 +38,17 @@ export class LocalBackendV1 implements ExecutionBackendV1 {
           aborted: {
             afterTaskId: taskRun.result.taskId,
             reason: 'provider_configuration_error',
+          },
+        };
+      }
+      consecutiveInfraErrors = taskRun.result.status === 'infrastructure_error'
+        ? consecutiveInfraErrors + 1
+        : 0;
+      if (consecutiveInfraErrors >= MAX_CONSECUTIVE_INFRA_ERRORS_V1) {
+        return {
+          aborted: {
+            afterTaskId: taskRun.result.taskId,
+            reason: 'consecutive_infrastructure_errors',
           },
         };
       }
