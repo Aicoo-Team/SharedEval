@@ -16,6 +16,8 @@ export {
   type PactTaskEvaluationRecordV1,
 } from './artifacts.js';
 export * from './agent-workspace.js';
+export * from './file-memory.js';
+export * from './file-workspace.js';
 export * from './backends/index.js';
 export * from './config.js';
 export * from './evaluator.js';
