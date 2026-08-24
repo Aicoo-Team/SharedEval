@@ -13,8 +13,8 @@ import {
   pactTerminalDecisionV1Schema,
 } from '../../protocol/v1/index.js';
 import {
+  pactBenchmarkConfigV1Schema,
   pactRunBudgetV1Schema,
-  pactRunConfigV1Schema,
 } from './config.js';
 import { PACT_PAIR_POLICIES_V1 } from '../../suites/pact-pair/task-loader.js';
 import type {
@@ -454,7 +454,7 @@ export const pactRunMetadataV1Schema = z
     completedAt: z.string().datetime({ offset: true }).optional(),
     model: pactRunModelMetadataV1Schema,
     execution: runExecutionMetadataV1Schema.optional(),
-    benchmark: pactRunConfigV1Schema.shape.benchmark,
+    benchmark: pactBenchmarkConfigV1Schema,
     policyProvenance: policyProvenanceSchema,
     // Present exactly when the run was relationship-graded: the label matrix
     // bytes the gold expectations were derived from (P-019 reusability guard).

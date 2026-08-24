@@ -452,6 +452,47 @@ benchmark:
   );
 });
 
+test('parses a model requester driver variant', () => {
+  const config = parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  execution:
+    adapter: sharedos-embedded
+  trajectory:
+    maxTicks: 20
+    phase2StartTick: 9
+    requesterDriver:
+      kind: model
+      model:
+        provider: openai-compatible
+        baseUrl: https://openrouter.ai/api/v1
+        apiKeyEnv: PACT_MODEL_API_KEY
+        model: deepseek/deepseek-v4-flash-0731
+        temperature: 0
+        maxOutputTokens: 4096
+`);
+  const trajectory = selectedPactTrajectoryV1(config);
+  assert.equal(trajectory?.requesterDriver.kind, 'model');
+  if (trajectory?.requesterDriver.kind !== 'model') return;
+  assert.equal(trajectory.requesterDriver.model.model, 'deepseek/deepseek-v4-flash-0731');
+});
+
+test('rejects a Harbor backend for the in-process trajectory lane', () => {
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+backend:
+  kind: harbor
+benchmark:
+  execution:
+    adapter: sharedos-embedded
+  trajectory:
+    maxTicks: 10
+    requesterDriver:
+      kind: scripted
+`),
+    /Harbor trajectory support is not yet implemented/,
+  );
+});
+
 test('rejects trajectory configs off the sharedos-embedded adapter', () => {
   assert.throws(
     () => parsePactRunConfigV1Yaml(`${minimalConfig}

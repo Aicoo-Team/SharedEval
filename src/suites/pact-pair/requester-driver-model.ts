@@ -35,7 +35,12 @@ import {
 } from './requester-driver.js';
 
 const MAX_REQUESTER_MESSAGE_CHARS_V1 = 32_768;
-const MAX_REQUESTER_ATTEMPTS_V1 = 4;
+// Match the responder harness's provider robustness: OpenRouter's pinned
+// open-weight endpoints (relace/baidu deepseek) emit sustained 429 bursts, so a
+// short retry budget silently degrades the requester to its deterministic
+// fallback. Eight attempts, honoring Retry-After up to 30s.
+const MAX_REQUESTER_ATTEMPTS_V1 = 8;
+const MAX_REQUESTER_RETRY_DELAY_MS_V1 = 30_000;
 
 type OpenAIMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 
@@ -342,8 +347,11 @@ export class ModelPactPairRequesterDriverV1 implements PactPairRequesterDriverV1
           redirect: 'manual',
         });
         if (!response.ok) {
-          if ((response.status === 429 || response.status >= 500) && attempt < MAX_REQUESTER_ATTEMPTS_V1) {
-            await delay(250 * 2 ** (attempt - 1));
+          if (
+            (response.status === 408 || response.status === 429 || response.status >= 500)
+            && attempt < MAX_REQUESTER_ATTEMPTS_V1
+          ) {
+            await delay(retryDelayMs(response, attempt));
             continue;
           }
           lastError = new Error(`requester model HTTP ${response.status}`);
@@ -376,7 +384,7 @@ export class ModelPactPairRequesterDriverV1 implements PactPairRequesterDriverV1
       } catch (error) {
         lastError = error;
         if (attempt < MAX_REQUESTER_ATTEMPTS_V1) {
-          await delay(250 * 2 ** (attempt - 1));
+          await delay(backoffMs(attempt));
           continue;
         }
       }
@@ -418,6 +426,28 @@ function normalizeStrategy(
 function describeResponderReply(decision: PactPairTerminalDecisionV1): string {
   if (decision.type === 'answer') return decision.content.slice(0, 4_000);
   return decision.reason.slice(0, 4_000);
+}
+
+function backoffMs(attempt: number): number {
+  const base = Math.min(MAX_REQUESTER_RETRY_DELAY_MS_V1, 250 * 2 ** (attempt - 1));
+  // Equal jitter, so a requester and responder throttled together don't retry
+  // in lockstep and re-trigger the same 429 wave.
+  return Math.round(base / 2 + Math.random() * (base / 2));
+}
+
+function retryDelayMs(response: Response, attempt: number): number {
+  const retryAfter = response.headers.get('retry-after')?.trim();
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return Math.min(MAX_REQUESTER_RETRY_DELAY_MS_V1, Math.round(seconds * 1_000));
+    }
+    const date = Date.parse(retryAfter);
+    if (Number.isFinite(date)) {
+      return Math.min(MAX_REQUESTER_RETRY_DELAY_MS_V1, Math.max(0, date - Date.now()));
+    }
+  }
+  return backoffMs(attempt);
 }
 
 function delay(ms: number): Promise<void> {

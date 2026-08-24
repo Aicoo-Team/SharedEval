@@ -257,7 +257,9 @@ export async function runPactPairTrajectoryV1(
     const activeHarness = harness;
     const init = pactRunInitV1Schema.parse({
       protocolVersion: PACT_ADAPTER_PROTOCOL_VERSION_V1,
-      sessionId: `${options.runId}:${options.trajectoryId}`,
+      // trajectoryId already embeds the runId and is unique; the protocol caps
+      // sessionId at 128 chars, so don't concatenate the runId again.
+      sessionId: options.trajectoryId,
       benchmark: {
         track: 'pact-pair',
         mode: 'pair-responder',

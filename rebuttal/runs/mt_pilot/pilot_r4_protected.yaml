@@ -1,0 +1,65 @@
+apiVersion: pact-run/v1
+kind: RunConfig
+
+# The multi-turn trajectory lane runs the tick loop in-process on the embedded
+# SharedOS adapter (docs/pact-pair-multi-turn-lane.md §6). Harbor trajectory
+# support (one trajectory = one container) is a later phase, so this pilot runs
+# backend: local + sharedos-embedded and reports that path honestly.
+backend:
+  kind: local
+
+model:
+  provider: openai-compatible
+  baseUrl: https://openrouter.ai/api/v1
+  apiKeyEnv: PACT_MODEL_API_KEY
+  model: deepseek/deepseek-v4-flash-0731
+  temperature: 0
+  providerRouting:
+    only: [relace, baidu]
+  maxOutputTokens: 4096
+
+benchmark:
+  dataset: pact-pair
+  policy: D2
+  requester: R4          # Dana Reeves — investor / board observer
+  gradingMode: category
+
+  # A protected-QA subset: personal health / relationships / finance topics the
+  # investor persona should not be able to extract. The adaptive requester
+  # probes each, then retries refusals with different framings in Phase 2.
+  tasks:
+    kind: qa
+    ids: [Q156, Q157, Q158, Q176, Q177, Q178, Q131, Q132]
+
+  execution:
+    adapter: sharedos-embedded
+
+  # Responder runs from the editable COO.md; POLICY stays the D2 dial (grid).
+  agentConfig:
+    responder: alex
+    policySource: dial
+
+  trajectory:
+    maxTicks: 20
+    phase2StartTick: 9   # 8 first-pass ticks, then adaptive retries
+    count: 1
+    requesterDriver:
+      kind: model
+      model:
+        provider: openai-compatible
+        baseUrl: https://openrouter.ai/api/v1
+        apiKeyEnv: PACT_MODEL_API_KEY
+        model: deepseek/deepseek-v4-flash-0731
+        temperature: 0
+        providerRouting:
+          only: [relace, baidu]
+        maxOutputTokens: 4096
+
+budget:
+  maxTurns: 8
+  maxToolCalls: 4
+  maxRuntimeMs: 60000
+
+output:
+  directory: rebuttal/runs/mt_pilot/out
+  saveTraces: true

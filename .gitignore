@@ -19,6 +19,13 @@ rebuttal/runs/*
 !rebuttal/runs/configs_ds_grid/
 !rebuttal/runs/judge_agreement_check.py
 !rebuttal/runs/judge_agreement_out/
+# Multi-turn pilot: track the config, launcher, and README, but not the run
+# outputs under out/ or the progress/stdout/stderr logs.
+!rebuttal/runs/mt_pilot/
+rebuttal/runs/mt_pilot/*
+!rebuttal/runs/mt_pilot/pilot_r4_protected.yaml
+!rebuttal/runs/mt_pilot/run_pilot.sh
+!rebuttal/runs/mt_pilot/README.md
 results/raw/
 *.log
 

@@ -352,16 +352,10 @@ export const pactExecutionBackendConfigV1Schema = z.discriminatedUnion('kind', [
     .strict(),
 ]);
 
-export const pactRunConfigV1Schema = z
-  .object({
-    apiVersion: z.literal(PACT_RUN_CONFIG_API_VERSION_V1),
-    kind: z.literal('RunConfig'),
-    // Kept optional in the parsed representation so existing configurations
-    // retain their byte-identical reproducibility digest. Absence selects the
-    // local backend through selectedPactExecutionBackendV1 below.
-    backend: pactExecutionBackendConfigV1Schema.optional(),
-    model: pactModelConfigV1Schema,
-    benchmark: z
+// Extracted so consumers (artifacts.ts) can reference the benchmark schema
+// directly; the top-level pactRunConfigV1Schema below carries a superRefine,
+// which makes it a ZodEffects with no `.shape` accessor.
+export const pactBenchmarkConfigV1Schema = z
       .object({
         dataset: z.literal(PACT_BUILTIN_DATASET_ID_V1).default(PACT_BUILTIN_DATASET_ID_V1),
         policy: z.enum(PACT_PAIR_POLICIES_V1).default('D2'),
@@ -420,7 +414,18 @@ export const pactRunConfigV1Schema = z
         requester: 'R1',
         gradingMode: 'category',
         tasks: { kind: 'all' },
-      }),
+      });
+
+export const pactRunConfigV1Schema = z
+  .object({
+    apiVersion: z.literal(PACT_RUN_CONFIG_API_VERSION_V1),
+    kind: z.literal('RunConfig'),
+    // Kept optional in the parsed representation so existing configurations
+    // retain their byte-identical reproducibility digest. Absence selects the
+    // local backend through selectedPactExecutionBackendV1 below.
+    backend: pactExecutionBackendConfigV1Schema.optional(),
+    model: pactModelConfigV1Schema,
+    benchmark: pactBenchmarkConfigV1Schema,
     budget: pactRunBudgetV1Schema.default({
       maxTurns: 8,
       maxToolCalls: 4,
@@ -434,7 +439,24 @@ export const pactRunConfigV1Schema = z
       .strict()
       .default({ directory: 'runs', saveTraces: false }),
   })
-  .strict();
+  .strict()
+  .superRefine((config, context) => {
+    // The trajectory lane runs the tick loop in-process on the embedded
+    // adapter (docs/pact-pair-multi-turn-lane.md §6). Harbor trajectory support
+    // (one trajectory = one container) is a later phase; accepting backend
+    // harbor here would record a backend the run never used — the exact false
+    // provenance the lead audit forbids. Fail closed until it lands.
+    if (config.benchmark.trajectory !== undefined && config.backend?.kind === 'harbor') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['backend'],
+        message:
+          'the trajectory lane runs in-process on the embedded adapter; '
+          + 'Harbor trajectory support is not yet implemented (docs/pact-pair-multi-turn-lane.md §6). '
+          + 'Use backend local for trajectory runs.',
+      });
+    }
+  });
 
 export type PactOpenAICompatibleModelConfigV1 = z.infer<
   typeof pactOpenAICompatibleModelConfigV1Schema

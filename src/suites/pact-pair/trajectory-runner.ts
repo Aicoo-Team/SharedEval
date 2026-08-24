@@ -47,7 +47,10 @@ import {
   type PactPairRequesterDriverProvenanceV1,
   type PactPairRetryStrategyV1,
 } from './requester-driver.js';
-import { createModelPactPairRequesterDriverV1 } from './requester-driver-model.js';
+import {
+  createModelPactPairRequesterDriverV1,
+  ModelPactPairRequesterDriverV1,
+} from './requester-driver-model.js';
 import type { PactTrajectoryProtocolV1 } from '../../runner/v1/artifacts.js';
 
 const repositoryRoot = resolve(
@@ -84,6 +87,21 @@ export type PactPairTrajectorySummaryV1 = {
   itemsAnswered: number;
   itemsRefused: number;
   itemsPending: number;
+  /**
+   * Requester-side model usage/cost, aggregated across trajectories. Absent for
+   * the scripted driver (no model calls). The responder-side usage lives in the
+   * frozen summary.provider block; keeping the requester cost separate makes
+   * total run cost honestly attributable to each side.
+   */
+  requesterModel?: {
+    requests: number;
+    fallbackTicks: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    costUsd?: number;
+    servedModels: string[];
+  };
 };
 
 export async function runPactPairTrajectoryBenchmarkV1(
@@ -215,8 +233,17 @@ export async function runPactPairTrajectoryBenchmarkV1(
 
   const trajectoryResults: PactPairTrajectoryResultV1[] = [];
   const trajectoryRows: PactPairTrajectoryPublicRowV1[] = [];
+  const requesterUsage: Array<{
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    costUsd?: number;
+    servedModel?: string;
+    fallback: boolean;
+  }> = [];
   for (let index = 0; index < trajectory.count; index += 1) {
     const trajectoryId = `${runId}:traj-${index + 1}`;
+    const driver = makeDriver();
     const result = await runPactPairTrajectoryV1({
       config: runConfig,
       tasks,
@@ -230,10 +257,14 @@ export async function runPactPairTrajectoryBenchmarkV1(
       trajectoryRuntimeMs: trajectory.maxRuntimeMs,
       now,
       harnessFactory,
-      driver: makeDriver(),
+      driver,
       environment,
     });
     trajectoryResults.push(result);
+    // Requester-side model usage lives on the driver, not the responder harness.
+    if (driver instanceof ModelPactPairRequesterDriverV1) {
+      requesterUsage.push(...driver.usageRecords());
+    }
     const row = toPublicTrajectoryRow(result);
     trajectoryRows.push(row);
     if (outputDirectory) {
@@ -248,6 +279,8 @@ export async function runPactPairTrajectoryBenchmarkV1(
   // block with the aggregate across every trajectory's single harness.
   summary.provider = aggregateProviderTelemetry(trajectoryResults);
   const trajectorySummary = summarizeTrajectories(trajectoryResults);
+  const requesterModel = aggregateRequesterUsage(requesterUsage);
+  if (requesterModel) trajectorySummary.requesterModel = requesterModel;
 
   const completedAt = now().toISOString();
   const status = summary.errors > 0 ? 'completed_with_errors' : 'completed';
@@ -393,6 +426,38 @@ function summarizeTrajectories(
     itemsAnswered,
     itemsRefused,
     itemsPending,
+  };
+}
+
+function aggregateRequesterUsage(
+  usage: Array<{
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    costUsd?: number;
+    servedModel?: string;
+    fallback: boolean;
+  }>,
+): PactPairTrajectorySummaryV1['requesterModel'] | undefined {
+  if (usage.length === 0) return undefined;
+  const sum = (key: 'promptTokens' | 'completionTokens' | 'totalTokens' | 'costUsd') => {
+    const values = usage.flatMap(record => {
+      const value = record[key];
+      return typeof value === 'number' ? [value] : [];
+    });
+    return values.length === 0 ? undefined : values.reduce((total, value) => total + value, 0);
+  };
+  const servedModels = [
+    ...new Set(usage.flatMap(record => (record.servedModel ? [record.servedModel] : []))),
+  ].sort();
+  return {
+    requests: usage.filter(record => !record.fallback).length,
+    fallbackTicks: usage.filter(record => record.fallback).length,
+    ...(sum('promptTokens') === undefined ? {} : { promptTokens: sum('promptTokens') }),
+    ...(sum('completionTokens') === undefined ? {} : { completionTokens: sum('completionTokens') }),
+    ...(sum('totalTokens') === undefined ? {} : { totalTokens: sum('totalTokens') }),
+    ...(sum('costUsd') === undefined ? {} : { costUsd: sum('costUsd') }),
+    servedModels,
   };
 }
 
