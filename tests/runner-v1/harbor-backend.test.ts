@@ -13,10 +13,12 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import {
   collectHarborTaskRunsV1,
+  collectSettledHarborTrialsV1,
   HarborBackendV1,
   PACT_HARBOR_IMAGE_V1,
   PACT_HARBOR_SMOKE_TASK_IDS_V1,
   PACT_HARBOR_VERSION_V1,
+  streamHarborTrialsV1,
 } from '../../src/runner/v1/backends/harbor-backend.js';
 import { materializeHarborDatasetV1 } from '../../src/runner/v1/backends/harbor-task-package.js';
 import { buildPactContainerRunConfigV1 } from '../../src/runner/v1/container-entrypoint.js';
@@ -26,6 +28,7 @@ import {
 } from '../../src/runner/v1/config.js';
 import { runPactPairBenchmarkV1 } from '../../src/runner/v1/runner.js';
 import { createScriptedPactHarnessV1 } from '../../src/runner/v1/scripted-harness.js';
+import { loadCanonicalPactPairStoreV1 } from '../../src/suites/pact-pair/workspace.js';
 import {
   loadPactPairSplitTaskIdsV1,
   loadPactPairTasksV1,
@@ -389,6 +392,200 @@ test('split-01 example config selects the split ids in canonical order', async (
   assert.equal(config.backend?.kind, 'harbor');
   assert.deepEqual(config.benchmark.tasks.ids, expected);
 });
+
+test('collects only trials with a Harbor completion marker', async t => {
+  const fixture = await buildVerifierFixture(t, ['PAIR-Q1', 'PAIR-Q101']);
+
+  // Container artifacts exist, but Harbor has not written the trial-level
+  // result.json yet: nothing is settled, so nothing may stream.
+  const before = await collectSettledHarborTrialsV1(
+    fixture.jobsDirectory,
+    fixture.tasks,
+    new Set(),
+  );
+  assert.equal(before.size, 0);
+
+  await writeTrialCompletionMarker(fixture, 'PAIR-Q1');
+  const settled = await collectSettledHarborTrialsV1(
+    fixture.jobsDirectory,
+    fixture.tasks,
+    new Set(),
+  );
+  assert.deepEqual([...settled.keys()], ['PAIR-Q1']);
+  assert.equal(settled.get('PAIR-Q1')?.result.status, 'ok');
+
+  // Already-emitted trials are excluded from later polls.
+  const again = await collectSettledHarborTrialsV1(
+    fixture.jobsDirectory,
+    fixture.tasks,
+    new Set(['PAIR-Q1']),
+  );
+  assert.equal(again.size, 0);
+});
+
+test('streams each settled trial to the host once while the job runs', async t => {
+  const fixture = await buildVerifierFixture(t, ['PAIR-Q1', 'PAIR-Q101']);
+  let finishJob = () => {};
+  const jobDone = new Promise<void>(resolve => { finishJob = resolve; });
+  const emissions: string[] = [];
+  let jobFinished = false;
+  const streaming = streamHarborTrialsV1({
+    jobsDirectory: fixture.jobsDirectory,
+    tasks: fixture.tasks,
+    untilSettled: jobDone,
+    pollIntervalMs: 10,
+    onTaskRun: async taskRun => {
+      assert.equal(jobFinished, false, 'trials must stream before the job exits');
+      emissions.push(taskRun.result.taskId);
+    },
+  });
+
+  // Corrupt PAIR-Q101's canonical artifact: even once its marker appears,
+  // the streaming poll must skip it silently instead of failing the run.
+  const q101Verifier = fixture.verifierDirectories.get('PAIR-Q101') ?? '';
+  const validQ101 = await readFile(join(q101Verifier, 'pact-result.json'), 'utf8');
+  await writeFile(join(q101Verifier, 'pact-result.json'), '{ not json', 'utf8');
+
+  await writeTrialCompletionMarker(fixture, 'PAIR-Q1');
+  await writeTrialCompletionMarker(fixture, 'PAIR-Q101');
+  await waitFor(() => emissions.length >= 1);
+  assert.deepEqual(emissions, ['PAIR-Q1']);
+
+  // The artifact becomes readable on a later poll and streams exactly once.
+  await writeFile(join(q101Verifier, 'pact-result.json'), validQ101, 'utf8');
+  await waitFor(() => emissions.length >= 2);
+  assert.deepEqual(emissions, ['PAIR-Q1', 'PAIR-Q101']);
+
+  // Let a few more polls elapse: nothing is ever emitted twice.
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.deepEqual(emissions, ['PAIR-Q1', 'PAIR-Q101']);
+
+  jobFinished = true;
+  finishJob();
+  const emitted = await streaming;
+  assert.deepEqual([...emitted].sort(), ['PAIR-Q1', 'PAIR-Q101']);
+});
+
+test('retries and durably emits a trial whose host checkpoint rejects once', async t => {
+  const fixture = await buildVerifierFixture(t, ['PAIR-Q1']);
+  let finishJob = () => {};
+  const jobDone = new Promise<void>(resolve => { finishJob = resolve; });
+  const emissions: string[] = [];
+  let attempts = 0;
+  const streaming = streamHarborTrialsV1({
+    jobsDirectory: fixture.jobsDirectory,
+    tasks: fixture.tasks,
+    untilSettled: jobDone,
+    pollIntervalMs: 10,
+    onTaskRun: async taskRun => {
+      attempts += 1;
+      // The host's checkpoint append fails once (e.g. a transient write
+      // error), then recovers.
+      if (attempts === 1) throw new Error('checkpoint write failed');
+      emissions.push(taskRun.result.taskId);
+    },
+  });
+
+  await writeTrialCompletionMarker(fixture, 'PAIR-Q1');
+  // The rejected callback must not mark the trial emitted: the next poll
+  // hands the same settled trial to the host again, exactly once more.
+  await waitFor(() => emissions.length >= 1);
+  assert.equal(attempts, 2);
+  assert.deepEqual(emissions, ['PAIR-Q1']);
+
+  // Once durably checkpointed, later polls never re-emit it.
+  await new Promise(resolve => setTimeout(resolve, 50));
+  assert.deepEqual(emissions, ['PAIR-Q1']);
+
+  finishJob();
+  const emitted = await streaming;
+  assert.deepEqual([...emitted], ['PAIR-Q1']);
+});
+
+test('a persistently failing host checkpoint leaves the trial un-emitted', async t => {
+  const fixture = await buildVerifierFixture(t, ['PAIR-Q1']);
+  let finishJob = () => {};
+  const jobDone = new Promise<void>(resolve => { finishJob = resolve; });
+  let attempts = 0;
+  const streaming = streamHarborTrialsV1({
+    jobsDirectory: fixture.jobsDirectory,
+    tasks: fixture.tasks,
+    untilSettled: jobDone,
+    pollIntervalMs: 10,
+    onTaskRun: async () => {
+      attempts += 1;
+      throw new Error('checkpoint write failed');
+    },
+  });
+
+  await writeTrialCompletionMarker(fixture, 'PAIR-Q1');
+  // A callback failure is retried on every poll — never swallowed as a scan
+  // race that would leave the trial permanently marked emitted.
+  await waitFor(() => attempts >= 3);
+  finishJob();
+  const emitted = await streaming;
+  // The id stays out of the emitted set, so the caller's final sweep hands
+  // the trial to the host once more (and fails loudly if that also rejects)
+  // instead of silently skipping a never-checkpointed trial.
+  assert.equal(emitted.size, 0);
+});
+
+test('Harbor run fails loudly when the host checkpoint keeps failing', async () => {
+  // The final sweep must propagate a rejected onTaskRun instead of completing
+  // a run whose trials were never durably checkpointed. The nonexistent
+  // toolchain keeps this Docker-free: the sweep still hands every task's
+  // (backend-error) run to the host checkpoint, whose failure must surface.
+  const backend = new HarborBackendV1({
+    dockerExecutable: 'pact-nonexistent-docker-binary',
+    harborExecutable: 'pact-nonexistent-harbor-binary',
+  });
+  await assert.rejects(
+    backend.run({
+      config: configFor('harbor', ['PAIR-Q1']),
+      tasks: loadPactPairTasksV1({
+        policy: 'D2',
+        requester: 'R1',
+        gradingMode: 'category',
+        ids: ['PAIR-Q1'],
+      }),
+      seed: loadCanonicalPactPairStoreV1(),
+      runId: 'harbor-checkpoint-failure',
+      now: () => new Date('2026-01-01T00:00:00Z'),
+      harnessFactory: () => createScriptedPactHarnessV1(),
+      environment: {},
+      onTaskRun: async () => {
+        throw new Error('host checkpoint permanently failing');
+      },
+    }),
+    /host checkpoint permanently failing/,
+  );
+});
+
+async function writeTrialCompletionMarker(
+  fixture: VerifierFixture,
+  taskId: string,
+): Promise<void> {
+  // Harbor writes the trial-level result.json (a sibling of the verifier
+  // directory) only after the task container has exited.
+  const verifierDirectory = fixture.verifierDirectories.get(taskId);
+  assert.ok(verifierDirectory);
+  await writeFile(
+    join(dirname(verifierDirectory), 'result.json'),
+    '{}\n',
+    'utf8',
+  );
+}
+
+async function waitFor(
+  condition: () => boolean,
+  timeoutMs = 2_000,
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!condition()) {
+    if (Date.now() > deadline) throw new Error('waitFor timed out');
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+}
 
 type VerifierFixture = {
   jobsDirectory: string;

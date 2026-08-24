@@ -1,4 +1,4 @@
-import { appendFile, mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
@@ -19,6 +19,16 @@ import {
   type ExecutionBackendV1,
   type PactRunExecutionMetadataV1,
 } from '../../runner/v1/backends/index.js';
+import {
+  acquirePactPairRunWriterLockV1,
+  canonicalizePactPairRunArtifactsV1,
+  commitPactPairTaskRunV1,
+  compactResumedRunArtifactsV1,
+  loadPactPairResumeStateV1,
+  PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1,
+  type PactPairResumeStateV1,
+  type PactPairRunWriterLockV1,
+} from './resume.js';
 import { loadPactPairTasksV1 } from './task-loader.js';
 import { loadCanonicalPactPairStoreV1 } from './workspace.js';
 import type {
@@ -59,19 +69,14 @@ export type {
 
 const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-/**
- * Private-artifact contract for a run output directory.
- *
- * Public artifacts (the output directory root) never contain gold labels,
- * gold facts, or raw workspace content: `run.json`, `summary.json`,
- * `results.jsonl`, and `checkpoint.json` carry only the public result shape.
- *
- * Everything derived from private gold — the full evaluation records
- * (`evaluation.jsonl`) and the raw traces (`trace.jsonl`) — lives under the
- * `private/` subdirectory and is written only when `output.saveTraces` is
- * true. With `saveTraces: false` no gold-bearing artifact is persisted at all.
- */
-export const PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1 = 'private' as const;
+// The private-artifact contract (and its documentation) lives in resume.ts
+// beside the code that re-reads the checkpoint artifacts; re-exported here for
+// compatibility.
+export {
+  PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1,
+  selectPactPairResumeTasksV1,
+  type PactPairResumeSelectionV1,
+} from './resume.js';
 export const PACT_PUBLIC_RUN_ARTIFACTS_V1 = [
   'run.json',
   'summary.json',
@@ -223,8 +228,20 @@ export type PactPairRunResultV1 = {
     reason: 'provider_configuration_error';
   };
   outputDirectory?: string;
+  /**
+   * Resume provenance: present exactly when this run result was produced by
+   * resuming a prior run directory. Each entry records one resume attempt and
+   * the task ids it re-executed (missing or proven transient trials only).
+   */
+  resumed?: true;
+  resumes?: PactPairRunResumeRecordV1[];
   summary: PactPairRunSummaryV1;
   tasks: PactPairTaskResultV1[];
+};
+
+export type PactPairRunResumeRecordV1 = {
+  at: string;
+  taskIds: string[];
 };
 
 export type RunPactPairBenchmarkV1Options = {
@@ -246,6 +263,15 @@ export type RunPactPairBenchmarkV1Options = {
   workingDirectory?: string;
   seed?: PairDataStore;
   writeOutputs?: boolean;
+  /**
+   * Path to a prior run's output directory to resume (relative paths resolve
+   * against workingDirectory). The current config and task selection must
+   * match the original exactly (digest-checked). Completed trials are
+   * retained verbatim and never re-executed; only missing tasks and failures
+   * proven transient before any action run. Requires the original run to have
+   * used output.saveTraces: true.
+   */
+  resume?: string;
 };
 
 export async function runPactPairBenchmarkV1(
@@ -266,7 +292,7 @@ export async function runPactPairBenchmarkV1(
   });
   const now = options.now ?? (() => new Date());
   const startedAt = now();
-  const runId = options.runId
+  let runId = options.runId
     ?? `pact-${startedAt.toISOString().replace(/[:.]/g, '-')}-${randomUUID()}`;
   const rootDir = options.rootDir ?? repositoryRoot;
   const environment = options.environment ?? process.env;
@@ -297,9 +323,72 @@ export async function runPactPairBenchmarkV1(
     executor: options.executor
       ?? (options.harnessFactory || options.adapterFactory ? 'custom-harness' : 'model'),
   };
-  const outputDirectory = options.writeOutputs === false
-    ? undefined
-    : await prepareRunOutputDirectory({
+  let resumeState: PactPairResumeStateV1 | undefined;
+  let resumes: PactPairRunResumeRecordV1[] | undefined;
+  let outputDirectory: string | undefined;
+  let pendingTasks = tasks;
+  let writerLock: PactPairRunWriterLockV1 | undefined;
+  try {
+    if (options.resume !== undefined) {
+      if (options.writeOutputs === false) {
+        throw new Error(
+          'resume requires writeOutputs: the run directory is the checkpoint',
+        );
+      }
+      if (options.runId !== undefined) {
+        throw new Error(
+          'resume keeps the original run id; do not combine resume with runId',
+        );
+      }
+      outputDirectory = resolve(
+        options.workingDirectory ?? process.cwd(),
+        options.resume,
+      );
+      writerLock = await acquirePactPairRunWriterLockV1(outputDirectory);
+      resumeState = await loadPactPairResumeStateV1({
+        runDirectory: outputDirectory,
+        tasks,
+        configDigest,
+        taskSetDigest,
+      });
+      runId = resumeState.runId;
+      const pendingIds = new Set([
+        ...resumeState.selection.retryTaskIds,
+        ...resumeState.selection.missingTaskIds,
+      ]);
+      pendingTasks = tasks.filter(task => pendingIds.has(task.taskId));
+      resumes = [
+        ...(resumeState.metadata.resumes ?? []),
+        {
+          at: startedAt.toISOString(),
+          taskIds: pendingTasks.map(task => task.taskId),
+        },
+      ];
+      // Drop only the outcomes proven safe to re-run, then mark the run as
+      // running again with resume provenance. Terminal outcomes stay retained.
+      await compactResumedRunArtifactsV1({
+        runDirectory: outputDirectory,
+        keepTaskIds: new Set(resumeState.selection.completedTaskIds),
+        saveTraces: runConfig.output.saveTraces,
+      });
+      await writeFile(join(outputDirectory, 'run.json'), prettyJson({
+        runId,
+        status: 'running',
+        startedAt: resumeState.startedAt,
+        model: runMetadataModelV1(runConfig.model),
+        execution: defaultExecution,
+        benchmark: runConfig.benchmark,
+        policyProvenance,
+        budget: runConfig.budget,
+        configDigest,
+        taskSetDigest,
+        selectedTasks: tasks.length,
+        ...(sourceRevision ? { sourceRevision } : {}),
+        resumed: true,
+        resumes,
+      }), 'utf8');
+    } else if (options.writeOutputs !== false) {
+      outputDirectory = await prepareRunOutputDirectory({
         workingDirectory: options.workingDirectory ?? process.cwd(),
         configuredDirectory: runConfig.output.directory,
         runId,
@@ -315,63 +404,94 @@ export async function runPactPairBenchmarkV1(
         selectedTasks: tasks.length,
         saveTraces: runConfig.output.saveTraces,
       });
+      writerLock = await acquirePactPairRunWriterLockV1(outputDirectory);
+    }
 
-  const seed = options.seed ?? loadCanonicalPactPairStoreV1();
-  const harnessFactory = options.harnessFactory
-    ?? options.adapterFactory
-    ?? (context => createOpenAICompatiblePactHarnessV1(context.config, { environment }));
-  const taskRuns: PactPairSingleTaskRunV1[] = [];
+    const seed = options.seed ?? loadCanonicalPactPairStoreV1();
+    const harnessFactory = options.harnessFactory
+      ?? options.adapterFactory
+      ?? (context => createOpenAICompatiblePactHarnessV1(context.config, { environment }));
+    const retainedRuns = resumeState?.retainedRuns ?? [];
+    const taskRuns = new Map<string, PactPairSingleTaskRunV1>();
 
-  const execution = await backend.run({
-    config: runConfig,
-    tasks,
-    seed,
-    runId,
-    now,
-    harnessFactory,
-    environment,
-    onTaskRun: async taskRun => {
-      taskRuns.push(taskRun);
-      if (outputDirectory) {
-        await appendTaskCheckpoint(
-          outputDirectory,
-          taskRun,
-          taskRuns.length,
-          tasks.length,
-          taskRuns.filter(run => run.result.status === 'infrastructure_error').length,
-          runConfig.output.saveTraces,
-        );
-      }
-    },
-  });
-  const aborted = execution.aborted;
-  const executionMetadata = execution.execution ?? defaultExecution;
+    const execution = pendingTasks.length === 0
+      ? {}
+      : await backend.run({
+          config: runConfig,
+          tasks: pendingTasks,
+          seed,
+          runId,
+          now,
+          harnessFactory,
+          environment,
+          onTaskRun: async taskRun => {
+            const taskId = taskRun.result.taskId;
+            const existing = taskRuns.get(taskId);
+            if (existing) assertSameInMemoryTaskRun(existing, taskRun);
+            const nextRuns = new Map(taskRuns);
+            nextRuns.set(taskId, taskRun);
+            if (outputDirectory) {
+              await commitPactPairTaskRunV1({
+                runDirectory: outputDirectory,
+                taskRun,
+                saveTraces: runConfig.output.saveTraces,
+                checkpoint: {
+                  completedTasks: retainedRuns.length + nextRuns.size,
+                  selectedTasks: tasks.length,
+                  errors: [...retainedRuns, ...nextRuns.values()]
+                    .filter(run => run.result.status === 'infrastructure_error').length,
+                },
+              });
+            }
+            taskRuns.set(taskId, taskRun);
+          },
+        });
+    const aborted = execution.aborted;
+    const executionMetadata = execution.execution ?? defaultExecution;
 
-  const completedAt = now().toISOString();
-  const summary = summarizeTaskRuns(taskRuns);
-  const result: PactPairRunResultV1 = {
-    runId,
-    startedAt: startedAt.toISOString(),
-    completedAt,
-    status: summary.errors > 0 ? 'completed_with_errors' : 'completed',
-    selectedTasks: tasks.length,
-    model: runMetadataModelV1(runConfig.model),
-    execution: executionMetadata,
-    benchmark: runConfig.benchmark,
-    policyProvenance,
-    budget: runConfig.budget,
-    configDigest,
-    taskSetDigest,
-    ...(sourceRevision ? { sourceRevision } : {}),
-    ...(aborted ? { aborted } : {}),
-    ...(outputDirectory ? { outputDirectory } : {}),
-    summary,
-    tasks: taskRuns.map(run => run.result),
-  };
+    const completedAt = now().toISOString();
+    // Canonical task order for the aggregate result: retained and freshly run
+    // trials interleave by selection order, so resumed and concurrent backends
+    // produce the same deterministic ordering as a serial fresh run.
+    const orderIndex = new Map(tasks.map((task, index) => [task.taskId, index] as const));
+    const mergedRuns = [...retainedRuns, ...taskRuns.values()].sort((a, b) =>
+      (orderIndex.get(a.result.taskId) ?? Number.MAX_SAFE_INTEGER)
+      - (orderIndex.get(b.result.taskId) ?? Number.MAX_SAFE_INTEGER));
+    const summary = summarizeTaskRuns(mergedRuns);
+    const result: PactPairRunResultV1 = {
+      runId,
+      startedAt: resumeState?.startedAt ?? startedAt.toISOString(),
+      completedAt,
+      status: summary.errors > 0 ? 'completed_with_errors' : 'completed',
+      selectedTasks: tasks.length,
+      model: runMetadataModelV1(runConfig.model),
+      execution: executionMetadata,
+      benchmark: runConfig.benchmark,
+      policyProvenance,
+      budget: runConfig.budget,
+      configDigest,
+      taskSetDigest,
+      ...(sourceRevision ? { sourceRevision } : {}),
+      ...(aborted ? { aborted } : {}),
+      ...(outputDirectory ? { outputDirectory } : {}),
+      ...(resumes ? { resumed: true as const, resumes } : {}),
+      summary,
+      tasks: mergedRuns.map(run => run.result),
+    };
 
-  if (outputDirectory) await finalizeRunOutputs(outputDirectory, result);
+    if (outputDirectory) {
+      await canonicalizePactPairRunArtifactsV1({
+        runDirectory: outputDirectory,
+        taskIds: tasks.map(task => task.taskId),
+        saveTraces: runConfig.output.saveTraces,
+      });
+      await finalizeRunOutputs(outputDirectory, result);
+    }
 
-  return result;
+    return result;
+  } finally {
+    await writerLock?.release();
+  }
 }
 
 function resolveExecutionBackend(
@@ -494,52 +614,6 @@ function privateArtifactDirectory(outputDirectory: string): string {
   return join(outputDirectory, PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1);
 }
 
-async function appendTaskCheckpoint(
-  outputDirectory: string,
-  taskRun: PactPairSingleTaskRunV1,
-  completedTasks: number,
-  selectedTasks: number,
-  errors: number,
-  saveTraces: boolean,
-): Promise<void> {
-  await appendFile(
-    join(outputDirectory, 'results.jsonl'),
-    jsonLines([taskRun.result]),
-    'utf8',
-  );
-  // evaluation.jsonl carries the full evaluation (including gold-fact matches)
-  // plus the registered-evaluator metric contributions, so execution backends
-  // running in a separate process can hand complete trials back to the host.
-  // Like trace.jsonl it contains private gold, so it is persisted only under
-  // the private/ artifact directory and only when the retention switch
-  // (output.saveTraces) is on; the public artifact set never contains gold.
-  if (saveTraces) {
-    await appendFile(
-      join(outputDirectory, PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1, 'evaluation.jsonl'),
-      jsonLines([{
-        taskId: taskRun.result.taskId,
-        evaluation: taskRun.evaluation,
-        metrics: taskRun.evaluationResult.metrics,
-      }]),
-      'utf8',
-    );
-    if (taskRun.trace.length > 0) {
-      await appendFile(
-        join(outputDirectory, PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1, 'trace.jsonl'),
-        jsonLines(taskRun.trace),
-        'utf8',
-      );
-    }
-  }
-  await writeFile(join(outputDirectory, 'checkpoint.json'), prettyJson({
-    status: 'running',
-    completedTasks,
-    selectedTasks,
-    lastTaskId: taskRun.result.taskId,
-    errors,
-  }), 'utf8');
-}
-
 async function finalizeRunOutputs(
   outputDirectory: string,
   result: PactPairRunResultV1,
@@ -560,6 +634,7 @@ async function finalizeRunOutputs(
     provider: result.summary.provider,
     ...(result.sourceRevision ? { sourceRevision: result.sourceRevision } : {}),
     ...(result.aborted ? { aborted: result.aborted } : {}),
+    ...(result.resumed ? { resumed: true, resumes: result.resumes } : {}),
   };
   await Promise.all([
     writeFile(join(outputDirectory, 'run.json'), prettyJson(runMetadata), 'utf8'),
@@ -591,8 +666,16 @@ function prettyJson(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-function jsonLines(values: unknown[]): string {
-  return `${values.map(value => JSON.stringify(value)).join('\n')}\n`;
+function assertSameInMemoryTaskRun(
+  existing: PactPairSingleTaskRunV1,
+  incoming: PactPairSingleTaskRunV1,
+): void {
+  if (JSON.stringify(existing) !== JSON.stringify(incoming)) {
+    throw new Error(
+      `Conflicting completed outcomes for task ${incoming.result.taskId}; `
+      + 'refusing to replace an already-executed model action',
+    );
+  }
 }
 
 function summarizeTaskRuns(runs: PactPairSingleTaskRunV1[]): PactPairRunSummaryV1 {

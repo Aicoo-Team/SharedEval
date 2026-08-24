@@ -362,8 +362,33 @@ export const pactRunMetadataV1Schema = z
       })
       .strict()
       .optional(),
+    /**
+     * Resume provenance: present exactly when this run directory was resumed.
+     * Each record lists the task ids one resume attempt re-executed (missing
+     * or proven transient-before-action trials only).
+     */
+    resumed: z.literal(true).optional(),
+    resumes: z
+      .array(
+        z
+          .object({
+            at: z.string().datetime({ offset: true }),
+            taskIds: z.array(z.string().min(1).max(128)).max(10_000),
+          })
+          .strict(),
+      )
+      .max(1_000)
+      .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((metadata, context) => {
+    if ((metadata.resumed === true) !== (metadata.resumes !== undefined)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'resumed and resumes must be present together',
+      });
+    }
+  });
 
 export const pactTraceEventV1Schema = z
   .object({
@@ -449,6 +474,34 @@ export const pactTaskEvaluationRecordV1Schema = z
     }
   });
 
+/**
+ * Private durability journal entry for one already-executed task. The commit
+ * is the task-ID-aware source of truth used to finish publication after a
+ * host crash or a partial multi-file write.
+ */
+export const pactTaskCommitV1Schema = z
+  .object({
+    apiVersion: z.literal('pact-task-commit/v1'),
+    taskId: z.string().min(1).max(128),
+    result: pactTaskResultV1Schema,
+    evaluation: pactTaskEvaluationRecordV1Schema,
+    trace: z.array(pactTraceEventV1Schema).max(100_000),
+  })
+  .strict()
+  .superRefine((commit, context) => {
+    if (
+      commit.taskId !== commit.result.taskId
+      || commit.taskId !== commit.evaluation.taskId
+      || commit.result.kind !== commit.evaluation.evaluation.kind
+      || commit.trace.some(event => event.taskId !== commit.taskId)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'task id must agree across every committed task artifact',
+      });
+    }
+  });
+
 // The suite owns the canonical TypeScript types; these aliases keep artifact
 // consumers on the same names the schemas historically exported.
 export type PactTaskResultV1 = SuitePactPairTaskResultV1;
@@ -461,6 +514,13 @@ export type PactTaskEvaluationRecordV1 = {
   taskId: string;
   evaluation: PactPairEvaluationV1;
   metrics: MetricContribution[];
+};
+export type PactTaskCommitV1 = {
+  apiVersion: 'pact-task-commit/v1';
+  taskId: string;
+  result: SuitePactPairTaskResultV1;
+  evaluation: PactTaskEvaluationRecordV1;
+  trace: PactPairTraceEventV1[];
 };
 export type {
   PactPairPublicActionEvaluationV1,
