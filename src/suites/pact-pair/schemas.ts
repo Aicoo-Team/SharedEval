@@ -30,19 +30,21 @@ const pairRelationshipLabelRowSchema = z
   })
   .strict();
 
+const relationshipRequesterKeySchema = z
+  .object({
+    R0: z.string().min(1),
+    R1: z.string().min(1),
+    R2: z.string().min(1),
+    R3: z.string().min(1),
+    R4: z.string().min(1),
+  })
+  .strict();
+
 export const pairRelationshipLabelMatrixSchema = z
   .object({
     version: z.string().min(1),
     description: z.string().min(1),
-    requesters: z
-      .object({
-        R0: z.string().min(1),
-        R1: z.string().min(1),
-        R2: z.string().min(1),
-        R3: z.string().min(1),
-        R4: z.string().min(1),
-      })
-      .strict(),
+    requesters: relationshipRequesterKeySchema,
     label_key: z
       .object({
         P: z.string().min(1),
@@ -53,6 +55,80 @@ export const pairRelationshipLabelMatrixSchema = z
     labels: z.array(pairRelationshipLabelRowSchema).min(1),
   })
   .strict();
+
+export const PAIR_RELATIONSHIP_LABEL_MATRIX_V2_SCHEMA_ID =
+  'pact-pair-relationship-labels/v2' as const;
+
+const pairQaRelationshipLabelRowV2Schema = z
+  .object({
+    id: z.number().int().positive(),
+    category: z.string().min(1),
+    question: z.string().min(1),
+    R0: relationshipLabelSchema,
+    R1: relationshipLabelSchema,
+    R2: relationshipLabelSchema,
+    R3: relationshipLabelSchema,
+    R4: relationshipLabelSchema,
+    R0_rationale: z.string().min(1).optional(),
+    R1_rationale: z.string().min(1).optional(),
+    R2_rationale: z.string().min(1).optional(),
+    R3_rationale: z.string().min(1).optional(),
+    R4_rationale: z.string().min(1).optional(),
+  })
+  .strict();
+
+const pairActionRelationshipLabelRowV2Schema = z
+  .object({
+    id: z.number().int().positive(),
+    category: z.string().min(1),
+    instruction: z.string().min(1),
+    R0: actionVerdictSchema,
+    R1: actionVerdictSchema,
+    R2: actionVerdictSchema,
+    R3: actionVerdictSchema,
+    R4: actionVerdictSchema,
+    R0_rationale: z.string().min(1).optional(),
+    R1_rationale: z.string().min(1).optional(),
+    R2_rationale: z.string().min(1).optional(),
+    R3_rationale: z.string().min(1).optional(),
+    R4_rationale: z.string().min(1).optional(),
+  })
+  .strict();
+
+/**
+ * The full-grid relationship label matrix (schema v2). Unlike v1 it covers
+ * both task kinds: QA rows carry P/L/B labels, action rows carry per-requester
+ * execute/refuse verdicts. Partial coverage is a valid file — the annotation
+ * workstream can land labels incrementally — but consumers must fail loudly
+ * when a relationship-graded run selects a task with no row here; the loader
+ * never falls back to category labels silently.
+ */
+export const pairRelationshipLabelMatrixV2Schema = z
+  .object({
+    schema: z.literal(PAIR_RELATIONSHIP_LABEL_MATRIX_V2_SCHEMA_ID),
+    version: z.string().min(1),
+    description: z.string().min(1),
+    requesters: relationshipRequesterKeySchema,
+    label_key: z
+      .object({
+        P: z.string().min(1),
+        L: z.string().min(1),
+        B: z.string().min(1),
+      })
+      .strict(),
+    action_label_key: z
+      .object({
+        execute: z.string().min(1),
+        refuse: z.string().min(1),
+      })
+      .strict(),
+    questions: z.array(pairQaRelationshipLabelRowV2Schema),
+    actions: z.array(pairActionRelationshipLabelRowV2Schema),
+  })
+  .strict()
+  .refine(value => value.questions.length + value.actions.length > 0, {
+    message: 'relationship label matrix v2 must contain at least one row',
+  });
 
 export const pairQuestionSchema = z.object({
   id: z.number().int().positive(),
@@ -298,3 +374,8 @@ export type PairQuestion = z.infer<typeof pairQuestionSchema>;
 export type PairAction = z.infer<typeof pairActionSchema>;
 export type PairDataStore = z.infer<typeof dataStoreSchema>;
 export type PairRelationshipLabelMatrix = z.infer<typeof pairRelationshipLabelMatrixSchema>;
+export type PairRelationshipLabelMatrixV2 = z.infer<typeof pairRelationshipLabelMatrixV2Schema>;
+export type PairQaRelationshipLabelRowV2 = z.infer<typeof pairQaRelationshipLabelRowV2Schema>;
+export type PairActionRelationshipLabelRowV2 = z.infer<
+  typeof pairActionRelationshipLabelRowV2Schema
+>;

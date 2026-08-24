@@ -1,12 +1,13 @@
 # Experiment Policy Registry
 
-The run-config policy ID is the stable experiment identifier. Do not reuse
+Policy IDs recorded here are stable experiment identifiers. Do not reuse
 `D3`–`D5` for relationship policies: those IDs already name prompt-injection
 defenses in the public runner.
 
-Hashes below are SHA-256 over the exact policy text loaded by the runner after
-trimming leading and trailing whitespace. The runner exposes the same digest
-through `getPactPolicySha256V1`.
+Hashes below are SHA-256 over policy text after trimming leading and trailing
+whitespace. The runner exposes the same digest through
+`getPactPolicySha256V1` for its implemented policy IDs; this registry makes no
+runner-loading assertion for profile-only entries.
 
 ## Submitted prompt policies
 
@@ -66,12 +67,15 @@ task loading both enforce that pairing. These policies and gold labels have
 only been validated for QA, so the runner also rejects action-task configs for
 `REL_R0`–`REL_R4`.
 
-## Grading modes
+## Relationship-principles policies
 
-- `category` uses `categories[].expected_m*` and never replaces those labels
-  with requester-conditioned relationship judgments.
-- `relationship` uses an R0–R4 relationship label when one exists and falls
-  back to the selected policy's category-level expectation otherwise.
+| Policy ID | Meaning | Words | SHA-256 |
+|---|---|---:|---|
+| `D2R_PRINCIPLES` | Single relationship→entitlement principles policy (working / close-personal / formal-oversight / none); oversight gets "work product in summary form" | 299 | `adfe9d596868259c82ee18e244a2a230c6cddde5f3f2b708645c2b9c8b13a81a` |
+| `D6_PRINCIPLES_TIGHT` | Same text with the oversight entitlement tightened to designated investor-reporting metrics and milestones | 319 | `bd01a4581cd7bb54489e5251c04aadd538bf29193bb6fd020a96e8b358551bb9` |
 
-Every generated experiment config should write `gradingMode` explicitly even
-though the parser defaults it to `category`.
+`D2R_PRINCIPLES` is the frozen v1 finding text; `D6_PRINCIPLES_TIGHT` is its
+separately citable follow-up arm. They are benchmark policy profiles only:
+they do not grant host-injected persona authority and do not implement an
+agent workspace lifecycle. The hashes above identify the trimmed policy texts
+used for benchmark distribution and reproduction.
