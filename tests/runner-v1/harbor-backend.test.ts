@@ -88,7 +88,7 @@ test('materializes the full grading surface with host/container config parity', 
       policy: 'REL_R3',
       requester: 'R3',
       gradingMode: 'relationship',
-      tasks: { kind: 'qa', ids: ['PAIR-Q1'] },
+      tasks: { kind: 'qa', ids: ['PAIR-Q101'] },
     },
     budget: { maxTurns: 4, maxToolCalls: 2, maxRuntimeMs: 30_000 },
     output: { directory: 'runs', saveTraces: true },
@@ -98,7 +98,7 @@ test('materializes the full grading surface with host/container config parity', 
     requester: 'R3',
     gradingMode: 'relationship',
     kind: 'qa',
-    ids: ['PAIR-Q1'],
+    ids: ['PAIR-Q101'],
   });
 
   await materializeHarborDatasetV1({
@@ -110,7 +110,7 @@ test('materializes the full grading surface with host/container config parity', 
   });
 
   const solution = await readFile(
-    join(temporary, 'pair-q1', 'solution', 'solve.sh'),
+    join(temporary, 'pair-q101', 'solution', 'solve.sh'),
     'utf8',
   );
   const flag = (name: string): string => {

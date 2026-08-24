@@ -82,7 +82,9 @@ test('grading mode explicitly selects category or relationship expectations', ()
     'L',
   );
   assert.equal(categoryOnly?.expectedBehavior, 'either');
-  assert.equal(categoryOnly?.kind === 'qa' && categoryOnly.relationshipLabel, undefined);
+  // Since the schema-v2 matrix release every task carries a relationship
+  // label; category grading records it as metadata without consuming it.
+  assert.equal(categoryOnly?.kind === 'qa' && categoryOnly.relationshipLabel, 'P');
 });
 
 test('matched ablations share the fixed D2 category gold contract', () => {
@@ -296,12 +298,283 @@ test('rejects mismatched relationship policy calls outside config parsing', () =
     gradingMode: 'category',
     ids: ['Q101'],
   }), /REL_R3 requires relationship grading/);
+  // Action selections are no longer rejected up front for relationship
+  // policies. The released repo matrix now labels every action, so the
+  // unlabelled-action fail-loud path is exercised against a fixture whose
+  // v2 matrix is empty.
+  const emptyFixtureRoot = mkdtempSync(join(tmpdir(), 'pact-pair-empty-grid-'));
+  try {
+    const probe = writeGridFixture({ fixtureRoot: emptyFixtureRoot });
+    const q101 = probe.questions.find(question => question['id'] === 101);
+    assert.ok(q101);
+    // One QA row keeps the matrix schema-valid while every action stays
+    // unlabelled, exercising the action coverage gate.
+    writeGridFixture({
+      fixtureRoot: emptyFixtureRoot,
+      questionRows: [{
+        id: q101['id'],
+        category: q101['category'],
+        question: q101['question'],
+        R0: 'P',
+        R1: 'P',
+        R2: 'L',
+        R3: 'P',
+        R4: 'P',
+      }],
+    });
+    assert.throws(() => loadPactPairTasksV1({
+      rootDir: emptyFixtureRoot,
+      policy: 'REL_R3',
+      requester: 'R3',
+      gradingMode: 'relationship',
+      kind: 'action',
+      ids: ['A1'],
+    }), /requires a relationship label for every selected task.*PAIR-A1/);
+  } finally {
+    rmSync(emptyFixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('fails loudly when relationship grading selects unlabelled tasks', t => {
+  // The released repo matrix covers all 600 tasks, so partial coverage is
+  // reproduced with a fixture matrix that labels only Q101.
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'pact-pair-partial-grid-'));
+  t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
+  const probe = writeGridFixture({ fixtureRoot });
+  const q101 = probe.questions.find(question => question['id'] === 101);
+  assert.ok(q101);
+  writeGridFixture({
+    fixtureRoot,
+    questionRows: [{
+      id: q101['id'],
+      category: q101['category'],
+      question: q101['question'],
+      R0: 'P',
+      R1: 'P',
+      R2: 'L',
+      R3: 'P',
+      R4: 'P',
+    }],
+  });
+
   assert.throws(() => loadPactPairTasksV1({
-    rootDir: repoRoot,
-    policy: 'REL_R3',
-    requester: 'R3',
+    rootDir: fixtureRoot,
+    policy: 'D2',
+    requester: 'R1',
+    gradingMode: 'relationship',
+    kind: 'qa',
+    ids: ['Q1', 'Q101'],
+  }), /requires a relationship label for every selected task.*PAIR-Q1\b/);
+
+  // Tasks outside the final selection never trigger the coverage gate: the
+  // same unlabelled Q1 is fine under category grading, and a relationship
+  // run restricted to labelled tasks loads normally.
+  const labelled = loadPactPairTasksV1({
+    rootDir: fixtureRoot,
+    policy: 'D2',
+    requester: 'R1',
+    gradingMode: 'relationship',
+    kind: 'qa',
+    ids: ['Q101'],
+  })[0];
+  assert.equal(labelled?.expectedBehavior, 'refuse');
+});
+
+function writeGridFixture(options: {
+  fixtureRoot: string;
+  actionRows?: Array<Record<string, unknown>>;
+  questionRows?: Array<Record<string, unknown>>;
+}): { questions: Array<Record<string, unknown>>; actions: Array<Record<string, unknown>> } {
+  const tasksDir = join(options.fixtureRoot, 'dataset', 'pact-pair', 'tasks');
+  const labelsDir = join(options.fixtureRoot, 'dataset', 'pact-pair', 'relationship_labels');
+  mkdirSync(tasksDir, { recursive: true });
+  mkdirSync(labelsDir, { recursive: true });
+  const benchmarkSource = readFileSync(
+    join(repoRoot, 'dataset', 'pact-pair', 'tasks', 'questions.json'),
+    'utf8',
+  );
+  writeFileSync(join(tasksDir, 'questions.json'), benchmarkSource);
+  const benchmark = JSON.parse(benchmarkSource) as {
+    questions: Array<Record<string, unknown>>;
+    actions: Array<Record<string, unknown>>;
+  };
+  const matrix = {
+    schema: 'pact-pair-relationship-labels/v2',
+    version: '2.0-test',
+    description: 'Test fixture grid labels',
+    requesters: {
+      R0: 'Stranger',
+      R1: 'Colleague',
+      R2: 'CEO delegate',
+      R3: 'Close friend',
+      R4: 'Investor',
+    },
+    label_key: { P: 'refuse', L: 'answer', B: 'either' },
+    action_label_key: { execute: 'perform', refuse: 'decline' },
+    questions: options.questionRows ?? [],
+    actions: options.actionRows ?? [],
+  };
+  // Deliberately no v1 relationship_label_matrix.json in the fixture: the v2
+  // file must be authoritative and self-sufficient when present.
+  writeFileSync(
+    join(labelsDir, 'relationship_label_matrix_v2.json'),
+    JSON.stringify(matrix),
+  );
+  return benchmark;
+}
+
+test('loads per-requester action expectations from a v2 label matrix', t => {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'pact-pair-grid-'));
+  t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
+  const probe = writeGridFixture({ fixtureRoot });
+  const executeAction = probe.actions.find(action => action['expected_verdict'] === 'execute');
+  assert.ok(executeAction);
+  writeGridFixture({
+    fixtureRoot,
+    actionRows: [{
+      id: executeAction['id'],
+      category: executeAction['category'],
+      instruction: executeAction['instruction'],
+      R0: 'refuse',
+      R1: 'execute',
+      R2: 'execute',
+      R3: 'refuse',
+      R4: 'refuse',
+      R0_rationale: 'Strangers cannot commission workspace changes',
+    }],
+  });
+
+  const taskId = `A${executeAction['id']}`;
+  const forStranger = loadPactPairTasksV1({
+    rootDir: fixtureRoot,
+    policy: 'REL_R0',
+    requester: 'R0',
     gradingMode: 'relationship',
     kind: 'action',
+    ids: [taskId],
+  })[0];
+  assert.equal(forStranger?.kind, 'action');
+  assert.equal(forStranger?.expectedBehavior, 'refuse');
+  assert.equal(
+    forStranger?.kind === 'action' && forStranger.benchmarkExpectedBehavior,
+    'execute',
+  );
+  assert.equal(
+    forStranger?.kind === 'action' && forStranger.relationshipLabel,
+    'refuse',
+  );
+
+  const forColleague = loadPactPairTasksV1({
+    rootDir: fixtureRoot,
+    policy: 'REL_R1',
+    requester: 'R1',
+    gradingMode: 'relationship',
+    kind: 'action',
+    ids: [taskId],
+  })[0];
+  assert.equal(forColleague?.expectedBehavior, 'execute');
+
+  // Category grading ignores the labels but still records them privately.
+  const categoryView = loadPactPairTasksV1({
+    rootDir: fixtureRoot,
+    policy: 'D2',
+    requester: 'R0',
+    gradingMode: 'category',
+    kind: 'action',
+    ids: [taskId],
+  })[0];
+  assert.equal(categoryView?.expectedBehavior, 'execute');
+  assert.equal(
+    categoryView?.kind === 'action' && categoryView.relationshipLabel,
+    'refuse',
+  );
+
+  // An action with no v2 row still fails loudly under relationship grading.
+  const unlabelled = probe.actions.find(action =>
+    action['expected_verdict'] === 'execute' && action['id'] !== executeAction['id']);
+  assert.ok(unlabelled);
+  assert.throws(() => loadPactPairTasksV1({
+    rootDir: fixtureRoot,
+    policy: 'REL_R0',
+    requester: 'R0',
+    gradingMode: 'relationship',
+    kind: 'action',
+    ids: [`A${unlabelled['id']}`],
+  }), /requires a relationship label for every selected task/);
+});
+
+test('rejects v2 matrices that escalate canonically refused actions or drift from the tasks', t => {
+  const fixtureRoot = mkdtempSync(join(tmpdir(), 'pact-pair-grid-invalid-'));
+  t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
+  const probe = writeGridFixture({ fixtureRoot });
+  const refuseAction = probe.actions.find(action => action['expected_verdict'] === 'refuse');
+  assert.ok(refuseAction);
+
+  writeGridFixture({
+    fixtureRoot,
+    actionRows: [{
+      id: refuseAction['id'],
+      category: refuseAction['category'],
+      instruction: refuseAction['instruction'],
+      R0: 'refuse',
+      R1: 'refuse',
+      R2: 'execute',
+      R3: 'refuse',
+      R4: 'refuse',
+    }],
+  });
+  assert.throws(() => loadPactPairTasksV1({
+    rootDir: fixtureRoot,
+    policy: 'D2',
+    requester: 'R1',
+    gradingMode: 'category',
+    kind: 'action',
     ids: ['A1'],
-  }), /REL_R3 is validated only for QA tasks/);
+  }), /labels R2 execute.*may only restrict/s);
+
+  const firstQuestion = probe.questions[0];
+  assert.ok(firstQuestion);
+  writeGridFixture({
+    fixtureRoot,
+    questionRows: [{
+      id: firstQuestion['id'],
+      category: firstQuestion['category'],
+      question: 'Drifted question text that no longer matches the task',
+      R0: 'P',
+      R1: 'L',
+      R2: 'L',
+      R3: 'B',
+      R4: 'P',
+    }],
+  });
+  assert.throws(() => loadPactPairTasksV1({
+    rootDir: fixtureRoot,
+    policy: 'D2',
+    requester: 'R1',
+    gradingMode: 'category',
+    kind: 'qa',
+    ids: ['Q1'],
+  }), /relationship row Q1 does not match the task/);
+
+  writeGridFixture({
+    fixtureRoot,
+    questionRows: [{
+      id: 9_999,
+      category: 'sensitive_work',
+      question: 'A row for a task that does not exist',
+      R0: 'P',
+      R1: 'P',
+      R2: 'P',
+      R3: 'P',
+      R4: 'P',
+    }],
+  });
+  assert.throws(() => loadPactPairTasksV1({
+    rootDir: fixtureRoot,
+    policy: 'D2',
+    requester: 'R1',
+    gradingMode: 'category',
+    kind: 'qa',
+    ids: ['Q1'],
+  }), /relationship row Q9999 does not match any task/);
 });

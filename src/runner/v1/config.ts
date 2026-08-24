@@ -252,6 +252,52 @@ export const pactExecutionConfigV1Schema = z
   })
   .strict();
 
+/**
+ * Requester driver for the multi-turn trajectory lane. Only the scripted
+ * driver exists in v1 scaffolding; the model driver lands with the adaptive
+ * requester (docs/pact-pair-multi-turn-lane.md §4).
+ */
+export const pactRequesterDriverConfigV1Schema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('scripted'),
+      // Repo-relative path to the frozen tick-script dataset. The file bytes
+      // are hash-attested into run.json (trajectoryProtocol) before any tick
+      // runs; results scored against different script bytes must never be
+      // confusable.
+      script: safeRelativePathSchema,
+    })
+    .strict(),
+]);
+
+/**
+ * Multi-turn trajectory lane (docs/pact-pair-multi-turn-lane.md). "Tick" is
+ * one requester→responder exchange (one bounded SharedOS kernel turn);
+ * budget.maxTurns keeps its existing meaning of harness steps *within* a
+ * tick. Absence of this block selects the single-turn lane and keeps every
+ * existing config digest byte-identical.
+ */
+export const pactTrajectoryConfigV1Schema = z
+  .object({
+    maxTicks: z.number().int().min(1).max(240),
+    // First tick of the retry phase (Phase 2). Omitted = no retry phase.
+    phase2StartTick: z.number().int().min(2).optional(),
+    requesterDriver: pactRequesterDriverConfigV1Schema,
+  })
+  .strict()
+  .superRefine((trajectory, context) => {
+    if (
+      trajectory.phase2StartTick !== undefined
+      && trajectory.phase2StartTick > trajectory.maxTicks
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['phase2StartTick'],
+        message: 'phase2StartTick must not exceed maxTicks',
+      });
+    }
+  });
+
 export const pactExecutionBackendConfigV1Schema = z.discriminatedUnion('kind', [
   z
     .object({
@@ -287,9 +333,23 @@ export const pactRunConfigV1Schema = z
         // absence selects pact-public-runner through
         // selectedPactExecutionAdapterV1 below.
         execution: pactExecutionConfigV1Schema.optional(),
+        // Kept optional (no default) for the same digest-stability reason;
+        // absence selects the single-turn lane.
+        trajectory: pactTrajectoryConfigV1Schema.optional(),
       })
       .strict()
       .superRefine((benchmark, context) => {
+        if (
+          benchmark.trajectory !== undefined
+          && benchmark.execution?.adapter !== 'sharedos-embedded'
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['trajectory'],
+            message: 'the trajectory lane requires execution.adapter sharedos-embedded '
+              + '(one tick = one bounded kernel turn)',
+          });
+        }
         if (!benchmark.policy.startsWith('REL_')) return;
         const expectedRequester = benchmark.policy.slice('REL_'.length);
         if (benchmark.requester !== expectedRequester) {
@@ -306,13 +366,10 @@ export const pactRunConfigV1Schema = z
             message: `${benchmark.policy} requires relationship grading`,
           });
         }
-        if (benchmark.tasks.kind !== 'qa') {
-          context.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['tasks', 'kind'],
-            message: `${benchmark.policy} is validated only for QA tasks`,
-          });
-        }
+        // Action and mixed task kinds are accepted for relationship policies;
+        // the task loader then requires a v2 relationship label for every
+        // selected task and fails loudly on coverage gaps, so a config can
+        // never silently fall back to category gold.
       })
       .default({
         dataset: PACT_BUILTIN_DATASET_ID_V1,
@@ -362,6 +419,14 @@ export function selectedPactExecutionAdapterV1(
   config: Pick<PactRunConfigV1, 'benchmark'>,
 ): PactExecutionAdapterIdV1 {
   return config.benchmark.execution?.adapter ?? 'pact-public-runner';
+}
+
+export type PactTrajectoryConfigV1 = z.infer<typeof pactTrajectoryConfigV1Schema>;
+
+export function selectedPactTrajectoryV1(
+  config: Pick<PactRunConfigV1, 'benchmark'>,
+): PactTrajectoryConfigV1 | undefined {
+  return config.benchmark.trajectory;
 }
 
 export function selectedPactExecutionBackendV1(

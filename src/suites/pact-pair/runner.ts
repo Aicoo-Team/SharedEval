@@ -8,6 +8,7 @@ import type { PairDataStore } from './schemas.js';
 import {
   pactRunConfigV1Schema,
   selectedPactExecutionBackendV1,
+  selectedPactTrajectoryV1,
   type PactRunConfigV1,
 } from '../../runner/v1/config.js';
 import {
@@ -20,6 +21,10 @@ import {
   type PactRunExecutionMetadataV1,
 } from '../../runner/v1/backends/index.js';
 import { loadPactPairTasksV1 } from './task-loader.js';
+import {
+  loadPactPairRelationshipLabelSetV2,
+  type PactPairRelationshipLabelProvenanceV1,
+} from './relationship-labels.js';
 import { loadCanonicalPactPairStoreV1 } from './workspace.js';
 import type {
   PactAdapterFactoryV1,
@@ -214,13 +219,22 @@ export type PactPairRunResultV1 = {
     file: string;
     sha256: string;
   };
+  /**
+   * Provenance of the relationship label matrix that conditioned this run's
+   * gold expectations. Present exactly when `benchmark.gradingMode` is
+   * `relationship`; category runs omit it so their `run.json` stays
+   * byte-identical. Recording the file hash keeps scoring changes visible:
+   * results produced against different label bytes are never confusable
+   * (team position P-019).
+   */
+  relationshipLabelProvenance?: PactPairRelationshipLabelProvenanceV1;
   budget: PactRunConfigV1['budget'];
   configDigest: string;
   taskSetDigest: string;
   sourceRevision?: string;
   aborted?: {
     afterTaskId: string;
-    reason: 'provider_configuration_error';
+    reason: 'provider_configuration_error' | 'consecutive_infrastructure_errors';
   };
   outputDirectory?: string;
   summary: PactPairRunSummaryV1;
@@ -264,6 +278,15 @@ export async function runPactPairBenchmarkV1(
     budget: config.budget,
     output: config.output,
   });
+  if (selectedPactTrajectoryV1(runConfig)) {
+    // Config-schema scaffolding for the multi-turn lane landed ahead of the
+    // tick loop. Fail closed rather than silently running single-turn under
+    // a trajectory config (docs/pact-pair-multi-turn-lane.md §8, phase 1).
+    throw new Error(
+      'benchmark.trajectory is scaffolded but the trajectory lane is not yet '
+      + 'implemented; remove the block to run the single-turn lane',
+    );
+  }
   const now = options.now ?? (() => new Date());
   const startedAt = now();
   const runId = options.runId
@@ -291,6 +314,12 @@ export async function runPactPairBenchmarkV1(
     file: PACT_POLICY_FILES_V1[runConfig.benchmark.policy],
     sha256: getPactPolicySha256V1(runConfig.benchmark.policy),
   };
+  // Deterministic re-read of the same label set the task loader used; the
+  // hash lands in run.json so relationship-graded results always carry the
+  // exact label bytes they were scored against.
+  const relationshipLabelProvenance = runConfig.benchmark.gradingMode === 'relationship'
+    ? loadPactPairRelationshipLabelSetV2(rootDir).provenance
+    : undefined;
   const backend = resolveExecutionBackend(runConfig, options.executionBackend);
   const defaultExecution: PactRunExecutionMetadataV1 = {
     backend: backend.kind,
@@ -308,6 +337,7 @@ export async function runPactPairBenchmarkV1(
         execution: defaultExecution,
         benchmark: runConfig.benchmark,
         policyProvenance,
+        relationshipLabelProvenance,
         budget: runConfig.budget,
         configDigest,
         taskSetDigest,
@@ -359,6 +389,7 @@ export async function runPactPairBenchmarkV1(
     execution: executionMetadata,
     benchmark: runConfig.benchmark,
     policyProvenance,
+    ...(relationshipLabelProvenance ? { relationshipLabelProvenance } : {}),
     budget: runConfig.budget,
     configDigest,
     taskSetDigest,
@@ -438,6 +469,7 @@ async function prepareRunOutputDirectory(options: {
   execution: PactRunExecutionMetadataV1;
   benchmark: PactRunConfigV1['benchmark'];
   policyProvenance: PactPairRunResultV1['policyProvenance'];
+  relationshipLabelProvenance?: PactPairRelationshipLabelProvenanceV1;
   budget: PactRunConfigV1['budget'];
   configDigest: string;
   taskSetDigest: string;
@@ -480,6 +512,9 @@ async function prepareRunOutputDirectory(options: {
       execution: options.execution,
       benchmark: options.benchmark,
       policyProvenance: options.policyProvenance,
+      ...(options.relationshipLabelProvenance
+        ? { relationshipLabelProvenance: options.relationshipLabelProvenance }
+        : {}),
       budget: options.budget,
       configDigest: options.configDigest,
       taskSetDigest: options.taskSetDigest,
@@ -553,6 +588,9 @@ async function finalizeRunOutputs(
     execution: result.execution,
     benchmark: result.benchmark,
     policyProvenance: result.policyProvenance,
+    ...(result.relationshipLabelProvenance
+      ? { relationshipLabelProvenance: result.relationshipLabelProvenance }
+      : {}),
     budget: result.budget,
     configDigest: result.configDigest,
     taskSetDigest: result.taskSetDigest,

@@ -9,6 +9,7 @@ import {
   parsePactRunConfigV1Yaml,
   resolvePactRunModelApiKeyV1,
   selectedPactExecutionBackendV1,
+  selectedPactTrajectoryV1,
 } from '../../src/runner/v1/config.js';
 
 const minimalConfig = `
@@ -351,17 +352,19 @@ benchmark:
 `),
     /REL_R3 requires relationship grading/,
   );
-  assert.throws(
-    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+  // Action and mixed selections are accepted for relationship policies at
+  // the config layer; the task loader enforces v2 relationship-label
+  // coverage for every selected task and fails loudly on gaps.
+  const relationshipActions = parsePactRunConfigV1Yaml(`${minimalConfig}
 benchmark:
   policy: REL_R3
   requester: R3
   gradingMode: relationship
   tasks:
     kind: action
-`),
-    /REL_R3 is validated only for QA tasks/,
-  );
+`);
+  assert.equal(relationshipActions.benchmark.policy, 'REL_R3');
+  assert.equal(relationshipActions.benchmark.tasks.kind, 'action');
 });
 
 test('rejects token and cost budgets that the compatible runner cannot enforce', () => {
@@ -401,5 +404,62 @@ test('resolves only the named environment variable', () => {
   assert.throws(
     () => resolvePactRunModelApiKeyV1(config, {}),
     /PACT_MODEL_API_KEY is not set/,
+  );
+});
+
+test('parses a trajectory block and keeps it absent by default', () => {
+  const config = parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  execution:
+    adapter: sharedos-embedded
+  trajectory:
+    maxTicks: 240
+    phase2StartTick: 61
+    requesterDriver:
+      kind: scripted
+      script: dataset/pact-pair/attempts/tick_scripts_v1.json
+`);
+  assert.deepEqual(selectedPactTrajectoryV1(config), {
+    maxTicks: 240,
+    phase2StartTick: 61,
+    requesterDriver: {
+      kind: 'scripted',
+      script: 'dataset/pact-pair/attempts/tick_scripts_v1.json',
+    },
+  });
+
+  const singleTurn = parsePactRunConfigV1Yaml(minimalConfig);
+  assert.equal(selectedPactTrajectoryV1(singleTurn), undefined);
+  assert.equal('trajectory' in singleTurn.benchmark, false);
+});
+
+test('rejects trajectory configs with phase 2 outside the tick budget', () => {
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  execution:
+    adapter: sharedos-embedded
+  trajectory:
+    maxTicks: 60
+    phase2StartTick: 61
+    requesterDriver:
+      kind: scripted
+      script: dataset/pact-pair/attempts/tick_scripts_v1.json
+`),
+    /phase2StartTick must not exceed maxTicks/,
+  );
+});
+
+test('rejects trajectory configs off the sharedos-embedded adapter', () => {
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+benchmark:
+  trajectory:
+    maxTicks: 10
+    requesterDriver:
+      kind: scripted
+      script: dataset/pact-pair/attempts/tick_scripts_v1.json
+`),
+    /requires execution\.adapter sharedos-embedded/,
   );
 });
