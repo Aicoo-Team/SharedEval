@@ -8,6 +8,7 @@ import {
   type PactExecutionAdapterIdV1,
 } from './config.js';
 import { inspectPactBenchmarkV1, runPactBenchmarkV1 } from './runner.js';
+import { buildPactCliFailureDiagnosticsV1 } from './diagnostics.js';
 
 type CliOptions = {
   configPath: string;
@@ -88,11 +89,13 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
     resolvePactRunModelApiKeyV1(config);
   }
   const result = await runPactBenchmarkV1(config);
+  const failures = buildPactCliFailureDiagnosticsV1(result);
   process.stdout.write(`${JSON.stringify({
     runId: result.runId,
     outputDirectory: result.outputDirectory,
     ...(result.aborted ? { aborted: result.aborted } : {}),
     summary: result.summary,
+    ...(failures ? { failures } : {}),
   }, null, 2)}\n`);
   return result.summary.errors > 0 ? 1 : 0;
 }
