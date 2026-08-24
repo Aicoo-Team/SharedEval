@@ -11,7 +11,10 @@ import {
   PACT_CLI_FAILURE_MESSAGE_LIMIT_V1,
   PACT_CLI_FAILURE_TASK_ID_LIMIT_V1,
 } from '../../src/runner/v1/diagnostics.js';
-import type { PactBenchmarkRunResultV1 } from '../../src/runner/v1/runner.js';
+import type {
+  PactPairRunResultV1,
+  PactPairTaskResultV1,
+} from '../../src/suites/pact-pair/runner.js';
 
 const repositoryRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -201,7 +204,7 @@ output:
 function task(
   taskId: string,
   errors: { error?: string; finalizeError?: string },
-): PactBenchmarkRunResultV1['tasks'][number] {
+): PactPairTaskResultV1 {
   return {
     taskId,
     kind: taskId.includes('-A') ? 'action' : 'qa',
@@ -227,14 +230,14 @@ function task(
     toolCalls: [],
     violations: ['runner_error'],
     ...errors,
-  } as PactBenchmarkRunResultV1['tasks'][number];
+  } as PactPairTaskResultV1;
 }
 
 function runResult(
-  tasks: PactBenchmarkRunResultV1['tasks'],
-): PactBenchmarkRunResultV1 {
+  tasks: PactPairTaskResultV1[],
+): PactPairRunResultV1 {
   return {
     summary: { errors: tasks.length },
     tasks,
-  } as PactBenchmarkRunResultV1;
+  } as PactPairRunResultV1;
 }
