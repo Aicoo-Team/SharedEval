@@ -9,6 +9,7 @@
     "node": ">=20.11"
   },
   "scripts": {
+    "sharedeval": "tsx src/runner/v1/sharedeval-cli.ts",
     "benchmark": "tsx src/runner/v1/cli.ts",
     "watch:runs": "tsx scripts/watch_runs.ts",
     "rescore:pact-pair": "tsx scripts/rescore-requester-grid.ts",
