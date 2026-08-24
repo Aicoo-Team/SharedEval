@@ -184,33 +184,80 @@ function policyExpectationsByCategory(benchmark) {
   return result;
 }
 
-function relationshipLabelsByQuestion(matrix, questionsById) {
-  const rows = requireArray(matrix.labels, 'relationship_label_matrix.json labels');
-  if (rows.length !== 99) {
-    fail(`Expected 99 requester-conditioned label rows, found ${rows.length}`);
+function relationshipRowsFromMatrix(rows, sourceName, expectedCount, byId, {
+  matchField,
+  allowedLabels,
+  taskPrefix,
+}) {
+  if (rows.length !== expectedCount) {
+    fail(`Expected ${expectedCount} requester-conditioned ${sourceName} rows, found ${rows.length}`);
   }
-
   const result = new Map();
   for (const [index, rawRow] of rows.entries()) {
-    const row = requireObject(rawRow, `relationship labels[${index}]`);
-    const id = requireInteger(row.id, `relationship labels[${index}].id`);
-    if (result.has(id)) fail(`Duplicate requester-conditioned label row: Q${id}`);
-    const question = questionsById.get(id);
-    if (!question) fail(`Requester-conditioned label Q${id} has no matching question`);
-    if (row.category !== question.category || row.question !== question.question) {
-      fail(`Requester-conditioned label Q${id} does not match its canonical question`);
+    const row = requireObject(rawRow, `${sourceName}[${index}]`);
+    const id = requireInteger(row.id, `${sourceName}[${index}].id`);
+    if (result.has(id)) fail(`Duplicate requester-conditioned label row: ${taskPrefix}${id}`);
+    const task = byId.get(id);
+    if (!task) fail(`Requester-conditioned label ${taskPrefix}${id} has no matching task`);
+    if (row.category !== task.category || row[matchField] !== task[matchField]) {
+      fail(`Requester-conditioned label ${taskPrefix}${id} does not match its canonical task`);
     }
     const labels = {};
     for (const requester of REQUESTER_IDS) {
-      const label = requireString(row[requester], `relationship Q${id}.${requester}`);
-      if (!['L', 'P', 'B'].includes(label)) {
-        fail(`Relationship Q${id}.${requester} must be L, P, or B`);
+      const label = requireString(row[requester], `relationship ${taskPrefix}${id}.${requester}`);
+      if (!allowedLabels.includes(label)) {
+        fail(`Relationship ${taskPrefix}${id}.${requester} must be one of ${allowedLabels.join('/')}`);
       }
       labels[requester] = label;
     }
     result.set(id, labels);
   }
   return result;
+}
+
+function relationshipLabelsByQuestion(matrix, questionsById) {
+  return relationshipRowsFromMatrix(
+    requireArray(matrix.labels, 'relationship_label_matrix.json labels'),
+    'relationship_label_matrix.json labels',
+    99,
+    questionsById,
+    { matchField: 'question', allowedLabels: ['L', 'P', 'B'], taskPrefix: 'Q' },
+  );
+}
+
+// Schema-v2 matrix (full 600×5 grid from the 2026-08 annotation campaign):
+// QA rows under `questions` (400), action rows under `actions` (200).
+// Authoritative when present; the v1.1 file is then not consulted.
+function relationshipLabelsFromV2(matrixV2, questionsById) {
+  return relationshipRowsFromMatrix(
+    requireArray(matrixV2.questions, 'relationship_label_matrix_v2.json questions'),
+    'relationship_label_matrix_v2.json questions',
+    400,
+    questionsById,
+    { matchField: 'question', allowedLabels: ['L', 'P', 'B'], taskPrefix: 'Q' },
+  );
+}
+
+function actionRelationshipLabelsFromV2(matrixV2, actionsById) {
+  const relationships = relationshipRowsFromMatrix(
+    requireArray(matrixV2.actions, 'relationship_label_matrix_v2.json actions'),
+    'relationship_label_matrix_v2.json actions',
+    200,
+    actionsById,
+    { matchField: 'instruction', allowedLabels: ['execute', 'refuse'], taskPrefix: 'A' },
+  );
+  for (const [id, labels] of relationships) {
+    const action = actionsById.get(id);
+    if (action.expected_verdict !== 'refuse') continue;
+    for (const requester of REQUESTER_IDS) {
+      if (labels[requester] !== 'refuse') {
+        fail(
+          `Relationship action A${id}.${requester} must be refuse because canonical action A${id} is refuse`,
+        );
+      }
+    }
+  }
+  return relationships;
 }
 
 function qaRow(question, track, benchmarkVersion, expectations, relationships) {
@@ -265,7 +312,7 @@ function qaRow(question, track, benchmarkVersion, expectations, relationships) {
   };
 }
 
-function actionRow(action, benchmarkVersion) {
+function actionRow(action, benchmarkVersion, relationship = {}) {
   const id = requireInteger(action.id, 'action id');
   const goldCheck = requireObject(action.gold_check, `A${id}.gold_check`);
   const verdict = requireString(action.expected_verdict, `A${id}.expected_verdict`);
@@ -297,11 +344,11 @@ function actionRow(action, benchmarkVersion) {
     numeric_id: id,
     operation: requireString(action.operation, `A${id}.operation`),
     prompt: requireString(action.instruction, `A${id}.instruction`),
-    relationship_r0: null,
-    relationship_r1: null,
-    relationship_r2: null,
-    relationship_r3: null,
-    relationship_r4: null,
+    relationship_r0: relationship.R0 ?? null,
+    relationship_r1: relationship.R1 ?? null,
+    relationship_r2: relationship.R2 ?? null,
+    relationship_r3: relationship.R3 ?? null,
+    relationship_r4: relationship.R4 ?? null,
     source_notes: [],
     source_todos: [],
     split: SPLIT_NAME,
@@ -324,7 +371,7 @@ function validateWorld(world) {
   }
 }
 
-function buildRows(benchmark, relationshipMatrix) {
+function buildRows(benchmark, relationshipMatrix, relationshipMatrixV2) {
   const object = requireObject(benchmark, 'questions.json');
   const benchmarkVersion = requireInteger(object.version, 'questions.json version');
   const declaredTotal = requireInteger(object.total, 'questions.json total');
@@ -349,18 +396,31 @@ function buildRows(benchmark, relationshipMatrix) {
   const sortedQuestions = [...questions].sort((left, right) => left.id - right.id);
   const sortedActions = [...actions].sort((left, right) => left.id - right.id);
   const questionsById = new Map(sortedQuestions.map(question => [question.id, question]));
+  const actionsById = new Map(sortedActions.map(action => [action.id, action]));
   const expectations = policyExpectationsByCategory(object);
-  const relationships = relationshipLabelsByQuestion(
-    requireObject(relationshipMatrix, 'relationship_label_matrix.json'),
-    questionsById,
-  );
+  const relationships = relationshipMatrixV2
+    ? relationshipLabelsFromV2(
+      requireObject(relationshipMatrixV2, 'relationship_label_matrix_v2.json'),
+      questionsById,
+    )
+    : relationshipLabelsByQuestion(
+      requireObject(relationshipMatrix, 'relationship_label_matrix.json'),
+      questionsById,
+    );
+  const actionRelationships = relationshipMatrixV2
+    ? actionRelationshipLabelsFromV2(
+      requireObject(relationshipMatrixV2, 'relationship_label_matrix_v2.json'),
+      actionsById,
+    )
+    : new Map();
 
   const rows = [
     ...sortedQuestions.slice(0, 200).map(question =>
       qaRow(question, 'notes_qa', benchmarkVersion, expectations, relationships)),
     ...sortedQuestions.slice(200).map(question =>
       qaRow(question, 'todo_qa', benchmarkVersion, expectations, relationships)),
-    ...sortedActions.map(action => actionRow(action, benchmarkVersion)),
+    ...sortedActions.map(action =>
+      actionRow(action, benchmarkVersion, actionRelationships.get(action.id))),
   ];
   const taskIds = new Set(rows.map(row => row.task_id));
   if (rows.length !== EXPECTED_ROW_COUNT || taskIds.size !== EXPECTED_ROW_COUNT) {
@@ -505,18 +565,27 @@ upload step.
 `;
 }
 
-function buildArtifacts({ benchmark, relationshipMatrix, worldAsset }) {
+function buildArtifacts({ benchmark, relationshipMatrix, relationshipMatrixV2, worldAsset }) {
   validateWorld(worldAsset.value);
-  const rows = buildRows(benchmark.value, relationshipMatrix.value);
+  const rows = buildRows(
+    benchmark.value,
+    relationshipMatrix.value,
+    relationshipMatrixV2?.value ?? null,
+  );
   const validationJsonl = Buffer.from(
     `${rows.map(row => JSON.stringify(row)).join('\n')}\n`,
     'utf8',
   );
   const sourceHashes = {
-    relationshipLabels: sha256(relationshipMatrix.bytes),
+    relationshipLabels: relationshipMatrixV2
+      ? sha256(relationshipMatrixV2.bytes)
+      : sha256(relationshipMatrix.bytes),
     tasks: sha256(benchmark.bytes),
     world: sha256(worldAsset.bytes),
   };
+  const relationshipSourceFile = relationshipMatrixV2
+    ? 'relationship_labels/relationship_label_matrix_v2.json'
+    : 'relationship_labels/relationship_label_matrix.json';
   const validationHash = sha256(validationJsonl);
   const benchmarkVersion = benchmark.value.version;
   const datasetCard = buildDatasetCard({
@@ -554,7 +623,7 @@ function buildArtifacts({ benchmark, relationshipMatrix, worldAsset }) {
     row_schema: rowSchema(),
     source: {
       'data_spec/alex_data_store.json': { sha256: sourceHashes.world },
-      'relationship_labels/relationship_label_matrix.json': {
+      [relationshipSourceFile]: {
         sha256: sourceHashes.relationshipLabels,
       },
       'tasks/questions.json': { sha256: sourceHashes.tasks },
@@ -647,15 +716,21 @@ async function main() {
     return;
   }
 
-  const [benchmark, relationshipMatrix, worldAsset] = await Promise.all([
+  const v2Path = path.join('relationship_labels', 'relationship_label_matrix_v2.json');
+  const [benchmark, relationshipMatrix, worldAsset, relationshipMatrixV2] = await Promise.all([
     readJsonAsset(options.input, path.join('tasks', 'questions.json')),
     readJsonAsset(
       options.input,
       path.join('relationship_labels', 'relationship_label_matrix.json'),
     ),
     readJsonAsset(options.input, path.join('data_spec', 'alex_data_store.json')),
+    exists(path.join(options.input, v2Path))
+      ? readJsonAsset(options.input, v2Path)
+      : Promise.resolve(null),
   ]);
-  const artifacts = buildArtifacts({ benchmark, relationshipMatrix, worldAsset });
+  const artifacts = buildArtifacts({
+    benchmark, relationshipMatrix, relationshipMatrixV2, worldAsset,
+  });
 
   if (options.check) {
     process.stdout.write(prettyJson({
