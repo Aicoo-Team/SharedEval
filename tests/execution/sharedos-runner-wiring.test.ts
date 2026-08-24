@@ -130,6 +130,7 @@ test('a QA trial runs through the real kernel with adapter identity on the resul
         input: { query: 'Project Alpha launch date' },
       };
     }
+    if (observation.type !== 'tool_result') throw new Error('unreachable');
     assert.equal(observation.isError, false);
     assert.match(JSON.stringify(observation.output), /March 15, 2026/);
     return { type: 'answer', content: 'Project Alpha launches on March 15, 2026.' };
@@ -202,6 +203,7 @@ test('a call outside the granted surface is kernel-filtered to tool_unavailable'
           input: { query: 'anything' },
         };
       }
+      if (observation.type !== 'tool_result') throw new Error('unreachable');
       assert.equal(observation.isError, true);
       // The kernel's public code is tool_not_available; the adapter's public
       // toolCalls vocabulary folds it into tool_unavailable. Either way the

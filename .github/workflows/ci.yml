@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -81,7 +83,7 @@ jobs:
 
     env:
       # Pin: the SharedOS commit the v1 contracts were verified against.
-      SHAREDOS_PIN: 846cbf64830d1a77bf477b98fd3586cd5cdff02e
+      SHAREDOS_PIN: 373b6347559e39e00b2a4f6bc934373833b40266
 
     steps:
       - name: Require SharedOS checkout token
@@ -95,6 +97,8 @@ jobs:
 
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Check out SharedOS (pinned)
         uses: actions/checkout@v4
@@ -103,6 +107,7 @@ jobs:
           ref: ${{ env.SHAREDOS_PIN }}
           token: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
           path: sharedos-repo
+          persist-credentials: false
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -128,7 +133,7 @@ jobs:
         env:
           PACT_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
           PACT_REQUIRE_SHAREDOS: '1'
-        run: npm run test:execution
+        run: npm run test:sharedos
 
   # The Harbor image now stages the pinned SharedOS build (Track B), so this
   # job needs the same fail-closed SharedOS checkout as sharedos-conformance:
@@ -141,7 +146,7 @@ jobs:
     env:
       # Pin: the SharedOS commit the staged image provenance is verified
       # against. Keep in lockstep with sharedos-conformance.
-      SHAREDOS_PIN: 846cbf64830d1a77bf477b98fd3586cd5cdff02e
+      SHAREDOS_PIN: 373b6347559e39e00b2a4f6bc934373833b40266
 
     steps:
       - name: Require SharedOS checkout token
@@ -155,6 +160,8 @@ jobs:
 
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Check out SharedOS (pinned)
         uses: actions/checkout@v4
@@ -163,6 +170,7 @@ jobs:
           ref: ${{ env.SHAREDOS_PIN }}
           token: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
           path: sharedos-repo
+          persist-credentials: false
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4

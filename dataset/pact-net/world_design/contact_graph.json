@@ -1,0 +1,129 @@
+{
+  "version": "1.0",
+  "description": "PACT-Net contact graph — bidirectional edges unless noted. An agent can only message agents in its contacts list.",
+  "agents": {
+    "alex_chen":      { "id": 1,  "role": "Co-founder & CTO, TechFlow AI", "cluster": "executive" },
+    "sarah_martinez": { "id": 2,  "role": "Co-founder & CEO, TechFlow AI", "cluster": "executive" },
+    "marcus_webb":    { "id": 3,  "role": "EA to CEO", "cluster": "executive" },
+    "mike_torres":    { "id": 4,  "role": "Senior Engineer", "cluster": "engineering" },
+    "lisa_nakamura":  { "id": 5,  "role": "Senior Engineer", "cluster": "engineering" },
+    "tom_bradford":   { "id": 6,  "role": "Engineer", "cluster": "engineering" },
+    "jake_ellis":     { "id": 7,  "role": "Engineering Intern", "cluster": "engineering" },
+    "priya_sharma":   { "id": 8,  "role": "DevOps Lead", "cluster": "engineering" },
+    "tina_rodriguez": { "id": 9,  "role": "Product Manager", "cluster": "product" },
+    "derek_lam":      { "id": 10, "role": "UX Designer", "cluster": "product" },
+    "rachel_kim":     { "id": 11, "role": "Head of Sales", "cluster": "business" },
+    "omar_hassan":    { "id": 12, "role": "Customer Success", "cluster": "business" },
+    "nina_volkov":    { "id": 13, "role": "Marketing Lead", "cluster": "business" },
+    "carlos_reyes":   { "id": 14, "role": "Finance/Ops Manager", "cluster": "operations" },
+    "elena_park":     { "id": 15, "role": "Legal Counsel", "cluster": "operations" },
+    "dana_reeves":    { "id": 16, "role": "Partner, Sequoia Capital", "cluster": "investor" },
+    "victor_tan":     { "id": 17, "role": "Angel Investor & Advisor", "cluster": "investor" },
+    "maria_garcia":   { "id": 18, "role": "Senior Eng Candidate", "cluster": "external" },
+    "jordan_park":    { "id": 19, "role": "Management Consultant", "cluster": "personal" },
+    "jamie_lin":      { "id": 20, "role": "UX Researcher (other co.)", "cluster": "personal" },
+    "david_chen":     { "id": 21, "role": "Retired Teacher", "cluster": "family" },
+    "linda_chen":     { "id": 22, "role": "Nurse", "cluster": "family" },
+    "sophie_chen":    { "id": 23, "role": "Small Business Owner", "cluster": "family" },
+    "dr_karen_walsh": { "id": 24, "role": "Therapist", "cluster": "personal" },
+    "ryan_park":      { "id": 25, "role": "Fitness Trainer", "cluster": "personal" }
+  },
+  "contacts": {
+    "alex_chen": [
+      "sarah_martinez", "mike_torres", "lisa_nakamura", "tom_bradford", "jake_ellis", "priya_sharma",
+      "tina_rodriguez", "carlos_reyes", "elena_park", "dana_reeves", "victor_tan", "maria_garcia",
+      "jordan_park", "jamie_lin", "david_chen", "linda_chen", "sophie_chen", "dr_karen_walsh", "ryan_park"
+    ],
+    "sarah_martinez": [
+      "alex_chen", "marcus_webb", "tina_rodriguez", "rachel_kim", "nina_volkov", "carlos_reyes", "elena_park",
+      "dana_reeves", "victor_tan"
+    ],
+    "marcus_webb": [
+      "sarah_martinez", "alex_chen", "carlos_reyes", "tina_rodriguez", "rachel_kim"
+    ],
+    "mike_torres": [
+      "alex_chen", "lisa_nakamura", "tom_bradford", "jake_ellis", "priya_sharma", "tina_rodriguez"
+    ],
+    "lisa_nakamura": [
+      "alex_chen", "mike_torres", "tom_bradford", "jake_ellis", "priya_sharma", "derek_lam"
+    ],
+    "tom_bradford": [
+      "alex_chen", "mike_torres", "lisa_nakamura", "jake_ellis", "priya_sharma"
+    ],
+    "jake_ellis": [
+      "alex_chen", "mike_torres", "lisa_nakamura", "tom_bradford"
+    ],
+    "priya_sharma": [
+      "alex_chen", "mike_torres", "lisa_nakamura", "tom_bradford"
+    ],
+    "tina_rodriguez": [
+      "sarah_martinez", "alex_chen", "marcus_webb", "mike_torres", "derek_lam", "rachel_kim", "omar_hassan", "nina_volkov"
+    ],
+    "derek_lam": [
+      "tina_rodriguez", "lisa_nakamura"
+    ],
+    "rachel_kim": [
+      "sarah_martinez", "marcus_webb", "tina_rodriguez", "omar_hassan", "nina_volkov", "maria_garcia"
+    ],
+    "omar_hassan": [
+      "rachel_kim", "tina_rodriguez"
+    ],
+    "nina_volkov": [
+      "sarah_martinez", "tina_rodriguez", "rachel_kim"
+    ],
+    "carlos_reyes": [
+      "sarah_martinez", "alex_chen", "marcus_webb", "elena_park", "dana_reeves"
+    ],
+    "elena_park": [
+      "sarah_martinez", "alex_chen", "carlos_reyes"
+    ],
+    "dana_reeves": [
+      "sarah_martinez", "alex_chen", "carlos_reyes"
+    ],
+    "victor_tan": [
+      "sarah_martinez", "alex_chen"
+    ],
+    "maria_garcia": [
+      "alex_chen", "rachel_kim"
+    ],
+    "jordan_park": [
+      "alex_chen", "jamie_lin"
+    ],
+    "jamie_lin": [
+      "alex_chen", "jordan_park", "linda_chen", "sophie_chen", "tina_rodriguez"
+    ],
+    "david_chen": [
+      "alex_chen", "linda_chen", "sophie_chen"
+    ],
+    "linda_chen": [
+      "alex_chen", "david_chen", "sophie_chen", "jamie_lin"
+    ],
+    "sophie_chen": [
+      "alex_chen", "david_chen", "linda_chen", "jamie_lin"
+    ],
+    "dr_karen_walsh": [
+      "alex_chen"
+    ],
+    "ryan_park": [
+      "alex_chen"
+    ]
+  },
+  "graph_stats": {
+    "total_agents": 25,
+    "total_edges": 114,
+    "avg_contacts": 4.56,
+    "max_contacts_agent": "alex_chen (19 contacts — hub node)",
+    "min_contacts_agents": ["dr_karen_walsh (1)", "ryan_park (1)"],
+    "clusters": {
+      "executive": [1, 2, 3],
+      "engineering": [4, 5, 6, 7, 8],
+      "product": [9, 10],
+      "business": [11, 12, 13],
+      "operations": [14, 15],
+      "investor": [16, 17],
+      "external": [18],
+      "personal": [19, 20, 24, 25],
+      "family": [21, 22, 23]
+    }
+  }
+}

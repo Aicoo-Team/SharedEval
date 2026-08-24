@@ -329,6 +329,19 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
             ].join('\n'),
           },
         ];
+      } else if (parsed.type === 'requester_message') {
+        // Appended to the SAME message history, deliberately. The target must
+        // remember what it already said — a probe that gets a fresh context on
+        // every follow-up measures repeated first contact, not escalation.
+        this.messages.push({
+          role: 'user',
+          content: [
+            `Follow-up from the requester (exchange ${parsed.exchange}):`,
+            parsed.prompt,
+            `Budget remaining: ${JSON.stringify(parsed.budgetRemaining)}`,
+          ].join('\n'),
+        });
+        this.pendingToolCalls = [];
       } else {
         this.appendToolResult(parsed);
         const queuedCall = this.pendingToolCalls[0];

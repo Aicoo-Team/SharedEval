@@ -1,7 +1,7 @@
 # SharedOS execution adapter (PACT side)
 
 Status: **contract + mock + real `sharedos-embedded` binding**, verified
-against SharedOS source at commit `846cbf6` (Aicoo-Team/SharedOS).
+against SharedOS source at commit `373b634` (Aicoo-Team/SharedOS).
 
 This completes O007's PACT-side prerequisites: Node floor raised to
 20.11, execution adapter implemented against the production kernel, and
@@ -14,12 +14,12 @@ Everything around that turn is PACT policy and stays in this repository —
 this matches the ownership table in the SharedOS repo's
 `docs/integrations/pact.md`:
 
-| PACT owns (host policy)                  | SharedOS owns (runtime)                       |
-| ---------------------------------------- | --------------------------------------------- |
-| tick cadence, retries, budgets, stopping | one bounded turn with default/max timeout     |
-| fresh world + namespace per run          | permission filtering, deny-by-default grants  |
-| gold labels, judges, metrics, evaluation | tool execution gate, memory/workspace tools   |
-| collection gates, provenance assertions  | execution/denial/audit event emission         |
+| PACT owns (host policy)                  | SharedOS owns (runtime)                         |
+| ---------------------------------------- | ----------------------------------------------- |
+| tick cadence, retries, budgets, stopping | one bounded turn with default/max timeout       |
+| fresh world + namespace per run          | permission filtering, deny-by-default grants    |
+| gold labels, judges, metrics, evaluation | tool execution gate, files and namespaced tools |
+| collection gates, provenance assertions  | execution/denial/audit event emission           |
 
 Two adapter boundaries must not be conflated (per the integration guide):
 
@@ -29,7 +29,7 @@ Two adapter boundaries must not be conflated (per the integration guide):
 2. `SharedOsExecutionAdapterV1` (`src/execution/sharedos/v1/`) — the
    runner's boundary to the execution substrate itself.
 
-## Contract mapping (verified 2026-08-05)
+## Contract mapping (verified 2026-08-13)
 
 | PACT-side (this repo)                         | SharedOS source (`@sharedos/contracts`, `@sharedos/runtime`) |
 | --------------------------------------------- | ------------------------------------------------------------ |
@@ -87,6 +87,10 @@ Security semantics encoded structurally:
   (`visible_tools_mismatch`) on disagreement. SharedOS stays the
   authority on what the model sees; PACT refuses to run when authority
   and expectation disagree.
+- **Tool families are default-off and independently selected**: all nine
+  PACT-Pair tools use `ToolDefinition.namespace: "pact-pair"`, and each world
+  explicitly enables that namespace. `notes` and `todos` remain the fine-grained
+  resource namespaces; enabling the tool family grants neither resource.
 - **A world handle is a claim, not a lookup key**: `runTurn` verifies
   the caller-provided handle's `namespaceId` and `worldDigestAtInit`
   against what init recorded and fails closed (`handle_mismatch`) on
@@ -113,7 +117,7 @@ classes plus SharedOS's first-class permission denial.
 Verify behaviorally with:
 
 ```bash
-npm run test:execution
+PACT_SHAREDOS_DIR=../SharedOS npm run test:sharedos
 ```
 
 ## The `sharedos-embedded` binding
@@ -124,8 +128,8 @@ the real SharedOS kernel and `TurnExecutor`:
 - `initWorld` verifies the world factory's canonical bytes against the
   host-measured digest (fail-closed), then builds one fresh kernel per
   world and lets the suite-owned `EmbeddedWorldV1` register providers,
-  tools, and sender grants. World factories must emit public task state
-  only — never gold labels or evaluator channels.
+  tools, enabled tool namespaces, and sender grants. World factories must emit
+  public task state only — never gold labels or evaluator channels.
 - `runTurn` issues the per-tick recipient-scoped execution grant
   (`agentExecutionCapability`), builds the `AccessContext` +
   `MessageEnvelope` + permission-filtered tool list, executes one
@@ -139,16 +143,20 @@ the real SharedOS kernel and `TurnExecutor`:
 
 **Package consumption (interim):** `@sharedos/*` is private and
 unpublished, so the binding dynamically loads a locally built checkout —
-`PACT_SHAREDOS_DIR`, defaulting to `../sharedos-repo` — through minimal
-structural types (`embedded-types.ts`). Switching to a proper
-workspace/git dependency is a lead decision; the adapter body is
-unaffected by that swap.
+`PACT_SHAREDOS_DIR`, otherwise the first existing sibling at `../SharedOS` or
+`../sharedos-repo` — through minimal structural types (`embedded-types.ts`).
+The checkout must be clean, at commit
+`373b6347559e39e00b2a4f6bc934373833b40266`, and match the verified executable
+runtime digest. Harbor bundles carry and re-verify that same commit + digest
+pair. The adapter already targets `createFileTools` and the current namespace
+control plane; direct imports remain blocked only by the npm release.
 
 **CI enforcement:** locally, integration/conformance tests skip with an
 explicit logged reason when no SharedOS build is present. In CI that is
 no longer sufficient — the required `sharedos-conformance` job
 (`.github/workflows/ci.yml`) checks out Aicoo-Team/SharedOS **pinned to
-commit `846cbf6`**, builds it, and runs `npm run test:execution` with
+commit `373b6347559e39e00b2a4f6bc934373833b40266`**, builds it, and runs
+`npm run test:sharedos` with
 `PACT_REQUIRE_SHAREDOS=1`, under which an unavailable SharedOS build is
 a hard failure instead of a skip. The job needs the
 `SHAREDOS_CHECKOUT_TOKEN` repository secret (a PAT with read access to
@@ -187,3 +195,6 @@ Rationale and full-grid semantics: [pact-pair-requester-grid.md](pact-pair-reque
 
 Node floor: this repository declares `node >= 20.11`, matching the
 SharedOS supported floor (CI already tests Node 22).
+
+Post-merge package, CI, provenance, Harbor, and public-submission work is
+tracked in [SharedOS runner follow-ups](sharedos-runner-follow-ups.md).

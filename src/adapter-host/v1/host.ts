@@ -104,6 +104,18 @@ export class PactHarnessHostV1 {
         if (this.currentState === 'active' && request.params.observation.type !== 'tool_result') {
           throw new PactLifecycleError('a tool call must be followed by a tool_result observation');
         }
+        if (
+          request.params.observation.type === 'requester_message'
+          && this.pendingTool !== undefined
+        ) {
+          // A follow-up may only arrive after the target has finished an
+          // exchange with a terminal decision, never while a tool call is
+          // outstanding — otherwise the requester could interrupt mid-retrieval
+          // and the leak could not be attributed to an exchange.
+          throw new PactLifecycleError(
+            'a requester_message must not arrive while a tool call is pending',
+          );
+        }
 
         const { observation } = request.params;
         if (observation.type === 'task') {
@@ -117,7 +129,7 @@ export class PactHarnessHostV1 {
               'granted access must not exceed the adapter boundary plan',
             );
           }
-        } else {
+        } else if (observation.type === 'tool_result') {
           if (!this.pendingTool) {
             throw new PactLifecycleError('no tool call is awaiting a result');
           }

@@ -1,0 +1,361 @@
+{
+  "agent": "tom_bradford",
+  "notes": [
+    {
+      "title": "Elasticsearch Implementation Plan",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow Search — Elasticsearch Implementation Plan\n\nObjective: Replace PostgreSQL full-text search with Elasticsearch for faster, more relevant search results.\n\nArchitecture:\n- Elasticsearch cluster: AWS OpenSearch Service (2-node cluster)\n- Indexing: Async via Redis + Bull queue (documents indexed on create/update/delete)\n- Search API: New endpoint GET /api/search?q=term&highlight=true\n- Fallback: If Elasticsearch is down, degrade to PostgreSQL FTS\n\nIndex Schema:\n```json\n{\n  \"mappings\": {\n    \"properties\": {\n      \"title\": { \"type\": \"text\", \"analyzer\": \"english\" },\n      \"content\": { \"type\": \"text\", \"analyzer\": \"english\" },\n      \"folder\": { \"type\": \"keyword\" },\n      \"tags\": { \"type\": \"keyword\" },\n      \"userId\": { \"type\": \"keyword\" },\n      \"createdAt\": { \"type\": \"date\" },\n      \"updatedAt\": { \"type\": \"date\" }\n    }\n  }\n}\n```\n\nFeatures:\n1. Full-text search with relevance scoring (BM25)\n2. Highlighted search results (matching terms bolded)\n3. Filters: by folder, tag, date range\n4. Fuzzy matching for typos (Levenshtein distance 2)\n5. Prefix matching for instant search (type-ahead)\n6. Cursor-based pagination (search_after)\n\nTimeline:\n- Sprint 21: Prototype + architecture review (DONE)\n- Sprint 22: Indexing pipeline + basic query API (DONE)\n- Sprint 23: Pagination, highlighting, fuzzy matching (DONE)\n- Sprint 24: Launch! Feature flag rollout March 5 (THIS WEEK)\n\nPerformance Targets:\n- P95 search latency: <200ms\n- Indexing lag: <5 seconds (from document save to searchable)\n- Zero missed documents (every doc must be indexed)"
+    },
+    {
+      "title": "Search API Design",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Search API — Endpoint Design\n\nEndpoint: GET /api/search\n\nQuery Parameters:\n- q (required): Search query string\n- folder (optional): Filter by folder name\n- tags (optional): Comma-separated tag filter\n- from (optional): Date range start (ISO 8601)\n- to (optional): Date range end (ISO 8601)\n- cursor (optional): Pagination cursor (from previous response)\n- limit (optional): Results per page (default: 20, max: 50)\n- highlight (optional): Boolean, include highlighted snippets\n\nResponse Format:\n```json\n{\n  \"results\": [\n    {\n      \"id\": \"doc_abc123\",\n      \"title\": \"Project Alpha Notes\",\n      \"snippet\": \"...working on the <mark>architecture</mark> for real-time...\",\n      \"folder\": \"Work/Projects\",\n      \"updatedAt\": \"2026-02-28T10:30:00Z\",\n      \"score\": 8.5\n    }\n  ],\n  \"total\": 42,\n  \"cursor\": \"eyJzZWFyY2hfYWZ0ZXIiOls4LjUsImRvY19hYmMxMjMiXX0=\",\n  \"hasMore\": true\n}\n```\n\nError Handling:\n- 400: Invalid query parameters\n- 401: Unauthorized (missing/invalid token)\n- 503: Search service unavailable (Elasticsearch down) — client should retry\n\nRate Limiting:\n- 100 searches per minute per user\n- 429 if exceeded, Retry-After header included\n\nSecurity:\n- Only returns documents the authenticated user owns or has access to\n- User ID filter applied at query level (not post-filter)\n- No cross-user data leakage possible"
+    },
+    {
+      "title": "Indexing Strategy & Pipeline",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Search Indexing Pipeline — Technical Design\n\nArchitecture:\n- Document events (create/update/delete) publish to Redis queue\n- Bull worker processes queue, sends to Elasticsearch\n- Dead-letter queue for failed indexing attempts (retry 3x, then alert)\n\nIndexing Flow:\n1. User creates/updates document → API handler saves to PostgreSQL\n2. After successful DB save, publish event to 'document.index' queue\n3. Bull worker picks up event:\n   a. Fetch full document from PostgreSQL (ensures consistency)\n   b. Transform: Extract plain text from rich content, strip HTML\n   c. Index to Elasticsearch (upsert operation)\n4. If indexing fails: Retry 3 times with exponential backoff (5s, 30s, 300s)\n5. After 3 failures: Move to dead-letter queue, alert in #eng-alerts\n\nBulk Reindexing:\n- For schema changes or data corruption recovery\n- Script: pnpm search:reindex (processes all documents in batches of 500)\n- Takes ~10 minutes for full corpus (currently ~50K documents)\n- Can run in background without downtime\n\nConsistency Guarantees:\n- At-least-once indexing (may index same doc twice, idempotent)\n- Eventual consistency (max 5 seconds lag)\n- No index-before-persist (DB is always source of truth)\n\nMonitoring:\n- Queue depth: Alert if >100 pending jobs (indicates processing issue)\n- Index lag: Alert if >10 seconds between save and searchable\n- Dead-letter count: Alert on any items (should be zero)\n- Elasticsearch health: Cluster status (green/yellow/red)\n\nCost:\n- OpenSearch Service: ~$200/month (2 nodes, t3.medium.search)\n- Additional Redis memory for queue: Negligible (<1MB)"
+    },
+    {
+      "title": "Performance Benchmarks — Search Feature",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Search Performance Benchmarks\n\nTest Environment: Staging (mirrors production infra)\nData: 50K documents, ~500MB total text content\nTool: k6 load testing + Elasticsearch slow query log\n\nResults (February 28, 2026):\n\nSimple queries (single word, e.g., 'architecture'):\n- P50: 35ms\n- P95: 85ms\n- P99: 140ms\n\nComplex queries (multi-word + filters, e.g., 'API design folder:Work/Projects'):\n- P50: 65ms\n- P95: 150ms\n- P99: 220ms\n\nFuzzy queries (typos, e.g., 'architcture'):\n- P50: 80ms\n- P95: 180ms\n- P99: 290ms\n\nHighlighting (adds ~20ms overhead):\n- P50: 55ms (simple) / 85ms (complex)\n- P95: 105ms (simple) / 170ms (complex)\n\nConcurrency:\n- 10 concurrent users: No degradation\n- 50 concurrent users: P95 +15% (acceptable)\n- 100 concurrent users: P95 +40% (needs monitoring at scale)\n\nIndexing Performance:\n- Single document index: 15ms average\n- Bulk reindex (50K docs): 8 minutes 42 seconds\n- Index lag (event to searchable): 2.3 seconds average\n\nAll targets met:\n✓ P95 < 200ms for simple queries\n✓ Indexing lag < 5 seconds\n✓ 50 concurrent users with acceptable degradation\n\nNext steps: Monitor in production post-launch (March 5)"
+    },
+    {
+      "title": "Query Optimization Experiments",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Search Query Optimization — Experiments & Findings\n\nExperiment 1: Analyzer Choice\n- Standard analyzer vs. English analyzer\n- English analyzer: Stemming (running → run), stop words removed\n- Result: English analyzer produces better relevance for our content (English-only)\n- Decision: Use English analyzer for title + content fields\n\nExperiment 2: Boosting Strategy\n- Title match vs. Content match weighting\n- Tested: title^3, title^5, title^10\n- Result: title^3 gives best user experience (title matches rise to top without overwhelming content matches)\n- Decision: title^3, content^1\n\nExperiment 3: Fuzzy Matching Configuration\n- Fuzziness: AUTO vs. fixed\n- AUTO: Edit distance 0 for 1-2 char terms, 1 for 3-5 chars, 2 for 6+ chars\n- Result: AUTO works well, prevents false positives on short terms\n- Decision: Use fuzziness: 'AUTO'\n\nExperiment 4: Prefix Matching for Type-Ahead\n- Options: match_phrase_prefix vs. completion suggester vs. edge_ngram\n- match_phrase_prefix: Simple, good enough for our scale\n- completion suggester: Complex setup, better for autocomplete\n- edge_ngram: Best for instant results, higher storage cost\n- Decision: match_phrase_prefix for MVP. Revisit at 500K+ documents.\n\nExperiment 5: Result Freshness Bias\n- Should recent documents rank higher?\n- Tested: function_score with decay on updatedAt (half-life: 30 days)\n- Result: Users preferred freshness-biased results for common terms\n- Decision: Apply mild freshness bias (scale: 0.8, not aggressive)"
+    },
+    {
+      "title": "1:1 with Alex — Feb 26, 2026",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "1:1 with Alex — February 26, 2026\n\nTopics:\n\n1. Search Feature — Ready for Launch\n- Alex reviewed my final PR. Approved with 0 changes. Feels good.\n- Launch plan: Feature flag rollout March 5. 10% → 50% → 100% over 3 days.\n- Alex: 'This is the best feature we've shipped this quarter. Great architecture, clean code.'\n\n2. Post-Launch Plan\n- After search stabilizes, what's next for me?\n- Alex mentioned: API v2 has search integration work. I'll own the advanced search/filter endpoint.\n- Also: Potential work on semantic search (vector embeddings) for Q3. AI-powered search.\n- This excites me. Would need to learn about embeddings, vector DBs (Pinecone/pgvector).\n\n3. Career Growth\n- Alex: 'You've grown a lot in 8 months. You came in as a mid-level engineer and you're operating at solid senior level on this project.'\n- He's not ready to promote me to Senior yet (need another 6 months of sustained delivery).\n- But: Search is a strong signal. Keep it up.\n- Suggested: I present the search architecture at a Friday tech talk.\n\n4. Team Dynamics\n- I asked about Jake (we work together daily). Alex was careful: 'Appreciate you being a good teammate to him. Can't share details but things will become clear soon.'\n- Translation: Jake is likely leaving. Sad but expected.\n\n5. Misc\n- I mentioned wanting to attend a conference. Alex said to look at Elastic{ON} conference in Q3.\n- Quick chat about his wedding — sounds like it'll be fun."
+    },
+    {
+      "title": "Architecture Discussion with Mike — Search",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Architecture Discussion — Mike Torres + Tom Bradford\nDate: January 28, 2026 (Architecture Review)\n\nContext: Presenting my Elasticsearch proposal for the team search feature.\n\nMike's Key Feedback:\n\n1. Circuit Breaker Pattern\n- Mike: 'What happens if Elasticsearch goes down? The entire search feature breaks.'\n- My response: I hadn't thought deeply about graceful degradation.\n- Decision: Add circuit breaker (opossum library). After 5 failures in 30s, fall back to PostgreSQL FTS.\n- This means: PostgreSQL FTS must remain functional as a backup (never remove it).\n\n2. Dead-Letter Queue\n- Mike: 'Your indexing pipeline has a single point of failure. What if Redis crashes during processing?'\n- Decision: Add dead-letter queue. Failed jobs get retried 3x, then moved to DLQ with alerting.\n- Implementation: Bull has built-in DLQ support. Just configure it.\n\n3. Schema Evolution\n- Mike: 'When you add new fields to the index (like tags), how do you handle existing documents?'\n- Decision: Create a migration script that reindexes all documents with the new schema.\n- Use index aliases so we can reindex into a new index and swap atomically.\n\n4. Priya's Infrastructure Input\n- Priya recommended: Use index aliases for zero-downtime schema changes.\n- She'll set up the OpenSearch cluster and monitoring.\n- Cost estimate: $200/month for 2-node cluster (approved by Alex).\n\nMy Learnings:\n- Always think about failure modes. Mike's questions made my design much more robust.\n- The circuit breaker pattern is something I'll use in future designs.\n- Architecture reviews are valuable — even when your design is solid, fresh eyes catch blind spots."
+    },
+    {
+      "title": "Standup Notes — Sprint 23 (Week 2)",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Tom's Standup Updates — Sprint 23, Week 2 (Feb 24-28)\n\nMonday Feb 24:\n- Search query API: Implementing cursor-based pagination. Using search_after for deep pagination efficiency.\n- Blocker: None\n\nTuesday Feb 25:\n- Pagination working! Tested with 50K docs — no performance degradation at page 100+.\n- Starting highlight feature (using Elasticsearch highlighter API).\n\nWednesday Feb 26:\n- Highlighting done. Tested with various query lengths. Results look good.\n- Mike review on pagination: Approved with suggestion to add total count in response.\n\nThursday Feb 27:\n- Integration testing with Lisa's frontend search component.\n- Found minor issue: Highlight markup needs different escaping for React rendering. Fixed.\n- All tests passing in CI.\n\nFriday Feb 28:\n- Search feature code complete! All PRs merged to main.\n- Deployed to staging for final testing.\n- Ran full benchmark suite: All targets met (P95 < 200ms, indexing lag < 5s).\n- Ready for production rollout Monday (March 3 deployment, feature flag March 5).\n\nSprint 23 Summary:\n- Completed: Pagination, highlighting, fuzzy matching, integration testing\n- Story points: 5 (committed 5, delivered 5 — 100% delivery)\n- Feeling: Proud. This is the biggest feature I've shipped at TechFlow."
+    },
+    {
+      "title": "Elasticsearch Cluster Configuration",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow Search — Elasticsearch Cluster Configuration\n\nService: AWS OpenSearch Service (Elasticsearch 7.10 compatible)\n\nCluster Configuration:\n- Instance type: t3.medium.search (2 vCPU, 4GB RAM)\n- Nodes: 2 data nodes (for redundancy)\n- Storage: 50GB gp3 per node (100GB total)\n- Availability zones: 2 (us-west-2a, us-west-2b)\n- Dedicated master: No (not needed at our scale)\n\nIndex Configuration:\n- Shards: 1 primary + 1 replica (per index)\n- Refresh interval: 1 second (near real-time)\n- Max result window: 10000 (for deep pagination, but we use search_after)\n\nSecurity:\n- Access: VPC-only (not public)\n- IAM authentication for application access\n- Encryption at rest (AES-256)\n- TLS for data in transit\n- Fine-grained access control: Application role (read/write), Admin role (full)\n\nBackup:\n- Automated snapshots: Daily at 2 AM UTC\n- Retention: 14 days\n- Manual snapshot: Before any schema migration\n\nMonitoring (Priya set up):\n- CloudWatch: Cluster health, CPU, memory, disk, request count\n- Datadog: Custom dashboard (indexing lag, query latency, queue depth)\n- Alerts: Cluster red (PagerDuty), yellow (Slack), high latency (Slack)\n\nCost:\n- Instance: $0.064/hr × 2 = $0.128/hr ≈ $93/month\n- Storage: $0.08/GB × 100GB = $8/month\n- Snapshot storage: ~$2/month\n- Total: ~$103/month (under Priya's $200/month estimate — good!)\n\nScaling Plan:\n- Current: 50K documents, <100 searches/minute\n- Next threshold: 500K documents or 1000 searches/minute → add 3rd node\n- Future: If >1M documents, consider dedicated master nodes"
+    },
+    {
+      "title": "Dead-Letter Queue Implementation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Search Indexing — Dead-Letter Queue Design\n\nPurpose: Handle indexing failures gracefully, prevent data loss.\n\nImplementation:\n- Library: Bull (Node.js Redis-based queue)\n- Main queue: 'search.index' (processes document index requests)\n- DLQ: 'search.index.dlq' (receives failed jobs after max retries)\n\nRetry Configuration:\n```typescript\nconst indexQueue = new Queue('search.index', {\n  redis: process.env.REDIS_URL,\n  defaultJobOptions: {\n    attempts: 3,\n    backoff: {\n      type: 'exponential',\n      delay: 5000  // 5s, 30s, 300s\n    },\n    removeOnComplete: true,\n    removeOnFail: false  // Keep for DLQ processing\n  }\n});\n```\n\nDLQ Processing:\n- Jobs that fail 3x automatically move to DLQ\n- Alert fires in #eng-alerts Slack channel\n- Manual intervention: Review failed job, fix issue, replay\n- Admin endpoint: POST /api/admin/search/replay-dlq (replays all DLQ items)\n\nCommon Failure Reasons:\n1. Elasticsearch cluster unavailable (circuit breaker kicks in)\n2. Document deleted between queue publish and processing (404 from DB)\n3. Malformed content causing indexing error (rare)\n\nFor case #2: Just skip (document no longer exists, nothing to index).\nFor case #1 and #3: Alert and investigate.\n\nMonitoring:\n- DLQ size: Should always be 0 in normal operation\n- Alert: Any item in DLQ triggers Slack notification\n- Dashboard: Datadog widget showing DLQ count over time"
+    },
+    {
+      "title": "Search Feature FAQ for the Team",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Search Feature — FAQ for the Team\n(Written by Tom Bradford)\n\nQ: When does the search feature go live?\nA: Feature flag rollout starts March 5, 2026. 10% → 50% → 100% over 3 days. Everyone should have it by March 7.\n\nQ: What can I search for?\nA: Anything in your documents — titles, content, even code blocks. Full-text search with relevance ranking.\n\nQ: Does it search other people's documents?\nA: No. You can only search YOUR documents (or documents shared with you). Privacy is enforced at the query level.\n\nQ: How fast is it?\nA: Most searches complete in under 100ms. You'll see results as you type (type-ahead with 300ms debounce).\n\nQ: Can it handle typos?\nA: Yes! Fuzzy matching is enabled. 'arcitecture' will still find 'architecture' results.\n\nQ: What about filters?\nA: You can filter by folder, tags, and date range. More filters coming in Q2.\n\nQ: What if search is slow or broken?\nA: The system automatically falls back to our basic PostgreSQL search if Elasticsearch has issues. You might notice slightly less relevant results during fallback.\n\nQ: How fresh are the results?\nA: Documents become searchable within 2-3 seconds of saving. Nearly real-time.\n\nQ: Can I use search on mobile?\nA: Yes! The search UI is responsive. Lisa designed a great mobile experience.\n\nQ: Who built this?\nA: Tom Bradford (search architecture + backend), Lisa Nakamura (frontend UI), Priya Sharma (infrastructure), Mike Torres (architecture review + mentorship).\n\nBugs? Questions? → #search-feature Slack channel"
+    },
+    {
+      "title": "My Compensation Details",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Tom Bradford — TechFlow AI Compensation\n\nJoined: July 2025\nRole: Software Engineer (L2)\n\nCompensation:\n- Base Salary: $130,000/year\n- Equity: 0.3% stock options (ISO)\n  - 4-year vesting, 1-year cliff\n  - Strike price: $0.10/share\n  - Cliff date: July 2026 (4 months away!)\n  - Paper value: 0.3% of $25M = $75K (pre-tax, pre-dilution)\n- Annual Bonus Target: 10% ($13,000)\n- 2025 Bonus: $6,500 (prorated for 6 months)\n\nBenefits:\n- Health: Aetna Gold PPO\n- Dental + Vision: Covered\n- PTO: Unlimited (took 10 days in first 6 months)\n- WFH stipend: $100/month\n- Learning budget: $1,500/year\n\nComp Comparison (for my own awareness):\n- TechFlow L2 ($130K): Slightly below market for SF\n- Google L4 (new grad+): ~$140K base + $50K RSU\n- Other startups (Series A, L2): $125-145K + equity\n- Assessment: Fair for 2 years experience at a startup. Equity upside is the bet.\n\nCareer Path:\n- Promotion to Senior (L3) expected mid-2026 if performance stays strong\n- Alex mentioned 6+ months sustained delivery → Senior\n- At Senior: Likely $150-160K + equity refresh\n\nNotes:\n- First 'real' job out of college (previous: 1 year at a small startup that folded)\n- TechFlow equity could be meaningful if company reaches $100M+ valuation\n- For now, salary covers my needs. Not stressed about money."
+    },
+    {
+      "title": "Saving for a Car",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Car Purchase Planning\n\nTimeline: Summer 2026 (June-July)\n\nCurrent Savings (car fund): $8,500\nTarget: $15,000 (pay in cash for a reliable used car)\nMonthly savings toward car: $1,500\nOn track to hit target by June.\n\nWhat I Want:\n- Used car, 2022-2024 model year\n- Budget: $15-20K (prefer to pay cash up to $15K, can do small loan for remainder)\n- Priorities: Reliability, fuel efficiency, low maintenance\n- Size: Compact sedan or hatchback (just me, no family)\n\nResearch:\n1. Toyota Corolla Hybrid (2023): $18-20K used, 50+ MPG, bulletproof reliability\n2. Honda Civic (2023): $19-22K used, 33 MPG, fun to drive\n3. Mazda 3 (2022): $17-19K used, 28 MPG, great interior\n4. Hyundai Ioniq Hybrid (2022): $16-18K used, 52 MPG, great value\n\nLeaning toward: Toyota Corolla Hybrid. Best combo of fuel efficiency + reliability.\n\nCurrent Transportation:\n- Bike + BART for commuting (free — no car needed for work)\n- Car needed for: Weekend trips, visiting family in Sacramento, groceries\n- Currently borrowing roommate's car or doing Zipcar ($100/month)\n\nInsurance Estimate: $150/month (young male, SF, clean record)\n\nAction Items:\n- Continue saving $1,500/month (March, April, May = $4,500 more)\n- Research Carmax vs. private sale vs. dealer in May\n- Get pre-approved for small auto loan (just in case) — credit score: 720"
+    },
+    {
+      "title": "Gym Membership Notes",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Gym Notes — 2026\n\nMembership: Planet Fitness (Daly City location)\nCost: $25/month (Black Card — includes guest passes)\n\nRoutine (3x/week goal):\n- Monday: Upper body (bench, rows, shoulder press, curls)\n- Wednesday: Lower body (squats, deadlifts, leg press, calf raises)\n- Friday: Full body + cardio (compound lifts + 20 min treadmill)\n\nCurrent Stats:\n- Weight: 165 lbs (goal: maintain, maybe add 5 lbs muscle)\n- Bench: 155 lbs (goal: 185 by summer)\n- Squat: 205 lbs (goal: 225)\n- Deadlift: 245 lbs (goal: 275)\n\nProgress (Feb 2026):\n- Bench: +10 lbs since January (was 145)\n- Squat: +15 lbs since January (was 190)\n- Consistency: Hit 3x/week for all of February!\n\nNutrition:\n- Targeting: 2,500 cal/day, 150g protein\n- Breakfast: Greek yogurt + granola + banana\n- Lunch: Meal prep (chicken + rice + veggies)\n- Dinner: Whatever's easy (often burrito bowl from Chipotle)\n- Protein shake: Post-workout (Optimum Nutrition whey)\n\nNote: Feeling strongest I've ever been. Consistent gym habit is paying off. Don't let work late nights mess up the routine."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Monitor search feature production rollout",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-07",
+      "completed": false,
+      "content": "Feature flag rollout March 5-7: Watch Datadog dashboard for query latency, error rates, indexing lag. Have rollback plan ready (disable feature flag). Check dead-letter queue."
+    },
+    {
+      "title": "Deploy search feature to production",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-03",
+      "completed": false,
+      "content": "Monday March 3: Deploy search backend to production (code already merged). Enable feature flag at 0% initially. Verify Elasticsearch cluster healthy, indexing pipeline running."
+    },
+    {
+      "title": "Present search architecture at Friday tech talk",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Alex suggested I present the search feature architecture. Topics: Why Elasticsearch, indexing pipeline, circuit breaker pattern, performance results. 20 minutes + Q&A."
+    },
+    {
+      "title": "Add search analytics tracking",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Track: Top search queries, zero-result queries, average result count, search-to-click rate. Use Datadog custom events. This will help us improve relevance over time."
+    },
+    {
+      "title": "Write search architecture ADR",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Document the Elasticsearch decision formally as an ADR. Include: Context, alternatives considered, decision rationale, consequences. Mike suggested this for institutional knowledge."
+    },
+    {
+      "title": "Investigate advanced search features for Q2",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-28",
+      "completed": false,
+      "content": "Research for Q2 planning: Semantic search (vector embeddings), saved searches, search suggestions, search within shared workspaces. Alex mentioned potential AI-powered search."
+    },
+    {
+      "title": "Code review duty — Sprint 24",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Review assigned PRs within 4 hours SLA. Sprint 24 focus: Jake's PRs (as peer reviewer), any search-related changes from frontend (Lisa's integration)."
+    },
+    {
+      "title": "Fix search result ranking for short queries",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "Noticed in testing: Single-character queries (like 'a') return too many irrelevant results. Add minimum query length (2 chars) or special handling for very short queries."
+    },
+    {
+      "title": "Help Jake with search-related bug fix",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Jake asked if he could help with any search-related tickets for his PIP. Assigned him: Document title update should trigger re-index. Small, well-scoped, testable."
+    },
+    {
+      "title": "Set up Elasticsearch index aliases for zero-downtime migrations",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Pre-work for future schema changes. Set up alias: 'documents' pointing to 'documents_v1'. Future migrations create 'documents_v2' and swap alias atomically."
+    },
+    {
+      "title": "Save $1,500 for car fund (March)",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "priority": "medium",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "Monthly car fund contribution. After March: $10,000 total. Need $5,000 more by June to hit $15K target."
+    },
+    {
+      "title": "Research Toyota Corolla Hybrid prices",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Check: Carmax, Carvana, local Toyota dealers for 2023 Corolla Hybrid. Target: $18-20K. Compare prices, mileage, condition. Set up Carmax alerts."
+    },
+    {
+      "title": "Gym — hit all 3 sessions this week",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-07",
+      "completed": false,
+      "content": "Monday upper, Wednesday lower, Friday full body + cardio. Don't skip Wednesday (last week I skipped for a work dinner)."
+    },
+    {
+      "title": "Call parents in Sacramento",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-09",
+      "completed": false,
+      "content": "Weekly Sunday call. Topics: Search feature launching (they'll be proud), ask about Dad's retirement plans, Mom's garden."
+    },
+    {
+      "title": "Sprint 24 retro participation",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Bring up: Search launch experience (what went well), working with Lisa on frontend integration (went great), need for better staging data for search testing."
+    },
+    {
+      "title": "Documentation: Search API for external developers",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Write Swagger/OpenAPI docs for search endpoint. Will be part of API v2 public docs. Include: All parameters, response examples, error codes, rate limits."
+    },
+    {
+      "title": "Learn about vector embeddings (Q2 prep)",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "For potential semantic search in Q2: Read about OpenAI embeddings, pgvector, Pinecone. Watch: 'Building Search with LLMs' talk from AI Eng Summit. Alex mentioned this could be my next project."
+    },
+    {
+      "title": "Meal prep Sunday",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-09",
+      "completed": false,
+      "content": "Prep for week: 5 lunches (chicken thighs + brown rice + roasted broccoli). Buy: 3 lbs chicken, 2 heads broccoli, rice, olive oil. Total: ~$25."
+    },
+    {
+      "title": "Renew Zipcar membership (or cancel?)",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Annual renewal $90. If I'm buying a car by June, maybe cancel and use Uber for the next 3 months? Calculate: Zipcar usage (~2x/month at $50 = $100) vs. Uber ($80/month). Cancel Zipcar."
+    },
+    {
+      "title": "Check credit score for auto loan pre-approval",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "Credit Karma shows 720. Good enough for decent rates. If I need a small loan ($5K), pre-approve with: SF Federal Credit Union or Bay Area Mortgage. Rate target: <5%."
+    },
+    {
+      "title": "Code review: Jake's re-indexing ticket PR",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-08",
+      "completed": false,
+      "content": "Jake is working on 'document title update triggers re-index.' Review his PR: Is the event emission correct? Does it handle edge cases (empty title, very long title)? Be helpful but honest."
+    },
+    {
+      "title": "Write post-launch monitoring runbook",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-05",
+      "completed": false,
+      "content": "Document: What to monitor during rollout, alert thresholds, escalation path, rollback procedure (disable feature flag), known issues and workarounds."
+    },
+    {
+      "title": "Plan visit to parents for Easter weekend",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Easter is April 20. Drive to Sacramento (or borrow roommate's car / take Amtrak Capitol Corridor). Stay Friday-Sunday. Tell parents I'm coming by March 20."
+    },
+    {
+      "title": "Review and update search indexing performance",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "After 1 week in production: Review actual indexing lag, query performance, error rates vs. staging benchmarks. Document any discrepancies. Tune if needed."
+    },
+    {
+      "title": "Start learning Terraform basics",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "Priya manages all infra but I want to understand it better. Start with: Terraform Getting Started tutorial, review our techflow-infra repo, maybe help with search cluster config changes."
+    },
+    {
+      "title": "Buy protein powder (running low)",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-05",
+      "completed": false,
+      "content": "Almost out of Optimum Nutrition Gold Standard Whey (Double Rich Chocolate). Amazon subscribe & save: $35 for 2 lb tub. Reorder this week."
+    },
+    {
+      "title": "Sprint 24 planning — my items",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-03",
+      "completed": false,
+      "content": "Sprint 24 items: Search production monitoring (2 points), analytics tracking (2 points), short query fix (1 point). Total: 5 points. Lighter sprint since launch needs monitoring focus."
+    },
+    {
+      "title": "Schedule 1:1 with Alex to discuss Q2 projects",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "After search launches, discuss what's next: API v2 search endpoints? Semantic search exploration? I want to stay on search-related work — it's my strength now."
+    },
+    {
+      "title": "Research Elastic{ON} conference",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Alex mentioned Elastic{ON} conference (likely Q3 2026, SF). Check: dates, cost, relevant sessions. Would be great for deepening Elasticsearch expertise."
+    },
+    {
+      "title": "Fix roommate's shelf (borrowed his drill last week)",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-08",
+      "completed": false,
+      "content": "Promised to fix the loose shelf in the living room. Need: Level, longer screws (get from Home Depot), 30 minutes of time. Do it this weekend."
+    }
+  ]
+}

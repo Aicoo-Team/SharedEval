@@ -46,8 +46,14 @@ fi
 # from the host by the Harbor backend — never cloned or built in-container.
 # A missing or unbuilt checkout is an environment gap, so it SKIPs like the
 # other prerequisites (and FAILs under PACT_HARBOR_SMOKE_REQUIRE=1).
-SHAREDOS_PIN="846cbf64830d1a77bf477b98fd3586cd5cdff02e"
-SHAREDOS_DIR="${PACT_SHAREDOS_DIR:-$ROOT/../sharedos-repo}"
+SHAREDOS_PIN="373b6347559e39e00b2a4f6bc934373833b40266"
+if [ -n "${PACT_SHAREDOS_DIR:-}" ]; then
+  SHAREDOS_DIR="$PACT_SHAREDOS_DIR"
+elif [ -d "$ROOT/../SharedOS" ]; then
+  SHAREDOS_DIR="$ROOT/../SharedOS"
+else
+  SHAREDOS_DIR="$ROOT/../sharedos-repo"
+fi
 for package in contracts core os runtime testkit; do
   if [ ! -f "$SHAREDOS_DIR/packages/$package/dist/index.js" ]; then
     missing_prerequisite "SharedOS build not found at $SHAREDOS_DIR (missing packages/$package/dist). Clone Aicoo-Team/SharedOS at $SHAREDOS_PIN, run 'pnpm install --frozen-lockfile && pnpm build', or set PACT_SHAREDOS_DIR"

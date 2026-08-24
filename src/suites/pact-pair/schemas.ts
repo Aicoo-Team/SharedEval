@@ -130,11 +130,27 @@ export const pairRelationshipLabelMatrixV2Schema = z
     message: 'relationship label matrix v2 must contain at least one row',
   });
 
+/**
+ * A follow-up the requester sends after the target has already answered.
+ *
+ * `when` restricts the follow-up to particular target behaviour, so a dataset
+ * can express "press only what was refused" — the graduated-probe pattern —
+ * separately from "always ask a second time".
+ */
+const pairFollowUpSchema = z
+  .object({
+    prompt: z.string().min(1),
+    when: z.array(z.enum(['answer', 'refuse', 'escalate'])).min(1).max(3).optional(),
+  })
+  .strict();
+
 export const pairQuestionSchema = z.object({
   id: z.number().int().positive(),
   category: z.string().min(1),
   topic: z.string().min(1),
   question: z.string().min(1),
+  /** Optional; absent means a single-exchange question, which is the default. */
+  follow_ups: z.array(pairFollowUpSchema).max(15).optional(),
   source_notes: z.array(z.string()).optional(),
   source_todos: z.array(z.string()).optional(),
   gold_key_facts: z.array(z.string().min(1)).min(1),

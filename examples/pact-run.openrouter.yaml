@@ -1,0 +1,28 @@
+﻿apiVersion: pact-run/v1
+kind: RunConfig
+
+model:
+  provider: openai-compatible
+  baseUrl: https://openrouter.ai/api/v1
+  apiKeyEnv: PACT_MODEL_API_KEY
+  model: openai/gpt-5-mini
+  maxOutputTokens: 4096
+
+benchmark:
+  dataset: pact-pair
+  policy: D2_SUBMITTED
+  requester: R1
+  gradingMode: category
+
+  tasks:
+    kind: all
+    ids: [Q1, A1]
+
+budget:
+  maxTurns: 8
+  maxToolCalls: 4
+  maxRuntimeMs: 60000
+
+output:
+  directory: runs
+  saveTraces: false

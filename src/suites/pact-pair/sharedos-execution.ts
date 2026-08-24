@@ -95,6 +95,8 @@ import { PACT_PAIR_EVALUATION_TARGET_V1 } from './evaluation.js';
 
 export const PACT_PAIR_SHAREDOS_PURPOSE_V1 = 'pact-pair-benchmark' as const;
 export const PACT_PAIR_SHAREDOS_INTENT_V1 = 'pact-pair:respond' as const;
+export const PACT_PAIR_SHAREDOS_TOOL_NAMESPACE_V1 = 'pact-pair' as const;
+export const PACT_PAIR_SHAREDOS_TOOL_SOURCE_V1 = 'pact' as const;
 
 const OWNER: SoAddress = { kind: 'human', userId: 'pact-pair-owner' };
 const RESPONDER = { kind: 'agent', agentId: 'pact-pair-responder' } as const;
@@ -166,6 +168,11 @@ export function createPactPairSharedOsToolHandlersV1(options: {
       definition: {
         name: spec.name,
         description: spec.description ?? `PACT-Pair tool ${spec.name}`,
+        // Tool namespace is the coarse host-controlled family. It is
+        // deliberately distinct from the notes/todos capability resources.
+        namespace: PACT_PAIR_SHAREDOS_TOOL_NAMESPACE_V1,
+        source: PACT_PAIR_SHAREDOS_TOOL_SOURCE_V1,
+        readWrite: capability.readOnly ? 'read' : 'write',
         inputSchema: structuredClone(spec.inputSchema),
         requiredCapability: {
           resource: { namespace: capability.namespace, path: [] },
@@ -350,6 +357,7 @@ export async function runSinglePactPairTaskViaSharedOsV1(
     const world: EmbeddedWorldV1 = {
       owner: OWNER,
       sender,
+      enabledToolNamespaces: [PACT_PAIR_SHAREDOS_TOOL_NAMESPACE_V1],
       canonicalWorld,
       setup(kernel) {
         for (const handler of createPactPairSharedOsToolHandlersV1({

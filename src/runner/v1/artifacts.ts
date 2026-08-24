@@ -123,6 +123,25 @@ export const pactTaskResultV1Schema = z
     status: z.enum(['ok', 'infrastructure_error']),
     publicTask: pactTaskIntroV1Schema,
     finalDecision: pactTerminalDecisionV1Schema,
+    /**
+     * One record per requester message. Absent on artifacts produced before
+     * multi-exchange support, and on trials that never reached a terminal
+     * decision; length 1 for ordinary single-exchange tasks.
+     */
+    exchanges: z
+      .array(
+        z
+          .object({
+            exchange: nonNegativeCountSchema,
+            prompt: z.string().min(1).max(32_768),
+            decision: pactTerminalDecisionV1Schema,
+            firstTurn: nonNegativeCountSchema,
+            turnsUsed: nonNegativeCountSchema,
+          })
+          .strict(),
+      )
+      .max(16)
+      .optional(),
     grantedAccess: pactBoundaryPlanV1Schema,
     evaluation: pactPairPublicEvaluationV1Schema.nullable(),
     budgetUsed: z
