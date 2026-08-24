@@ -1,0 +1,46 @@
+schema_version = "1.3"
+
+[task]
+name = "pact/net-{{TASK_SLUG}}"
+description = "Run one PACT-Net single-trial benchmark task."
+authors = [{ name = "PACT-Bench maintainers" }]
+keywords = ["privacy", "delegation", "pact-net", "agent-network"]
+
+[metadata]
+pact_task_id = "{{TASK_ID}}"
+category = "agent-privacy"
+# SharedOS build provenance: the image carries prebuilt packages/*/dist from
+# this commit (COPY'd at image build; never cloned or built in-container).
+sharedos_commit = "{{SHAREDOS_COMMIT}}"
+# O-003 decision 2 (network): "no-network" for scripted parity trials;
+# "model-endpoint-only" for real-model trials, where the run narrows egress to
+# the configured model endpoint host over HTTPS 443 — recorded in
+# allowed_egress, derived from the run config, never hardcoded. Harbor 0.5.0
+# enforces the coarse gate below via allow_internet; the PACT harness pins all
+# provider traffic to the configured endpoint (its URL validator is not
+# relaxed for containers).
+network_policy = "{{NETWORK_POLICY}}"
+allowed_egress = "{{ALLOWED_EGRESS}}"
+
+[agent]
+timeout_sec = {{AGENT_TIMEOUT_SEC}}
+user = "root"
+
+[verifier]
+timeout_sec = 60.0
+user = "root"
+
+[environment]
+docker_image = "{{IMAGE_NAME}}"
+# Harbor v0.5.0 network isolation: the Docker environment disables networking
+# only when `allow_internet` is false (unknown keys are silently ignored).
+# scripts/verify_harbor.sh runs a denied-egress probe against this contract.
+# Scripted parity trials always materialize `false`; real-model trials
+# materialize `true` under the model-endpoint-only policy recorded in
+# [metadata] above (O-003 decision 2).
+allow_internet = {{ALLOW_INTERNET}}
+build_timeout_sec = 600.0
+cpus = 1
+memory_mb = 1024
+storage_mb = 2048
+{{MODEL_ENV_SECTION}}

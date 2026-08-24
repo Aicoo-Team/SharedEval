@@ -6,16 +6,20 @@ import { fileURLToPath } from 'node:url';
 import { aggregateEvaluationResults } from '../../evaluation/index.js';
 import {
   pactRunConfigV1Schema,
+  selectedPactExecutionAdapterV1,
   selectedPactExecutionBackendV1,
   type PactRunConfigV1,
 } from '../../runner/v1/config.js';
 import type { PactRunExecutionMetadataV1 } from '../../runner/v1/backends/index.js';
+import { pactHarborScriptedModelV1 } from '../../runner/v1/backends/harbor-task-package.js';
+import { runPactNetTasksViaHarborV1 } from './harbor.js';
 import {
   loadPactNetTasksV1,
   requirePactNetPolicyV1,
   type PactNetPolicyV1,
 } from './task-loader.js';
 import { loadPactNetAgentStoresV1 } from './workspace.js';
+import { createPactNetModelHarnessV1 } from './model-harness.js';
 import {
   runSinglePactNetTaskV1,
   type PactNetHarnessFactoryV1,
@@ -115,6 +119,13 @@ export type PactNetRunResultV1 = {
     dataset: 'pact-net';
     policy: PactNetPolicyV1;
     tasks: PactRunConfigV1['benchmark']['tasks'];
+    /**
+     * Execution-adapter selection, present only when the config sets it
+     * explicitly (absence keeps existing run.json payloads byte-identical
+     * and means pact-public-runner) — Pair precedent, where run.json's
+     * benchmark block carries `execution` verbatim from the config.
+     */
+    execution?: NonNullable<PactRunConfigV1['benchmark']['execution']>;
   };
   budget: PactRunConfigV1['budget'];
   configDigest: string;
@@ -132,12 +143,16 @@ export type PactNetRunResultV1 = {
 
 export type RunPactNetBenchmarkV1Options = {
   /**
-   * Required in the current skeleton: PACT-Net has no model-backed harness
-   * yet (the OpenAI-compatible Pair harness implements the Pair adapter
-   * protocol and Pair prompts). Scripted or test harnesses are injected here;
-   * the model harness is an explicit follow-up.
+   * Decision source override. When absent the OpenAI-compatible PACT-Net
+   * model harness (model-harness.ts) backs every trial with the configured
+   * provider; scripted or test harnesses are injected here.
    */
   harnessFactory?: PactNetHarnessFactoryV1;
+  /**
+   * Label for the effective decision source recorded in run artifacts.
+   * Defaults to 'custom-harness' when a harnessFactory is injected and
+   * 'model' otherwise (Pair precedent).
+   */
   executor?: PactRunExecutionMetadataV1['executor'];
   environment?: Record<string, string | undefined>;
   now?: () => Date;
@@ -147,6 +162,19 @@ export type RunPactNetBenchmarkV1Options = {
   /** Seed-store override keyed by agent id; defaults to the dataset stores. */
   stores?: Map<string, PactNetAgentStoreV1>;
   writeOutputs?: boolean;
+  /**
+   * Harbor-backend overrides (executables, image, staging), used when the
+   * config selects `backend: harbor`. Tests inject nonexistent executables
+   * here to exercise the backend-error mapping without Docker.
+   */
+  harbor?: {
+    repositoryRoot?: string;
+    harborExecutable?: string;
+    dockerExecutable?: string;
+    imageName?: string;
+    keepWorkingDirectory?: boolean;
+    sharedOsDir?: string;
+  };
 };
 
 export async function runPactNetBenchmarkV1(
@@ -170,15 +198,21 @@ export async function runPactNetBenchmarkV1(
       `runPactNetBenchmarkV1 requires benchmark.dataset pact-net, got ${runConfig.benchmark.dataset}`,
     );
   }
-  if (selectedPactExecutionBackendV1(runConfig).kind !== 'local') {
-    throw new Error('PACT-Net currently supports only the local execution backend');
-  }
-  const harnessFactory = options.harnessFactory;
-  if (!harnessFactory) {
-    throw new Error(
-      'PACT-Net has no model-backed harness yet; inject options.harnessFactory '
-      + '(scripted or custom). The model harness is a tracked follow-up.',
-    );
+  const backendSelection = selectedPactExecutionBackendV1(runConfig);
+  if (
+    backendSelection.kind === 'local'
+    && selectedPactExecutionAdapterV1(runConfig) === 'sharedos-embedded'
+  ) {
+    // Fail-loud contract of the explicitly selected sharedos-embedded
+    // adapter: preflight the SharedOS build once, at run level, before any
+    // task executes or any output artifact is written. A missing or
+    // unloadable PACT_SHAREDOS_DIR rejects the whole run here instead of
+    // degrading into one infrastructure_error row per selected task. The
+    // Harbor backend performs its own SharedOS staging preflight
+    // (harbor-backend.ts); lazy import for the same reason as the per-task
+    // dispatch in environment.ts.
+    const { preflightPactNetSharedOsV1 } = await import('./sharedos-execution.js');
+    await preflightPactNetSharedOsV1();
   }
   const policy = requirePactNetPolicyV1(runConfig.benchmark.policy);
   const now = options.now ?? (() => new Date());
@@ -198,19 +232,37 @@ export async function runPactNetBenchmarkV1(
   });
   if (tasks.length === 0) throw new Error('PACT-Net task selection is empty');
   const stores = options.stores ?? loadPactNetAgentStoresV1({ rootDir });
+  const harnessFactory = options.harnessFactory
+    ?? (context => createPactNetModelHarnessV1(context.config, context.publicTask, {
+      environment,
+    }));
 
   const benchmarkMetadata: PactNetRunResultV1['benchmark'] = {
     dataset: 'pact-net',
     policy,
     tasks: runConfig.benchmark.tasks,
+    ...(runConfig.benchmark.execution
+      ? { execution: runConfig.benchmark.execution }
+      : {}),
   };
   const configDigest = digestJson(runConfig);
   const taskSetDigest = digestJson(tasks);
   const sourceRevision = resolveSourceRevision(rootDir);
-  const execution: PactRunExecutionMetadataV1 = {
-    backend: 'local',
-    executor: options.executor ?? 'custom-harness',
-  };
+  // Pair precedent: for the Harbor backend the effective executor is derived
+  // from the model endpoint (scripted `.invalid` parity packages never call a
+  // model), and any injected harness is irrelevant — the container decides.
+  const execution: PactRunExecutionMetadataV1 = backendSelection.kind === 'harbor'
+    ? {
+        backend: 'harbor',
+        executor: pactHarborScriptedModelV1(runConfig.model)
+          ? 'scripted-harness'
+          : 'model',
+      }
+    : {
+        backend: 'local',
+        executor: options.executor
+          ?? (options.harnessFactory ? 'custom-harness' : 'model'),
+      };
   const outputDirectory = options.writeOutputs === false
     ? undefined
     : await prepareRunOutputDirectory({
@@ -230,20 +282,8 @@ export async function runPactNetBenchmarkV1(
       });
 
   const taskRuns: PactNetSingleTaskRunV1[] = [];
-  for (const task of tasks) {
-    const seed = stores.get(task.targetAgent);
-    if (!seed) {
-      throw new Error(`PACT-Net task ${task.taskId} targets agent ${task.targetAgent} with no seed store`);
-    }
-    const taskRun = await runSinglePactNetTaskV1({
-      config: runConfig,
-      task,
-      seed,
-      runId,
-      now,
-      harnessFactory,
-      environment,
-    });
+  let executionMetadata = execution;
+  const checkpointTaskRun = async (taskRun: PactNetSingleTaskRunV1) => {
     taskRuns.push(taskRun);
     if (outputDirectory) {
       await appendTaskCheckpoint(
@@ -254,6 +294,56 @@ export async function runPactNetBenchmarkV1(
         taskRuns.filter(run => run.result.status === 'infrastructure_error').length,
         runConfig.output.saveTraces,
       );
+    }
+  };
+  if (backendSelection.kind === 'harbor') {
+    // Per-task container execution through the shared Harbor orchestration;
+    // trials come back through the Net artifact trust boundary (harbor.ts)
+    // and are checkpointed in host task order, exactly like local trials.
+    const harborRun = await runPactNetTasksViaHarborV1({
+      config: runConfig,
+      tasks,
+      stores,
+      runId,
+      now,
+      environment,
+      repositoryRoot: options.harbor?.repositoryRoot ?? rootDir,
+      ...(options.harbor?.harborExecutable === undefined
+        ? {}
+        : { harborExecutable: options.harbor.harborExecutable }),
+      ...(options.harbor?.dockerExecutable === undefined
+        ? {}
+        : { dockerExecutable: options.harbor.dockerExecutable }),
+      ...(options.harbor?.imageName === undefined
+        ? {}
+        : { imageName: options.harbor.imageName }),
+      ...(options.harbor?.keepWorkingDirectory === undefined
+        ? {}
+        : { keepWorkingDirectory: options.harbor.keepWorkingDirectory }),
+      ...(options.harbor?.sharedOsDir === undefined
+        ? {}
+        : { sharedOsDir: options.harbor.sharedOsDir }),
+    });
+    executionMetadata = harborRun.execution;
+    for (const taskRun of harborRun.taskRuns) {
+      await checkpointTaskRun(taskRun);
+    }
+  } else {
+    for (const task of tasks) {
+      const seed = stores.get(task.targetAgent);
+      if (!seed) {
+        throw new Error(`PACT-Net task ${task.taskId} targets agent ${task.targetAgent} with no seed store`);
+      }
+      const taskRun = await runSinglePactNetTaskV1({
+        config: runConfig,
+        task,
+        seed,
+        runId,
+        now,
+        harnessFactory,
+        environment,
+      });
+      await checkpointTaskRun(taskRun);
     }
   }
 
@@ -266,7 +356,7 @@ export async function runPactNetBenchmarkV1(
     status: summary.errors > 0 ? 'completed_with_errors' : 'completed',
     selectedTasks: tasks.length,
     model: runMetadataModelV1(runConfig.model),
-    execution,
+    execution: executionMetadata,
     benchmark: benchmarkMetadata,
     budget: runConfig.budget,
     configDigest,
