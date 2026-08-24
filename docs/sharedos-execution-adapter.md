@@ -1,6 +1,6 @@
 # SharedOS execution adapter (PACT side)
 
-Status: **contract + mock + real `sharedos-embedded` binding**, verified
+Status: **contract + test-internal mock + real `sharedos-embedded` binding**, verified
 against SharedOS source at commit `373b634` (Aicoo-Team/SharedOS).
 
 This completes O007's PACT-side prerequisites: Node floor raised to
@@ -60,10 +60,14 @@ CI against a pinned SharedOS commit (see below). They are the interim
 substitute for consuming `@sharedos/contracts` directly, which awaits
 the lead's packaging decision.
 
-Adapter identifiers follow the guide: `sharedos-embedded`,
-`sharedos-http`, `pact-public-runner`, plus `mock-sharedos` for the mock.
-Absolute outcome rates from different adapters must not be combined
-unless equivalence has been demonstrated.
+The execution contract can identify `sharedos-embedded`, `sharedos-http`,
+`pact-public-runner`, and the test-internal `mock-sharedos`. The public
+`pact-run/v1` configuration is intentionally narrower: both
+`benchmark.execution.adapter` and CLI `--execution.adapter` accept only
+`pact-public-runner` or `sharedos-embedded`. `mock-sharedos` is not a public
+benchmark configuration value and cannot be selected for a CLI run. Absolute
+outcome rates from different adapters must not be combined unless equivalence
+has been demonstrated.
 
 Security semantics encoded structurally:
 
@@ -109,7 +113,11 @@ functions), which SharedOS does not define and PACT would have to
 invent, creating a second drift surface. The narrow claim is honest,
 cheap, and auditable.
 
-The mock (`MockSharedOsAdapterV1`) injects seven incident classes:
+### Test-internal mock adapter
+
+`MockSharedOsAdapterV1` exists for contract/unit tests and deterministic fault
+injection only. Its `mock-sharedos` adapter ID does not expose a model-free
+public runner path. The mock injects seven incident classes:
 timeout, no-response, denied, duplicate emission, served-model drift,
 transient-then-success, empty world — the six pulse experiment-platform
 classes plus SharedOS's first-class permission denial.
