@@ -233,7 +233,7 @@ function validatePairRelationshipLabelsV2(
 function validatePair(): void {
   const datasetRoot = 'dataset/pact-pair';
   const manifest = parseDatasetManifestYamlV1(readText(`${datasetRoot}/manifest.yaml`));
-  if (manifest.id !== 'pact-pair' || manifest.version !== '6.0.0') {
+  if (manifest.id !== 'pact-pair' || manifest.version !== '7.0.0') {
     throw new Error(`PACT-Pair manifest identity is unexpected: ${manifest.id}@${manifest.version}`);
   }
   for (const [name, asset] of Object.entries(manifest.assets)) {
