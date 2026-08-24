@@ -228,10 +228,12 @@ benchmark:
     },
   });
 
+  // pact-net is a registered dataset id since the Net suite landed; ids
+  // outside the registered enum still fail closed.
   assert.throws(
     () => parsePactRunConfigV1Yaml(`${minimalConfig}
 benchmark:
-  dataset: pact-net
+  dataset: uploaded-dataset
 `),
     ZodError,
   );

@@ -5,6 +5,13 @@ import {
   type PactPairRunResultV1,
   type RunPactPairBenchmarkV1Options,
 } from '../../suites/pact-pair/index.js';
+import {
+  loadPactNetTasksV1,
+  requirePactNetPolicyV1,
+  runPactNetBenchmarkV1,
+  type PactNetRunResultV1,
+  type RunPactNetBenchmarkV1Options,
+} from '../../suites/pact-net/index.js';
 
 export * from '../../suites/pact-pair/runner.js';
 
@@ -15,8 +22,16 @@ export type PactBenchmarkInspectionV1 = {
   lastTask: string | null;
 };
 
-export type PactBenchmarkRunResultV1 = PactPairRunResultV1;
-export type RunPactBenchmarkV1Options = RunPactPairBenchmarkV1Options;
+/**
+ * Dispatch-level result and option types are the union of the registered
+ * suites. The CLI consumes only the shared shape (runId, outputDirectory,
+ * aborted, summary.errors); anything suite-specific requires calling the
+ * suite runner directly.
+ */
+export type PactBenchmarkRunResultV1 = PactPairRunResultV1 | PactNetRunResultV1;
+export type RunPactBenchmarkV1Options =
+  | RunPactPairBenchmarkV1Options
+  | RunPactNetBenchmarkV1Options;
 
 type DatasetRuntimeV1 = {
   readonly id: string;
@@ -45,7 +60,32 @@ const pactPairRuntimeV1: DatasetRuntimeV1 = {
       lastTask: tasks.at(-1)?.taskId ?? null,
     };
   },
-  run: runPactPairBenchmarkV1,
+  // The dispatch options union narrows per suite; each runtime forwards the
+  // options shape its own runner declares.
+  run: (config, options) =>
+    runPactPairBenchmarkV1(config, options as RunPactPairBenchmarkV1Options),
+};
+
+const pactNetRuntimeV1: DatasetRuntimeV1 = {
+  id: 'pact-net',
+  inspect(config) {
+    const tasks = loadPactNetTasksV1({
+      policy: requirePactNetPolicyV1(config.benchmark.policy),
+      kind: config.benchmark.tasks.kind,
+      ...(config.benchmark.tasks.ids ? { ids: config.benchmark.tasks.ids } : {}),
+      ...(config.benchmark.tasks.limit === undefined
+        ? {}
+        : { limit: config.benchmark.tasks.limit }),
+    });
+    return {
+      dataset: this.id,
+      taskCount: tasks.length,
+      firstTask: tasks.at(0)?.taskId ?? null,
+      lastTask: tasks.at(-1)?.taskId ?? null,
+    };
+  },
+  run: (config, options) =>
+    runPactNetBenchmarkV1(config, options as RunPactNetBenchmarkV1Options),
 };
 
 /**
@@ -54,6 +94,7 @@ const pactPairRuntimeV1: DatasetRuntimeV1 = {
  */
 const datasetRuntimesV1 = new Map<string, DatasetRuntimeV1>([
   [pactPairRuntimeV1.id, pactPairRuntimeV1],
+  [pactNetRuntimeV1.id, pactNetRuntimeV1],
 ]);
 
 export function inspectPactBenchmarkV1(

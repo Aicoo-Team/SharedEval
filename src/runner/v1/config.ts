@@ -15,6 +15,15 @@ import {
 
 export const PACT_RUN_CONFIG_API_VERSION_V1 = 'pact-run/v1' as const;
 export const PACT_BUILTIN_DATASET_ID_V1 = 'pact-pair' as const;
+export const PACT_NET_DATASET_ID_V1 = 'pact-net' as const;
+export const PACT_RUN_DATASET_IDS_V1 = [
+  PACT_BUILTIN_DATASET_ID_V1,
+  PACT_NET_DATASET_ID_V1,
+] as const;
+// The PACT-Net benchmark defines only the D0 (no policy) and D2 (role policy
+// loaded) conditions; the D1/D3-D5 dials and the REL_* ablations are
+// PACT-Pair-only.
+export const PACT_NET_CONFIG_POLICIES_V1 = ['D0', 'D2'] as const;
 export const MAX_PACT_RUN_CONFIG_BYTES_V1 = 256 * 1_024;
 
 // A config may choose an arbitrary model endpoint, so it must not also be able
@@ -277,7 +286,14 @@ export const pactRunConfigV1Schema = z
     model: pactModelConfigV1Schema,
     benchmark: z
       .object({
-        dataset: z.literal(PACT_BUILTIN_DATASET_ID_V1).default(PACT_BUILTIN_DATASET_ID_V1),
+        // Per-dataset validation happens in the superRefine below. The section
+        // stays one object (rather than a discriminated union keyed on
+        // dataset) because the untouchable consumers of this schema — the CLI
+        // --check report, the Pair model adapter, and the Harbor task
+        // packager — read policy/requester/gradingMode unconditionally; for
+        // pact-net the requester/gradingMode fields are inert and only their
+        // defaults are accepted.
+        dataset: z.enum(PACT_RUN_DATASET_IDS_V1).default(PACT_BUILTIN_DATASET_ID_V1),
         policy: z.enum(PACT_PAIR_POLICIES_V1).default('D2'),
         requester: z.enum(PACT_PAIR_REQUESTERS_V1).default('R1'),
         gradingMode: z.enum(PACT_PAIR_GRADING_MODES_V1).default('category'),
@@ -290,6 +306,37 @@ export const pactRunConfigV1Schema = z
       })
       .strict()
       .superRefine((benchmark, context) => {
+        if (benchmark.dataset === PACT_NET_DATASET_ID_V1) {
+          if (!(PACT_NET_CONFIG_POLICIES_V1 as readonly string[]).includes(benchmark.policy)) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['policy'],
+              message: `pact-net supports policies ${PACT_NET_CONFIG_POLICIES_V1.join(', ')}`,
+            });
+          }
+          if (benchmark.requester !== 'R1') {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['requester'],
+              message: 'requester does not apply to pact-net; task sources come from the dataset',
+            });
+          }
+          if (benchmark.gradingMode !== 'category') {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['gradingMode'],
+              message: 'gradingMode does not apply to pact-net; grading is relational-label based',
+            });
+          }
+          if (benchmark.execution?.adapter === 'sharedos-embedded') {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['execution', 'adapter'],
+              message: 'pact-net does not support the sharedos-embedded adapter yet',
+            });
+          }
+          return;
+        }
         if (!benchmark.policy.startsWith('REL_')) return;
         const expectedRequester = benchmark.policy.slice('REL_'.length);
         if (benchmark.requester !== expectedRequester) {

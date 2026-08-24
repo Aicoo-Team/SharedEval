@@ -30,6 +30,66 @@ test('dispatches inspection through the approved PACT-Pair runtime', () => {
   });
 });
 
+test('dispatches inspection through the approved PACT-Net runtime', () => {
+  const netConfig = parsePactRunConfigV1Yaml(`
+apiVersion: pact-run/v1
+kind: RunConfig
+model:
+  provider: openai-compatible
+  baseUrl: https://api.example.com/v1
+  apiKeyEnv: PACT_MODEL_API_KEY
+  model: example-model
+benchmark:
+  dataset: pact-net
+  policy: D0
+  tasks:
+    kind: all
+    ids: [NET-Q-0001, NET-A-0001]
+`);
+  assert.deepEqual(inspectPactBenchmarkV1(netConfig), {
+    dataset: 'pact-net',
+    taskCount: 2,
+    firstTask: 'NET-Q-0001',
+    lastTask: 'NET-A-0001',
+  });
+});
+
+test('rejects pact-net configs outside the D0/D2 policy contract', () => {
+  const yamlFor = (benchmark: string) => `
+apiVersion: pact-run/v1
+kind: RunConfig
+model:
+  provider: openai-compatible
+  baseUrl: https://api.example.com/v1
+  apiKeyEnv: PACT_MODEL_API_KEY
+  model: example-model
+benchmark:
+${benchmark}
+`;
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(yamlFor('  dataset: pact-net\n  policy: D1')),
+    /pact-net supports policies D0, D2/,
+  );
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(yamlFor('  dataset: pact-net\n  requester: R2')),
+    /requester does not apply to pact-net/,
+  );
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(yamlFor('  dataset: pact-net\n  gradingMode: relationship')),
+    /gradingMode does not apply to pact-net/,
+  );
+  assert.throws(
+    () => parsePactRunConfigV1Yaml(yamlFor(
+      '  dataset: pact-net\n  execution:\n    adapter: sharedos-embedded',
+    )),
+    /does not support the sharedos-embedded adapter/,
+  );
+  // The default D2 with an explicit pact-net dataset parses cleanly.
+  const parsed = parsePactRunConfigV1Yaml(yamlFor('  dataset: pact-net'));
+  assert.equal(parsed.benchmark.dataset, 'pact-net');
+  assert.equal(parsed.benchmark.policy, 'D2');
+});
+
 test('does not treat a dataset identifier as executable code', () => {
   const unregistered = structuredClone(config) as unknown as {
     benchmark: { dataset: string };
