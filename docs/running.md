@@ -436,6 +436,13 @@ fields are present only when the endpoint returns valid usage, while
 `usageComplete` and `costComplete` state whether every provider request was
 accounted for.
 
+When a CLI run completes with infrastructure errors, its stdout JSON also
+contains a bounded `failures` summary. Repeated task failures are grouped by
+sanitized message and diagnostic kind, with task IDs and explicit omission
+counts when the display limits are reached. This keeps the immediate root cause
+visible without reading `results.jsonl`; the run directory remains the complete
+public artifact record. Successful CLI output omits the `failures` field.
+
 Traces can contain synthetic private workspace records returned by tools. They
 are disabled by default and should still be handled as sensitive evaluation
 artifacts.
