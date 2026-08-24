@@ -69,4 +69,3 @@ test('enforces a 4096 UTF-8-byte note bound without counting JavaScript characte
     /4096|byte|note/i,
   );
 });
-

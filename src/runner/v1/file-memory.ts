@@ -97,4 +97,3 @@ function assertStrictUtf8(value: string, label: string): void {
     throw new Error(`${label} must be valid UTF-8`);
   }
 }
-

@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { access, mkdtemp, readdir, rm } from 'node:fs/promises';
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  utimes,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -32,7 +41,12 @@ function template(memory = 'task-1 [pending] — not started\n') {
   } as never;
 }
 
-async function materialize(rootDir: string, runId = 'run-1', actorId = 'actor-1') {
+async function materialize(
+  rootDir: string,
+  runId = 'run-1',
+  actorId = 'actor-1',
+  faultInjection?: unknown,
+) {
   const { materializeFileWorkspaceV1 } = await loadSubject();
   return materializeFileWorkspaceV1({
     rootDir,
@@ -40,6 +54,7 @@ async function materialize(rootDir: string, runId = 'run-1', actorId = 'actor-1'
     actorId,
     template: template(),
     selectedTaskIds: ['task-1'],
+    faultInjection: faultInjection as never,
   });
 }
 
@@ -116,6 +131,195 @@ test('returns a stale CAS conflict without changing the durable bytes or version
       sha256: sha256('task-1 [answered] — first writer\n'), byteLength: 35,
     });
     assert.deepEqual(await workspace.snapshot('actor-1'), beforeConflict);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('does not stage a MEMORY replacement when lock acquisition fails', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      failLockAcquisition: true,
+    });
+    const actorDir = join(rootDir, 'runs', 'run-1', 'workspaces', 'actor-1');
+    await assert.rejects(
+      () => workspace.replaceMemory({
+        actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — never staged\n',
+      }),
+      /lock acquisition/i,
+    );
+    assert.deepEqual(
+      (await readdir(actorDir)).filter(name => name.startsWith('.staging-version-')),
+      [],
+    );
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('recovers an expired dead-owner lock only after taking exclusive ownership and clears its orphan stage', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir);
+    const actorDir = join(rootDir, 'runs', 'run-1', 'workspaces', 'actor-1');
+    await writeFile(join(actorDir, '.memory.lock'), JSON.stringify({
+      ownerId: '00000000-0000-4000-8000-000000000001', pid: 999_999_999, leaseExpiresAt: 0,
+    }));
+    await mkdir(join(actorDir, '.staging-version-orphan'));
+    await writeFile(join(actorDir, '.staging-version-orphan', 'sentinel'), 'orphan\n');
+
+    const result = await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — recovered\n',
+    });
+    assert.equal(result.outcome, 'committed');
+    assert.deepEqual(
+      (await readdir(actorDir)).filter(name => name.startsWith('.staging-version-')),
+      [],
+    );
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('never steals an expired lock whose owner process is still live', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      lockAcquireTimeoutMs: 20,
+    });
+    const actorDir = join(rootDir, 'runs', 'run-1', 'workspaces', 'actor-1');
+    const lockPath = join(actorDir, '.memory.lock');
+    const owner = {
+      ownerId: '00000000-0000-4000-8000-000000000002', pid: process.pid, leaseExpiresAt: 0,
+    };
+    await writeFile(lockPath, JSON.stringify(owner));
+
+    await assert.rejects(
+      () => workspace.replaceMemory({
+        actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — must not steal\n',
+      }),
+      /live lock owner/i,
+    );
+    assert.deepEqual(JSON.parse(await readFile(lockPath, 'utf8')), owner);
+    assert.equal((await workspace.snapshot('actor-1')).final.version, 0);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('recovers an old partial lock left between exclusive creation and owner metadata sync', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir);
+    const actorDir = join(rootDir, 'runs', 'run-1', 'workspaces', 'actor-1');
+    const lockPath = join(actorDir, '.memory.lock');
+    await writeFile(lockPath, '{"ownerId":');
+    await utimes(lockPath, 0, 0);
+
+    assert.equal((await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — partial lock recovered\n',
+    })).outcome, 'committed');
+    await assert.rejects(() => access(lockPath));
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('does not steal a recent partial lock during its metadata initialization grace window', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      lockAcquireTimeoutMs: 20,
+    });
+    const actorDir = join(rootDir, 'runs', 'run-1', 'workspaces', 'actor-1');
+    const lockPath = join(actorDir, '.memory.lock');
+    await writeFile(lockPath, '{"ownerId":');
+
+    await assert.rejects(
+      () => workspace.replaceMemory({
+        actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — must wait\n',
+      }),
+      /initialization is still in progress/i,
+    );
+    assert.equal(await readFile(lockPath, 'utf8'), '{"ownerId":');
+    assert.equal((await workspace.snapshot('actor-1')).final.version, 0);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('returns a published workspace after an initial post-rename sync failure', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      failInitialPostPublishSync: true,
+    });
+    assert.equal(workspace.publication.durability, 'published_unsynced');
+    assert.equal((await workspace.read({ actorId: 'actor-1', path: 'MEMORY.md' })).receipt.version, 0);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('does not turn an initial workspace publication into a failure when lock cleanup faults', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      failInitialLockRelease: true,
+    });
+    assert.equal(workspace.publication.durability, 'published_unsynced');
+    assert.equal((await workspace.read({ actorId: 'actor-1', path: 'MEMORY.md' })).receipt.version, 0);
+    const { openFileWorkspaceV1 } = await loadSubject();
+    assert.equal((await (await openFileWorkspaceV1({
+      rootDir, runId: 'run-1', actorId: 'actor-1', selectedTaskIds: ['task-1'],
+    })).snapshot('actor-1')).final.version, 0);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('returns the committed MEMORY version after a post-rename pointer sync failure', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      failMemoryPostPublishSync: true,
+    });
+    const result = await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — published\n',
+    });
+    assert.deepEqual(result, {
+      outcome: 'committed', version: 1,
+      sha256: sha256('task-1 [answered] — published\n'), byteLength: 32,
+      durability: 'published_unsynced',
+    });
+    const { openFileWorkspaceV1 } = await loadSubject();
+    const reopened = await openFileWorkspaceV1({
+      rootDir, runId: 'run-1', actorId: 'actor-1', selectedTaskIds: ['task-1'],
+    });
+    assert.equal((await reopened.read({ actorId: 'actor-1', path: 'MEMORY.md' })).content, 'task-1 [answered] — published\n');
+    assert.equal((await reopened.snapshot('actor-1')).final.version, 1);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('does not turn a published MEMORY replacement into a failure when lock cleanup faults', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      failMemoryLockRelease: true,
+    });
+    const first = await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — cleanup fault\n',
+    });
+    assert.equal(first.outcome, 'committed');
+    assert.equal(first.durability, 'published_unsynced');
+    const second = await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 1, content: 'task-1 [answered] — recovered release\n',
+    });
+    assert.equal(second.outcome, 'committed');
+    assert.equal((await workspace.snapshot('actor-1')).final.version, 2);
   } finally {
     await rm(rootDir, { recursive: true, force: true });
   }

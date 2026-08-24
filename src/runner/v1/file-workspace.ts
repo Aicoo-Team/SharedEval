@@ -3,13 +3,15 @@ import { createHash, randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import {
   lstat,
+  link,
   mkdir,
   open,
   readFile,
+  readdir,
   rename,
   rm,
 } from 'node:fs/promises';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
   loadAgentWorkspaceRawFileV1,
   type AgentWorkspaceFilePathV1,
@@ -26,6 +28,10 @@ const logicalFiles = [
 const logicalFileSet = new Set<string>(logicalFiles);
 const safeRunOrActorId = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const versionDirectory = /^version-[a-f0-9-]{36}$/;
+const DEFAULT_LOCK_LEASE_MS_V1 = 30_000;
+const DEFAULT_LOCK_ACQUIRE_TIMEOUT_MS_V1 = 5_000;
+const LOCK_RETRY_DELAY_MS_V1 = 5;
+const LOCK_INITIALIZATION_GRACE_MS_V1 = 1_000;
 
 export type FileWorkspaceFileMetadataV1 = {
   path: AgentWorkspaceFilePathV1;
@@ -50,6 +56,8 @@ export type ReplaceMemoryResultV1 =
     version: number;
     sha256: string;
     byteLength: number;
+    /** The pointer was atomically published, but its parent fsync failed. */
+    durability?: 'published_unsynced';
   }
   | {
     outcome: 'conflict';
@@ -83,11 +91,31 @@ export interface FileWorkspacePortV1 {
   snapshot(actorId: string): Promise<FileWorkspaceSnapshotV1>;
 }
 
-export type MaterializedFileWorkspaceV1 = FileWorkspacePortV1;
+export type MaterializedFileWorkspaceV1 = FileWorkspacePortV1 & {
+  publication: {
+    /** A published workspace remains readable/reopenable after an fsync fault. */
+    durability: 'synced' | 'published_unsynced';
+  };
+};
 
 /** Test-only fault point that still writes the real staged filesystem. */
 export type FileWorkspaceFaultInjectionV1 = {
   failAfterStagingFile?: AgentWorkspaceFilePathV1;
+  failLockAcquisition?: boolean;
+  lockAcquireTimeoutMs?: number;
+  failInitialPostPublishSync?: boolean;
+  failMemoryPostPublishSync?: boolean;
+  failInitialLockRelease?: boolean;
+  failMemoryLockRelease?: boolean;
+};
+
+type FileWorkspaceFaultStateV1 = {
+  failLockAcquisition: boolean;
+  lockAcquireTimeoutMs: number | undefined;
+  failInitialPostPublishSync: boolean;
+  failMemoryPostPublishSync: boolean;
+  failInitialLockRelease: boolean;
+  failMemoryLockRelease: boolean;
 };
 
 type DurablePointer = {
@@ -100,6 +128,25 @@ type StoredInitialSnapshot = {
   version: 0;
   files: FileWorkspaceFileSetV1;
 };
+
+type FileWorkspaceLockOwnerV1 = {
+  ownerId: string;
+  pid: number;
+  leaseExpiresAt: number;
+  released?: boolean;
+};
+
+type FileWorkspaceLockV1 = {
+  path: string;
+  owner: FileWorkspaceLockOwnerV1;
+  recovered: boolean;
+  release(): Promise<{ cleaned: boolean }>;
+};
+
+type FileWorkspaceLockInspectionV1 =
+  | { kind: 'missing' }
+  | { kind: 'owner'; owner: FileWorkspaceLockOwnerV1 }
+  | { kind: 'initializing'; mtimeMs: number };
 
 /**
  * Creates one private workspace for one actor.  The published actor directory
@@ -128,9 +175,19 @@ export async function materializeFileWorkspaceV1(input: {
   const actorDir = join(workspacesDir, input.actorId);
   await assertDoesNotExist(actorDir, 'actor workspace');
 
-  const lock = await acquireLock(join(workspacesDir, `.lock-${input.actorId}`));
+  const faults = createFaultState(input.faultInjection);
+  const lock = await acquireLock({
+    path: join(workspacesDir, `.lock-${input.actorId}`),
+    timeoutMs: faults.lockAcquireTimeoutMs,
+    failRelease: consumeFault(faults, 'failInitialLockRelease'),
+  });
   const stagingDir = join(workspacesDir, `.staging-${input.actorId}-${randomUUID()}`);
+  let published = false;
+  let publicationDurability: 'synced' | 'published_unsynced' = 'synced';
   try {
+    if (lock.recovered) {
+      await cleanupOrphanStages(workspacesDir, `.staging-${input.actorId}-`);
+    }
     await assertDoesNotExist(actorDir, 'actor workspace');
     await mkdir(stagingDir, { mode: 0o700 });
     const version = `version-${randomUUID()}`;
@@ -153,18 +210,27 @@ export async function materializeFileWorkspaceV1(input: {
     await syncDirectory(join(stagingDir, 'versions'));
     await syncDirectory(stagingDir);
     await rename(stagingDir, actorDir);
-    await syncDirectory(workspacesDir);
+    published = true;
+    try {
+      await syncDirectory(workspacesDir, consumeFault(faults, 'failInitialPostPublishSync'));
+    } catch {
+      publicationDurability = 'published_unsynced';
+    }
   } catch (error) {
-    await rm(stagingDir, { recursive: true, force: true });
+    if (!published) await rm(stagingDir, { recursive: true, force: true });
     throw error;
   } finally {
-    await lock.close();
-    await rm(lock.path, { force: true });
+    const release = await lock.release();
+    if (published && !release.cleaned) {
+      publicationDurability = 'published_unsynced';
+    }
   }
   return new FileWorkspaceV1({
     actorDir,
     actorId: input.actorId,
     selectedTaskIds: [...input.selectedTaskIds],
+    faults,
+    publication: { durability: publicationDurability },
   });
 }
 
@@ -184,6 +250,8 @@ export async function openFileWorkspaceV1(input: {
     actorDir,
     actorId: input.actorId,
     selectedTaskIds: [...input.selectedTaskIds],
+    faults: createFaultState(),
+    publication: { durability: 'synced' },
   });
   // Verify both version state and canonical selection before the port is handed
   // to a new process; no in-memory counter participates in recovery.
@@ -192,12 +260,18 @@ export async function openFileWorkspaceV1(input: {
   return workspace;
 }
 
-class FileWorkspaceV1 implements FileWorkspacePortV1 {
+class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
+  readonly publication: { durability: 'synced' | 'published_unsynced' };
+
   constructor(private readonly options: {
     actorDir: string;
     actorId: string;
     selectedTaskIds: string[];
-  }) {}
+    faults: FileWorkspaceFaultStateV1;
+    publication: { durability: 'synced' | 'published_unsynced' };
+  }) {
+    this.publication = options.publication;
+  }
 
   async read(input: { actorId: string; path: AgentWorkspaceFilePathV1 }): Promise<{
     content: string;
@@ -235,49 +309,75 @@ class FileWorkspaceV1 implements FileWorkspacePortV1 {
     });
     const memoryBytes = strictUtf8Bytes(input.content, 'MEMORY content');
 
-    // Stage before obtaining the per-actor lock.  The subsequent pointer read
-    // is the durable compare point, so an old writer cannot publish this tree.
-    const staged = await stageReplacement(this.options.actorDir, memoryBytes);
-    const lock = await acquireLock(join(this.options.actorDir, '.memory.lock'));
+    const lock = await acquireLock({
+      path: join(this.options.actorDir, '.memory.lock'),
+      timeoutMs: this.options.faults.lockAcquireTimeoutMs,
+      failAcquisition: consumeFault(this.options.faults, 'failLockAcquisition'),
+      failRelease: consumeFault(this.options.faults, 'failMemoryLockRelease'),
+    });
+    let staged: Awaited<ReturnType<typeof stageReplacement>> | undefined;
+    let result: ReplaceMemoryResultV1 | undefined;
     try {
+      if (lock.recovered) {
+        await cleanupOrphanStages(this.options.actorDir, '.staging-version-');
+      }
+      // Stage only while holding this actor's lock.  The durable pointer is
+      // deliberately re-read after staging for the CAS comparison.
+      staged = await stageReplacement(this.options.actorDir, memoryBytes);
       const current = await readPointer(this.options.actorDir);
       const currentMemory = current.files['MEMORY.md'];
       if (current.version !== input.expectedVersion) {
         await rm(staged.directory, { recursive: true, force: true });
-        return {
+        staged = undefined;
+        result = {
           outcome: 'conflict',
           version: current.version,
           sha256: currentMemory.sha256,
           byteLength: currentMemory.byteLength,
         };
+      } else {
+        const stagedVersion = staged;
+        await verifyVersionDirectory(stagedVersion.directory, stagedVersion.files);
+        const nextDirectory = join(this.options.actorDir, 'versions', stagedVersion.name);
+        await rename(stagedVersion.directory, nextDirectory);
+        staged = undefined;
+        await verifyVersionDirectory(nextDirectory, stagedVersion.files);
+        await syncDirectory(join(this.options.actorDir, 'versions'));
+        const next: DurablePointer = {
+          version: current.version + 1,
+          directory: stagedVersion.name,
+          files: stagedVersion.files,
+        };
+        await atomicJsonReplace(join(this.options.actorDir, 'current.json'), next);
+        let durability: 'published_unsynced' | undefined;
+        try {
+          await syncDirectory(
+            this.options.actorDir,
+            consumeFault(this.options.faults, 'failMemoryPostPublishSync'),
+          );
+        } catch {
+          durability = 'published_unsynced';
+        }
+        const committedMemory = next.files['MEMORY.md'];
+        result = {
+          outcome: 'committed',
+          version: next.version,
+          sha256: committedMemory.sha256,
+          byteLength: committedMemory.byteLength,
+          ...(durability ? { durability } : {}),
+        };
       }
-
-      await verifyVersionDirectory(staged.directory, staged.files);
-      const nextDirectory = join(this.options.actorDir, 'versions', staged.name);
-      await rename(staged.directory, nextDirectory);
-      await verifyVersionDirectory(nextDirectory, staged.files);
-      await syncDirectory(join(this.options.actorDir, 'versions'));
-      const next: DurablePointer = {
-        version: current.version + 1,
-        directory: staged.name,
-        files: staged.files,
-      };
-      await atomicJsonReplace(join(this.options.actorDir, 'current.json'), next);
-      await syncDirectory(this.options.actorDir);
-      const committedMemory = next.files['MEMORY.md'];
-      return {
-        outcome: 'committed',
-        version: next.version,
-        sha256: committedMemory.sha256,
-        byteLength: committedMemory.byteLength,
-      };
     } catch (error) {
-      await rm(staged.directory, { recursive: true, force: true });
+      if (staged) await rm(staged.directory, { recursive: true, force: true });
       throw error;
     } finally {
-      await lock.close();
-      await rm(lock.path, { force: true });
+      const release = await lock.release();
+      if (!release.cleaned && result?.outcome === 'committed') {
+        result = { ...result, durability: 'published_unsynced' };
+      }
     }
+    if (!result) throw new Error('MEMORY replacement did not produce a result');
+    return result;
   }
 
   async snapshot(actorId: string): Promise<FileWorkspaceSnapshotV1> {
@@ -550,30 +650,312 @@ async function readJsonRegularFile(path: string, label: string): Promise<unknown
   }
 }
 
-async function syncDirectory(path: string): Promise<void> {
+async function syncDirectory(path: string, failBeforeSync = false): Promise<void> {
   const handle = await open(path, constants.O_RDONLY);
   try {
+    if (failBeforeSync) {
+      throw new Error('injected post-publication directory sync failure');
+    }
     await handle.sync();
   } finally {
     await handle.close();
   }
 }
 
-async function acquireLock(path: string): Promise<{ path: string; close(): Promise<void> }> {
-  for (let attempt = 0; attempt < 2_000; attempt += 1) {
-    try {
-      const handle = await open(
-        path,
-        constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0),
-        0o600,
-      );
-      return { path, close: () => handle.close() };
-    } catch (error: unknown) {
-      if (!isCode(error, 'EEXIST')) throw error;
-      await new Promise(resolve => setTimeout(resolve, 2));
-    }
+function createFaultState(
+  faultInjection: FileWorkspaceFaultInjectionV1 | undefined = undefined,
+): FileWorkspaceFaultStateV1 {
+  const timeout = faultInjection?.lockAcquireTimeoutMs;
+  if (
+    timeout !== undefined
+    && (!Number.isSafeInteger(timeout) || timeout <= 0 || timeout > 60_000)
+  ) {
+    throw new Error('lock acquisition timeout must be a positive safe millisecond value');
   }
-  throw new Error('workspace lock did not become available');
+  return {
+    failLockAcquisition: faultInjection?.failLockAcquisition === true,
+    lockAcquireTimeoutMs: timeout,
+    failInitialPostPublishSync: faultInjection?.failInitialPostPublishSync === true,
+    failMemoryPostPublishSync: faultInjection?.failMemoryPostPublishSync === true,
+    failInitialLockRelease: faultInjection?.failInitialLockRelease === true,
+    failMemoryLockRelease: faultInjection?.failMemoryLockRelease === true,
+  };
+}
+
+function consumeFault(
+  faults: FileWorkspaceFaultStateV1,
+  key:
+    | 'failLockAcquisition'
+    | 'failInitialPostPublishSync'
+    | 'failMemoryPostPublishSync'
+    | 'failInitialLockRelease'
+    | 'failMemoryLockRelease',
+): boolean {
+  if (!faults[key]) return false;
+  faults[key] = false;
+  return true;
+}
+
+async function cleanupOrphanStages(parent: string, prefix: string): Promise<void> {
+  for (const name of await readdir(parent)) {
+    if (!name.startsWith(prefix)) continue;
+    await rm(join(parent, name), { recursive: true, force: true });
+  }
+}
+
+async function acquireLock(input: {
+  path: string;
+  timeoutMs?: number;
+  failAcquisition?: boolean;
+  failRelease?: boolean;
+}): Promise<FileWorkspaceLockV1> {
+  if (input.failAcquisition) {
+    throw new Error('injected lock acquisition failure');
+  }
+  const timeoutMs = input.timeoutMs ?? DEFAULT_LOCK_ACQUIRE_TIMEOUT_MS_V1;
+  const deadline = Date.now() + timeoutMs;
+  let lastInspection: FileWorkspaceLockInspectionV1 = { kind: 'missing' };
+
+  while (Date.now() <= deadline) {
+    const owner = newLockOwner();
+    const created = await createLock(input.path, owner, false, input.failRelease);
+    if (created) return created;
+
+    const observed = await inspectLock(input.path);
+    lastInspection = observed;
+    let reclaimed = false;
+    if (observed.kind === 'owner' && isReclaimableLock(observed.owner)) {
+      reclaimed = await reclaimStaleLock(input.path, observed.owner);
+    } else if (
+      observed.kind === 'initializing'
+      && isExpiredInitialization(observed)
+    ) {
+      reclaimed = await reclaimInitializingLock(input.path, observed);
+    }
+    if (reclaimed) {
+      const replacement = await createLock(
+        input.path,
+        newLockOwner(),
+        true,
+        input.failRelease,
+      );
+      if (replacement) return replacement;
+    }
+    await new Promise(resolve => setTimeout(resolve, LOCK_RETRY_DELAY_MS_V1));
+  }
+
+  if (lastInspection.kind === 'owner' && isProcessAlive(lastInspection.owner.pid)) {
+    throw new Error('live lock owner did not become available before the acquisition timeout');
+  }
+  if (lastInspection.kind === 'initializing') {
+    throw new Error('workspace lock initialization is still in progress');
+  }
+  throw new Error('workspace lock acquisition timed out');
+}
+
+async function createLock(
+  path: string,
+  owner: FileWorkspaceLockOwnerV1,
+  recovered = false,
+  failRelease = false,
+): Promise<FileWorkspaceLockV1 | undefined> {
+  let handle: Awaited<ReturnType<typeof open>>;
+  try {
+    handle = await open(
+      path,
+      constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0),
+      0o600,
+    );
+  } catch (error: unknown) {
+    if (isCode(error, 'EEXIST')) return undefined;
+    throw error;
+  }
+  try {
+    await writeLockOwner(handle, owner);
+  } catch (error) {
+    await handle.close();
+    await rm(path, { force: true });
+    throw error;
+  }
+  return {
+    path,
+    owner,
+    recovered,
+    release: async () => {
+      let cleaned = false;
+      try {
+        const current = await readLockOwner(path);
+        if (current && sameLockOwner(current, owner)) {
+          await writeLockOwner(handle, { ...owner, released: true });
+          await rm(path, { force: true });
+          await syncDirectory(dirname(path), failRelease);
+          cleaned = true;
+        } else {
+          cleaned = true;
+        }
+      } catch {
+        // A published workspace must not be reported as an ambiguous failure
+        // because lock cleanup failed.  The release marker makes this lock
+        // safely reclaimable even while this process remains alive.
+        try {
+          await writeLockOwner(handle, { ...owner, released: true });
+        } catch {
+          // The caller receives published_unsynced; a later host restart can
+          // still inspect/recover a lock whose marker did reach disk.
+        }
+      } finally {
+        await handle.close();
+      }
+      return { cleaned };
+    },
+  };
+}
+
+async function writeLockOwner(
+  handle: Awaited<ReturnType<typeof open>>,
+  owner: FileWorkspaceLockOwnerV1,
+): Promise<void> {
+  await handle.truncate(0);
+  await handle.writeFile(Buffer.from(`${JSON.stringify(owner)}\n`, 'utf8'));
+  await handle.sync();
+}
+
+function newLockOwner(): FileWorkspaceLockOwnerV1 {
+  return {
+    ownerId: randomUUID(),
+    pid: process.pid,
+    leaseExpiresAt: Date.now() + DEFAULT_LOCK_LEASE_MS_V1,
+  };
+}
+
+async function readLockOwner(path: string): Promise<FileWorkspaceLockOwnerV1 | undefined> {
+  const inspection = await inspectLock(path);
+  return inspection.kind === 'owner' ? inspection.owner : undefined;
+}
+
+async function inspectLock(path: string): Promise<FileWorkspaceLockInspectionV1> {
+  let stats: Awaited<ReturnType<typeof lstat>>;
+  try {
+    stats = await lstat(path);
+  } catch (error: unknown) {
+    if (isCode(error, 'ENOENT')) return { kind: 'missing' };
+    throw error;
+  }
+  if (stats.isSymbolicLink() || !stats.isFile()) {
+    throw new Error('workspace lock must be a regular file');
+  }
+  try {
+    const bytes = await readFile(path);
+    const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    const value = JSON.parse(source) as unknown;
+    if (isLockOwner(value)) return { kind: 'owner', owner: value };
+  } catch {
+    // An O_EXCL creator may have crashed after creating the file but before
+    // syncing owner JSON.  Treat it as brief initialization, not a permanent
+    // malformed lock.
+  }
+  return { kind: 'initializing', mtimeMs: stats.mtimeMs };
+}
+
+function isLockOwner(value: unknown): value is FileWorkspaceLockOwnerV1 {
+  return isObject(value)
+    && typeof value.ownerId === 'string'
+    && /^[a-f0-9-]{36}$/.test(value.ownerId)
+    && typeof value.pid === 'number'
+    && Number.isSafeInteger(value.pid)
+    && value.pid > 0
+    && typeof value.leaseExpiresAt === 'number'
+    && Number.isSafeInteger(value.leaseExpiresAt)
+    && (value.released === undefined || typeof value.released === 'boolean');
+}
+
+function sameLockOwner(
+  left: FileWorkspaceLockOwnerV1,
+  right: FileWorkspaceLockOwnerV1,
+): boolean {
+  return left.ownerId === right.ownerId
+    && left.pid === right.pid
+    && left.leaseExpiresAt === right.leaseExpiresAt;
+}
+
+function isReclaimableLock(owner: FileWorkspaceLockOwnerV1 | undefined): owner is FileWorkspaceLockOwnerV1 {
+  return owner !== undefined
+    && (owner.released === true || (
+      owner.leaseExpiresAt <= Date.now()
+      && !isProcessAlive(owner.pid)
+    ));
+}
+
+function isExpiredInitialization(
+  inspection: Extract<FileWorkspaceLockInspectionV1, { kind: 'initializing' }>,
+): boolean {
+  return Date.now() - inspection.mtimeMs >= LOCK_INITIALIZATION_GRACE_MS_V1;
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error: unknown) {
+    return !isCode(error, 'ESRCH');
+  }
+}
+
+async function reclaimStaleLock(
+  path: string,
+  expected: FileWorkspaceLockOwnerV1,
+): Promise<boolean> {
+  const quarantined = `${path}.stale-${randomUUID()}`;
+  try {
+    await rename(path, quarantined);
+  } catch (error: unknown) {
+    if (isCode(error, 'ENOENT')) return false;
+    throw error;
+  }
+  const moved = await inspectLock(quarantined);
+  if (moved.kind !== 'owner' || !sameLockOwner(moved.owner, expected)) {
+    await restoreQuarantinedLock(quarantined, path);
+    return false;
+  }
+  await rm(quarantined, { force: true });
+  return true;
+}
+
+async function reclaimInitializingLock(
+  path: string,
+  expected: Extract<FileWorkspaceLockInspectionV1, { kind: 'initializing' }>,
+): Promise<boolean> {
+  const quarantined = `${path}.initializing-${randomUUID()}`;
+  try {
+    await rename(path, quarantined);
+  } catch (error: unknown) {
+    if (isCode(error, 'ENOENT')) return false;
+    throw error;
+  }
+  const moved = await inspectLock(quarantined);
+  if (
+    moved.kind !== 'initializing'
+    || moved.mtimeMs !== expected.mtimeMs
+    || !isExpiredInitialization(moved)
+  ) {
+    await restoreQuarantinedLock(quarantined, path);
+    return false;
+  }
+  // The old file has only ever been visible as an incomplete initializer.  It
+  // is safe to remove now; the caller creates a new owner record before stage
+  // cleanup or any mutable write.
+  await rm(quarantined, { force: true });
+  return true;
+}
+
+async function restoreQuarantinedLock(quarantined: string, path: string): Promise<void> {
+  try {
+    await link(quarantined, path);
+    await rm(quarantined, { force: true });
+  } catch (error: unknown) {
+    if (!isCode(error, 'EEXIST')) throw error;
+    throw new Error('workspace lock changed during stale recovery; refusing to steal it');
+  }
 }
 
 function isCode(error: unknown, code: string): boolean {
