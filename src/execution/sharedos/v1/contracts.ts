@@ -206,6 +206,17 @@ export const sharedOsTurnRequestV1Schema = z
     turnId: sharedOsIdentifierV1Schema,
     message: sharedOsTurnMessageV1Schema,
     options: sharedOsTurnOptionsV1Schema.default({}),
+    /**
+     * Per-turn override of the world's init-time `expectedVisibleTools`. The
+     * multi-turn trajectory lane recomputes the granted boundary for every
+     * tick (each tick is a different task with its own surface and its own
+     * host ceiling, docs/pact-pair-multi-turn-lane.md §9.4 option (i)), so the
+     * effective tool set legitimately differs from tick to tick. When present
+     * the adapter enforces THIS list for the turn instead of the init-time
+     * one; the fail-closed gate is unchanged, only its expectation is
+     * per-turn. Absent (the single-turn path) keeps the init-time expectation.
+     */
+    expectedVisibleTools: z.array(sharedOsIdentifierV1Schema).optional(),
   })
   .strict();
 export type SharedOsTurnRequestV1 = z.infer<typeof sharedOsTurnRequestV1Schema>;

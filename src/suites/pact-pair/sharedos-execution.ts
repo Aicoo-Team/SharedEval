@@ -98,8 +98,16 @@ export const PACT_PAIR_SHAREDOS_INTENT_V1 = 'pact-pair:respond' as const;
 export const PACT_PAIR_SHAREDOS_TOOL_NAMESPACE_V1 = 'pact-pair' as const;
 export const PACT_PAIR_SHAREDOS_TOOL_SOURCE_V1 = 'pact' as const;
 
-const OWNER: SoAddress = { kind: 'human', userId: 'pact-pair-owner' };
-const RESPONDER = { kind: 'agent', agentId: 'pact-pair-responder' } as const;
+export const PACT_PAIR_SHAREDOS_OWNER_V1: SoAddress = {
+  kind: 'human',
+  userId: 'pact-pair-owner',
+};
+export const PACT_PAIR_SHAREDOS_RESPONDER_V1 = {
+  kind: 'agent',
+  agentId: 'pact-pair-responder',
+} as const;
+const OWNER = PACT_PAIR_SHAREDOS_OWNER_V1;
+const RESPONDER = PACT_PAIR_SHAREDOS_RESPONDER_V1;
 
 /**
  * Surface-granularity capability behind each PACT-Pair tool. The kernel's
@@ -159,8 +167,17 @@ export function expectedVisibleSharedOsToolsV1(access: PactBoundaryPlanV1): stri
  */
 export function createPactPairSharedOsToolHandlersV1(options: {
   workspace: PactPairWorkspaceV1;
-  access: PactBoundaryPlanV1;
+  /**
+   * The granted boundary the handlers enforce. A plain plan (the single-turn
+   * path) is fixed for the world's life; an accessor lets the trajectory lane
+   * recompute the boundary per tick without re-registering tools — the
+   * handlers read the current tick's plan at invoke time.
+   */
+  access: PactBoundaryPlanV1 | (() => PactBoundaryPlanV1);
 }): unknown[] {
+  const resolveAccess = typeof options.access === 'function'
+    ? options.access
+    : () => options.access as PactBoundaryPlanV1;
   return PACT_PAIR_TOOL_SPECS_V1.map(spec => {
     const capability =
       PACT_PAIR_SHAREDOS_TOOL_CAPABILITIES_V1[spec.name as PactPairToolNameV1];
@@ -187,7 +204,7 @@ export function createPactPairSharedOsToolHandlersV1(options: {
       ) => {
         const executed = await executePactPairToolV1({
           workspace: options.workspace,
-          access: options.access,
+          access: resolveAccess(),
           toolName: call.tool,
           input: call.arguments,
         });
@@ -247,7 +264,7 @@ type DriverState = {
 
 let cachedModules: Promise<SharedOsModulesV1> | undefined;
 
-async function requireSharedOsModulesV1(): Promise<SharedOsModulesV1> {
+export async function requireSharedOsModulesV1(): Promise<SharedOsModulesV1> {
   cachedModules ??= loadSharedOsModulesV1().then(loaded => {
     if (!loaded.ok) {
       // Fail the whole run loudly: the config explicitly opted into the

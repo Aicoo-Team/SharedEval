@@ -242,9 +242,12 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
     const tools = await test.kernel.listTools(context);
     // expectedVisibleTools is enforced, not advisory: if SharedOS's
     // permission filtering yields a different effective tool set than
-    // the host declared at init, refuse to run the turn.
+    // the host declared, refuse to run the turn. The trajectory lane
+    // recomputes the boundary per tick, so a per-turn override may replace
+    // the init-time expectation; the gate itself is unchanged.
+    const turnExpectedTools = parsed.expectedVisibleTools ?? state.expectedVisibleTools;
     const effectiveTools = [...new Set(tools.map(tool => tool.name))].sort();
-    const expectedTools = [...new Set(state.expectedVisibleTools)].sort();
+    const expectedTools = [...new Set(turnExpectedTools)].sort();
     if (
       effectiveTools.length !== expectedTools.length
       || effectiveTools.some((name, index) => name !== expectedTools[index])

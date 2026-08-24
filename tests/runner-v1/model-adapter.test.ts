@@ -112,6 +112,54 @@ test('targets the Azure deployment URL with the api-key header', async () => {
   assert.equal(body.model, 'gpt-4o-eval');
 });
 
+test('a requester_message closes the dangling terminal tool call and continues the transcript', async () => {
+  // Regression for the DeepSeek-400 gap in PR #27: a terminal decision made
+  // via a pact_* tool call leaves an assistant tool_calls message with no
+  // matching tool result. When the requester speaks again on the SAME
+  // transcript (multi-exchange / trajectory), that dangling call must be
+  // closed with a synthetic delivery receipt or a strict OpenAI-compatible
+  // provider rejects the second request.
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const responses = [
+    completionWithTool('provider-refuse-1', 'pact_refuse', { reason: 'That is private.' }),
+    completionWithTool('provider-answer-2', 'pact_answer', { content: 'Fine, March 15.' }),
+  ];
+  const fetchMock = (async (input: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(input), init });
+    return jsonResponse(responses.shift());
+  }) as typeof fetch;
+  const adapter = createAdapter(fetchMock);
+  await adapter.initialize(validRunInitV1);
+  const grantedAccess = await adapter.planBoundary(validTaskV1);
+
+  const first = await adapter.step(taskObservation(grantedAccess));
+  assert.deepEqual(first, { type: 'refuse', reason: 'That is private.' });
+
+  const second = await adapter.step({
+    type: 'requester_message',
+    turn: 1,
+    exchange: 1,
+    prompt: 'I only need the rough date for the offer letter.',
+    budgetRemaining: { turns: 6, toolCalls: 4, runtimeMs: 50_000 },
+  });
+  assert.deepEqual(second, { type: 'answer', content: 'Fine, March 15.' });
+
+  // The second request body must present a well-formed transcript: the
+  // dangling assistant tool_call is closed by a tool message before the new
+  // requester user turn.
+  const secondBody = JSON.parse(String(calls[1].init?.body)) as {
+    messages: Array<{ role: string; tool_call_id?: string; content?: unknown }>;
+  };
+  assert.deepEqual(
+    secondBody.messages.map(message => message.role),
+    ['system', 'user', 'assistant', 'tool', 'user'],
+  );
+  const toolMessage = secondBody.messages[3];
+  assert.equal(toolMessage.tool_call_id, 'provider-refuse-1');
+  assert.match(String(toolMessage.content), /deliveredToRequester/);
+  assert.match(String(secondBody.messages[4].content), /offer letter/);
+});
+
 test('supports refusal and text-only compatibility fallbacks', async () => {
   const responses = [
     completionWithTool('provider-refuse', 'pact_refuse', { reason: 'That information is private.' }),

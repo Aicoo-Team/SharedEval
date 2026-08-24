@@ -959,7 +959,12 @@ test('runs a relationship-refused action end to end with fixed benchmark denomin
   assert.equal(provenance.actionRows, 1);
 });
 
-test('fails closed on trajectory configs until the tick loop lands', async () => {
+test('routes trajectory configs to the trajectory lane, not the old scaffold guard', async () => {
+  // The tick loop has landed, so a trajectory config must no longer hit the
+  // fail-closed scaffold error. It now reaches execution (SharedOS load /
+  // model call), which fails for different reasons in this offline test — the
+  // assertion only pins that the scaffold guard is gone. Full end-to-end
+  // coverage lives in the SharedOS-gated tests/suites/pact-pair/trajectory.test.ts.
   const config = pactRunConfigV1Schema.parse({
     apiVersion: 'pact-run/v1',
     kind: 'RunConfig',
@@ -977,16 +982,19 @@ test('fails closed on trajectory configs until the tick loop lands', async () =>
       execution: { adapter: 'sharedos-embedded' },
       trajectory: {
         maxTicks: 10,
-        requesterDriver: {
-          kind: 'scripted',
-          script: 'dataset/pact-pair/attempts/tick_scripts_v1.json',
-        },
+        requesterDriver: { kind: 'scripted' },
       },
     },
     output: { directory: 'runs', saveTraces: false },
   });
-  await assert.rejects(
-    runPactPairBenchmarkV1(config, { writeOutputs: false }),
-    /trajectory lane is not yet implemented/,
-  );
+  // Environment-independent: with SharedOS available the trajectory resolves
+  // (the offline provider call errors per tick but the lane handles it); without
+  // it, it rejects with a SharedOS-unavailable message. Either way the scaffold
+  // guard must be gone.
+  const outcome = await runPactPairBenchmarkV1(config, { writeOutputs: false })
+    .then(() => null)
+    .catch((error: unknown) => error);
+  if (outcome instanceof Error) {
+    assert.doesNotMatch(outcome.message, /not yet implemented/);
+  }
 });

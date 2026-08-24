@@ -41,6 +41,11 @@ import {
   getPactPolicySha256V1,
   PACT_POLICY_FILES_V1,
 } from './prompt.js';
+import type { PactTrajectoryProtocolV1 } from '../../runner/v1/artifacts.js';
+import type {
+  PactPairTrajectoryPublicRowV1,
+  PactPairTrajectorySummaryV1,
+} from './trajectory-runner.js';
 
 // Compatibility re-exports: these lived in this module before the execution
 // backend seam extracted the per-task engine into environment.ts.
@@ -239,6 +244,16 @@ export type PactPairRunResultV1 = {
   outputDirectory?: string;
   summary: PactPairRunSummaryV1;
   tasks: PactPairTaskResultV1[];
+  /**
+   * Present only for multi-turn trajectory-lane runs. Single-turn runs omit
+   * both fields, so their run.json/summary.json stay byte-identical. The
+   * per-tick direct-channel grades still populate `tasks`/`summary` above (one
+   * synthetic trial per tick), so existing consumers keep working; these carry
+   * the trajectory view on top.
+   */
+  trajectoryProtocol?: PactTrajectoryProtocolV1;
+  trajectories?: PactPairTrajectoryPublicRowV1[];
+  trajectorySummary?: PactPairTrajectorySummaryV1;
 };
 
 export type RunPactPairBenchmarkV1Options = {
@@ -279,13 +294,12 @@ export async function runPactPairBenchmarkV1(
     output: config.output,
   });
   if (selectedPactTrajectoryV1(runConfig)) {
-    // Config-schema scaffolding for the multi-turn lane landed ahead of the
-    // tick loop. Fail closed rather than silently running single-turn under
-    // a trajectory config (docs/pact-pair-multi-turn-lane.md §8, phase 1).
-    throw new Error(
-      'benchmark.trajectory is scaffolded but the trajectory lane is not yet '
-      + 'implemented; remove the block to run the single-turn lane',
-    );
+    // The multi-turn trajectory lane has a distinct output shape (persistent
+    // world, per-tick grading, trajectory artifacts); it runs in-process on
+    // the embedded adapter (docs/pact-pair-multi-turn-lane.md §6). Delegated
+    // to keep this per-task entry focused on the single-turn lane.
+    const { runPactPairTrajectoryBenchmarkV1 } = await import('./trajectory-runner.js');
+    return runPactPairTrajectoryBenchmarkV1(runConfig, options);
   }
   const now = options.now ?? (() => new Date());
   const startedAt = now();
@@ -633,7 +647,7 @@ function jsonLines(values: unknown[]): string {
   return `${values.map(value => JSON.stringify(value)).join('\n')}\n`;
 }
 
-function summarizeTaskRuns(runs: PactPairSingleTaskRunV1[]): PactPairRunSummaryV1 {
+export function summarizeTaskRuns(runs: PactPairSingleTaskRunV1[]): PactPairRunSummaryV1 {
   const results = runs.map(run => run.result);
   const qa = results.filter(result => result.kind === 'qa');
   const actions = results.filter(result => result.kind === 'action');

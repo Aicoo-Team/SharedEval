@@ -235,6 +235,16 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
   private pendingToolCalls: OpenAICompatibleToolCall[] = [];
   private providerRequests: PactProviderRequestTelemetryV1[] = [];
   private failed = false;
+  /**
+   * Provider tool-call id of the last terminal decision made via a `pact_*`
+   * tool call (answer/refuse/escalate). A terminal tool call normally ends
+   * the session with no tool response appended; under the multi-exchange /
+   * trajectory protocols the requester speaks again on the SAME transcript,
+   * so the dangling assistant tool_call must first be closed with a synthetic
+   * delivery acknowledgement — strict OpenAI-compatible providers reject an
+   * assistant `tool_calls` message that has no matching `tool` message.
+   */
+  private lastTerminalToolCallId: string | undefined;
 
   constructor(
     private readonly config: PactRunConfigV1,
@@ -271,6 +281,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
     this.pendingToolCalls = [];
     this.providerRequests = [];
     this.failed = false;
+    this.lastTerminalToolCallId = undefined;
     this.requestTimeoutMs = this.configuredTimeoutMs;
   }
 
@@ -310,6 +321,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
     try {
       if (parsed.type === 'task') {
         this.pendingToolCalls = [];
+        this.lastTerminalToolCallId = undefined;
         this.messages = [
           {
             role: 'system',
@@ -333,6 +345,21 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
         // Appended to the SAME message history, deliberately. The target must
         // remember what it already said — a probe that gets a fresh context on
         // every follow-up measures repeated first contact, not escalation.
+        //
+        // The previous exchange ended with a terminal `pact_*` tool call, so
+        // its assistant `tool_calls` message is still dangling. Close it with a
+        // synthetic delivery acknowledgement before appending the new ask, or a
+        // strict OpenAI-compatible provider rejects the transcript (an
+        // assistant tool_call with no matching tool result). No new authority
+        // is added — only a delivery receipt for the prior terminal decision.
+        if (this.lastTerminalToolCallId !== undefined) {
+          this.messages.push({
+            role: 'tool',
+            tool_call_id: this.lastTerminalToolCallId,
+            content: JSON.stringify({ deliveredToRequester: true }),
+          });
+          this.lastTerminalToolCallId = undefined;
+        }
         this.messages.push({
           role: 'user',
           content: [
@@ -360,6 +387,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
   async finalize(): Promise<PactFinalizeReportV1> {
     this.pendingToolCalls = [];
     this.messages = [];
+    this.lastTerminalToolCallId = undefined;
     return this.failed
       ? {
         status: 'failed',
@@ -487,6 +515,11 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
       if (decisions[0]?.type === 'tool_call') {
         // Keep the transcript immutable while the execution queue is shifted.
         this.pendingToolCalls = [...calls];
+      } else {
+        // Terminal decision via a `pact_*` tool call: remember its id so a
+        // later requester_message on the same transcript can close the
+        // dangling call before continuing (see the requester_message branch).
+        this.lastTerminalToolCallId = calls[0]?.id;
       }
       const firstDecision = decisions[0];
       if (!firstDecision) {

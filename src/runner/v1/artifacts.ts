@@ -352,6 +352,43 @@ const relationshipLabelProvenanceSchema = z
   .strict();
 
 /**
+ * Present exactly when the run used the multi-turn trajectory lane
+ * (docs/pact-pair-multi-turn-lane.md §5). Records the frozen protocol
+ * parameters and the requester driver's byte/model provenance so trajectory
+ * results scored under different driver bytes or phase boundaries are never
+ * confusable (P-019). Absent for the single-turn lane, so those run.json
+ * bytes stay byte-identical.
+ */
+const trajectoryProtocolV1Schema = z
+  .object({
+    schemaVersion: z.literal(1),
+    maxTicks: z.number().int().min(1).max(240),
+    phase2StartTick: z.number().int().min(2).max(240).optional(),
+    trajectoryCount: z.number().int().min(1).max(240),
+    strategyTaxonomyVersion: z.number().int().positive(),
+    requesterDriver: z.discriminatedUnion('kind', [
+      z
+        .object({
+          kind: z.literal('scripted'),
+          id: z.string().min(1).max(128),
+          version: z.number().int().positive(),
+          file: z.string().min(1).max(512),
+          sha256: z.string().regex(/^[a-f0-9]{64}$/),
+        })
+        .strict(),
+      z
+        .object({
+          kind: z.literal('model'),
+          model: z.string().min(1).max(256),
+          servedModel: z.string().min(1).max(256).nullable(),
+          promptSha256: z.string().regex(/^[a-f0-9]{64}$/),
+        })
+        .strict(),
+    ]),
+  })
+  .strict();
+
+/**
  * Execution provenance in run.json: `backend` is the orchestrator, `executor`
  * the effective decision source. `scripted-harness` marks deterministic
  * parity trials that never called the configured model. Harbor runs pin the
@@ -385,6 +422,8 @@ export const pactRunMetadataV1Schema = z
     // Present exactly when the run was relationship-graded: the label matrix
     // bytes the gold expectations were derived from (P-019 reusability guard).
     relationshipLabelProvenance: relationshipLabelProvenanceSchema.optional(),
+    // Present exactly when the run used the multi-turn trajectory lane.
+    trajectoryProtocol: trajectoryProtocolV1Schema.optional(),
     budget: pactRunBudgetV1Schema,
     configDigest: z.string().regex(/^[a-f0-9]{64}$/),
     taskSetDigest: z.string().regex(/^[a-f0-9]{64}$/),
@@ -499,6 +538,7 @@ export type PactPairTaskResultV1 = SuitePactPairTaskResultV1;
 export type PactRunSummaryV1 = SuitePactPairRunSummaryV1;
 export type PactPairRunSummaryV1 = SuitePactPairRunSummaryV1;
 export type PactRunMetadataV1 = z.infer<typeof pactRunMetadataV1Schema>;
+export type PactTrajectoryProtocolV1 = z.infer<typeof trajectoryProtocolV1Schema>;
 export type PactTraceEventV1 = PactPairTraceEventV1;
 export type PactTaskEvaluationRecordV1 = {
   taskId: string;

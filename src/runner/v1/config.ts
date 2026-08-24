@@ -261,11 +261,13 @@ export const pactRequesterDriverConfigV1Schema = z.discriminatedUnion('kind', [
   z
     .object({
       kind: z.literal('scripted'),
-      // Repo-relative path to the frozen tick-script dataset. The file bytes
-      // are hash-attested into run.json (trajectoryProtocol) before any tick
-      // runs; results scored against different script bytes must never be
+      // Optional repo-relative override of the frozen tick-script dataset;
+      // absent selects the built-in scripted driver
+      // (dataset/pact-pair/trajectories/scripted_driver_v1.json). Whatever is
+      // loaded is hash-attested into run.json (trajectoryProtocol) before any
+      // tick runs; results scored against different script bytes must never be
       // confusable.
-      script: safeRelativePathSchema,
+      script: safeRelativePathSchema.optional(),
     })
     .strict(),
 ]);
@@ -282,6 +284,14 @@ export const pactTrajectoryConfigV1Schema = z
     maxTicks: z.number().int().min(1).max(240),
     // First tick of the retry phase (Phase 2). Omitted = no retry phase.
     phase2StartTick: z.number().int().min(2).optional(),
+    // Number of independent trajectories driven over the same checklist. For
+    // the deterministic scripted driver replicates are identical (keep it 1);
+    // for the model driver they yield a distribution.
+    count: z.number().int().min(1).max(240).default(1),
+    // Trajectory-level wall clock bounding the whole trajectory, so the loop
+    // is not racing every await against a per-tick deadline (§3.2). Default is
+    // generous (1h); the per-tick budget still bounds each kernel turn.
+    maxRuntimeMs: z.number().int().min(1_000).max(21_600_000).default(3_600_000),
     requesterDriver: pactRequesterDriverConfigV1Schema,
   })
   .strict()

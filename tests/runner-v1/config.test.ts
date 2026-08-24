@@ -422,6 +422,8 @@ benchmark:
   assert.deepEqual(selectedPactTrajectoryV1(config), {
     maxTicks: 240,
     phase2StartTick: 61,
+    count: 1,
+    maxRuntimeMs: 3_600_000,
     requesterDriver: {
       kind: 'scripted',
       script: 'dataset/pact-pair/attempts/tick_scripts_v1.json',
