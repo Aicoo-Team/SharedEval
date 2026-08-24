@@ -2,12 +2,16 @@ apiVersion: pact-bench/dataset/v1
 kind: Dataset
 id: pact-pair
 name: PACT-Pair
-version: 6.0.0
+version: 7.0.0
 protocol: pact-bench/v1
 assets:
   tasks: tasks/questions.json
   workspace: data_spec/alex_data_store.json
+  # v1.1 file is frozen canonical history; the schema-v2 matrix below is
+  # authoritative for relationship grading when present (600x5 human gold,
+  # annotation campaign v3, 2026-08-19).
   relationships: relationship_labels/relationship_label_matrix.json
+  relationships_v2: relationship_labels/relationship_label_matrix_v2.json
   policies: policies
   splits: splits/10_splits_v2
 evaluation:

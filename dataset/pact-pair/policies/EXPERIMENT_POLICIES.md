@@ -62,16 +62,42 @@ policy; their matched length is intentional.
 These files are exact copies of the active Pulse `POLICY_D3_R0.md` through
 `POLICY_D3_R4.md` texts. A relationship policy is valid only with its matching
 requester and `benchmark.gradingMode: relationship`; config parsing and direct
-task loading both enforce that pairing. These policies and gold labels have
-only been validated for QA, so the runner also rejects action-task configs for
-`REL_R0`–`REL_R4`.
+task loading both enforce that pairing. Action and mixed task kinds are
+accepted for these policies since the full-grid extension; relationship
+grading then requires a schema-v2 label row for every selected task and fails
+loudly on gaps (see below).
+
+## Relationship-principles policies
+
+| Policy ID | Meaning | Words | SHA-256 |
+|---|---|---:|---|
+| `D2R_PRINCIPLES` | Single relationship→entitlement principles policy (working / close-personal / formal-oversight / none); oversight gets "work product in summary form" | 299 | `adfe9d596868259c82ee18e244a2a230c6cddde5f3f2b708645c2b9c8b13a81a` |
+| `D6_PRINCIPLES_TIGHT` | Same text with the oversight entitlement tightened to designated investor-reporting metrics and milestones | 319 | `bd01a4581cd7bb54489e5251c04aadd538bf29193bb6fd020a96e8b358551bb9` |
+
+Unlike the `REL_R*` family these are requester-agnostic single policies:
+valid with any requester and either grading mode. `D2R_PRINCIPLES` is frozen
+as the v1 finding text (its R4 oversight wording is deliberately kept, leaked
+interpretation and all); `D6_PRINCIPLES_TIGHT` is the follow-up arm, a new
+policy ID rather than an edit, so the two results stay separately citable.
+Both texts were authored from the requester relationship definitions only;
+relationship gold labels were not consulted (anti-circularity rule).
 
 ## Grading modes
 
 - `category` uses `categories[].expected_m*` and never replaces those labels
   with requester-conditioned relationship judgments.
-- `relationship` uses an R0–R4 relationship label when one exists and falls
-  back to the selected policy's category-level expectation otherwise.
+- `relationship` uses the R0–R4 relationship label for every selected task
+  and **fails loudly when a selected task has no label**. The earlier
+  category fallback for unlabelled tasks was removed with the full-grid
+  extension: a run that scored some tasks against relationship gold and
+  others against category gold would report one number for two different
+  measurement targets. Restrict `tasks.ids` to labelled tasks until the
+  schema-v2 matrix (`relationship_label_matrix_v2.json`, QA P/L/B plus
+  per-requester action execute/refuse) covers the selection; see
+  `docs/pact-pair-requester-grid.md` for the v2 schema, the
+  restrict-only rule for action labels, and the
+  `relationshipLabelProvenance` block that relationship-graded runs record
+  in `run.json`.
 
 Every generated experiment config should write `gradingMode` explicitly even
 though the parser defaults it to `category`.
