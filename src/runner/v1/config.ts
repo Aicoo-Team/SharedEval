@@ -290,6 +290,16 @@ export const pactRequesterDriverConfigV1Schema = z.discriminatedUnion('kind', [
       script: safeRelativePathSchema.optional(),
     })
     .strict(),
+  z
+    .object({
+      kind: z.literal('model'),
+      // The adaptive requester model (docs/pact-pair-multi-turn-lane.md §4).
+      // Its own OpenAI-compatible endpoint (may differ from the responder's);
+      // it maintains a checklist and chooses what to ask, how to frame it, and
+      // whether to retry. Reuses the same model config shape as the responder.
+      model: pactOpenAICompatibleModelConfigV1Schema,
+    })
+    .strict(),
 ]);
 
 /**

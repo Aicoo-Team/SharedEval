@@ -27,6 +27,8 @@ import {
 } from '../../runner/v1/config.js';
 import {
   buildPactPairAgentConfigProvenanceV1,
+  loadPactPairAgentConfigV1,
+  requesterPersonaForCohortV1,
   type PactPairAgentConfigRunProvenanceV1,
 } from './agent-config.js';
 import { createOpenAICompatiblePactHarnessV1 } from '../../runner/v1/model-adapter.js';
@@ -45,6 +47,7 @@ import {
   type PactPairRequesterDriverProvenanceV1,
   type PactPairRetryStrategyV1,
 } from './requester-driver.js';
+import { createModelPactPairRequesterDriverV1 } from './requester-driver-model.js';
 import type { PactTrajectoryProtocolV1 } from '../../runner/v1/artifacts.js';
 
 const repositoryRoot = resolve(
@@ -142,18 +145,40 @@ export async function runPactPairTrajectoryBenchmarkV1(
     if (trajectory.requesterDriver.kind === 'scripted') {
       return createScriptedPactPairRequesterDriverV1(scriptPath);
     }
-    // The model driver lands in a later phase; fail closed rather than
-    // silently degrading to scripted.
-    throw new Error(
-      `Unsupported requester driver kind: ${
-        (trajectory.requesterDriver as { kind: string }).kind
-      }`,
-    );
+    // Model-driven requester: runs the requester persona (from the cohort id)
+    // with its own COO/MEMORY over its configured endpoint. Fail-closed if the
+    // cohort has no persona config (R0/Riley is a stranger).
+    const persona = requesterPersonaForCohortV1(runConfig.benchmark.requester);
+    const personaConfig = loadPactPairAgentConfigV1(persona, rootDir);
+    return createModelPactPairRequesterDriverV1({
+      modelConfig: trajectory.requesterDriver.model,
+      environment,
+      personaCoo: personaConfig.coo,
+      personaMemory: personaConfig.memory,
+    });
   };
 
+  // The model driver's promptSha256 is only fixed once its system prompt is
+  // built from the checklist, so initialize a provenance driver with the real
+  // checklist first (initialize makes no network call). The scripted driver's
+  // provenance is checklist-independent, so this is harmless for it too.
+  const checklistInit = {
+    trajectoryId: `${runId}:provenance`,
+    items: tasks.map(task => ({
+      taskId: task.taskId,
+      prompt: task.publicTask.prompt,
+      publicTask: task.publicTask,
+    })),
+    ...(trajectory.phase2StartTick !== undefined
+      ? { phase2StartTick: trajectory.phase2StartTick }
+      : {}),
+    maxTicks: trajectory.maxTicks,
+  };
+  const provenanceDriver = makeDriver();
+  await provenanceDriver.initialize(checklistInit);
   const trajectoryProtocol = buildTrajectoryProtocolV1(
     trajectory,
-    makeDriver().provenance(),
+    provenanceDriver.provenance(),
   );
 
   // Re-hash the agent-config bytes the responder harness will load (fail-closed

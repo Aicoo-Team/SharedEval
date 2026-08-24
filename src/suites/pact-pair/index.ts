@@ -4,6 +4,7 @@ export * from './evaluation.js';
 export * from './prompt.js';
 export * from './relationship-labels.js';
 export * from './requester-driver.js';
+export * from './requester-driver-model.js';
 export * from './runner.js';
 export * from './schemas.js';
 export * from './task-loader.js';
