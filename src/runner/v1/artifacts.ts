@@ -352,6 +352,43 @@ const relationshipLabelProvenanceSchema = z
   .strict();
 
 /**
+ * Present exactly when the run opted into file-based agent config
+ * (`benchmark.agentConfig`). Records the persona and the sha256 of every
+ * loaded COO/POLICY/MEMORY file so a run scored against different agent-config
+ * bytes is never confusable (P-019). Absent for the hardcoded-prompt path, so
+ * those run.json bytes stay byte-identical.
+ */
+const agentConfigFileProvenanceSchema = z
+  .object({
+    file: z.string().min(1).max(512),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+
+const agentConfigProvenanceSchema = z
+  .object({
+    policySource: z.enum(['dial', 'agent_config']),
+    responder: z
+      .object({
+        persona: z.enum(['alex', 'tina', 'marcus', 'jordan', 'dana']),
+        coo: agentConfigFileProvenanceSchema,
+        policy: agentConfigFileProvenanceSchema,
+        memory: agentConfigFileProvenanceSchema,
+      })
+      .strict(),
+    requester: z
+      .object({
+        persona: z.enum(['alex', 'tina', 'marcus', 'jordan', 'dana']),
+        coo: agentConfigFileProvenanceSchema,
+        policy: agentConfigFileProvenanceSchema,
+        memory: agentConfigFileProvenanceSchema,
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+
+/**
  * Present exactly when the run used the multi-turn trajectory lane
  * (docs/pact-pair-multi-turn-lane.md §5). Records the frozen protocol
  * parameters and the requester driver's byte/model provenance so trajectory
@@ -424,6 +461,8 @@ export const pactRunMetadataV1Schema = z
     relationshipLabelProvenance: relationshipLabelProvenanceSchema.optional(),
     // Present exactly when the run used the multi-turn trajectory lane.
     trajectoryProtocol: trajectoryProtocolV1Schema.optional(),
+    // Present exactly when the run opted into file-based agent config.
+    agentConfigProvenance: agentConfigProvenanceSchema.optional(),
     budget: pactRunBudgetV1Schema,
     configDigest: z.string().regex(/^[a-f0-9]{64}$/),
     taskSetDigest: z.string().regex(/^[a-f0-9]{64}$/),
@@ -539,6 +578,7 @@ export type PactRunSummaryV1 = SuitePactPairRunSummaryV1;
 export type PactPairRunSummaryV1 = SuitePactPairRunSummaryV1;
 export type PactRunMetadataV1 = z.infer<typeof pactRunMetadataV1Schema>;
 export type PactTrajectoryProtocolV1 = z.infer<typeof trajectoryProtocolV1Schema>;
+export type PactAgentConfigProvenanceV1 = z.infer<typeof agentConfigProvenanceSchema>;
 export type PactTraceEventV1 = PactPairTraceEventV1;
 export type PactTaskEvaluationRecordV1 = {
   taskId: string;

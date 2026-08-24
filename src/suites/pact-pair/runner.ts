@@ -7,10 +7,15 @@ import { aggregateEvaluationResults } from '../../evaluation/index.js';
 import type { PairDataStore } from './schemas.js';
 import {
   pactRunConfigV1Schema,
+  selectedPactAgentConfigV1,
   selectedPactExecutionBackendV1,
   selectedPactTrajectoryV1,
   type PactRunConfigV1,
 } from '../../runner/v1/config.js';
+import {
+  buildPactPairAgentConfigProvenanceV1,
+  type PactPairAgentConfigRunProvenanceV1,
+} from './agent-config.js';
 import {
   createOpenAICompatiblePactHarnessV1,
 } from '../../runner/v1/model-adapter.js';
@@ -233,6 +238,12 @@ export type PactPairRunResultV1 = {
    * (team position P-019).
    */
   relationshipLabelProvenance?: PactPairRelationshipLabelProvenanceV1;
+  /**
+   * Provenance of the file-based agent config (COO/POLICY/MEMORY) when the run
+   * opted in (`benchmark.agentConfig`). Absent for the hardcoded-prompt path,
+   * so those runs stay byte-identical.
+   */
+  agentConfigProvenance?: PactPairAgentConfigRunProvenanceV1;
   budget: PactRunConfigV1['budget'];
   configDigest: string;
   taskSetDigest: string;
@@ -334,6 +345,17 @@ export async function runPactPairBenchmarkV1(
   const relationshipLabelProvenance = runConfig.benchmark.gradingMode === 'relationship'
     ? loadPactPairRelationshipLabelSetV2(rootDir).provenance
     : undefined;
+  // Re-hash the agent-config bytes the harness will load, so run.json attests
+  // the exact COO/POLICY/MEMORY used. Fail-closed here too: a missing file
+  // aborts the run before any trial rather than mid-way.
+  const agentConfigSelection = selectedPactAgentConfigV1(runConfig);
+  const agentConfigProvenance = agentConfigSelection
+    ? buildPactPairAgentConfigProvenanceV1({
+        responder: agentConfigSelection.responder,
+        policySource: agentConfigSelection.policySource,
+        rootDir,
+      })
+    : undefined;
   const backend = resolveExecutionBackend(runConfig, options.executionBackend);
   const defaultExecution: PactRunExecutionMetadataV1 = {
     backend: backend.kind,
@@ -352,6 +374,7 @@ export async function runPactPairBenchmarkV1(
         benchmark: runConfig.benchmark,
         policyProvenance,
         relationshipLabelProvenance,
+        agentConfigProvenance,
         budget: runConfig.budget,
         configDigest,
         taskSetDigest,
@@ -404,6 +427,7 @@ export async function runPactPairBenchmarkV1(
     benchmark: runConfig.benchmark,
     policyProvenance,
     ...(relationshipLabelProvenance ? { relationshipLabelProvenance } : {}),
+    ...(agentConfigProvenance ? { agentConfigProvenance } : {}),
     budget: runConfig.budget,
     configDigest,
     taskSetDigest,
@@ -484,6 +508,7 @@ async function prepareRunOutputDirectory(options: {
   benchmark: PactRunConfigV1['benchmark'];
   policyProvenance: PactPairRunResultV1['policyProvenance'];
   relationshipLabelProvenance?: PactPairRelationshipLabelProvenanceV1;
+  agentConfigProvenance?: PactPairAgentConfigRunProvenanceV1;
   budget: PactRunConfigV1['budget'];
   configDigest: string;
   taskSetDigest: string;
@@ -528,6 +553,9 @@ async function prepareRunOutputDirectory(options: {
       policyProvenance: options.policyProvenance,
       ...(options.relationshipLabelProvenance
         ? { relationshipLabelProvenance: options.relationshipLabelProvenance }
+        : {}),
+      ...(options.agentConfigProvenance
+        ? { agentConfigProvenance: options.agentConfigProvenance }
         : {}),
       budget: options.budget,
       configDigest: options.configDigest,
@@ -604,6 +632,9 @@ async function finalizeRunOutputs(
     policyProvenance: result.policyProvenance,
     ...(result.relationshipLabelProvenance
       ? { relationshipLabelProvenance: result.relationshipLabelProvenance }
+      : {}),
+    ...(result.agentConfigProvenance
+      ? { agentConfigProvenance: result.agentConfigProvenance }
       : {}),
     budget: result.budget,
     configDigest: result.configDigest,

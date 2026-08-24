@@ -1,3 +1,4 @@
+export * from './agent-config.js';
 export * from './evaluator.js';
 export * from './evaluation.js';
 export * from './prompt.js';

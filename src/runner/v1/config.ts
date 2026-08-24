@@ -12,6 +12,7 @@ import {
   PACT_PAIR_POLICIES_V1,
   PACT_PAIR_REQUESTERS_V1,
 } from './task-loader.js';
+import { PACT_PAIR_AGENT_PERSONAS_V1 } from '../../suites/pact-pair/agent-config.js';
 
 export const PACT_RUN_CONFIG_API_VERSION_V1 = 'pact-run/v1' as const;
 export const PACT_BUILTIN_DATASET_ID_V1 = 'pact-pair' as const;
@@ -253,6 +254,25 @@ export const pactExecutionConfigV1Schema = z
   .strict();
 
 /**
+ * File-based agent configuration (docs/pact-pair-multi-turn-lane.md, Feature 1).
+ * Opting in replaces the hardcoded responder system-prompt template with the
+ * persona's editable COO.md and seeds a maintainable MEMORY.md; every loaded
+ * file's sha256 is recorded in run.json (agentConfigProvenance). Absent keeps
+ * the hardcoded prompt and every existing config digest byte-identical.
+ *
+ * `policySource` controls the POLICY section of the prompt: `dial` (default)
+ * keeps the benchmark `policy` enum as the authoritative privacy policy so the
+ * D-dial grid stays comparable and its provenance unchanged; `agent_config`
+ * injects the persona's POLICY.md instead (for bespoke per-persona policies).
+ */
+export const pactAgentConfigV1Schema = z
+  .object({
+    responder: z.enum(PACT_PAIR_AGENT_PERSONAS_V1).default('alex'),
+    policySource: z.enum(['dial', 'agent_config']).default('dial'),
+  })
+  .strict();
+
+/**
  * Requester driver for the multi-turn trajectory lane. Only the scripted
  * driver exists in v1 scaffolding; the model driver lands with the adaptive
  * requester (docs/pact-pair-multi-turn-lane.md §4).
@@ -346,6 +366,9 @@ export const pactRunConfigV1Schema = z
         // Kept optional (no default) for the same digest-stability reason;
         // absence selects the single-turn lane.
         trajectory: pactTrajectoryConfigV1Schema.optional(),
+        // Kept optional (no default) for the same digest-stability reason;
+        // absence keeps the hardcoded responder system prompt.
+        agentConfig: pactAgentConfigV1Schema.optional(),
       })
       .strict()
       .superRefine((benchmark, context) => {
@@ -443,6 +466,14 @@ export function selectedPactExecutionBackendV1(
   config: Pick<PactRunConfigV1, 'backend'>,
 ): PactExecutionBackendConfigV1 {
   return config.backend ?? { kind: 'local' };
+}
+
+export type PactAgentConfigV1 = z.infer<typeof pactAgentConfigV1Schema>;
+
+export function selectedPactAgentConfigV1(
+  config: Pick<PactRunConfigV1, 'benchmark'>,
+): PactAgentConfigV1 | undefined {
+  return config.benchmark.agentConfig;
 }
 
 export type ResolvedPactRunConfigV1 = PactRunConfigV1 & {

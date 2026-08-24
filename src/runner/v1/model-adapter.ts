@@ -20,6 +20,7 @@ import {
 } from '../../protocol/v1/index.js';
 import {
   pactModelIdentifierV1,
+  selectedPactAgentConfigV1,
   type PactModelConfigV1,
   type PactRunConfigV1,
   resolvePactRunModelApiKeyV1,
@@ -29,6 +30,7 @@ import {
   buildPactTaskMessageV1,
   PACT_TERMINAL_TOOL_NAMES_V1,
 } from './prompt.js';
+import { loadPactPairAgentConfigV1 } from '../../suites/pact-pair/agent-config.js';
 
 type FetchImplementation = typeof globalThis.fetch;
 
@@ -235,6 +237,10 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
   private pendingToolCalls: OpenAICompatibleToolCall[] = [];
   private providerRequests: PactProviderRequestTelemetryV1[] = [];
   private failed = false;
+  private agentConfigResolved = false;
+  private agentConfigContent:
+    | { coo: string; policy: string; memory: string; policySource: 'dial' | 'agent_config' }
+    | undefined;
   /**
    * Provider tool-call id of the last terminal decision made via a `pact_*`
    * tool call (answer/refuse/escalate). A terminal tool call normally ends
@@ -322,6 +328,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
       if (parsed.type === 'task') {
         this.pendingToolCalls = [];
         this.lastTerminalToolCallId = undefined;
+        const agentConfig = this.resolveAgentConfigV1();
         this.messages = [
           {
             role: 'system',
@@ -330,6 +337,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
               requester: this.config.benchmark.requester,
               init,
               task: parsed.task,
+              ...(agentConfig ? { agentConfig } : {}),
             }),
           },
           {
@@ -725,6 +733,31 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
       throw new Error('Model adapter must be initialized before use');
     }
     return this.runInit;
+  }
+
+  /**
+   * Loads the configured file-based agent config once (COO/POLICY/MEMORY) so
+   * the responder system prompt is built from the persona's editable COO.md.
+   * Absent config keeps the hardcoded prompt. Fail-closed on missing files.
+   */
+  private resolveAgentConfigV1():
+    | { coo: string; policy: string; memory: string; policySource: 'dial' | 'agent_config' }
+    | undefined {
+    if (this.agentConfigResolved) return this.agentConfigContent;
+    this.agentConfigResolved = true;
+    const selected = selectedPactAgentConfigV1(this.config);
+    if (!selected) {
+      this.agentConfigContent = undefined;
+      return undefined;
+    }
+    const loaded = loadPactPairAgentConfigV1(selected.responder);
+    this.agentConfigContent = {
+      coo: loaded.coo,
+      policy: loaded.policy,
+      memory: loaded.memory,
+      policySource: selected.policySource,
+    };
+    return this.agentConfigContent;
   }
 }
 

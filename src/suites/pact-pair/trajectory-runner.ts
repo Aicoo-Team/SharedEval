@@ -20,10 +20,15 @@ import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import {
   pactRunConfigV1Schema,
+  selectedPactAgentConfigV1,
   selectedPactExecutionBackendV1,
   selectedPactTrajectoryV1,
   type PactRunConfigV1,
 } from '../../runner/v1/config.js';
+import {
+  buildPactPairAgentConfigProvenanceV1,
+  type PactPairAgentConfigRunProvenanceV1,
+} from './agent-config.js';
 import { createOpenAICompatiblePactHarnessV1 } from '../../runner/v1/model-adapter.js';
 import { loadPactPairTasksV1, type LoadedPactPairTaskV1 } from './task-loader.js';
 import { loadCanonicalPactPairStoreV1 } from './workspace.js';
@@ -151,6 +156,18 @@ export async function runPactPairTrajectoryBenchmarkV1(
     makeDriver().provenance(),
   );
 
+  // Re-hash the agent-config bytes the responder harness will load (fail-closed
+  // on a missing file before any tick runs).
+  const agentConfigSelection = selectedPactAgentConfigV1(runConfig);
+  const agentConfigProvenance: PactPairAgentConfigRunProvenanceV1 | undefined =
+    agentConfigSelection
+      ? buildPactPairAgentConfigProvenanceV1({
+          responder: agentConfigSelection.responder,
+          policySource: agentConfigSelection.policySource,
+          rootDir,
+        })
+      : undefined;
+
   const seed = options.seed ?? loadCanonicalPactPairStoreV1();
 
   const outputDirectory = options.writeOutputs === false
@@ -163,6 +180,7 @@ export async function runPactPairTrajectoryBenchmarkV1(
         runConfig,
         policyProvenance,
         trajectoryProtocol,
+        agentConfigProvenance,
         configDigest,
         taskSetDigest,
         sourceRevision,
@@ -226,6 +244,7 @@ export async function runPactPairTrajectoryBenchmarkV1(
     configDigest,
     taskSetDigest,
     ...(sourceRevision ? { sourceRevision } : {}),
+    ...(agentConfigProvenance ? { agentConfigProvenance } : {}),
     ...(outputDirectory ? { outputDirectory } : {}),
     summary,
     tasks: tickRuns.map(run => run.result),
@@ -400,6 +419,7 @@ async function prepareTrajectoryOutputDirectory(options: {
   runConfig: PactRunConfigV1;
   policyProvenance: { id: string; file: string; sha256: string };
   trajectoryProtocol: PactTrajectoryProtocolV1;
+  agentConfigProvenance?: PactPairAgentConfigRunProvenanceV1;
   configDigest: string;
   taskSetDigest: string;
   sourceRevision?: string;
@@ -433,6 +453,9 @@ async function prepareTrajectoryOutputDirectory(options: {
       benchmark: options.runConfig.benchmark,
       policyProvenance: options.policyProvenance,
       trajectoryProtocol: options.trajectoryProtocol,
+      ...(options.agentConfigProvenance
+        ? { agentConfigProvenance: options.agentConfigProvenance }
+        : {}),
       budget: options.runConfig.budget,
       configDigest: options.configDigest,
       taskSetDigest: options.taskSetDigest,
@@ -503,6 +526,9 @@ async function finalizeTrajectoryOutputs(
       benchmark: result.benchmark,
       policyProvenance: result.policyProvenance,
       trajectoryProtocol: result.trajectoryProtocol,
+      ...(result.agentConfigProvenance
+        ? { agentConfigProvenance: result.agentConfigProvenance }
+        : {}),
       budget: result.budget,
       configDigest: result.configDigest,
       taskSetDigest: result.taskSetDigest,
