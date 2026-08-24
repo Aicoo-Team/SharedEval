@@ -1,12 +1,12 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ZodError } from 'zod';
 import { parsePactManifestYamlV1 } from './protocol/v1/index.js';
 import {
   parseDatasetManifestYamlV1,
-  type DatasetManifestV1,
 } from './datasets/index.js';
+import { validateDatasetCatalogV1 } from './datasets/validate-catalog.js';
 import {
   dataStoreSchema,
   pairBenchmarkSchema,
@@ -494,39 +494,6 @@ function validateNetMatrix(
   assertEqual(labels, 575, 'PACT-Net matrix label count');
 }
 
-function validateDatasetCatalog(): Map<string, DatasetManifestV1> {
-  const datasetDirectory = join(repoRoot, 'dataset');
-  const manifests = new Map<string, DatasetManifestV1>();
-  const entries = readdirSync(datasetDirectory, { withFileTypes: true })
-    .filter(entry => entry.isDirectory())
-    .sort((left, right) => left.name.localeCompare(right.name));
-
-  for (const entry of entries) {
-    const relativeRoot = `dataset/${entry.name}`;
-    const manifestPath = `${relativeRoot}/manifest.yaml`;
-    if (!existsSync(join(repoRoot, manifestPath))) {
-      throw new Error(`Dataset directory ${entry.name} is missing manifest.yaml`);
-    }
-    const manifest = parseDatasetManifestYamlV1(readText(manifestPath));
-    if (manifest.id !== entry.name) {
-      throw new Error(
-        `Dataset directory ${entry.name} contains manifest id ${manifest.id}`,
-      );
-    }
-    const identity = `${manifest.id}@${manifest.version}`;
-    if (manifests.has(identity)) throw new Error(`Duplicate dataset identity ${identity}`);
-    for (const [name, asset] of Object.entries(manifest.assets)) {
-      if (!existsSync(join(repoRoot, relativeRoot, asset))) {
-        throw new Error(`Dataset ${identity} asset ${name} does not exist: ${asset}`);
-      }
-    }
-    manifests.set(identity, manifest);
-  }
-
-  console.log(`Dataset catalog validation passed (${manifests.size} manifest${manifests.size === 1 ? '' : 's'})`);
-  return manifests;
-}
-
 function validateProtocolExample(): void {
   const source = readFileSync(
     join(repoRoot, 'examples/submissions/typescript-basic/pact.yaml'),
@@ -552,7 +519,7 @@ function formatPairSummary(data: PairBenchmark): string {
 try {
   const suite = parseArgs();
   if (suite === 'all') {
-    validateDatasetCatalog();
+    validateDatasetCatalogV1({ repoRoot });
     validateProtocolExample();
   }
   if (suite === 'all' || suite === 'pair') validatePair();

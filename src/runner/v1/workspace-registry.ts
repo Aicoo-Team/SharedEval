@@ -40,7 +40,7 @@ const registryIdSchema = z.string().min(1).max(256).regex(
 ).refine(value => !value.split('/').some(part => part === '' || part === '.' || part === '..'), {
   message: 'id must not contain empty or traversal segments',
 });
-const safeSourcePathSchema = z.string().min(1).max(512).superRefine(
+const safeRepositoryPathSchema = z.string().min(1).max(512).superRefine(
   (value, context) => {
     const segments = value.split('/');
     if (
@@ -51,25 +51,65 @@ const safeSourcePathSchema = z.string().min(1).max(512).superRefine(
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'sourcePath must be a safe relative path without traversal',
-      });
-      return;
-    }
-    const fileName = segments.at(-1);
-    if (!fileName || !workspaceFileNameSet.has(fileName)) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'sourcePath must end in AGENT.md, HEARTBEAT.md, POLICY.md, or MEMORY.md',
+        message: 'path must be a safe relative path without traversal',
       });
     }
   },
 );
-const provenanceAliasSchema = z.string().min(1).max(512).refine(value => {
+const safeSourcePathSchema = safeRepositoryPathSchema.refine(value => {
   const fileName = value.split('/').at(-1);
-  return fileName !== 'COO.md' && fileName !== 'USER.md';
+  return fileName !== undefined && workspaceFileNameSet.has(fileName);
 }, {
+  message: 'sourcePath must end in AGENT.md, HEARTBEAT.md, POLICY.md, or MEMORY.md',
+});
+const sha256DigestSchema = z.string().regex(
+  /^[a-f0-9]{64}$/,
+  'sha256 must be a lowercase SHA-256 digest',
+);
+const provenanceTransformV1Schema = z.object({
+  id: z.enum([
+    'sharedeval/normalize-markdown-whitespace',
+    'sharedeval/sanitize-gold-heartbeat',
+  ]),
+  version: z.literal('1.0.0'),
+}).strict();
+
+export const workspaceRegistryProvenanceV1Schema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('exact'),
+    sourcePath: safeRepositoryPathSchema,
+    sourceSha256: sha256DigestSchema,
+  }).strict(),
+  z.object({
+    kind: z.literal('derived'),
+    sourcePath: safeRepositoryPathSchema,
+    sourceSha256: sha256DigestSchema,
+    transform: provenanceTransformV1Schema,
+  }).strict(),
+]);
+
+export type WorkspaceRegistryProvenanceV1 = z.infer<
+  typeof workspaceRegistryProvenanceV1Schema
+>;
+const provenanceAliasSchema = z.string().min(1).max(512).refine(value =>
+  !containsLegacyWorkspaceBasename(value), {
   message: 'aliases must not make legacy COO.md or USER.md a workspace asset',
 });
+
+function containsLegacyWorkspaceBasename(value: string): boolean {
+  let normalized = value.normalize('NFKC');
+  for (let pass = 0; pass < 16; pass += 1) {
+    try {
+      const decoded = decodeURIComponent(normalized).normalize('NFKC');
+      if (decoded === normalized) break;
+      normalized = decoded;
+    } catch {
+      break;
+    }
+  }
+  return /(?:^|[^a-z0-9])(?:coo|user)[^a-z0-9]*md(?:$|[^a-z0-9])/i
+    .test(normalized);
+}
 
 function uniqueNonemptySortedStrings(label: string) {
   return z.array(z.string().min(1).max(512)).min(1).superRefine(
@@ -113,7 +153,8 @@ export const workspaceRegistryAssetV1Schema = z.object({
   actorRoles: sortedUniqueEnumArray('actorRoles', actorRoleV1Schema),
   sourcePath: safeSourcePathSchema,
   byteLength: z.number().int().nonnegative().max(MAX_AGENT_WORKSPACE_FILE_BYTES_V1),
-  sha256: z.string().regex(/^[a-f0-9]{64}$/, 'sha256 must be a lowercase SHA-256 digest'),
+  sha256: sha256DigestSchema,
+  provenance: workspaceRegistryProvenanceV1Schema,
   aliases: z.array(provenanceAliasSchema).min(1).superRefine(
     (values, context) => addSortedUniqueIssues('aliases', values, context),
   ),
@@ -123,7 +164,18 @@ export const workspaceRegistryAssetV1Schema = z.object({
     'compatibleWorkflowIds',
     workflowIdV1Schema,
   ),
-}).strict();
+}).strict().superRefine((asset, context) => {
+  if (
+    asset.provenance.kind === 'exact'
+    && asset.provenance.sourceSha256 !== asset.sha256
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['provenance', 'sourceSha256'],
+      message: 'exact provenance source SHA-256 must equal the operational SHA-256',
+    });
+  }
+});
 
 export type WorkspaceRegistryAssetV1 = z.infer<
   typeof workspaceRegistryAssetV1Schema
