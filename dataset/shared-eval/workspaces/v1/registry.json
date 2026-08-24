@@ -1,0 +1,1385 @@
+{
+  "apiVersion": "sharedeval/workspace-registry/v1",
+  "kind": "WorkspaceRegistry",
+  "assets": [
+    {
+      "id": "agents/alex/base/agent",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/alex/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/alex/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 752,
+      "sha256": "f38ce83732671cb79456579bfe5f0ffe9104e2eb969a5b473f457534965d9201"
+    },
+    {
+      "id": "agents/alex/base/heartbeat",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/alex/base/HEARTBEAT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/alex/HEARTBEAT.md",
+        "pulse:research/configs/alex/HEARTBEAT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 574,
+      "sha256": "f96b834420b1328fd82687782e6b01e400d3cae17ebb50a34748acf89df72430"
+    },
+    {
+      "id": "agents/alex/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/alex/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/alex/MEMORY.md",
+        "pulse:research/configs/alex/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 181,
+      "sha256": "1053e97300f24930b5594446caa565d4a677a326099cc7178f5d74faf688fcb0"
+    },
+    {
+      "id": "agents/alex/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/alex/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/alex/POLICY.md",
+        "pulse:research/configs/alex/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 43,
+      "sha256": "9391e041b99f677d03cc3989f2cccae5cdb86b5867037475609c4a1a399a45ad"
+    },
+    {
+      "id": "agents/dana/base/agent",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/dana/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/dana/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 562,
+      "sha256": "eb48d5f95e2fd58a09dec07fcda39d7a8888407d0afe221397c704aaf8e3186b"
+    },
+    {
+      "id": "agents/dana/base/heartbeat",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/dana/base/HEARTBEAT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/dana/HEARTBEAT.md",
+        "pulse:research/configs/dana/HEARTBEAT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2905,
+      "sha256": "a57e574aab78dcc89f3cd3a0ff909995790bd29676c7df2d0f074d7dc92294b7"
+    },
+    {
+      "id": "agents/dana/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/dana/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/dana/MEMORY.md",
+        "pulse:research/configs/dana/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 7363,
+      "sha256": "ae026e5d0041aa2bf3cb4b47af7bf6826c20421ba67cffc186a43ccf4e8864f7"
+    },
+    {
+      "id": "agents/dana/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/dana/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/dana/POLICY.md",
+        "pulse:research/configs/dana/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 9548,
+      "sha256": "6f7dccb8fa0ad79d0881433eb3a72a0a272148ba7c172a9c85377aafece92af4"
+    },
+    {
+      "id": "agents/jordan/base/agent",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/jordan/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/jordan/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 545,
+      "sha256": "96bf4f34a72f19528eb01aab7daac42892f5ebce1dca4a9ae4b56f090c49bb94"
+    },
+    {
+      "id": "agents/jordan/base/heartbeat",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/jordan/base/HEARTBEAT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/jordan/HEARTBEAT.md",
+        "pulse:research/configs/jordan/HEARTBEAT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2887,
+      "sha256": "ff95c9e6bccc865a7af8646c926a554080e78ac353556f1b749e4cb515d52b91"
+    },
+    {
+      "id": "agents/jordan/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/jordan/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/jordan/MEMORY.md",
+        "pulse:research/configs/jordan/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 7363,
+      "sha256": "ae026e5d0041aa2bf3cb4b47af7bf6826c20421ba67cffc186a43ccf4e8864f7"
+    },
+    {
+      "id": "agents/jordan/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/jordan/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/jordan/POLICY.md",
+        "pulse:research/configs/jordan/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 9513,
+      "sha256": "1fbe6f1a7e54c4df7f99e9a8ac1f05f23f060abc29b42bfd5938edbf91510850"
+    },
+    {
+      "id": "agents/marcus/base/agent",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/marcus/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/marcus/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 561,
+      "sha256": "8331f9f22a1b5041499f6461553b1bf301a988db612462a24dccd804bf6777c3"
+    },
+    {
+      "id": "agents/marcus/base/heartbeat",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/marcus/base/HEARTBEAT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/marcus/HEARTBEAT.md",
+        "pulse:research/configs/marcus/HEARTBEAT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2872,
+      "sha256": "1cb59d233f66c4354be5fbdbc4f3d9b281acd7c100adbc30bfdddf68b6d2cdce"
+    },
+    {
+      "id": "agents/marcus/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/marcus/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/marcus/MEMORY.md",
+        "pulse:research/configs/marcus/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 7363,
+      "sha256": "ae026e5d0041aa2bf3cb4b47af7bf6826c20421ba67cffc186a43ccf4e8864f7"
+    },
+    {
+      "id": "agents/marcus/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/marcus/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/marcus/POLICY.md",
+        "pulse:research/configs/marcus/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 9543,
+      "sha256": "f3411627eaf218807cb13b9e29bea36a4f198789d6045ce7c92ea09c007da5a5"
+    },
+    {
+      "id": "agents/tina/base/agent",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/tina/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/tina/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 902,
+      "sha256": "79e80ee03c5c8de66293729644cf0423127c880c0ccab95d0595bf8d902668b2"
+    },
+    {
+      "id": "agents/tina/base/heartbeat",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/tina/base/HEARTBEAT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/tina/HEARTBEAT.md",
+        "pulse:research/configs/tina/HEARTBEAT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2737,
+      "sha256": "4aca74356e99a9d59e793e9a9b8ab7d6e69ce4bd0434f39d8f81a47fe990e8b1"
+    },
+    {
+      "id": "agents/tina/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/tina/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/tina/MEMORY.md",
+        "pulse:research/configs/tina/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 7363,
+      "sha256": "ae026e5d0041aa2bf3cb4b47af7bf6826c20421ba67cffc186a43ccf4e8864f7"
+    },
+    {
+      "id": "agents/tina/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/tina/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/tina/POLICY.md",
+        "pulse:research/configs/tina/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 9456,
+      "sha256": "0dce12af18b0ade9f346e2a40826cbc8fa48af35e83637f73feb2b733c36fa04"
+    },
+    {
+      "id": "heartbeats/files-multi",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "heartbeats/files-multi/1.0.0/HEARTBEAT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/tina/HEARTBEAT.md",
+        "pulse:research/configs/tina/HEARTBEAT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi"
+      ],
+      "byteLength": 2737,
+      "sha256": "4aca74356e99a9d59e793e9a9b8ab7d6e69ce4bd0434f39d8f81a47fe990e8b1"
+    },
+    {
+      "id": "heartbeats/files-single",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "heartbeats/files-single/1.0.0/HEARTBEAT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/tina/HEARTBEAT.md",
+        "pulse:research/configs/tina/HEARTBEAT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-single"
+      ],
+      "byteLength": 2737,
+      "sha256": "4aca74356e99a9d59e793e9a9b8ab7d6e69ce4bd0434f39d8f81a47fe990e8b1"
+    },
+    {
+      "id": "memory-seeds/pact-pair-requester",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "memory-seeds/pact-pair-requester/1.0.0/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/tina/MEMORY.md",
+        "pulse:research/configs/tina/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 7363,
+      "sha256": "ae026e5d0041aa2bf3cb4b47af7bf6826c20421ba67cffc186a43ccf4e8864f7"
+    },
+    {
+      "id": "policies/pact-net-profile/alex_chen",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/alex_chen/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/alex_chen/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/alex_chen/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2580,
+      "sha256": "3c6a8e95732ca4e384e5a6e8d4c3de0746c006464b8f4043d84952056c9c01dc"
+    },
+    {
+      "id": "policies/pact-net-profile/carlos_reyes",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/carlos_reyes/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/carlos_reyes/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/carlos_reyes/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 3059,
+      "sha256": "26b12be24af72b7bbd219a5ab54ad2f637190a565e7f83e0b806e9e3638b39f5"
+    },
+    {
+      "id": "policies/pact-net-profile/dana_reeves",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/dana_reeves/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/dana_reeves/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/dana_reeves/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2467,
+      "sha256": "a94e22580e36c35109a058e6f33895e078d50c38f38b89553017f38d598b8efd"
+    },
+    {
+      "id": "policies/pact-net-profile/david_chen",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/david_chen/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/david_chen/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/david_chen/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2276,
+      "sha256": "c04737b1b64f1e3bcd7438603b5bd8816b3ce8b65f759f5ec914cbe2edc7ba6a"
+    },
+    {
+      "id": "policies/pact-net-profile/derek_lam",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/derek_lam/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/derek_lam/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/derek_lam/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2080,
+      "sha256": "43ca8a3102d0c2df495988ef447dc1cedab61b306a7c0193fbb60cf723b8b050"
+    },
+    {
+      "id": "policies/pact-net-profile/dr_karen_walsh",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/dr_karen_walsh/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/dr_karen_walsh/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/dr_karen_walsh/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2835,
+      "sha256": "5eabde848f08c02b9a609140e7353d48da5003b6a55fca8a7729f94ebf030cb0"
+    },
+    {
+      "id": "policies/pact-net-profile/elena_park",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/elena_park/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/elena_park/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/elena_park/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2535,
+      "sha256": "755e3da260313844f2c5a62b230fbdf2ad2a48d34d578178c4226215393171a7"
+    },
+    {
+      "id": "policies/pact-net-profile/jake_ellis",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/jake_ellis/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/jake_ellis/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/jake_ellis/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2100,
+      "sha256": "600e0181118aee30602cb4194d25b8b7089780f5872f90e1265933b7160b5ca6"
+    },
+    {
+      "id": "policies/pact-net-profile/jamie_lin",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/jamie_lin/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/jamie_lin/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/jamie_lin/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2490,
+      "sha256": "7dbd42314a3d1164536ec61d15776dcb3ebb2f5d214fc2888329907ed31b06b5"
+    },
+    {
+      "id": "policies/pact-net-profile/jordan_park",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/jordan_park/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/jordan_park/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/jordan_park/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2211,
+      "sha256": "0ef3c00d8334e12984633f086d99380ba66e97b6b70c62912cc2b2d9138d05c7"
+    },
+    {
+      "id": "policies/pact-net-profile/linda_chen",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/linda_chen/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/linda_chen/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/linda_chen/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2617,
+      "sha256": "c8c1813ad8708fe6e32f8f0f0c8887f062c1487ca7360fa4059ab0f24df74dd1"
+    },
+    {
+      "id": "policies/pact-net-profile/lisa_nakamura",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/lisa_nakamura/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/lisa_nakamura/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/lisa_nakamura/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2087,
+      "sha256": "66641318c6d70f9d750dc67871f5ed29f511a217b4cf49227aa5e54bb660a4a5"
+    },
+    {
+      "id": "policies/pact-net-profile/marcus_webb",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/marcus_webb/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/marcus_webb/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/marcus_webb/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2291,
+      "sha256": "f917ab70bd9c5a62066895a0e8e2858303eb1e9c8c352554ede1ddc13fbdcf20"
+    },
+    {
+      "id": "policies/pact-net-profile/maria_garcia",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/maria_garcia/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/maria_garcia/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/maria_garcia/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2222,
+      "sha256": "f62717f86ad8b62a8e80ce61d666c6026908a2bf513cec4d57ce8973a829fdad"
+    },
+    {
+      "id": "policies/pact-net-profile/mike_torres",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/mike_torres/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/mike_torres/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/mike_torres/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2168,
+      "sha256": "757f8b4b38a812ea4c22813e805f6fa1351d25acf9f18a0ff52e4e2aa75bc84e"
+    },
+    {
+      "id": "policies/pact-net-profile/nina_volkov",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/nina_volkov/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/nina_volkov/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/nina_volkov/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2403,
+      "sha256": "be906fdc8360b73777a220378a6bdedb20989cc129414ea319d089c2ab293a08"
+    },
+    {
+      "id": "policies/pact-net-profile/omar_hassan",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/omar_hassan/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/omar_hassan/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/omar_hassan/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2362,
+      "sha256": "ad58b44e22309a9af18d93e24216bd273de3419c246393f357fcc08334aa65ba"
+    },
+    {
+      "id": "policies/pact-net-profile/priya_sharma",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/priya_sharma/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/priya_sharma/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/priya_sharma/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2332,
+      "sha256": "a125f56ec5e63819def286fd11c1ea8ec69922a35b14526b31f1007e866c53d8"
+    },
+    {
+      "id": "policies/pact-net-profile/rachel_kim",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/rachel_kim/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/rachel_kim/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/rachel_kim/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2420,
+      "sha256": "74f1cbcb8dde4d72fbf2eccfe374a62d69c3b2d9180cf7b82f1f90cf72196c4e"
+    },
+    {
+      "id": "policies/pact-net-profile/ryan_park",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/ryan_park/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/ryan_park/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/ryan_park/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2297,
+      "sha256": "02953ecb6fccc67bbceec181dc798f5e01435915b3aa387ee9c787a7adef7e02"
+    },
+    {
+      "id": "policies/pact-net-profile/sarah_martinez",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/sarah_martinez/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/sarah_martinez/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/sarah_martinez/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2400,
+      "sha256": "ba51c182dc75f0f5a7e5146e48118ac846d23c963b9f257792b13a58874b1029"
+    },
+    {
+      "id": "policies/pact-net-profile/sophie_chen",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/sophie_chen/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/sophie_chen/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/sophie_chen/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2276,
+      "sha256": "9418175dc48387006a7d57cdcee9d4b9e1fc5f461a2bf30c2e3ce1a1f6908a4c"
+    },
+    {
+      "id": "policies/pact-net-profile/tina_rodriguez",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/tina_rodriguez/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/tina_rodriguez/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/tina_rodriguez/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2299,
+      "sha256": "120056b57717f99f8e0cee80272aea531d778b8b6fa7ba0f7bfaa0968a5e1cf6"
+    },
+    {
+      "id": "policies/pact-net-profile/tom_bradford",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/tom_bradford/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/tom_bradford/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/tom_bradford/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 1860,
+      "sha256": "478138242d41945edecb6a6a5e826a68c72ac639cbd15e156044c9e95e9e1f23"
+    },
+    {
+      "id": "policies/pact-net-profile/victor_tan",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester",
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-profile/victor_tan/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/victor_tan/POLICY.md",
+        "pulse:research/configs/pact_net/agent_configs/victor_tan/POLICY.md"
+      ],
+      "status": "incomplete",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2185,
+      "sha256": "40b32e6b4ef531eb86441b363e9002343909aacf3c499e7ea845cb076dacfe1d"
+    },
+    {
+      "id": "policies/pact-pair-ablation/m6",
+      "version": "0.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-ablation/m6/0.1.0/POLICY.md",
+      "aliases": [
+        "pulse:research/configs/policy_ablation_review_2026-07-27/POLICY_M6_DRAFT.md"
+      ],
+      "status": "draft",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2335,
+      "sha256": "58ae8264e515ad9377c90eeb752eed15b8acbd9ed9345bbf93fddbcaab162b45"
+    },
+    {
+      "id": "policies/pact-pair-ablation/m7",
+      "version": "0.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-ablation/m7/0.1.0/POLICY.md",
+      "aliases": [
+        "pulse:research/configs/policy_ablation_review_2026-07-27/POLICY_M7_DRAFT.md"
+      ],
+      "status": "draft",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2363,
+      "sha256": "6111ac64e8ea86dc423ca0829b194f6bfa7849159abecb2cefa3cc52e877884d"
+    },
+    {
+      "id": "policies/pact-pair-ablation/m8",
+      "version": "0.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-ablation/m8/0.1.0/POLICY.md",
+      "aliases": [
+        "pulse:research/configs/policy_ablation_review_2026-07-27/POLICY_M8_DRAFT.md"
+      ],
+      "status": "draft",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2478,
+      "sha256": "004be9a33402aab847725619ae23e94ef60651667061cc400138b50d309b420e"
+    },
+    {
+      "id": "policies/pact-pair-defense/d0",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-defense/d0/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/D0_no_policy.md",
+        "pulse:research/configs/alex/POLICY_M0.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "policies/pact-pair-defense/d1",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-defense/d1/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/D1_generic_caution.md",
+        "pulse:research/configs/alex/POLICY_M1.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 128,
+      "sha256": "94c9bd8810e9f79332d198c48f488988659c7cb6b91187d34718aa66a593427d"
+    },
+    {
+      "id": "policies/pact-pair-defense/d2",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-defense/d2/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/D2_SUBMITTED.md",
+        "pulse:research/configs/alex/POLICY_M2.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2278,
+      "sha256": "a213e556fc4262c72ed3a1a12a9bd68c1ef006acbad0e5337122dbb897665f30"
+    },
+    {
+      "id": "policies/pact-pair-defense/d3",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-defense/d3/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/D3_SUBMITTED.md",
+        "pulse:research/configs/alex/POLICY_M3.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2910,
+      "sha256": "4ef50759b20c7546792c8a35d8f6a5927ef4b3e6c27bedc50c342538756d9a32"
+    },
+    {
+      "id": "policies/pact-pair-defense/d4",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-defense/d4/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/D4_SUBMITTED.md",
+        "pulse:research/configs/alex/POLICY_M4.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 3147,
+      "sha256": "2ed591ba7e4348baa096cb4948b32c9d39dbfb43057785920b5474f7cf3cc184"
+    },
+    {
+      "id": "policies/pact-pair-defense/d5",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-defense/d5/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/D5_SUBMITTED.md",
+        "pulse:research/configs/alex/POLICY_M5.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 3181,
+      "sha256": "5852239454b61a694f1e18899f08bf898c30212a790c0a57055f6fb184f61850"
+    },
+    {
+      "id": "policies/pact-pair-relationship/r0",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-relationship/r0/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/REL_R0.md",
+        "pulse:research/configs/alex/POLICY_D3_R0.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 1377,
+      "sha256": "fdd2b41d62b701b2d5cbb435c29478e31748eb65945c93449c70832dafe2e417"
+    },
+    {
+      "id": "policies/pact-pair-relationship/r1",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-relationship/r1/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/REL_R1.md",
+        "pulse:research/configs/alex/POLICY_D3_R1.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2015,
+      "sha256": "148059a12ed5e6987c44e00d675436030199e6a52e0607460f1ba12a3f418680"
+    },
+    {
+      "id": "policies/pact-pair-relationship/r2",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-relationship/r2/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/REL_R2.md",
+        "pulse:research/configs/alex/POLICY_D3_R2.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2276,
+      "sha256": "d91ac377ce3e298cb4687e8a9d12b8a417b24b78a93fa4820cf823a8ccbef559"
+    },
+    {
+      "id": "policies/pact-pair-relationship/r3",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-relationship/r3/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/REL_R3.md",
+        "pulse:research/configs/alex/POLICY_D3_R3.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2126,
+      "sha256": "fc4dfb762227507f4c8affa8641c7057bafe8ba0e662f521680957f0fa36d5bb"
+    },
+    {
+      "id": "policies/pact-pair-relationship/r4",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-relationship/r4/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/REL_R4.md",
+        "pulse:research/configs/alex/POLICY_D3_R4.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2301,
+      "sha256": "6644d979b0081cba69066b8ac8ca60fd601ac5c1560a678551baad64552dd3ad"
+    }
+  ]
+}
