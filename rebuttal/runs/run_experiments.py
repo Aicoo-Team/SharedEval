@@ -113,10 +113,11 @@ class ModelSpec:
 # multiplier is applied separately and defaults to 1.5x.
 MODELS: dict[str, ModelSpec] = {
     "deepseek": ModelSpec(
-        "deepseek/deepseek-v4-flash",
-        "deepseek/deepseek-v4-flash-20260423",
+        "deepseek/deepseek-v4-flash-0731",
+        "deepseek/deepseek-v4-flash-20260731",
         0.000681,
-        "historical 5-task estimate; recalibrate with a clean smoke run",
+        "historical 5-task estimate; OpenRouter 0731 route verified 2026-08-20 "
+        "at $0.14/$0.28 per M; recalibrate with a clean smoke run",
         "deepinfra/fp4",
         "DeepInfra",
         True,
