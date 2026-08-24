@@ -19,7 +19,7 @@ COPY dataset /opt/pact/dist/dataset
 
 # Prebuilt SharedOS packages/*/dist, staged into the build context by the
 # Harbor backend (stageSharedOsBuildV1) from a checkout pinned to commit
-# 846cbf64830d1a77bf477b98fd3586cd5cdff02e — see sharedos-provenance.json
+# 373b6347559e39e00b2a4f6bc934373833b40266 — see sharedos-provenance.json
 # inside the staged tree. The image only ever COPYs these build artifacts;
 # cloning or building SharedOS in-container is forbidden (no-network
 # principle). PACT_SHAREDOS_DIR points the embedded adapter's loader

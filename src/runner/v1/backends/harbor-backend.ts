@@ -222,6 +222,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
         config: context.config,
         tasks: context.tasks,
         sharedOsCommit: stagedSharedOs.commit,
+        sharedOsRuntimeDigest: stagedSharedOs.runtimeDigest,
       });
       try {
         await runExternalCommand(

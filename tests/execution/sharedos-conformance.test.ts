@@ -28,6 +28,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   defaultSharedOsDirV1,
+  loadSharedOsModulesV1,
   sharedOsAgentAddressV1Schema,
   sharedOsIdentifierV1Schema,
   sharedOsTurnMessageV1Schema,
@@ -44,16 +45,17 @@ type ZodLike = {
 
 const sharedOsDir = defaultSharedOsDirV1();
 const contractsEntry = join(sharedOsDir, 'packages', 'contracts', 'dist', 'index.js');
+const verifiedBuild = await loadSharedOsModulesV1(sharedOsDir);
 
 let so: Record<string, unknown> | null = null;
-if (existsSync(contractsEntry)) {
+if (verifiedBuild.ok && existsSync(contractsEntry)) {
   so = (await import(pathToFileURL(contractsEntry).href)) as Record<string, unknown>;
 }
 const skip = so
   ? false
-  : `SharedOS contracts build not found at ${contractsEntry}. Clone `
-    + 'Aicoo-Team/SharedOS, run "pnpm install --frozen-lockfile && pnpm build", '
-    + 'or point PACT_SHAREDOS_DIR at a built checkout.';
+  : verifiedBuild.ok
+    ? `SharedOS contracts build not found at ${contractsEntry}.`
+    : verifiedBuild.reason;
 if (!so) {
   // In the pinned-SharedOS conformance CI job, an unavailable SharedOS
   // build is a failure, never a green skip.
@@ -209,6 +211,7 @@ test('a PACT-accepted turn maps to a SharedOS-accepted ExecutionRequest', { skip
       owner,
       purpose: parsedTurn.message.purpose,
       traceId: 'trace-0001',
+      enabledToolNamespaces: [],
       grants: [],
       now: '2026-08-07T00:00:00.000Z',
     },

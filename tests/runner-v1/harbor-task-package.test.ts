@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import {
   mkdir,
   mkdtemp,
@@ -13,11 +14,16 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import {
+  digestSharedOsRuntimeV1,
+  verifySharedOsBuildV1,
+} from '../../src/execution/sharedos/v1/load-sharedos.js';
 import { PACT_HARBOR_IMAGE_V1 } from '../../src/runner/v1/backends/harbor-backend.js';
 import {
   defaultHostSharedOsDirV1,
   PACT_SHAREDOS_COMMIT_V1,
   PACT_SHAREDOS_PROVENANCE_FILE_V1,
+  PACT_SHAREDOS_RUNTIME_DIGEST_V1,
   resolveSharedOsCommitV1,
   stageSharedOsBuildV1,
 } from '../../src/runner/v1/backends/harbor-sharedos.js';
@@ -42,15 +48,33 @@ const SHAREDOS_FIXTURE_PACKAGES = [
   'testkit',
 ] as const;
 
+const SHAREDOS_STAGED_PACKAGES = [
+  'contracts',
+  'core',
+  'os',
+  'runtime',
+  'testkit',
+] as const;
+
 test('stages SharedOS dist artifacts with pinned-commit provenance', async t => {
-  const checkout = await buildSharedOsFixture(t, PACT_SHAREDOS_COMMIT_V1);
+  const checkout = await buildSharedOsFixture(t, 'fixture');
+  const fixtureCommit = await resolveSharedOsCommitV1(checkout);
+  assert.ok(fixtureCommit);
   const stageDirectory = join(checkout, '..', 'stage');
+  const fixtureDigest = digestSharedOsRuntimeV1(checkout);
+  assert.ok(fixtureDigest);
 
-  const staged = await stageSharedOsBuildV1({ sharedOsDir: checkout, stageDirectory });
+  const staged = await stageSharedOsBuildV1({
+    sharedOsDir: checkout,
+    stageDirectory,
+    expectedCommit: fixtureCommit,
+    expectedRuntimeDigest: fixtureDigest,
+  });
 
-  assert.equal(staged.commit, PACT_SHAREDOS_COMMIT_V1);
-  assert.deepEqual(staged.packages, [...SHAREDOS_FIXTURE_PACKAGES].sort());
-  for (const name of SHAREDOS_FIXTURE_PACKAGES) {
+  assert.equal(staged.commit, fixtureCommit);
+  assert.equal(staged.runtimeDigest, fixtureDigest);
+  assert.deepEqual(staged.packages, [...SHAREDOS_STAGED_PACKAGES]);
+  for (const name of SHAREDOS_STAGED_PACKAGES) {
     assert.ok(existsSync(join(stageDirectory, 'packages', name, 'dist', 'index.js')));
     assert.ok(existsSync(join(stageDirectory, 'packages', name, 'package.json')));
     // The workspace link keeps bare @sharedos/* imports and the loader's
@@ -71,26 +95,46 @@ test('stages SharedOS dist artifacts with pinned-commit provenance', async t => 
   const provenance = JSON.parse(await readFile(
     join(stageDirectory, PACT_SHAREDOS_PROVENANCE_FILE_V1),
     'utf8',
-  )) as { repository: string; commit: string; packages: string[] };
+  )) as {
+    repository: string;
+    commit: string;
+    runtimeDigest: string;
+    packages: string[];
+  };
   assert.equal(provenance.repository, 'Aicoo-Team/SharedOS');
-  assert.equal(provenance.commit, PACT_SHAREDOS_COMMIT_V1);
-  assert.deepEqual(provenance.packages, [...SHAREDOS_FIXTURE_PACKAGES].sort());
+  assert.equal(provenance.commit, fixtureCommit);
+  assert.equal(provenance.runtimeDigest, fixtureDigest);
+  assert.deepEqual(provenance.packages, [...SHAREDOS_STAGED_PACKAGES]);
+  assert.deepEqual(
+    verifySharedOsBuildV1(stageDirectory, {
+      expectedRevision: fixtureCommit,
+      expectedRuntimeDigest: fixtureDigest,
+    }),
+    {
+      ok: true,
+      revision: fixtureCommit,
+      runtimeDigest: fixtureDigest,
+      source: 'provenance',
+    },
+  );
 });
 
-test('staging fails closed on commit drift and missing build artifacts', async t => {
+test('staging fails closed on revision, source, and build drift', async t => {
   const drifted = await buildSharedOsFixture(
     t,
-    'beef00000000000000000000000000000000beef',
+    'fixture',
   );
+  const driftedCommit = await resolveSharedOsCommitV1(drifted);
+  assert.ok(driftedCommit);
   await assert.rejects(
     stageSharedOsBuildV1({
       sharedOsDir: drifted,
       stageDirectory: join(drifted, '..', 'stage-drift'),
     }),
-    /is at commit beef0000/,
+    new RegExp(`is at commit ${driftedCommit.slice(0, 8)}`),
   );
 
-  const unbuilt = await buildSharedOsFixture(t, PACT_SHAREDOS_COMMIT_V1);
+  const unbuilt = await buildSharedOsFixture(t, 'fixture');
   await rm(join(unbuilt, 'packages', 'runtime', 'dist'), { recursive: true });
   await assert.rejects(
     stageSharedOsBuildV1({
@@ -98,6 +142,26 @@ test('staging fails closed on commit drift and missing build artifacts', async t
       stageDirectory: join(unbuilt, '..', 'stage-unbuilt'),
     }),
     /missing for runtime/,
+  );
+
+  const tampered = await buildSharedOsFixture(t, 'fixture');
+  const tamperedCommit = await resolveSharedOsCommitV1(tampered);
+  assert.ok(tamperedCommit);
+  const originalDigest = digestSharedOsRuntimeV1(tampered);
+  assert.ok(originalDigest);
+  await writeFile(
+    join(tampered, 'packages', 'core', 'dist', 'index.js'),
+    'export const tampered = true;\n',
+    'utf8',
+  );
+  await assert.rejects(
+    stageSharedOsBuildV1({
+      sharedOsDir: tampered,
+      stageDirectory: join(tampered, '..', 'stage-tampered'),
+      expectedCommit: tamperedCommit,
+      expectedRuntimeDigest: originalDigest,
+    }),
+    /tracked local changes/,
   );
 });
 
@@ -108,11 +172,11 @@ test('host SharedOS dir resolution honors PACT_SHAREDOS_DIR', async t => {
   );
   assert.equal(
     defaultHostSharedOsDirV1('/repo/pact', {}),
-    '/repo/sharedos-repo',
+    '/repo/SharedOS',
   );
-  // resolveSharedOsCommitV1 reads git metadata directly (loose ref via HEAD).
-  const checkout = await buildSharedOsFixture(t, PACT_SHAREDOS_COMMIT_V1);
-  assert.equal(await resolveSharedOsCommitV1(checkout), PACT_SHAREDOS_COMMIT_V1);
+  // resolveSharedOsCommitV1 reads the real fixture repository's HEAD.
+  const checkout = await buildSharedOsFixture(t, 'fixture');
+  assert.match(await resolveSharedOsCommitV1(checkout) ?? '', /^[0-9a-f]{40}$/);
 });
 
 test('scripted task packages stay strictly no-network with SharedOS provenance', async t => {
@@ -136,6 +200,10 @@ test('scripted task packages stay strictly no-network with SharedOS provenance',
   assert.match(
     taskToml,
     new RegExp(`sharedos_commit = "${PACT_SHAREDOS_COMMIT_V1}"`),
+  );
+  assert.match(
+    taskToml,
+    new RegExp(`sharedos_runtime_digest = "${PACT_SHAREDOS_RUNTIME_DIGEST_V1}"`),
   );
   // No env section at all: scripted trials need no credential and no model
   // configuration, and must not depend on any host environment variable.
@@ -266,7 +334,7 @@ async function collectFiles(directory: string): Promise<string[]> {
 
 async function buildSharedOsFixture(
   t: { after(fn: () => unknown): void },
-  commit: string,
+  _label: string,
 ): Promise<string> {
   const temporary = await mkdtemp(join(tmpdir(), 'pact-sharedos-fixture-'));
   t.after(() => rm(temporary, { recursive: true, force: true }));
@@ -296,16 +364,34 @@ async function buildSharedOsFixture(
     );
   }
   const zodDirectory = join(checkout, 'packages', 'contracts', 'node_modules', 'zod');
-  await mkdir(zodDirectory, { recursive: true });
+  await mkdir(join(zodDirectory, 'v3'), { recursive: true });
   await writeFile(
     join(zodDirectory, 'package.json'),
-    `${JSON.stringify({ name: 'zod', version: '3.25.76', main: 'index.js' })}\n`,
+    `${JSON.stringify({
+      name: 'zod',
+      version: '3.25.76',
+      type: 'module',
+      exports: { '.': './index.js' },
+    })}\n`,
     'utf8',
   );
-  await writeFile(join(zodDirectory, 'index.js'), 'module.exports = {};\n', 'utf8');
-  await mkdir(join(checkout, '.git', 'refs', 'heads'), { recursive: true });
-  await writeFile(join(checkout, '.git', 'HEAD'), 'ref: refs/heads/main\n', 'utf8');
-  await writeFile(join(checkout, '.git', 'refs', 'heads', 'main'), `${commit}\n`, 'utf8');
+  await writeFile(
+    join(zodDirectory, 'index.js'),
+    'export * from "./v3/external.js";\n',
+    'utf8',
+  );
+  await writeFile(
+    join(zodDirectory, 'v3', 'external.js'),
+    'export const z = {};\n',
+    'utf8',
+  );
+  execFileSync('git', ['init', '-q', checkout]);
+  execFileSync('git', ['-C', checkout, 'add', '.']);
+  execFileSync(
+    'git',
+    ['-C', checkout, '-c', 'user.name=PACT tests', '-c', 'user.email=pact@example.invalid',
+      'commit', '-q', '-m', 'test fixture'],
+  );
   return checkout;
 }
 

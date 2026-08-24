@@ -54,6 +54,8 @@ export type EmbeddedWorldV1 = {
   owner: SoAddress;
   /** The agent whose turn-opening grant is issued (the requester). */
   sender: SoAddress;
+  /** Explicit host-selected tool families. Empty means all tools are off. */
+  enabledToolNamespaces: readonly string[];
   /**
    * Canonical world value; its digest must equal the host-measured one.
    * Digest scope (deliberately narrow): the digest attests THIS value —
@@ -232,6 +234,7 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
       owner: world.owner,
       purpose: parsed.message.purpose,
       traceId,
+      enabledToolNamespaces: [...world.enabledToolNamespaces],
       grants,
       now: nowIso(),
     };
