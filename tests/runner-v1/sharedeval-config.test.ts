@@ -83,6 +83,16 @@ test('makes task and tick overrides part of the effective digest', () => {
   );
 });
 
+test('validates direct max tick overrides against the workflow contract', () => {
+  const parsed = parseSharedevalRunConfigV1Yaml(config);
+  for (const maxTicks of [0, 1.5, Number.MAX_SAFE_INTEGER + 1, 10_001]) {
+    assert.throws(
+      () => applySharedevalOverridesV1(parsed, resolveWorkflow(['multi']), { maxTicks }),
+      ZodError,
+    );
+  }
+});
+
 test('rejects contradictory command and config task selection without a legacy fallback', () => {
   const selected = parseSharedevalRunConfigV1Yaml(config.replace(
     '    kind: all',

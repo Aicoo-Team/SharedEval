@@ -81,6 +81,15 @@ export type EffectiveSharedevalRunConfigV1 = SharedevalRunConfigV1 & {
 };
 
 export function parseSharedevalRunConfigV1Yaml(source: string): SharedevalRunConfigV1 {
+  return sharedevalRunConfigV1Schema.parse(inspectSharedevalRunConfigV1Yaml(source));
+}
+
+/**
+ * Safely materializes a config document before protocol-specific validation.
+ * The legacy gate uses this same bounded, strict parser instead of inspecting
+ * YAML source text.
+ */
+export function inspectSharedevalRunConfigV1Yaml(source: string): unknown {
   if (Buffer.byteLength(source, 'utf8') > MAX_SHAREDEVAL_RUN_CONFIG_BYTES_V1) {
     throw new Error(
       `Sharedeval run config exceeds ${MAX_SHAREDEVAL_RUN_CONFIG_BYTES_V1} bytes`,
@@ -100,7 +109,7 @@ export function parseSharedevalRunConfigV1Yaml(source: string): SharedevalRunCon
   }
   const input = document.toJS({ maxAliasCount: 0 }) as unknown;
   assertPactJsonComplexityV1(input, 'Sharedeval run config');
-  return sharedevalRunConfigV1Schema.parse(input);
+  return input;
 }
 
 export async function loadSharedevalRunConfigV1(
@@ -137,14 +146,13 @@ export function applySharedevalOverridesV1(
     ? { ...config.benchmark.tasks, ids: taskIds }
     : config.benchmark.tasks;
   const tasks = pactTaskFilterV1Schema.parse(selectedTasks);
-  const workflow = {
+  const workflow = sharedevalWorkflowV1Schema.parse({
     ...config.workflow,
     ...(overrides.maxTicks === undefined ? {} : { maxTicks: overrides.maxTicks }),
-    id: selectedWorkflow.id,
-  };
+  });
   const effective: Omit<EffectiveSharedevalRunConfigV1, 'configDigest'> = {
     ...config,
-    workflow,
+    workflow: { ...workflow, id: selectedWorkflow.id },
     benchmark: { ...config.benchmark, tasks },
   };
   return { ...effective, configDigest: digestSharedevalConfigV1(effective) };

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -68,4 +69,29 @@ test('rejects pact-run/v1 without explicit legacy selection before any model cal
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test('recognizes quoted historical YAML with an inline comment before any model call', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'sharedeval-cli-'));
+  const configPath = path.join(directory, 'legacy.yaml');
+  await writeFile(configPath, 'apiVersion: "pact-run/v1" # legacy\nkind: RunConfig\n', 'utf8');
+  try {
+    await assert.rejects(
+      () => mainSharedevalV1(['--config', configPath, '--check']),
+      /pact-run\/v1 configurations require --legacy/,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('marks the benchmark command as deprecated while preserving its legacy CLI', () => {
+  const command = spawnSync('npm', ['run', 'benchmark', '--', '--help'], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+  });
+
+  assert.equal(command.status, 0, command.stderr);
+  assert.match(command.stderr, /deprecated/i);
+  assert.match(command.stdout, /Usage: npm run benchmark/);
 });

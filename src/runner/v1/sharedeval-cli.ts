@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import {
   applySharedevalOverridesV1,
+  inspectSharedevalRunConfigV1Yaml,
   loadSharedevalRunConfigV1,
   MAX_SHAREDEVAL_TICKS_V1,
   type SharedevalCliOverridesV1,
@@ -159,7 +160,12 @@ function runLegacyPactCliV1(argv: string[]): Promise<number> {
 
 async function isPactRunConfigV1(configPath: string): Promise<boolean> {
   const source = await readFile(configPath, 'utf8');
-  return /^\s*apiVersion:\s*["']?pact-run\/v1["']?\s*$/m.test(source);
+  const config = inspectSharedevalRunConfigV1Yaml(source);
+  return (
+    config !== null
+    && typeof config === 'object'
+    && (config as Record<string, unknown>).apiVersion === 'pact-run/v1'
+  );
 }
 
 function requiredValue(argv: string[], index: number, argument: string): string {
