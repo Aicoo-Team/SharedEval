@@ -5,7 +5,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { PACT_HARBOR_IMAGE_V1 } from '../../src/runner/v1/backends/harbor-backend.js';
-import { PACT_SHAREDOS_COMMIT_V1 } from '../../src/runner/v1/backends/harbor-sharedos.js';
+import {
+  PACT_SHAREDOS_COMMIT_V1,
+  PACT_SHAREDOS_RUNTIME_DIGEST_V1,
+} from '../../src/runner/v1/backends/harbor-sharedos.js';
 import {
   materializeHarborDatasetV1,
   pactHarborTemplateDirectoryV1,
@@ -49,8 +52,10 @@ keywords = ["privacy", "delegation", "pact-pair", "backend-parity"]
 pact_task_id = "PAIR-Q1"
 category = "agent-privacy"
 # SharedOS build provenance: the image carries prebuilt packages/*/dist from
-# this commit (COPY'd at image build; never cloned or built in-container).
+# this commit and exact runtime digest (COPY'd at image build; never cloned or
+# built in-container).
 sharedos_commit = "${PACT_SHAREDOS_COMMIT_V1}"
+sharedos_runtime_digest = "${PACT_SHAREDOS_RUNTIME_DIGEST_V1}"
 # O-003 decision 2 (network): "no-network" for scripted parity trials;
 # "model-endpoint-only" for real-model trials, where the run narrows egress to
 # the configured model endpoint host over HTTPS 443 — recorded in

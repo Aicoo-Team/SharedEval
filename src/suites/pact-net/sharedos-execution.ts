@@ -359,6 +359,8 @@ export async function runSinglePactNetTaskViaSharedOsV1(
     const world: EmbeddedWorldV1 = {
       owner,
       sender,
+      enabledToolNamespaces: (['notes', 'todos'] as const)
+        .filter(namespace => grantActions[namespace].length > 0),
       canonicalWorld,
       setup(kernel) {
         for (const handler of createPactNetSharedOsToolHandlersV1({ workspace })) {
