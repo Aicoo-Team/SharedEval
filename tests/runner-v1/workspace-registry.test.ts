@@ -61,6 +61,14 @@ function fixtureRegistry(assets: unknown[]) {
   };
 }
 
+function recursivelyEncodePercentSigns(value: string, rounds: number): string {
+  let encoded = value;
+  for (let round = 0; round < rounds; round += 1) {
+    encoded = encoded.replaceAll('%', '%25');
+  }
+  return encoded;
+}
+
 test('loads the canonical registry in stable lexical order with exactly four base slots per PACT-Pair agent', async () => {
   const { loadWorkspaceRegistryV1 } = await loadSubject();
   const registry = await loadWorkspaceRegistryV1({ rootDir: canonicalRoot });
@@ -330,6 +338,21 @@ test('strict registry parsing rejects unsafe, ambiguous, unordered, or incomplet
       `legacy basename alias bypass ${alias}`,
       fixtureRegistry([fixtureAsset({ aliases: [alias] })]),
       /alias|COO|USER/i,
+    ] as [string, unknown, RegExp]),
+    ...[
+      'pact:USER%252525252525252525252525252525252emd',
+      'pact:%2fUSER%2emd%',
+      ...[0, 1, 15, 16, 31, 127].map(rounds =>
+        recursivelyEncodePercentSigns('pact:USER%2emd', rounds)
+      ),
+      'pact:dataset/x/POLICY%2emd',
+      'pact:dataset/x/POLICY%',
+      'pact:dataset/x/POLICY%2',
+      'pact:dataset/x/POLICY%GG',
+    ].map(alias => [
+      `percent-bearing alias ${alias}`,
+      fixtureRegistry([fixtureAsset({ aliases: [alias] })]),
+      /alias|percent/i,
     ] as [string, unknown, RegExp]),
     [
       'invalid role',

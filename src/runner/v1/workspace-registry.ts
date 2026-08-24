@@ -91,24 +91,16 @@ export const workspaceRegistryProvenanceV1Schema = z.discriminatedUnion('kind', 
 export type WorkspaceRegistryProvenanceV1 = z.infer<
   typeof workspaceRegistryProvenanceV1Schema
 >;
-const provenanceAliasSchema = z.string().min(1).max(512).refine(value =>
-  !containsLegacyWorkspaceBasename(value), {
+const provenanceAliasSchema = z.string().min(1).max(512).regex(
+  /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/,
+  'aliases must use literal path characters; percent encoding is not allowed',
+).refine(value => !containsLegacyWorkspaceBasename(value), {
   message: 'aliases must not make legacy COO.md or USER.md a workspace asset',
 });
 
 function containsLegacyWorkspaceBasename(value: string): boolean {
-  let normalized = value.normalize('NFKC');
-  for (let pass = 0; pass < 16; pass += 1) {
-    try {
-      const decoded = decodeURIComponent(normalized).normalize('NFKC');
-      if (decoded === normalized) break;
-      normalized = decoded;
-    } catch {
-      break;
-    }
-  }
   return /(?:^|[^a-z0-9])(?:coo|user)[^a-z0-9]*md(?:$|[^a-z0-9])/i
-    .test(normalized);
+    .test(value);
 }
 
 function uniqueNonemptySortedStrings(label: string) {
