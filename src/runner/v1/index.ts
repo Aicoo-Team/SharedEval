@@ -16,6 +16,16 @@ export {
   type PactTaskEvaluationRecordV1,
 } from './artifacts.js';
 export * from './agent-workspace.js';
+export {
+  CONTACT_AGENT_ERROR_CODES_V1,
+  createInProcessContactAgentPortV1,
+  type ContactAgentBudgetsV1,
+  type ContactAgentPortV1,
+  type ContactAuthorizationGrantV1,
+  type ContactAuthorizedRequestDataV1,
+  type ContactResponderHarnessFactoryInputV1,
+  type InProcessContactAgentPortV1Options,
+} from './contact-agent.js';
 export * from './file-memory.js';
 export {
   FILE_TURN_BOOTSTRAP_V1,
