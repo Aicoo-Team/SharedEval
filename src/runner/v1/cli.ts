@@ -7,13 +7,22 @@ import {
   selectedPactExecutionBackendV1,
   type PactExecutionAdapterIdV1,
 } from './config.js';
-import { inspectPactBenchmarkV1, runPactBenchmarkV1 } from './runner.js';
-import { buildPactCliFailureDiagnosticsV1 } from './diagnostics.js';
+import {
+  inspectPactBenchmarkV1,
+  PactPairRunFatalErrorV1,
+  runPactBenchmarkV1,
+} from './runner.js';
+import {
+  buildPactCliFailureDiagnosticsV1,
+  PACT_CLI_FAILURE_MESSAGE_LIMIT_V1,
+  PACT_CLI_FAILURE_TASK_ID_LIMIT_V1,
+} from './diagnostics.js';
 
 type CliOptions = {
   configPath: string;
   check: boolean;
   executionAdapter?: PactExecutionAdapterIdV1;
+  resume?: string;
 };
 
 export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<number> {
@@ -88,12 +97,51 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
   if (selectedPactExecutionBackendV1(config).kind === 'local') {
     resolvePactRunModelApiKeyV1(config);
   }
-  const result = await runPactBenchmarkV1(config);
+  if (options.resume !== undefined && config.benchmark.dataset !== 'pact-pair') {
+    throw new Error('--resume is supported only for the legacy pact-pair runner');
+  }
+  let result: Awaited<ReturnType<typeof runPactBenchmarkV1>>;
+  try {
+    result = await runPactBenchmarkV1(
+      config,
+      options.resume === undefined ? {} : { resume: options.resume },
+    );
+  } catch (error) {
+    if (!(error instanceof PactPairRunFatalErrorV1)) throw error;
+    const taskIds = [...error.taskIds].sort((left, right) =>
+      left < right ? -1 : left > right ? 1 : 0);
+    process.stdout.write(`${JSON.stringify({
+      runId: error.runId,
+      outputDirectory: error.outputDirectory,
+      fatal: true,
+      summary: {
+        total: taskIds.length,
+        errors: taskIds.length,
+      },
+      failures: {
+        groups: [{
+          kind: 'error',
+          message: error.message.slice(0, PACT_CLI_FAILURE_MESSAGE_LIMIT_V1),
+          count: taskIds.length,
+          taskIds: taskIds.slice(0, PACT_CLI_FAILURE_TASK_ID_LIMIT_V1),
+          omittedTaskIds: Math.max(
+            0,
+            taskIds.length - PACT_CLI_FAILURE_TASK_ID_LIMIT_V1,
+          ),
+        }],
+        omittedGroups: 0,
+      },
+    }, null, 2)}\n`);
+    return 1;
+  }
   const failures = buildPactCliFailureDiagnosticsV1(result);
   process.stdout.write(`${JSON.stringify({
     runId: result.runId,
     outputDirectory: result.outputDirectory,
     ...(result.aborted ? { aborted: result.aborted } : {}),
+    ...('resumed' in result && result.resumed
+      ? { resumed: true, resumes: result.resumes }
+      : {}),
     summary: result.summary,
     ...(failures ? { failures } : {}),
   }, null, 2)}\n`);
@@ -105,6 +153,7 @@ function parseArguments(argv: string[]): CliOptions {
   let configPath: string | undefined;
   let check = false;
   let executionAdapter: PactExecutionAdapterIdV1 | undefined;
+  let resume: string | undefined;
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -144,21 +193,45 @@ function parseArguments(argv: string[]): CliOptions {
       configPath = argument.slice('--config='.length);
       continue;
     }
+    if (argument === '--resume') {
+      const value = args[index + 1];
+      if (!value || value.startsWith('-')) {
+        throw new Error(`${argument} requires a prior run output directory`);
+      }
+      resume = value;
+      index += 1;
+      continue;
+    }
+    if (argument?.startsWith('--resume=')) {
+      const value = argument.slice('--resume='.length);
+      if (!value) {
+        throw new Error('--resume requires a prior run output directory');
+      }
+      resume = value;
+      continue;
+    }
     throw new Error(`Unknown PACT runner argument: ${argument}`);
   }
 
   if (!configPath) throw new Error(`Missing --config\n\n${usage()}`);
+  if (resume !== undefined && check) {
+    throw new Error('--resume cannot be combined with --check');
+  }
   return {
     configPath,
     check,
     ...(executionAdapter === undefined ? {} : { executionAdapter }),
+    ...(resume === undefined ? {} : { resume }),
   };
 }
 
 function usage(): string {
-  return `Usage: npm run benchmark -- --config <pact-run.yaml> [--check] [--execution.adapter <id>]\n\n` +
+  return `Usage: npm run benchmark -- --config <pact-run.yaml> [--check] [--resume <runDir>] [--execution.adapter <id>]\n\n` +
     `  --config, -c          Strict pact-run/v1 YAML configuration\n` +
     `  --check               Validate and count tasks without calling a model API\n` +
+    `  --resume              Resume a prior run output directory: re-run only\n` +
+    `                        missing and retryable transient-failure tasks\n` +
+    `                        (same config and output.saveTraces: true)\n` +
     `  --execution.adapter   Override benchmark.execution.adapter\n` +
     `                        (pact-public-runner | sharedos-embedded)\n`;
 }

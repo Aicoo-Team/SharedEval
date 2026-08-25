@@ -54,6 +54,14 @@ const defaultRepositoryRoot = join(
   '..',
 );
 
+/** Harbor stopped before an immutable execution identity could be announced. */
+export class PactHarborExecutionIdentityUnavailableErrorV1 extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PactHarborExecutionIdentityUnavailableErrorV1';
+  }
+}
+
 /**
  * The only Harbor release this backend is validated against. The task packages
  * rely on v0.5.0 config semantics — most importantly `allow_internet = false`
@@ -67,6 +75,10 @@ export const PACT_HARBOR_IMAGE_V1 = 'pact-bench-harbor:p0' as const;
 // task gets its own task-scoped image tag, so a full-dataset selection would
 // otherwise spawn hundreds of concurrent `docker` processes.
 const HARBOR_IMAGE_TAG_CONCURRENCY_V1 = 8;
+
+// Settled PACT-Pair trials are scanned while Harbor is still running so the
+// host can checkpoint them before the whole job completes.
+const HARBOR_STREAM_POLL_INTERVAL_MS_V1 = 2_000;
 
 // The deterministic smoke-fixture set: the tasks covered by the committed
 // pact-pair-smoke-v1 golden and the default verify_harbor.sh Docker parity
@@ -88,6 +100,8 @@ export type HarborBackendV1Options = {
   dockerExecutable?: string;
   imageName?: string;
   keepWorkingDirectory?: boolean;
+  /** Poll interval for streaming per-trial results while Harbor runs. */
+  streamPollIntervalMs?: number;
   /**
    * A locally BUILT SharedOS checkout staged into the image. Defaults to
    * PACT_SHAREDOS_DIR, then a `sharedos-repo` checkout beside the repository
@@ -121,6 +135,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
   private readonly imageName: string;
   private readonly keepWorkingDirectory: boolean;
   private readonly sharedOsDir: string | undefined;
+  private readonly streamPollIntervalMs: number;
 
   constructor(options: HarborBackendV1Options = {}) {
     this.repositoryRoot = options.repositoryRoot ?? defaultRepositoryRoot;
@@ -129,11 +144,19 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
     this.imageName = options.imageName ?? PACT_HARBOR_IMAGE_V1;
     this.keepWorkingDirectory = options.keepWorkingDirectory ?? false;
     this.sharedOsDir = options.sharedOsDir;
+    this.streamPollIntervalMs = options.streamPollIntervalMs
+      ?? HARBOR_STREAM_POLL_INTERVAL_MS_V1;
   }
 
   async run(
     context: PactExecutionBackendRunContextV1,
   ): Promise<PactExecutionBackendRunResultV1> {
+    const onExecution = (context as PactExecutionBackendRunContextV1 & {
+      onExecution?: (execution: PactRunExecutionMetadataV1) => Promise<void>;
+    }).onExecution;
+    const checkpointHostRun = async (taskRun: PactExecutionTaskRunV1) => {
+      await context.onTaskRun?.(bindPactPairTraceToHostRun(taskRun, context.runId));
+    };
     const orchestration = await runHarborTrialsV1({
       repositoryRoot: this.repositoryRoot,
       harborExecutable: this.harborExecutable,
@@ -146,9 +169,25 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
       tasks: context.tasks,
       runId: context.runId,
       environment: context.environment,
+      onExecution,
       collect: jobsDirectory => collectHarborTaskRunsV1(jobsDirectory, context.tasks),
+      stream: (jobsDirectory, untilSettled) => streamHarborTrialsV1({
+        jobsDirectory,
+        tasks: context.tasks,
+        untilSettled,
+        pollIntervalMs: this.streamPollIntervalMs,
+        runId: context.runId,
+        onTaskRun: context.onTaskRun,
+      }),
     });
+    if (onExecution && !orchestration.execution.harbor?.imageId) {
+      throw new PactHarborExecutionIdentityUnavailableErrorV1(
+        'Harbor failed before its exact execution identity could be durably '
+        + `recorded: ${orchestration.missingMessage}`,
+      );
+    }
     for (const task of context.tasks) {
+      if (orchestration.emittedTaskIds.has(task.taskId)) continue;
       const taskRun = orchestration.taskRuns.get(task.taskId)
         ?? await buildPactPairBackendErrorRunV1({
           config: context.config,
@@ -159,7 +198,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
           message: orchestration.failures.get(task.taskId)
             ?? orchestration.missingMessage,
         });
-      await context.onTaskRun?.(taskRun);
+      await checkpointHostRun(taskRun);
     }
     return { execution: orchestration.execution };
   }
@@ -179,6 +218,8 @@ export type RunHarborTrialsV1Options<Run> = {
   tasks: readonly PactHarborPackagedTaskV1[];
   runId: string;
   environment: Record<string, string | undefined>;
+  /** Durably records exact Harbor identity before any trial can be emitted. */
+  onExecution?: (execution: PactRunExecutionMetadataV1) => Promise<void>;
   /**
    * Trust-boundary collection of the verifier artifacts back into host task
    * runs (collectHarborDatasetTaskRunsV1 with the dataset's artifact
@@ -188,12 +229,19 @@ export type RunHarborTrialsV1Options<Run> = {
     taskRuns: Map<string, Run>;
     failures: Map<string, string>;
   }>;
+  /** Optional dataset-specific streaming collector. */
+  stream?(
+    jobsDirectory: string,
+    untilSettled: Promise<unknown>,
+  ): Promise<ReadonlySet<string>>;
 };
 
 export type RunHarborTrialsV1Result<Run> = {
   execution: PactRunExecutionMetadataV1;
   taskRuns: Map<string, Run>;
   failures: Map<string, string>;
+  /** Task ids whose host checkpoint callback completed during streaming. */
+  emittedTaskIds: ReadonlySet<string>;
   /** Fallback message for selected tasks without a collected run. */
   missingMessage: string;
 };
@@ -219,6 +267,7 @@ export async function runHarborTrialsV1<Run>(
   let commandFailure: unknown;
   let collected = new Map<string, Run>();
   let trialFailures = new Map<string, string>();
+  let emittedTaskIds: ReadonlySet<string> = new Set();
   const execution: PactRunExecutionMetadataV1 = {
     backend: 'harbor',
     // Scripted parity packages never call a model; real-model packages run
@@ -288,9 +337,13 @@ export async function runHarborTrialsV1<Run>(
       repositoryRoot,
       options.environment,
     )).trim();
-    if (/^sha256:[0-9a-f]{64}$/.test(imageId) && execution.harbor) {
-      execution.harbor.imageId = imageId;
+    if (!/^sha256:[0-9a-f]{64}$/.test(imageId) || !execution.harbor) {
+      throw new Error(
+        `Docker returned an invalid immutable image identity for ${imageName}`,
+      );
     }
+    execution.harbor.imageId = imageId;
+    await options.onExecution?.(structuredClone(execution));
     await mapWithConcurrencyV1(
       [...options.tasks],
       HARBOR_IMAGE_TAG_CONCURRENCY_V1,
@@ -320,7 +373,7 @@ export async function runHarborTrialsV1<Run>(
       sharedOsRuntimeDigest: stagedSharedOs.runtimeDigest,
     });
     try {
-      await runExternalCommand(
+      const harborRun = runExternalCommand(
         harborExecutable,
         [
           'run',
@@ -344,6 +397,10 @@ export async function runHarborTrialsV1<Run>(
         repositoryRoot,
         options.environment,
       );
+      if (options.stream) {
+        emittedTaskIds = await options.stream(jobsDirectory, harborRun);
+      }
+      await harborRun;
     } catch (error) {
       commandFailure = error;
     }
@@ -361,10 +418,91 @@ export async function runHarborTrialsV1<Run>(
     execution,
     taskRuns: collected,
     failures: trialFailures,
+    emittedTaskIds,
     missingMessage: commandFailure
       ? commandErrorMessage(commandFailure)
       : 'Harbor completed without a canonical PACT result artifact',
   };
+}
+
+export type StreamHarborTrialsV1Options = {
+  jobsDirectory: string;
+  tasks: LoadedPactPairTaskV1[];
+  /** Settles (resolve or reject) when the `harbor run` command exits. */
+  untilSettled: Promise<unknown>;
+  pollIntervalMs: number;
+  /** Authoritative host run id used to rebind container-local trace ids. */
+  runId?: string;
+  onTaskRun?: (taskRun: PactExecutionTaskRunV1) => Promise<void>;
+};
+
+/**
+ * Streams settled PACT-Pair trials to the host while Harbor is still running.
+ * Filesystem collection races are retried by polling. A rejected host
+ * checkpoint remains un-emitted so a later poll (or the final sweep) retries
+ * publication instead of silently losing the trial.
+ */
+export async function streamHarborTrialsV1(
+  options: StreamHarborTrialsV1Options,
+): Promise<Set<string>> {
+  const emitted = new Set<string>();
+  let running = true;
+  const settled = options.untilSettled.then(
+    () => { running = false; },
+    () => { running = false; },
+  );
+  while (running) {
+    await settledOrDelay(settled, options.pollIntervalMs);
+    if (!running) break;
+    let trials: Map<string, PactExecutionTaskRunV1>;
+    try {
+      trials = await collectSettledHarborTrialsV1(
+        options.jobsDirectory,
+        options.tasks,
+        emitted,
+      );
+    } catch {
+      continue;
+    }
+    for (const task of options.tasks) {
+      const trial = trials.get(task.taskId);
+      if (!trial || emitted.has(task.taskId)) continue;
+      try {
+        await options.onTaskRun?.(options.runId
+          ? bindPactPairTraceToHostRun(trial, options.runId)
+          : trial);
+      } catch {
+        continue;
+      }
+      emitted.add(task.taskId);
+    }
+  }
+  return emitted;
+}
+
+function bindPactPairTraceToHostRun(
+  taskRun: PactExecutionTaskRunV1,
+  runId: string,
+): PactExecutionTaskRunV1 {
+  return {
+    ...taskRun,
+    trace: taskRun.trace.map(event => ({ ...event, runId })),
+  };
+}
+
+async function settledOrDelay(
+  settled: Promise<unknown>,
+  delayMs: number,
+): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    await Promise.race([
+      settled,
+      new Promise<void>(resolve => { timer = setTimeout(resolve, delayMs); }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 async function assertCompatibleHarborVersion(
@@ -474,6 +612,7 @@ const PACT_PAIR_HARBOR_ARTIFACT_COLLECTION_V1: PactHarborArtifactCollectionV1<
 export async function collectHarborTaskRunsV1(
   jobsDirectory: string,
   tasks: LoadedPactPairTaskV1[],
+  options: { only?: ReadonlySet<string> } = {},
 ): Promise<{
   taskRuns: Map<string, PactExecutionTaskRunV1>;
   failures: Map<string, string>;
@@ -483,7 +622,36 @@ export async function collectHarborTaskRunsV1(
     jobsDirectory,
     tasks,
     PACT_PAIR_HARBOR_ARTIFACT_COLLECTION_V1,
+    options,
   );
+}
+
+/**
+ * Collects only trials with Harbor's settled `result.json` marker, excluding
+ * task ids the host has already checkpointed successfully.
+ */
+export async function collectSettledHarborTrialsV1(
+  jobsDirectory: string,
+  tasks: LoadedPactPairTaskV1[],
+  alreadyEmitted: ReadonlySet<string>,
+): Promise<Map<string, PactExecutionTaskRunV1>> {
+  const taskIdByDirectory = new Map(tasks.map(task => [
+    task.taskId.toLocaleLowerCase('en-US'),
+    task.taskId,
+  ] as const));
+  const markers = await findNamedFiles(jobsDirectory, 'result.json');
+  const settled = new Set<string>();
+  for (const marker of markers) {
+    const taskId = taskIdFromArtifactPath(marker, taskIdByDirectory);
+    if (taskId && !alreadyEmitted.has(taskId)) settled.add(taskId);
+  }
+  if (settled.size === 0) return new Map();
+  const { taskRuns } = await collectHarborTaskRunsV1(
+    jobsDirectory,
+    tasks,
+    { only: settled },
+  );
+  return taskRuns;
 }
 
 /**
@@ -502,6 +670,7 @@ export async function collectHarborDatasetTaskRunsV1<
   jobsDirectory: string,
   tasks: readonly Task[],
   collection: PactHarborArtifactCollectionV1<Task, ResultRow, TraceEvent, Evaluation>,
+  options: { only?: ReadonlySet<string> } = {},
 ): Promise<{
   taskRuns: Map<string, PactHarborCollectedTaskRunV1<ResultRow, TraceEvent, Evaluation>>;
   failures: Map<string, string>;
@@ -525,6 +694,7 @@ export async function collectHarborDatasetTaskRunsV1<
   const artifactPaths = await findNamedFiles(jobsDirectory, 'pact-result.json');
   for (const artifactPath of artifactPaths) {
     const pathTaskId = taskIdFromArtifactPath(artifactPath, taskIdByDirectory);
+    if (options.only && (!pathTaskId || !options.only.has(pathTaskId))) continue;
     let taskId = pathTaskId;
     try {
       const result = collection.resultSchema.parse(
@@ -612,6 +782,7 @@ export async function collectHarborDatasetTaskRunsV1<
       ? taskIdByDirectory.get(basename(taskPath))
       : undefined;
     if (!taskId || collected.has(taskId) || !value.exception_info) continue;
+    if (options.only && !options.only.has(taskId)) continue;
     const message = value.exception_info.exception_message;
     const traceback = value.exception_info.exception_traceback;
     recordFailure(taskId, [message, traceback]
