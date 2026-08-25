@@ -1,0 +1,191 @@
+{
+  "schemaVersion": "pact-pr31-historical-evidence/v1",
+  "protocol": "legacy-single-prompt",
+  "status": "historical",
+  "completeness": "incomplete",
+  "source": {
+    "repository": "xisen-w/PACT",
+    "pullRequest": 31,
+    "url": "https://github.com/xisen-w/PACT/pull/31",
+    "head": "c86dc8a49cae12129d4d991b9691142a3357f463",
+    "base": "d195d4529966ecf32ee734abe35d90cf191c6967",
+    "reviewedAgainstMain": "514dd9c535481b3c4521f4871b082c8a1ca6d9e6",
+    "changedFiles": 106,
+    "sourceFileSetSha256": "14b837cf401e2b33e1c183538c5fd0a4eced9a58d17b216a4ef7575856f2e369",
+    "preservedConfigurationsSha256": "1ac16d62e5339c02551ade52ecf086c40f12495b394313b02bcf70e66e11747d"
+  },
+  "reportedRuntime": {
+    "protocol": "legacy-single-prompt",
+    "status": "historical",
+    "completeness": "incomplete",
+    "sharedOsRevision": "846cbf6",
+    "revisionForm": "abbreviated-as-reported",
+    "verification": "not-independently-verified"
+  },
+  "sourceInventory": {
+    "configurations": 50,
+    "preservedConfigurationRecords": 49,
+    "executableCurrentMain": 32,
+    "historicalOnly": 17,
+    "aggregateSources": 1,
+    "excludedArtifacts": 56
+  },
+  "configurations": [
+    {"id":"d0_R0","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R0.yaml","sourceBlobSha":"1d1417c49e2f993af88c104c8d722c70b635df5f","sourceSha256":"9d785c532786d86e46e9e583344548191d5907c162f8568a4cac346430f319f5","policy":"D0","requester":"R0","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"executable-current-main"},
+    {"id":"d0_R0_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R0_repair.yaml","sourceBlobSha":"a2f7c54d5fce62e41e7d86a71cdaa5b612354bfd","sourceSha256":"df55b21ac6cff3f3e6333da69fcbed5aabe7bd1323bc9300e891141498df74c7","policy":"D0","requester":"R0","gradingMode":"category","taskKind":"all","taskIds":"Q327-Q400,A1-A200","taskCount":274,"taskSelectionSha256":"c7ab56f3fba7476ba4e0d7a01cc0b34faa85a1ceac35b0eb751a2d59e3500e51","disposition":"executable-current-main"},
+    {"id":"d0_R0_repair2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R0_repair2.yaml","sourceBlobSha":"52d2a26b828b9e6817a97c78a90d131143648f8f","sourceSha256":"6476b02ce4ee431ff3bf7e8664372cef033920cdad3dda6837504c3bed181582","policy":"D0","requester":"R0","gradingMode":"category","taskKind":"all","taskIds":"A115,A125,A142","taskCount":3,"taskSelectionSha256":"80785de9a8d327944bdb99225aba7687935576760545c3a6475ce3f42330fe96","disposition":"executable-current-main"},
+    {"id":"d0_R1","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R1.yaml","sourceBlobSha":"73db684de796c0a51ef5de48ebb361047c2149c5","sourceSha256":"4f2c562c3b63427d26320c6559d0a49f53bf67bdbb42d02c13a39d5bd24383bb","policy":"D0","requester":"R1","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"executable-current-main"},
+    {"id":"d0_R1_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R1_repair.yaml","sourceBlobSha":"a2e1d50dd5797c8841d22cc31c3760baa86fc079","sourceSha256":"443065460e00956cd801321490917acdb2e2f1f877e528b0024d2ce37882215d","policy":"D0","requester":"R1","gradingMode":"category","taskKind":"all","taskIds":"Q102,Q287,Q322-Q400,A1-A200","taskCount":281,"taskSelectionSha256":"84f88c5d405d858d4517bbabdd25cca5136fb45971fd2f2f432f8e35e2c123db","disposition":"executable-current-main"},
+    {"id":"d0_R1_repair2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R1_repair2.yaml","sourceBlobSha":"e5e1d25e3bdb54bd88113fad95b63bf5ab5ebae4","sourceSha256":"d18c77c261bcc307156e6781a701f6b4ae0c46976215447494607010af32bc6d","policy":"D0","requester":"R1","gradingMode":"category","taskKind":"all","taskIds":"A167","taskCount":1,"taskSelectionSha256":"549044c8caa941b8b6a9dd1099787f698b2ce7d5718ed00ad66d5e64daf859b8","disposition":"executable-current-main"},
+    {"id":"d0_R2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R2.yaml","sourceBlobSha":"ce0ecec1049c862700162f2c464eebf0d9310a84","sourceSha256":"58d61a23a2a5d544a8c4608d07554d19152894f7e87add3e100da151b466313b","policy":"D0","requester":"R2","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"executable-current-main"},
+    {"id":"d0_R2_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R2_repair.yaml","sourceBlobSha":"0d8d5c44618a8cad62a4a5b7e8e633150a62d75e","sourceSha256":"468cc0d6dc9d80906d13e30c1d51f261fe1015b0130f8e7170319c235c9703ef","policy":"D0","requester":"R2","gradingMode":"category","taskKind":"all","taskIds":"Q70,Q333,Q375-Q400,A1-A200","taskCount":228,"taskSelectionSha256":"6e3636485fa0945f218d45de5404774bbe23baa63e69c14a9ef8292d4d7f7429","disposition":"executable-current-main"},
+    {"id":"d0_R2_repair2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R2_repair2.yaml","sourceBlobSha":"48d301adc03296752cf766fba88d4c7b6a2cb2fe","sourceSha256":"8e8a6883eed48df0132ebc8af2601bcd74fb18cd54c2f115b5184a49f37dfc68","policy":"D0","requester":"R2","gradingMode":"category","taskKind":"all","taskIds":"Q389-Q390,A67,A79,A168","taskCount":5,"taskSelectionSha256":"bf5675087ce36065dd03d3b8f504f9fd30ff59a162b8ad1165bf06f037d417f5","disposition":"executable-current-main"},
+    {"id":"d0_R3","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R3.yaml","sourceBlobSha":"a906da0c6be39a726bb9b299dc471e3e792e0d12","sourceSha256":"a6be328925d4c066c31859ebdc4bf3b111f08c2d9e4bb09dea8d6c373e1f378f","policy":"D0","requester":"R3","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"executable-current-main"},
+    {"id":"d0_R3_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R3_repair.yaml","sourceBlobSha":"2977df54c90013cd16c1bb9afde4bc410de87feb","sourceSha256":"b06cba3a6fdb6b8523a02369f59f98e6b310a824e295ba6ee991a6f6564d81d0","policy":"D0","requester":"R3","gradingMode":"category","taskKind":"all","taskIds":"Q10,Q167,Q198,Q360-Q400,A1-A200","taskCount":244,"taskSelectionSha256":"5a5fc7e3e0a8d2d427b53f611502183d5fd5e808ed02136e63a4e0cad0cc669e","disposition":"executable-current-main"},
+    {"id":"d0_R3_repair2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R3_repair2.yaml","sourceBlobSha":"c19f2a4479c8091961b3fc778131e24451b51ae1","sourceSha256":"8d6e5e47a2a4a3cbd077a3b8458b0eef538ba529c9cc1c7c59cdf8c9492cb47d","policy":"D0","requester":"R3","gradingMode":"category","taskKind":"all","taskIds":"A62,A66,A83,A85,A115,A161,A196","taskCount":7,"taskSelectionSha256":"49562059d88728cdb3c1c7d57eb1de6aece63381f9030d856e3b099040d4f7fb","disposition":"executable-current-main"},
+    {"id":"d0_R3_repair3","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R3_repair3.yaml","sourceBlobSha":"5ff543e413f112fc6e5494f7ac77b94375886ae7","sourceSha256":"1f1b8cb005c901bf3e218b4eb3fb7b55848c01d47e812ad00f13622528af01d5","policy":"D0","requester":"R3","gradingMode":"category","taskKind":"all","taskIds":"A161,A196","taskCount":2,"taskSelectionSha256":"cea118f3863eb8de892b1532e777e1cbe36ffb6fd3741c252ffc173b1a29c825","disposition":"executable-current-main"},
+    {"id":"d0_R4","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R4.yaml","sourceBlobSha":"ccf75db860402b59991a75e044f526dc67eaee42","sourceSha256":"16db0cbe0e02b758dd52e589353f00fb3995d150c1ef631687c36c81f1290493","policy":"D0","requester":"R4","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"executable-current-main"},
+    {"id":"d0_R4_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R4_repair.yaml","sourceBlobSha":"8217d9f0a0158ddd1567b6839b3230e879ffbb70","sourceSha256":"13f143ba9623c73a08bde4fc3907ea652b861b30d7159c04a154d33b69473d80","policy":"D0","requester":"R4","gradingMode":"category","taskKind":"all","taskIds":"Q323,Q328-Q400,A1-A200","taskCount":274,"taskSelectionSha256":"7ec65794b6da00f41c26559e099368542caccee5e55964e0486267d7cc56570c","disposition":"executable-current-main"},
+    {"id":"d0_R4_repair2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d0_R4_repair2.yaml","sourceBlobSha":"a9f5da379a13e04a368b1df3e9bb444326cd0305","sourceSha256":"82d7bda0ccb3a8f3539ceaa9ff1938b136fd94f7008d12ac59a29c5171b4b264","policy":"D0","requester":"R4","gradingMode":"category","taskKind":"all","taskIds":"A69,A197","taskCount":2,"taskSelectionSha256":"35efa81f4644a7188d77e5bddc5ee45020efd9f6cff15d36cea2e4fbccc65abb","disposition":"executable-current-main"},
+    {"id":"d2r_R0","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R0.yaml","sourceBlobSha":"066c0710277af2bfdb6861bbb2f4e80d8f8a7f02","sourceSha256":"1fff835afddfc95b40d52304d55b9732ba91e304e656d20c6aecb6b1b836bc1e","policy":"D2R_PRINCIPLES","requester":"R0","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"historical-only"},
+    {"id":"d2r_R0_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R0_repair.yaml","sourceBlobSha":"28a2b63cc12250bf0e9fadf65f097ea17e19ee12","sourceSha256":"14da9594d652d8cd337ca96d249536e32ff1637cdde459679ba60bd5117b3f9f","policy":"D2R_PRINCIPLES","requester":"R0","gradingMode":"category","taskKind":"all","taskIds":"Q250,A23-A200","taskCount":179,"taskSelectionSha256":"8d2135b97294dc6e3a3dd8bd2bcc34e41fd1d6f09af0f60acff07ffc8e789a10","disposition":"historical-only"},
+    {"id":"d2r_R0_repair2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R0_repair2.yaml","sourceBlobSha":"46cdc7eebf5dbf6b7926d7326dd024c5bff8274d","sourceSha256":"bbcf344bb6f00a331484839fa1886c7287ba359e862e5dd849673b13546df3fa","policy":"D2R_PRINCIPLES","requester":"R0","gradingMode":"category","taskKind":"all","taskIds":"A103","taskCount":1,"taskSelectionSha256":"7e9a915200bf276ce54f52ae8233ca8359b24d0a5bdbe9cae669a5badce62a59","disposition":"historical-only"},
+    {"id":"d2r_R1","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R1.yaml","sourceBlobSha":"e84cf0e9e14a276ebb4789b769b6dd0ddeb15520","sourceSha256":"a27af1497b7a8a2d5aab02a443192f576c21207b172482902b7f3c9146fe36e1","policy":"D2R_PRINCIPLES","requester":"R1","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"historical-only"},
+    {"id":"d2r_R1_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R1_repair.yaml","sourceBlobSha":"dc520dc7dd6700971838be52fc6838e3712dff37","sourceSha256":"4f805f8eaf1c77bc6f1ac32f75aa2779c3ae0e9872d64d15b4ee3d46db40a4d6","policy":"D2R_PRINCIPLES","requester":"R1","gradingMode":"category","taskKind":"all","taskIds":"Q148,Q351-Q400,A1-A200","taskCount":251,"taskSelectionSha256":"42a1db1a04eaa37572507600be2862d32bea8b3c9ea108d105268ff5f283d9d2","disposition":"historical-only"},
+    {"id":"d2r_R1_repair2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R1_repair2.yaml","sourceBlobSha":"dbb711faa80d0a79231e36ec02824e50f5626e27","sourceSha256":"0ef42eda710f59ecd977244b77deb6075787f7e34506d5b31fb4a883ae3c8c47","policy":"D2R_PRINCIPLES","requester":"R1","gradingMode":"category","taskKind":"all","taskIds":"A81,A165","taskCount":2,"taskSelectionSha256":"0ab1e757949ff417fc01211efe70634038c1e196121bd6d429bdae211155178f","disposition":"historical-only"},
+    {"id":"d2r_R2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R2.yaml","sourceBlobSha":"4aad007c41012181f0849bce884f01b9b48eb14a","sourceSha256":"cacdf82e49b95d97b6f9343dcfba54c96c0d4e403ed1b4ba9086ce151bce9660","policy":"D2R_PRINCIPLES","requester":"R2","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"historical-only"},
+    {"id":"d2r_R2_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R2_repair.yaml","sourceBlobSha":"e071f3bf608264846e33048d889513bf3a97a729","sourceSha256":"4dc0369d64c4fb5ab1445c7c774941f2dae36312b2a1c5d8046a71ffb93bd714","policy":"D2R_PRINCIPLES","requester":"R2","gradingMode":"category","taskKind":"all","taskIds":"Q287,Q331-Q400,A1-A200","taskCount":271,"taskSelectionSha256":"dcfeb31b58d54abde91961ea2d23396fbf79baba6cb0a308776c57c76f670864","disposition":"historical-only"},
+    {"id":"d2r_R2_repair2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R2_repair2.yaml","sourceBlobSha":"e1492ffd0f460ad3b747f4753f2c685b763b3fe1","sourceSha256":"fe569bf452cb8262b12b38f4b3e34b67bb0fb0f3cec0bffea9bbf9bda7875a85","policy":"D2R_PRINCIPLES","requester":"R2","gradingMode":"category","taskKind":"all","taskIds":"Q351","taskCount":1,"taskSelectionSha256":"73345ab5685b6c1f84bc16f2b5fa921819ad035bb54a741c16a08e502305f579","disposition":"historical-only"},
+    {"id":"d2r_R3","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R3.yaml","sourceBlobSha":"404c9e6f5159c94872ae3ce34e1a5d3e1a964629","sourceSha256":"ff20127f7dfed748f946e3e774c9207323ed41e91e117be001d01e6a99072a10","policy":"D2R_PRINCIPLES","requester":"R3","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"historical-only"},
+    {"id":"d2r_R3_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R3_repair.yaml","sourceBlobSha":"17cc2f105609e906234fb09d76cbce85d1e12b13","sourceSha256":"26622a7d61107fb0ab706368fb546a6bf028b18d7113b1f64d8d2e11109022d6","policy":"D2R_PRINCIPLES","requester":"R3","gradingMode":"category","taskKind":"all","taskIds":"Q181,Q199,Q314-Q400,A1-A200","taskCount":289,"taskSelectionSha256":"f0521d2dcb1258b563b3cd4763a73d768956df079be89c3ab41b6906600a8bf5","disposition":"historical-only"},
+    {"id":"d2r_R3_repair2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R3_repair2.yaml","sourceBlobSha":"d1ef41bb50b29743a2c8ca1af9c0566c82477295","sourceSha256":"208edb53f70ee04feca9dbbb1896d30b71f8f3d0aa486e4fc02ec8b1bfa17457","policy":"D2R_PRINCIPLES","requester":"R3","gradingMode":"category","taskKind":"all","taskIds":"A50,A182","taskCount":2,"taskSelectionSha256":"9507545ce09a114940f8ffae347a96ec33156cf4d2af91859d493e109df78977","disposition":"historical-only"},
+    {"id":"d2r_R4","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R4.yaml","sourceBlobSha":"11d16118d046628f59c8ebdcc1f03d742eef7772","sourceSha256":"b4e9e6cb1f16412ab0909f688f78308d395bf050d95202e589792d5f4b992954","policy":"D2R_PRINCIPLES","requester":"R4","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"historical-only"},
+    {"id":"d2r_R4_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_R4_repair.yaml","sourceBlobSha":"15fde27bd2eb84c78628c2fe884a896ab0a87ea3","sourceSha256":"6df109441aad0a550e705d43025ba3d092e754e27b8688ad4c78281c90591ffb","policy":"D2R_PRINCIPLES","requester":"R4","gradingMode":"category","taskKind":"all","taskIds":"Q210,Q337-Q400,A1-A200","taskCount":265,"taskSelectionSha256":"10d7f30dd52f3e5db395912435038e5f42a8227c0c4014661685df49a8104586","disposition":"historical-only"},
+    {"id":"d2r_smoke","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d2r_smoke.yaml","sourceBlobSha":"118907db69af5a01f4bccb30315b9afdc3454fde","sourceSha256":"d4595951c1865d8f5e8fab4240de87ac5645a52f19e5065d76cf31ccd298baa0","policy":"D2R_PRINCIPLES","requester":"R1","gradingMode":"category","taskKind":"all","taskIds":"Q1,Q101,A1","taskCount":3,"taskSelectionSha256":"3f9996a953114279a7e9af9cf80232218295bd6e4d1e2722a339270cbe235d84","disposition":"historical-only"},
+    {"id":"d6_R4","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d6_R4.yaml","sourceBlobSha":"448e16743bf25bd0071cc9afd367a98c4e4a9355","sourceSha256":"cce383f1b8af2cce65765b6042d0693d7fb83dd78eaa7b5513d60e71c61afd53","policy":"D6_PRINCIPLES_TIGHT","requester":"R4","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"historical-only"},
+    {"id":"d6_R4_repair","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/d6_R4_repair.yaml","sourceBlobSha":"c4ea83e13a2864f535255820ba16e1d31cabc6c1","sourceSha256":"10e88a7f48e95de9586f6c8b4192666eb7ba5965573633659ad50b1576635382","policy":"D6_PRINCIPLES_TIGHT","requester":"R4","gradingMode":"category","taskKind":"all","taskIds":"Q158,Q183,Q186,Q228,A115","taskCount":5,"taskSelectionSha256":"cdab44790dd95b39c59b57ec0bb8543f9d43d42540ebe8157912d5ec40ed2ca8","disposition":"historical-only"},
+    {"id":"full_R0","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/full_R0.yaml","sourceBlobSha":"19d523594663696113b567c22f2f116d22cf8d1b","sourceSha256":"e81335969950365b961a8890366669390ccbd161b2a9908ded74ebcfda84fb03","policy":"D2_SUBMITTED","requester":"R0","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"executable-current-main"},
+    {"id":"full_R1","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/full_R1.yaml","sourceBlobSha":"8d0ebe69ba6ce0c968fac3ee894c4b4d00ea47c3","sourceSha256":"cff48c9daab76924ad07afb19e6b57b412ef400160bb131cbf19a9418d258346","policy":"D2_SUBMITTED","requester":"R1","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"executable-current-main"},
+    {"id":"full_R2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/full_R2.yaml","sourceBlobSha":"c8919542905b035ff822cda97ff9b0d75ca2f659","sourceSha256":"94b4232caa6726b11adff14dc2b43b121cb7137ebc19ee953f0b7ca421e5d9d3","policy":"D2_SUBMITTED","requester":"R2","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"executable-current-main"},
+    {"id":"full_R3","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/full_R3.yaml","sourceBlobSha":"659ddccd22196bd1bfbd49f09103c8b3450b59ba","sourceSha256":"9248265f199ade7b4df6ea4146c783587fdfcf93a890193b4f86a596cd654a8b","policy":"D2_SUBMITTED","requester":"R3","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"executable-current-main"},
+    {"id":"full_R4","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/full_R4.yaml","sourceBlobSha":"8658c2e18d3788e58f08b63da72dd46b8112e86d","sourceSha256":"2dcd98e1b2e5fc73987bc342581135c35355e1c8cde532416637544c6cc50ca9","policy":"D2_SUBMITTED","requester":"R4","gradingMode":"category","taskKind":"all","taskIds":null,"taskCount":600,"taskSelectionSha256":"01d1d67c18498c24b952f18bede005859e426058eccd3e441bcac4b025fde289","disposition":"executable-current-main"},
+    {"id":"rel_R0","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/rel_R0.yaml","sourceBlobSha":"b83e2cf75b846e5d75ac03487ba922c937c7ecdd","sourceSha256":"a38c67a25f08778037c920fad3500fce3d40c54e978a1106d55fe4b893f3b2ed","policy":"REL_R0","requester":"R0","gradingMode":"relationship","taskKind":"qa","taskIds":null,"taskCount":400,"taskSelectionSha256":"e63f366cb4d46e5d28f9c5811ac89deaa915b5bf4f4f557bcc753653742eeca1","disposition":"executable-current-main"},
+    {"id":"rel_R1","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/rel_R1.yaml","sourceBlobSha":"383b143f1fa4f45849ddc9803f0394f56e4fd28c","sourceSha256":"080259bd09e64402b981c628a69b11449e1c922b0b1af3fb2e9620656f82761c","policy":"REL_R1","requester":"R1","gradingMode":"relationship","taskKind":"qa","taskIds":null,"taskCount":400,"taskSelectionSha256":"e63f366cb4d46e5d28f9c5811ac89deaa915b5bf4f4f557bcc753653742eeca1","disposition":"executable-current-main"},
+    {"id":"rel_R2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/rel_R2.yaml","sourceBlobSha":"8e4dde9745c94db2ebf62a0104ec6cb53f32fa74","sourceSha256":"9912705e77094c6c7498c95459b6f48a4b527cd33b2b8a9a98e34590fb6948c2","policy":"REL_R2","requester":"R2","gradingMode":"relationship","taskKind":"qa","taskIds":null,"taskCount":400,"taskSelectionSha256":"e63f366cb4d46e5d28f9c5811ac89deaa915b5bf4f4f557bcc753653742eeca1","disposition":"executable-current-main"},
+    {"id":"rel_R3","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/rel_R3.yaml","sourceBlobSha":"9d1763f03d2b2bf48d1c80a599d2004ab030cfd5","sourceSha256":"23cd1b167444d9f2abe63d09982ac4747a356f8a0a5835093f850412dbe0d513","policy":"REL_R3","requester":"R3","gradingMode":"relationship","taskKind":"qa","taskIds":null,"taskCount":400,"taskSelectionSha256":"e63f366cb4d46e5d28f9c5811ac89deaa915b5bf4f4f557bcc753653742eeca1","disposition":"executable-current-main"},
+    {"id":"rel_R4","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/rel_R4.yaml","sourceBlobSha":"4a86597357b3c2847b5ca2c3c31d41a2ce0bce7f","sourceSha256":"5558591b7a2ae00bc928011270ba9fc65141bfb41809c737b6f20431b7f929f5","policy":"REL_R4","requester":"R4","gradingMode":"relationship","taskKind":"qa","taskIds":null,"taskCount":400,"taskSelectionSha256":"e63f366cb4d46e5d28f9c5811ac89deaa915b5bf4f4f557bcc753653742eeca1","disposition":"executable-current-main"},
+    {"id":"repair_R0","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/repair_R0.yaml","sourceBlobSha":"33f296eb127bed4394fbcbda189c7de6c9022114","sourceSha256":"d3dea0d5e9cc28d717647111d622b1764bca90c294c1cf34d76fafc40b9f85f6","policy":"D2_SUBMITTED","requester":"R0","gradingMode":"category","taskKind":"all","taskIds":"Q74-Q78,Q202,Q290,A70,A108","taskCount":9,"taskSelectionSha256":"fb6c4949ffa9c23d51ce41f8c8859a4308b0c9fc9aa4962e12d0c6fffe9486de","disposition":"executable-current-main"},
+    {"id":"repair_R1","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/repair_R1.yaml","sourceBlobSha":"f846b3957bd064657d31f6d6e4db0ae4f8f2c477","sourceSha256":"06b5559d4ffbe8af2760ae92d8dca417c182896eea850d45def9e98958589027","policy":"D2_SUBMITTED","requester":"R1","gradingMode":"category","taskKind":"all","taskIds":"Q109,Q262","taskCount":2,"taskSelectionSha256":"00a26788d46dd5957a72c3eb7a8f7c88d4f8c255b7e5f3c10b1936add504cc14","disposition":"executable-current-main"},
+    {"id":"repair_R2","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/repair_R2.yaml","sourceBlobSha":"8940fd307f36060a92cb3110f3294739b3cd947d","sourceSha256":"3f17895d6e722154d2d9c5e0a497981e0af6dee9c9ffedc507aef5e0666f44f0","policy":"D2_SUBMITTED","requester":"R2","gradingMode":"category","taskKind":"all","taskIds":"Q51","taskCount":1,"taskSelectionSha256":"bc0d075bfa472bbba2e03bce602bb329dd94fffac688d8482a0c388d60e42899","disposition":"executable-current-main"},
+    {"id":"repair_R3","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/repair_R3.yaml","sourceBlobSha":"6b146ca5095391b680da5a213b8998662b487b6a","sourceSha256":"524b014ec00f70e5ed6a20d4633385714a73c9dacba297fdab0ee144233887f4","policy":"D2_SUBMITTED","requester":"R3","gradingMode":"category","taskKind":"all","taskIds":"Q18,Q44,Q79,Q108,Q150,A78","taskCount":6,"taskSelectionSha256":"1d733ccf90c18455a157e9ed07494f1baaaac3fbc94bc96925aba23ba76f8294","disposition":"executable-current-main"},
+    {"id":"repair_R4","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/repair_R4.yaml","sourceBlobSha":"70cb1f827b953554150916fbb1cc7bab1b6b7408","sourceSha256":"f7e48eeaac552067cbdb729f09012ce5fbe8f64d02992da0f1cde5581739bc10","policy":"D2_SUBMITTED","requester":"R4","gradingMode":"category","taskKind":"all","taskIds":"Q65,Q215,A41","taskCount":3,"taskSelectionSha256":"f6d3cd8116841dcab023f61345931defb02783a000fe12b2b92feefce3095c93","disposition":"executable-current-main"},
+    {"id":"smoke_R1_pinned","protocol":"legacy-single-prompt","status":"historical","completeness":"incomplete","sourcePath":"rebuttal/runs/configs_ds_grid/smoke_R1_pinned.yaml","sourceBlobSha":"70811b43d9246adc71fbc3b4183c242d455ca7ed","sourceSha256":"e7d0e988980c2582c8be515e71ef395d76e77b0725e1f29b964a3aa1c559e694","policy":"D2_SUBMITTED","requester":"R1","gradingMode":"category","taskKind":"all","taskIds":"Q1,Q101,A1","taskCount":3,"taskSelectionSha256":"3f9996a953114279a7e9af9cf80232218295bd6e4d1e2722a339270cbe235d84","disposition":"executable-current-main"}
+  ],
+  "exclusions": [
+    {
+      "category": "superseded-config",
+      "count": 1,
+      "paths": ["rebuttal/runs/configs_ds_grid/smoke_R1.yaml"],
+      "reason": "Unpinned smoke input was superseded by smoke_R1_pinned and is not preserved."
+    },
+    {
+      "category": "raw-stdout",
+      "count": 33,
+      "paths": [
+        "rebuttal/runs/configs_ds_grid/d0_R0.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d0_R0_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d0_R1.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d0_R1_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d0_R2.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d0_R2_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d0_R3.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d0_R3_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d0_R3_repair3.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d0_R4.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d0_R4_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d2r_R0.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d2r_R0_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d2r_R1.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d2r_R1_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d2r_R2.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d2r_R2_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d2r_R3.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d2r_R3_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d2r_R4.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d2r_R4_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d6_R4.stdout.json",
+        "rebuttal/runs/configs_ds_grid/d6_R4_repair.stdout.json",
+        "rebuttal/runs/configs_ds_grid/full_R0.stdout.json",
+        "rebuttal/runs/configs_ds_grid/full_R1.stdout.json",
+        "rebuttal/runs/configs_ds_grid/full_R2.stdout.json",
+        "rebuttal/runs/configs_ds_grid/full_R3.stdout.json",
+        "rebuttal/runs/configs_ds_grid/full_R4.stdout.json",
+        "rebuttal/runs/configs_ds_grid/repair_R0.stdout.json",
+        "rebuttal/runs/configs_ds_grid/repair_R1.stdout.json",
+        "rebuttal/runs/configs_ds_grid/repair_R2.stdout.json",
+        "rebuttal/runs/configs_ds_grid/repair_R3.stdout.json",
+        "rebuttal/runs/configs_ds_grid/repair_R4.stdout.json"
+      ],
+      "reason": "Machine-local stdout, run IDs, and absolute output paths are not repository evidence."
+    },
+    {
+      "category": "zero-byte-stdout",
+      "count": 5,
+      "paths": [
+        "rebuttal/runs/configs_ds_grid/rel_R0.stdout.json",
+        "rebuttal/runs/configs_ds_grid/rel_R1.stdout.json",
+        "rebuttal/runs/configs_ds_grid/rel_R2.stdout.json",
+        "rebuttal/runs/configs_ds_grid/rel_R3.stdout.json",
+        "rebuttal/runs/configs_ds_grid/rel_R4.stdout.json"
+      ],
+      "reason": "The five relationship stdout files are empty and contain no evidence."
+    },
+    {
+      "category": "narrative-reports",
+      "count": 3,
+      "paths": [
+        "rebuttal/FULL_RERUN_PLAN_20260820.md",
+        "rebuttal/runs/configs_ds_grid/MORNING_REPORT_20260821.md",
+        "rebuttal/runs/configs_ds_grid/THREE_ARM_REPORT_20260821.md"
+      ],
+      "reason": "Narrative claims and local operational notes are replaced by this bounded provenance manifest."
+    },
+    {
+      "category": "superseded-aggregate",
+      "count": 1,
+      "paths": ["rebuttal/runs/configs_ds_grid/rescore_v2_report.json"],
+      "reason": "The older overlapping aggregate is omitted to avoid presenting conflicting duplicate values."
+    },
+    {
+      "category": "nonportable-launchers",
+      "count": 6,
+      "paths": [
+        "rebuttal/runs/configs_ds_grid/run_d0_d2r_parallel.sh",
+        "rebuttal/runs/configs_ds_grid/run_d0_d2r_repair.sh",
+        "rebuttal/runs/configs_ds_grid/run_d6_r4.sh",
+        "rebuttal/runs/configs_ds_grid/run_grid.sh",
+        "rebuttal/runs/configs_ds_grid/run_grid_parallel.sh",
+        "rebuttal/runs/configs_ds_grid/run_rel_parallel.sh"
+      ],
+      "reason": "Personal paths, local environment loading, and machine-specific routing are replaced by launch.ts."
+    },
+    {
+      "category": "judge-material",
+      "count": 5,
+      "paths": [
+        "rebuttal/runs/judge_agreement_check.py",
+        "rebuttal/runs/judge_agreement_out/agreement_report.json",
+        "rebuttal/runs/judge_agreement_out/sample.jsonl",
+        "rebuttal/runs/judge_agreement_out/verdicts_gpt-5-mini.jsonl",
+        "rebuttal/runs/judge_agreement_out/verdicts_gpt-5.6-luna.jsonl"
+      ],
+      "reason": "The judge sample and outputs contain invalid or disclosure-prone per-task material."
+    },
+    {
+      "category": "unrelated-modifications",
+      "count": 2,
+      "paths": [".gitignore", "rebuttal/runs/run_experiments.py"],
+      "reason": "The original ignore and model-registry edits are not needed by this repository-owned successor."
+    }
+  ]
+}
