@@ -8,6 +8,13 @@ export const AGENT_WORKSPACE_API_VERSION_V1 =
   'sharedeval/agent-workspace/v1' as const;
 export const MAX_AGENT_WORKSPACE_FILE_BYTES_V1 = 1024 * 1024;
 
+const agentWorkspaceFilePathsV1 = new Set<string>([
+  'AGENT.md',
+  'HEARTBEAT.md',
+  'POLICY.md',
+  'MEMORY.md',
+]);
+
 export type AgentWorkspaceFileAccessV1 = 'read_only' | 'read_write';
 export type AgentWorkspaceFilePathV1 =
   | 'AGENT.md'
@@ -22,6 +29,14 @@ export type AgentWorkspaceFileV1<
   path: Path;
   access: Access;
   content: string;
+  sha256: string;
+};
+
+export type AgentWorkspaceRawFileV1<Path extends AgentWorkspaceFilePathV1> = {
+  path: Path;
+  content: string;
+  bytesBase64: string;
+  byteLength: number;
   sha256: string;
 };
 
@@ -58,21 +73,31 @@ export async function loadAgentWorkspaceTemplateV1(options: {
   };
 }
 
-async function loadFile<
+export async function loadAgentWorkspaceRawFileV1<
   Path extends AgentWorkspaceFilePathV1,
-  Access extends AgentWorkspaceFileAccessV1,
->(
-  rootDir: string,
-  path: Path,
-  access: Access,
-): Promise<AgentWorkspaceFileV1<Path, Access>> {
-  const absolutePath = join(rootDir, path);
+>(options: {
+  rootDir: string;
+  path: Path;
+}): Promise<AgentWorkspaceRawFileV1<Path>> {
+  if (!agentWorkspaceFilePathsV1.has(options.path)) {
+    throw new Error(
+      `workspace file path must be one of the four workspace files, got ${JSON.stringify(options.path)}`,
+    );
+  }
+  const rootStats = await lstat(options.rootDir);
+  if (rootStats.isSymbolicLink() || !rootStats.isDirectory()) {
+    throw new Error('workspace root must be a real directory');
+  }
+
+  const absolutePath = join(options.rootDir, options.path);
   const pathStats = await lstat(absolutePath);
   if (pathStats.isSymbolicLink()) {
-    throw new Error(`${path} must be a regular file, not a symbolic link`);
+    throw new Error(
+      `${options.path} must be a regular file, not a symbolic link`,
+    );
   }
   if (!pathStats.isFile()) {
-    throw new Error(`${path} must be a regular file`);
+    throw new Error(`${options.path} must be a regular file`);
   }
 
   const handle = await open(
@@ -85,17 +110,17 @@ async function loadFile<
   try {
     const stats = await handle.stat();
     if (!stats.isFile()) {
-      throw new Error(`${path} must be a regular file`);
+      throw new Error(`${options.path} must be a regular file`);
     }
     if (stats.dev !== pathStats.dev || stats.ino !== pathStats.ino) {
-      throw new Error(`${path} changed while it was being opened`);
+      throw new Error(`${options.path} changed while it was being opened`);
     }
     if (stats.size > MAX_AGENT_WORKSPACE_FILE_BYTES_V1) {
       throw new Error(
-        `${path} exceeds ${MAX_AGENT_WORKSPACE_FILE_BYTES_V1} bytes`,
+        `${options.path} exceeds ${MAX_AGENT_WORKSPACE_FILE_BYTES_V1} bytes`,
       );
     }
-    bytes = await readBoundedBytes(handle, path);
+    bytes = await readBoundedBytes(handle, options.path);
   } finally {
     await handle.close();
   }
@@ -104,13 +129,31 @@ async function loadFile<
   try {
     content = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
-    throw new Error(`${path} must be valid UTF-8`);
+    throw new Error(`${options.path} must be valid UTF-8`);
   }
+  return {
+    path: options.path,
+    content,
+    bytesBase64: bytes.toString('base64'),
+    byteLength: bytes.byteLength,
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+  };
+}
+
+async function loadFile<
+  Path extends AgentWorkspaceFilePathV1,
+  Access extends AgentWorkspaceFileAccessV1,
+>(
+  rootDir: string,
+  path: Path,
+  access: Access,
+): Promise<AgentWorkspaceFileV1<Path, Access>> {
+  const raw = await loadAgentWorkspaceRawFileV1({ rootDir, path });
   return {
     path,
     access,
-    content,
-    sha256: createHash('sha256').update(bytes).digest('hex'),
+    content: raw.content,
+    sha256: raw.sha256,
   };
 }
 

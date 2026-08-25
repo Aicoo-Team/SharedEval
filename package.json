@@ -9,7 +9,8 @@
     "node": ">=20.11"
   },
   "scripts": {
-    "benchmark": "tsx src/runner/v1/cli.ts",
+    "sharedeval": "tsx src/runner/v1/sharedeval-cli.ts",
+    "benchmark": "node -e \"console.error('Deprecated: npm run benchmark is a legacy PACT wrapper; use npm run sharedeval.')\" && tsx src/runner/v1/cli.ts",
     "watch:runs": "tsx scripts/watch_runs.ts",
     "rescore:pact-pair": "tsx scripts/rescore-requester-grid.ts",
     "build:harbor": "tsc -p tsconfig.harbor.json",
