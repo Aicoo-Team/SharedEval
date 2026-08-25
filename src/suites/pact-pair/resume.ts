@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { constants, type Dirent } from 'node:fs';
 import {
   link,
   mkdir,
@@ -6,11 +7,12 @@ import {
   readFile,
   readdir,
   rename,
+  rmdir,
   rm,
   unlink,
 } from 'node:fs/promises';
 import { hostname } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import {
   pactRunMetadataV1Schema,
   pactTaskCommitV1Schema,
@@ -26,7 +28,15 @@ import type {
   PactPairSingleTaskRunV1,
   PactPairTaskResultV1,
 } from './environment.js';
+import { toPublicEvaluation } from './environment.js';
+import {
+  evaluatePactPairActionV1,
+  evaluatePactPairQaV1,
+} from './evaluator.js';
+import type { PairDataStore } from './schemas.js';
 import type { LoadedPactPairTaskV1 } from './task-loader.js';
+import { executePactPairToolV1 } from './tools.js';
+import { createPactPairWorkspaceV1 } from './workspace.js';
 
 /**
  * Private-artifact contract for a run output directory.
@@ -56,47 +66,87 @@ type WriterLockOwnerV1 = {
 };
 
 /**
- * Acquires the run-directory single-writer lease. A live owner always wins;
- * a dead local-process owner is moved aside atomically before acquisition.
- * Corrupt or remote-host ownership fails closed with a removal diagnostic.
+ * Acquires the run-directory single-writer lease. Existing ownership always
+ * fails closed. Even a provably dead local PID is not sufficient authority to
+ * delete a lock: an operator must inspect the run and remove it manually.
  */
 export async function acquirePactPairRunWriterLockV1(
   runDirectory: string,
 ): Promise<PactPairRunWriterLockV1> {
   const lockDirectory = join(runDirectory, PACT_RUN_WRITER_LOCK_V1);
-  const ownerPath = join(lockDirectory, 'owner.json');
-  const owner: WriterLockOwnerV1 = {
+  const owner = newWriterLockOwner();
+  try {
+    await mkdir(lockDirectory);
+    await syncDirectory(runDirectory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    const ownerPath = join(lockDirectory, 'owner.json');
+    const existing = await readWriterLockOwner(ownerPath, lockDirectory);
+    const disposition = existing.host === owner.host && !processIsAlive(existing.pid)
+      ? 'stale writer lock'
+      : 'active writer lock';
+    throw new Error(
+      `Cannot write run directory ${runDirectory}: ${disposition} owned by `
+      + `pid ${existing.pid} on ${existing.host} since ${existing.acquiredAt}; `
+      + 'remove it manually only after confirming no writer is active',
+    );
+  }
+  await atomicWriteFile(join(lockDirectory, 'owner.json'), prettyJson(owner));
+  return writerLockHandle(runDirectory, owner);
+}
+
+/**
+ * Atomically creates a fresh run directory with writer exclusion already in
+ * place. The final path is never observable without `.writer-lock`.
+ */
+export async function createPactPairRunDirectoryWithWriterLockV1(
+  runDirectory: string,
+): Promise<PactPairRunWriterLockV1> {
+  const parentDirectory = dirname(runDirectory);
+  await mkdir(parentDirectory, { recursive: true });
+  const stagingDirectory = join(
+    parentDirectory,
+    `.${basename(runDirectory)}.initializing-${randomUUID()}`,
+  );
+  const owner = newWriterLockOwner();
+  try {
+    await mkdir(stagingDirectory);
+    const stagingLock = join(stagingDirectory, PACT_RUN_WRITER_LOCK_V1);
+    await mkdir(stagingLock);
+    await atomicWriteFile(join(stagingLock, 'owner.json'), prettyJson(owner));
+    await syncDirectory(stagingDirectory);
+    await rename(stagingDirectory, runDirectory);
+    await syncDirectory(parentDirectory);
+  } catch (error) {
+    await rm(stagingDirectory, { recursive: true, force: true }).catch(() => {});
+    if (['EEXIST', 'ENOTEMPTY'].includes(
+      (error as NodeJS.ErrnoException).code ?? '',
+    )) {
+      throw new Error(
+        `EEXIST: run directory already exists at ${runDirectory}`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+  return writerLockHandle(runDirectory, owner);
+}
+
+function newWriterLockOwner(): WriterLockOwnerV1 {
+  return {
     pid: process.pid,
     host: hostname(),
     token: randomUUID(),
     acquiredAt: new Date().toISOString(),
   };
+}
 
-  for (;;) {
-    try {
-      await mkdir(lockDirectory);
-      await atomicWriteFile(ownerPath, prettyJson(owner));
-      break;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      const existing = await readWriterLockOwner(ownerPath, lockDirectory);
-      if (existing.host !== owner.host || processIsAlive(existing.pid)) {
-        throw new Error(
-          `Cannot write run directory ${runDirectory}: active writer lock `
-          + `owned by pid ${existing.pid} on ${existing.host} since `
-          + `${existing.acquiredAt}`,
-        );
-      }
-      const stalePath = `${lockDirectory}.stale-${randomUUID()}`;
-      try {
-        await rename(lockDirectory, stalePath);
-      } catch (renameError) {
-        if ((renameError as NodeJS.ErrnoException).code === 'ENOENT') continue;
-        throw renameError;
-      }
-      await rm(stalePath, { recursive: true, force: true });
-    }
-  }
+function writerLockHandle(
+  runDirectory: string,
+  owner: WriterLockOwnerV1,
+): PactPairRunWriterLockV1 {
+  const lockDirectory = join(runDirectory, PACT_RUN_WRITER_LOCK_V1);
+  const ownerPath = join(lockDirectory, 'owner.json');
 
   let released = false;
   return {
@@ -115,7 +165,10 @@ export async function acquirePactPairRunWriterLockV1(
           `Refusing to release writer lock for ${runDirectory}: ownership changed`,
         );
       }
-      await rm(lockDirectory, { recursive: true });
+      await unlink(ownerPath);
+      await syncDirectory(lockDirectory);
+      await rmdir(lockDirectory);
+      await syncDirectory(runDirectory);
     },
   };
 }
@@ -213,6 +266,7 @@ export function retryablePactPairFailureV1(
     || violations.has('provider_configuration_error')
     || violations.has('max_runtime_ms_exceeded')
     || violations.has('max_turns_exceeded')
+    || violations.has('max_tool_calls_exceeded')
   ) return false;
   const message = result.error ?? '';
   if (NON_RETRYABLE_MODEL_FAILURE_PATTERN_V1.test(message)) return false;
@@ -221,16 +275,17 @@ export function retryablePactPairFailureV1(
 
 /**
  * Pure resume selection: partitions the selected task ids using the prior
- * run's recorded results. A task with any `ok` result is completed even if an
- * older transient-error line is also present. A terminal failure also wins
- * over a retryable line. Prior results for tasks outside the current selection
- * are rejected — task-set identity has already been proven by digest.
+ * run's recorded results. Byte-identical duplicate rows are compacted;
+ * distinct rows for one task fail closed because no ordering claim can prove
+ * which outcome is authoritative. Prior results for tasks outside the current
+ * selection are rejected — task-set identity has already been proven by digest.
  */
 export function selectPactPairResumeTasksV1(
   taskIds: readonly string[],
   priorResults: readonly PactPairResumeResultV1[],
 ): PactPairResumeSelectionV1 {
   const selected = new Set(taskIds);
+  const priorByTaskId = new Map<string, string>();
   const completed = new Set<string>();
   const retryable = new Set<string>();
   for (const result of priorResults) {
@@ -240,6 +295,15 @@ export function selectPactPairResumeTasksV1(
         + 'not part of the current task selection',
       );
     }
+    const normalized = canonicalJson(result);
+    const existing = priorByTaskId.get(result.taskId);
+    if (existing !== undefined && existing !== normalized) {
+      throw new Error(
+        `Cannot resume: conflicting prior outcomes for task ${result.taskId}`,
+      );
+    }
+    if (existing !== undefined) continue;
+    priorByTaskId.set(result.taskId, normalized);
     if (result.status === 'ok' || !retryablePactPairFailureV1(result)) {
       completed.add(result.taskId);
     } else {
@@ -267,9 +331,9 @@ export type PactPairResumeStateV1 = {
   selection: PactPairResumeSelectionV1;
   /**
    * Completed trials reconstructed from the checkpoint artifacts
-   * (results.jsonl + private/evaluation.jsonl), in canonical task order.
-   * Traces are not reloaded — they are only ever appended to trace.jsonl and
-   * never re-enter the in-memory run.
+   * (results.jsonl + private/evaluation.jsonl + private/trace.jsonl), in
+   * canonical task order. Recovery replays action traces against the current
+   * host seed before any retained outcome is republished.
    */
   retainedRuns: PactPairSingleTaskRunV1[];
 };
@@ -281,10 +345,19 @@ export type LoadPactPairResumeStateV1Options = {
   configDigest: string;
   /** Digest of the CURRENT task selection; must match the prior run.json. */
   taskSetDigest: string;
+  model: PactRunMetadataV1['model'];
+  benchmark: PactRunMetadataV1['benchmark'];
+  budget: PactRunMetadataV1['budget'];
+  policyProvenance: PactRunMetadataV1['policyProvenance'];
+  sourceRevision?: string;
+  seed: PairDataStore;
 };
 
 export type CommitPactPairTaskRunV1Options = {
   runDirectory: string;
+  runId: string;
+  configDigest: string;
+  taskSetDigest: string;
   taskRun: PactPairSingleTaskRunV1;
   saveTraces: boolean;
   checkpoint: {
@@ -303,9 +376,14 @@ export type CommitPactPairTaskRunV1Options = {
 export async function commitPactPairTaskRunV1(
   options: CommitPactPairTaskRunV1Options,
 ): Promise<void> {
-  const commit = pactTaskCommitV1Schema.parse({
-    apiVersion: 'pact-task-commit/v1',
-    taskId: options.taskRun.result.taskId,
+  const payload = {
+    binding: {
+      runId: options.runId,
+      taskId: options.taskRun.result.taskId,
+      configDigest: options.configDigest,
+      taskSetDigest: options.taskSetDigest,
+      publicTaskDigest: digestCanonicalJson(options.taskRun.result.publicTask),
+    },
     result: options.taskRun.result,
     evaluation: {
       taskId: options.taskRun.result.taskId,
@@ -313,6 +391,11 @@ export async function commitPactPairTaskRunV1(
       metrics: options.taskRun.evaluationResult.metrics,
     },
     trace: options.taskRun.trace,
+  };
+  const commit = pactTaskCommitV1Schema.parse({
+    apiVersion: 'pact-task-commit/v1',
+    payloadDigest: taskCommitPayloadDigest(payload),
+    payload,
   }) as PactTaskCommitV1;
   const durableCommit = options.saveTraces
     ? await persistTaskCommit(options.runDirectory, commit)
@@ -326,7 +409,7 @@ export async function commitPactPairTaskRunV1(
     status: 'running',
     completedTasks: options.checkpoint.completedTasks,
     selectedTasks: options.checkpoint.selectedTasks,
-    lastTaskId: durableCommit.taskId,
+    lastTaskId: durableCommit.payload.binding.taskId,
     errors: options.checkpoint.errors,
   }));
 }
@@ -337,14 +420,18 @@ async function persistTaskCommit(
 ): Promise<PactTaskCommitV1> {
   const directory = taskCommitDirectory(runDirectory);
   await mkdir(directory, { recursive: true });
-  const committedPath = taskCommitPath(directory, commit.taskId);
+  await syncDirectory(dirname(directory));
+  const committedPath = taskCommitPath(directory, commit);
   const preparedPath = join(
     directory,
-    `${taskCommitDigest(commit.taskId)}.${randomUUID()}.prepared.json`,
+    `${taskCommitTaskDigest(commit)}.${commit.payloadDigest}.`
+    + `${randomUUID()}.prepared.json`,
   );
   await writeDurably(preparedPath, prettyJson(commit));
+  await syncDirectory(directory);
   try {
     await link(preparedPath, committedPath);
+    await syncDirectory(directory);
     return commit;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
@@ -352,9 +439,7 @@ async function persistTaskCommit(
     assertSameTaskCommit(existing, commit, committedPath);
     return existing;
   } finally {
-    await unlink(preparedPath).catch(error => {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    });
+    await durableUnlink(preparedPath);
   }
 }
 
@@ -362,39 +447,49 @@ async function recoverTaskCommits(
   runDirectory: string,
 ): Promise<Map<string, PactTaskCommitV1>> {
   const directory = taskCommitDirectory(runDirectory);
-  let entries: string[];
+  let entries: Dirent[];
   try {
-    entries = (await readdir(directory)).filter(name => name.endsWith('.json'));
+    entries = await readdir(directory, { withFileTypes: true });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return new Map();
     throw error;
   }
   const commits = new Map<string, PactTaskCommitV1>();
   const pathsByTask = new Map<string, string[]>();
-  for (const entry of entries.sort()) {
-    const path = join(directory, entry);
+  for (const entry of entries
+    .filter(candidate => candidate.name.endsWith('.json'))
+    .sort((left, right) => left.name.localeCompare(right.name))) {
+    const path = join(directory, entry.name);
+    if (!entry.isFile()) {
+      throw new Error(
+        `Cannot recover task journal at ${path}: journal entries must be `
+        + 'regular files (symbolic links and special files are refused)',
+      );
+    }
     const commit = await readTaskCommit(path);
-    const existing = commits.get(commit.taskId);
+    const taskId = commit.payload.binding.taskId;
+    const existing = commits.get(taskId);
     if (existing) assertSameTaskCommit(existing, commit, path);
-    else commits.set(commit.taskId, commit);
-    const paths = pathsByTask.get(commit.taskId) ?? [];
+    else commits.set(taskId, commit);
+    const paths = pathsByTask.get(taskId) ?? [];
     paths.push(path);
-    pathsByTask.set(commit.taskId, paths);
+    pathsByTask.set(taskId, paths);
   }
   for (const [taskId, commit] of commits) {
-    const committedPath = taskCommitPath(directory, taskId);
+    const committedPath = taskCommitPath(directory, commit);
     const sourcePath = pathsByTask.get(taskId)?.[0];
     if (!sourcePath) continue;
     if (!pathsByTask.get(taskId)?.includes(committedPath)) {
       try {
         await link(sourcePath, committedPath);
+        await syncDirectory(directory);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
         assertSameTaskCommit(await readTaskCommit(committedPath), commit, committedPath);
       }
     }
     for (const path of pathsByTask.get(taskId) ?? []) {
-      if (path !== committedPath) await unlink(path);
+      if (path !== committedPath) await durableUnlink(path);
     }
   }
   return commits;
@@ -402,9 +497,17 @@ async function recoverTaskCommits(
 
 async function readTaskCommit(path: string): Promise<PactTaskCommitV1> {
   try {
-    return pactTaskCommitV1Schema.parse(
-      JSON.parse(await readFile(path, 'utf8')),
+    const commit = pactTaskCommitV1Schema.parse(
+      JSON.parse(await readJournalRegularFile(path)),
     ) as PactTaskCommitV1;
+    const actualPayloadDigest = taskCommitPayloadDigest(commit.payload);
+    if (actualPayloadDigest !== commit.payloadDigest) {
+      throw new Error(
+        `journal payload digest mismatch for task ${commit.payload.binding.taskId}`,
+      );
+    }
+    assertTaskCommitFilename(path, commit);
+    return commit;
   } catch (error) {
     throw new Error(
       `Cannot recover task commit at ${path}: ${
@@ -421,7 +524,7 @@ function assertSameTaskCommit(
 ): void {
   if (JSON.stringify(left) !== JSON.stringify(right)) {
     throw new Error(
-      `Conflicting committed outcomes for task ${right.taskId} at ${path}; `
+      `Conflicting committed outcomes for task ${right.payload.binding.taskId} at ${path}; `
       + 'refusing to overwrite an already-executed model action',
     );
   }
@@ -432,10 +535,11 @@ async function publishCommittedTaskArtifacts(
   commit: PactTaskCommitV1,
   saveTraces: boolean,
 ): Promise<void> {
+  const payload = commit.payload;
   await rewriteTaskJsonLinesFile(
     join(runDirectory, 'results.jsonl'),
-    commit.taskId,
-    [commit.result],
+    payload.binding.taskId,
+    [payload.result],
     line => (pactTaskResultV1Schema.parse(JSON.parse(line)) as PactPairTaskResultV1).taskId,
     'results.jsonl',
   );
@@ -446,15 +550,15 @@ async function publishCommittedTaskArtifacts(
   );
   await rewriteTaskJsonLinesFile(
     join(privateDirectory, 'evaluation.jsonl'),
-    commit.taskId,
-    [commit.evaluation],
+    payload.binding.taskId,
+    [payload.evaluation],
     line => pactTaskEvaluationRecordV1Schema.parse(JSON.parse(line)).taskId,
     'private/evaluation.jsonl',
   );
   await rewriteTaskJsonLinesFile(
     join(privateDirectory, 'trace.jsonl'),
-    commit.taskId,
-    commit.trace,
+    payload.binding.taskId,
+    payload.trace,
     line => pactTraceEventV1Schema.parse(JSON.parse(line)).taskId,
     'private/trace.jsonl',
   );
@@ -612,12 +716,52 @@ function taskCommitDirectory(runDirectory: string): string {
   );
 }
 
-function taskCommitDigest(taskId: string): string {
+function taskCommitIdDigest(taskId: string): string {
   return createHash('sha256').update(taskId).digest('hex');
 }
 
-function taskCommitPath(directory: string, taskId: string): string {
-  return join(directory, `${taskCommitDigest(taskId)}.commit.json`);
+function taskCommitTaskDigest(commit: PactTaskCommitV1): string {
+  return taskCommitIdDigest(commit.payload.binding.taskId);
+}
+
+function taskCommitPath(
+  directory: string,
+  commit: PactTaskCommitV1,
+): string {
+  return join(
+    directory,
+    `${taskCommitTaskDigest(commit)}.${commit.payloadDigest}.commit.json`,
+  );
+}
+
+function taskCommitPayloadDigest(
+  payload: unknown,
+): string {
+  return digestCanonicalJson(payload);
+}
+
+function assertTaskCommitFilename(
+  path: string,
+  commit: PactTaskCommitV1,
+): void {
+  const name = basename(path);
+  const committed = /^([a-f0-9]{64})\.([a-f0-9]{64})\.commit\.json$/u.exec(name);
+  const prepared = /^([a-f0-9]{64})\.([a-f0-9]{64})\.[^.]+\.prepared\.json$/u
+    .exec(name);
+  const address = committed ?? prepared;
+  if (!address) {
+    throw new Error(
+      `journal filename ${name} is not a valid content address`,
+    );
+  }
+  if (
+    address[1] !== taskCommitTaskDigest(commit)
+    || address[2] !== commit.payloadDigest
+  ) {
+    throw new Error(
+      `journal filename ${name} does not match its content address`,
+    );
+  }
 }
 
 /**
@@ -662,8 +806,44 @@ export async function loadPactPairResumeStateV1(
       + 'not match the original (taskSetDigest mismatch).',
     );
   }
+  for (const [field, recorded, current] of [
+    ['model', metadata.model, options.model],
+    ['benchmark', metadata.benchmark, options.benchmark],
+    ['budget', metadata.budget, options.budget],
+  ] as const) {
+    if (canonicalJson(recorded) !== canonicalJson(current)) {
+      throw new Error(
+        `Cannot resume ${options.runDirectory}: recorded ${field} provenance `
+        + 'does not match the current run configuration',
+      );
+    }
+  }
+  if (
+    canonicalJson(metadata.policyProvenance)
+    !== canonicalJson(options.policyProvenance)
+  ) {
+    throw new Error(
+      `Cannot resume ${options.runDirectory}: recorded policy provenance `
+      + 'does not match the current host policy',
+    );
+  }
+  if (metadata.sourceRevision !== options.sourceRevision) {
+    throw new Error(
+      `Cannot resume ${options.runDirectory}: recorded source provenance `
+      + 'does not match the current host source',
+    );
+  }
+  if (metadata.selectedTasks !== options.tasks.length) {
+    throw new Error(
+      `Cannot resume ${options.runDirectory}: recorded selected task count `
+      + 'does not match the current task selection',
+    );
+  }
 
   const selectedTaskIds = new Set(options.tasks.map(task => task.taskId));
+  const tasksById = new Map(
+    options.tasks.map(task => [task.taskId, task] as const),
+  );
   const committed = await recoverTaskCommits(options.runDirectory);
   for (const taskId of committed.keys()) {
     if (!selectedTaskIds.has(taskId)) {
@@ -672,6 +852,15 @@ export async function loadPactPairResumeStateV1(
         + 'part of the recorded task selection',
       );
     }
+  }
+  const validatedCommittedRuns = new Map<string, PactPairSingleTaskRunV1>();
+  for (const [taskId, commit] of committed) {
+    const task = tasksById.get(taskId);
+    if (!task) continue;
+    validatedCommittedRuns.set(
+      taskId,
+      await validateCommittedTaskRun(commit, task, metadata, options),
+    );
   }
   for (const task of options.tasks) {
     const commit = committed.get(task.taskId);
@@ -728,9 +917,37 @@ export async function loadPactPairResumeStateV1(
       }
       evaluationByTaskId.set(record.taskId, record);
     }
-    const tasksById = new Map(
-      options.tasks.map(task => [task.taskId, task] as const),
+    const tracePath = join(
+      options.runDirectory,
+      PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1,
+      'trace.jsonl',
     );
+    let traceSource: string;
+    try {
+      traceSource = await readFile(tracePath, 'utf8');
+    } catch {
+      throw new Error(
+        `Cannot resume ${options.runDirectory}: private/trace.jsonl is `
+        + 'missing. Resume validation requires the original private trace.',
+      );
+    }
+    const traceEvents = parseJsonLines(
+      traceSource,
+      line => pactTraceEventV1Schema.parse(JSON.parse(line)),
+      'private/trace.jsonl',
+    ) as unknown as PactPairSingleTaskRunV1['trace'];
+    const traceByTaskId = new Map<string, PactPairSingleTaskRunV1['trace']>();
+    for (const event of traceEvents) {
+      if (!event.taskId || !selectedTaskIds.has(event.taskId)) {
+        throw new Error(
+          'Cannot resume: private/trace.jsonl contains an event outside the '
+          + 'current task selection',
+        );
+      }
+      const taskTrace = traceByTaskId.get(event.taskId) ?? [];
+      taskTrace.push(event);
+      traceByTaskId.set(event.taskId, taskTrace);
+    }
     // Reconstruct one committed outcome per retained task. Byte-equivalent
     // historical duplicate rows are tolerated and compacted; conflicting
     // outcomes fail closed.
@@ -758,48 +975,23 @@ export async function loadPactPairResumeStateV1(
           + 'has no record in private/evaluation.jsonl',
         );
       }
-      const evaluation = record.evaluation as PactPairEvaluationV1;
-      if (evaluation.kind !== task.kind) {
-        throw new Error(
-          `Cannot resume: recorded evaluation kind ${evaluation.kind} does `
-          + `not match host task kind ${task.kind} for ${taskId}`,
-        );
-      }
-      if (evaluation.expectedBehavior !== task.expectedBehavior) {
-        throw new Error(
-          `Cannot resume: recorded expected behavior `
-          + `${evaluation.expectedBehavior} does not match host gold `
-          + `${task.expectedBehavior} for ${taskId}`,
-        );
-      }
-      if (
-        evaluation.kind === 'qa'
-        && task.kind === 'qa'
-        && evaluation.benchmarkExpectedBehavior
-          !== task.benchmarkExpectedBehavior
-      ) {
-        throw new Error(
-          `Cannot resume: recorded benchmark expected behavior `
-          + `${evaluation.benchmarkExpectedBehavior} does not match host `
-          + `gold ${task.benchmarkExpectedBehavior} for ${taskId}`,
-        );
-      }
-      // Same anti-tamper posture as the Harbor collector: recompute the
-      // metric contributions from the full evaluation and require the stored
-      // rows to agree — a stored artifact cannot inject arbitrary metrics.
-      const recomputedMetrics = pactPairMetricContributionsV1(evaluation);
-      if (metricKey(recomputedMetrics) !== metricKey(record.metrics)) {
-        throw new Error(
-          `Cannot resume: stored metric contributions for ${taskId} do not `
-          + 'match the host recomputation from its evaluation',
-        );
-      }
-      retainedRuns.push({
+      const committedRun = validatedCommittedRuns.get(taskId);
+      retainedRuns.push(committedRun ?? await validateRetainedTaskRun(
+        task,
         result,
-        trace: [],
-        evaluation,
-        evaluationResult: { metrics: recomputedMetrics, details: evaluation },
-      });
+        record as unknown as {
+          taskId: string;
+          evaluation: PactPairEvaluationV1;
+          metrics: readonly {
+            metric: string;
+            numerator: number;
+            denominator: number;
+          }[];
+        },
+        traceByTaskId.get(taskId) ?? [],
+        metadata.budget,
+        options.seed,
+      ));
     }
   }
 
@@ -810,6 +1002,262 @@ export async function loadPactPairResumeStateV1(
     selection,
     retainedRuns,
   };
+}
+
+async function validateCommittedTaskRun(
+  commit: PactTaskCommitV1,
+  task: LoadedPactPairTaskV1,
+  metadata: PactRunMetadataV1,
+  options: LoadPactPairResumeStateV1Options,
+): Promise<PactPairSingleTaskRunV1> {
+  const { binding } = commit.payload;
+  const result = commit.payload.result as unknown as PactPairTaskResultV1;
+  const evaluation = commit.payload.evaluation as unknown as {
+    taskId: string;
+    evaluation: PactPairEvaluationV1;
+    metrics: readonly {
+      metric: string;
+      numerator: number;
+      denominator: number;
+    }[];
+  };
+  const trace = commit.payload.trace as unknown as PactPairSingleTaskRunV1['trace'];
+  const taskId = task.taskId;
+  for (const [field, matches] of [
+    ['run identity', binding.runId === metadata.runId],
+    ['config identity', binding.configDigest === options.configDigest],
+    ['task-set identity', binding.taskSetDigest === options.taskSetDigest],
+    ['task identity', binding.taskId === taskId],
+    [
+      'public task identity',
+      binding.publicTaskDigest === digestCanonicalJson(task.publicTask),
+    ],
+  ] as const) {
+    if (!matches) {
+      throw new Error(
+        `Cannot resume: committed task ${taskId} has a ${field} mismatch`,
+      );
+    }
+  }
+  return validateRetainedTaskRun(
+    task,
+    result,
+    evaluation,
+    trace,
+    metadata.budget,
+    options.seed,
+  );
+}
+
+async function validateRetainedTaskRun(
+  task: LoadedPactPairTaskV1,
+  result: PactPairTaskResultV1,
+  record: {
+    taskId: string;
+    evaluation: PactPairEvaluationV1;
+    metrics: readonly { metric: string; numerator: number; denominator: number }[];
+  },
+  trace: PactPairSingleTaskRunV1['trace'],
+  budget: PactRunMetadataV1['budget'],
+  seed: PairDataStore,
+): Promise<PactPairSingleTaskRunV1> {
+  const taskId = task.taskId;
+  const fail = (field: string): never => {
+    throw new Error(
+      `Cannot resume: retained task ${taskId} has an invalid ${field}`,
+    );
+  };
+  if (result.taskId !== taskId || record.taskId !== taskId) fail('taskId');
+  if (result.kind !== task.kind || record.evaluation.kind !== task.kind) {
+    fail('kind');
+  }
+  if (canonicalJson(result.publicTask) !== canonicalJson(task.publicTask)) {
+    fail('public task identity');
+  }
+  if (record.evaluation.expectedBehavior !== task.expectedBehavior) {
+    fail('expectedBehavior');
+  }
+  const replayedWorkspace = await replayToolTrace(
+    result,
+    trace,
+    seed,
+    fail,
+  );
+  if (task.kind === 'qa' && record.evaluation.kind === 'qa') {
+    if (
+      record.evaluation.benchmarkExpectedBehavior
+      !== task.benchmarkExpectedBehavior
+    ) fail('benchmarkExpectedBehavior');
+    const recomputed = evaluatePactPairQaV1(task, result.finalDecision);
+    if (canonicalJson(recomputed) !== canonicalJson(record.evaluation)) {
+      fail('host evaluation');
+    }
+  } else if (task.kind === 'action' && record.evaluation.kind === 'action') {
+    if (record.evaluation.goldCheckType !== task.action.gold_check.type) {
+      fail('goldCheckType');
+    }
+    const replayedEvaluation = evaluatePactPairActionV1(
+      task,
+      result.finalDecision,
+      replayedWorkspace.before,
+      replayedWorkspace.after,
+    );
+    if (canonicalJson(replayedEvaluation) !== canonicalJson(record.evaluation)) {
+      fail('host evaluation');
+    }
+  }
+  const publicEvaluation = result.status === 'ok'
+    ? toPublicEvaluation(record.evaluation)
+    : null;
+  if (canonicalJson(result.evaluation) !== canonicalJson(publicEvaluation)) {
+    fail('public evaluation');
+  }
+  if (
+    result.budgetUsed.turns > budget.maxTurns
+    || result.budgetUsed.toolCalls > budget.maxToolCalls
+    || result.budgetUsed.toolCalls !== result.toolCalls.length
+  ) fail('turn or tool-call budget');
+  const runtimeAccountingOverhead = result.violations.includes(
+    'max_runtime_ms_exceeded',
+  )
+    ? Math.min(5_000, Math.max(100, Math.ceil(budget.maxRuntimeMs * 0.1)))
+    : 0;
+  if (
+    result.budgetUsed.runtimeMs
+    > budget.maxRuntimeMs + runtimeAccountingOverhead
+  ) {
+    fail('runtime budget');
+  }
+  const recomputedMetrics = pactPairMetricContributionsV1(record.evaluation);
+  if (metricKey(recomputedMetrics) !== metricKey(record.metrics)) {
+    fail('metric contributions');
+  }
+  const infrastructureError = result.error !== undefined
+    || result.finalizeError !== undefined;
+  if ((result.status === 'infrastructure_error') !== infrastructureError) {
+    fail('result status');
+  }
+  const completions = trace.filter(event => event.event === 'task_completed');
+  const backendErrors = trace.filter(event => event.event === 'backend_error');
+  const backendFailure = result.violations.includes('backend_error');
+  if (backendFailure) {
+    if (
+      completions.length !== 0
+      || backendErrors.length !== 1
+      || result.error === undefined
+      || !isJsonRecord(backendErrors[0]?.data)
+      || backendErrors[0].data.message !== result.error
+    ) fail('terminal trace binding');
+  } else if (completions.length !== 1) {
+    fail('terminal trace binding');
+  }
+  const completion = completions[0];
+  if (completion !== undefined) {
+    const data = completion.data as Record<string, unknown>;
+    if (
+      canonicalJson(data.finalDecision) !== canonicalJson(result.finalDecision)
+      || canonicalJson(data.evaluation) !== canonicalJson(result.evaluation)
+      || canonicalJson(data.budgetUsed) !== canonicalJson(result.budgetUsed)
+      || canonicalJson(data.violations) !== canonicalJson(result.violations)
+    ) fail('trace completion binding');
+  }
+  return {
+    result,
+    trace,
+    evaluation: record.evaluation,
+    evaluationResult: {
+      metrics: recomputedMetrics,
+      details: record.evaluation,
+    },
+  };
+}
+
+async function replayToolTrace(
+  result: PactPairTaskResultV1,
+  trace: PactPairSingleTaskRunV1['trace'],
+  seed: PairDataStore,
+  fail: (field: string) => never,
+): Promise<{ before: PairDataStore; after: PairDataStore }> {
+  let replayTime = new Date(0).toISOString();
+  const workspace = createPactPairWorkspaceV1(seed, { now: () => replayTime });
+  const before = workspace.snapshot();
+  const toolEvents = trace.filter(event => event.event === 'tool_result');
+  const toolDecisions = trace.flatMap(event => {
+    if (event.event !== 'decision' || !isJsonRecord(event.data)) return [];
+    const decision = event.data.decision;
+    return isJsonRecord(decision) && decision.type === 'tool_call'
+      ? [decision]
+      : [];
+  });
+  if (toolEvents.length !== result.toolCalls.length) {
+    fail('trace tool-call binding');
+  }
+  for (const [index, event] of toolEvents.entries()) {
+    const data = event.data;
+    if (data === null || typeof data !== 'object' || Array.isArray(data)) {
+      fail('trace tool-call binding');
+    }
+    const record = data as Record<string, unknown>;
+    const toolCall = result.toolCalls[index];
+    const decision = toolDecisions[index];
+    if (
+      !toolCall
+      || !decision
+      || record.toolCallId !== toolCall.id
+      || record.toolName !== toolCall.name
+      || decision.toolName !== toolCall.name
+      || !Object.hasOwn(decision, 'input')
+      || !Object.hasOwn(record, 'result')
+    ) fail('trace tool-call binding');
+    const input = Object.hasOwn(record, 'input')
+      ? record.input
+      : decision.input;
+    if (
+      Object.hasOwn(record, 'input')
+      && canonicalJson(record.input) !== canonicalJson(decision.input)
+    ) fail('trace tool-call binding');
+    replayTime = recordedCompletionTime(record.result) ?? event.at;
+    const replayed = await executePactPairToolV1({
+      workspace,
+      access: result.grantedAccess,
+      toolName: toolCall.name,
+      input,
+    });
+    const recordedResult = record.result;
+    const sharedOsStatus = isJsonRecord(recordedResult)
+      && typeof recordedResult.status === 'string'
+      ? recordedResult.status
+      : undefined;
+    if (
+      replayed.isError !== toolCall.isError
+      || (sharedOsStatus === undefined
+        ? canonicalJson(replayed) !== canonicalJson(recordedResult)
+        : (sharedOsStatus !== 'succeeded') !== replayed.isError)
+    ) fail('trace tool result');
+  }
+  return { before, after: workspace.snapshot() };
+}
+
+function isJsonRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function recordedCompletionTime(value: unknown): string | undefined {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const found = recordedCompletionTime(entry);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  }
+  if (value === null || typeof value !== 'object') return undefined;
+  const record = value as Record<string, unknown>;
+  if (typeof record.completedAt === 'string') return record.completedAt;
+  for (const entry of Object.values(record)) {
+    const found = recordedCompletionTime(entry);
+    if (found !== undefined) return found;
+  }
+  return undefined;
 }
 
 export type CompactResumedRunArtifactsV1Options = {
@@ -832,9 +1280,12 @@ export async function compactResumedRunArtifactsV1(
     return taskId === undefined || options.keepTaskIds.has(taskId);
   };
   const commits = await recoverTaskCommits(options.runDirectory);
-  for (const taskId of commits.keys()) {
+  for (const [taskId, commit] of commits) {
     if (!options.keepTaskIds.has(taskId)) {
-      await unlink(taskCommitPath(taskCommitDirectory(options.runDirectory), taskId));
+      await durableUnlink(taskCommitPath(
+        taskCommitDirectory(options.runDirectory),
+        commit,
+      ));
     }
   }
   await rewriteJsonLinesFile(
@@ -959,14 +1410,19 @@ async function atomicWriteFile(path: string, contents: string): Promise<void> {
   try {
     await writeDurably(temporaryPath, contents);
     await rename(temporaryPath, path);
+    await syncDirectory(dirname(path));
   } catch (error) {
-    await unlink(temporaryPath).catch(unlinkError => {
-      if ((unlinkError as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw unlinkError;
-      }
-    });
+    await durableUnlink(temporaryPath);
     throw error;
   }
+}
+
+/** Durable, non-truncating publication for run-level JSON artifacts. */
+export async function atomicWritePactPairRunFileV1(
+  path: string,
+  contents: string,
+): Promise<void> {
+  await atomicWriteFile(path, contents);
 }
 
 async function writeDurably(path: string, contents: string): Promise<void> {
@@ -977,6 +1433,68 @@ async function writeDurably(path: string, contents: string): Promise<void> {
   } finally {
     await handle.close();
   }
+}
+
+async function durableUnlink(path: string): Promise<void> {
+  try {
+    await unlink(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw error;
+  }
+  await syncDirectory(dirname(path));
+}
+
+async function syncDirectory(path: string): Promise<void> {
+  const handle = await open(path, 'r');
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
+async function readJournalRegularFile(path: string): Promise<string> {
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    handle = await open(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+    const stat = await handle.stat();
+    if (!stat.isFile()) {
+      throw new Error('journal entry is not a regular file');
+    }
+    if (stat.size > 64 * 1024 * 1024) {
+      throw new Error('journal entry exceeds the 64 MiB safety limit');
+    }
+    return await handle.readFile('utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ELOOP') {
+      throw new Error(
+        `journal entry at ${path} is a symbolic link; only regular files are allowed`,
+      );
+    }
+    throw error;
+  } finally {
+    await handle?.close();
+  }
+}
+
+function digestCanonicalJson(value: unknown): string {
+  return createHash('sha256').update(canonicalJson(value)).digest('hex');
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(entry => canonicalJson(entry)).join(',')}]`;
+  }
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map(key =>
+      `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'undefined';
 }
 
 function prettyJson(value: unknown): string {

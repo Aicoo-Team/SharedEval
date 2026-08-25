@@ -324,7 +324,7 @@ const policyProvenanceSchema = z
  * parity trials that never called the configured model. Harbor runs pin the
  * orchestrator version and the immutable local image identity.
  */
-const runExecutionMetadataV1Schema = z
+export const pactRunExecutionMetadataV1Schema = z
   .object({
     backend: z.enum(['local', 'harbor']),
     executor: z.enum(['model', 'scripted-harness', 'custom-harness']),
@@ -339,6 +339,13 @@ const runExecutionMetadataV1Schema = z
   })
   .strict();
 
+const executionAttemptV1Schema = z
+  .object({
+    taskIds: z.array(z.string().min(1).max(128)).min(1).max(10_000),
+    execution: pactRunExecutionMetadataV1Schema,
+  })
+  .strict();
+
 export const pactRunMetadataV1Schema = z
   .object({
     runId: z.string().min(1).max(256),
@@ -346,7 +353,14 @@ export const pactRunMetadataV1Schema = z
     startedAt: z.string().datetime({ offset: true }),
     completedAt: z.string().datetime({ offset: true }).optional(),
     model: pactRunModelMetadataV1Schema,
-    execution: runExecutionMetadataV1Schema.optional(),
+    execution: pactRunExecutionMetadataV1Schema.optional(),
+    /**
+     * Authoritative execution identity for every committed outcome. The
+     * top-level `execution` field remains the backward-compatible projection:
+     * it covers all outcomes when uniform, otherwise it is the latest attempt.
+     */
+    executionProjection: z.enum(['all-outcomes', 'latest-attempt']).optional(),
+    executionAttempts: z.array(executionAttemptV1Schema).max(1_000).optional(),
     benchmark: pactRunConfigV1Schema.shape.benchmark,
     policyProvenance: policyProvenanceSchema,
     budget: pactRunBudgetV1Schema,
@@ -387,6 +401,62 @@ export const pactRunMetadataV1Schema = z
         code: z.ZodIssueCode.custom,
         message: 'resumed and resumes must be present together',
       });
+    }
+    if (
+      (metadata.executionAttempts !== undefined)
+      !== (metadata.executionProjection !== undefined)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'executionAttempts and executionProjection must be present together',
+      });
+    }
+    if (metadata.executionAttempts !== undefined) {
+      if (metadata.execution === undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['execution'],
+          message: 'execution is required when executionAttempts are recorded',
+        });
+        return;
+      }
+      const seenTaskIds = new Set<string>();
+      for (const [attemptIndex, attempt] of metadata.executionAttempts.entries()) {
+        for (const [taskIndex, taskId] of attempt.taskIds.entries()) {
+          if (seenTaskIds.has(taskId)) {
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['executionAttempts', attemptIndex, 'taskIds', taskIndex],
+              message: `task ${taskId} has more than one execution identity`,
+            });
+          }
+          seenTaskIds.add(taskId);
+        }
+      }
+      const topLevel = JSON.stringify(metadata.execution);
+      const latest = metadata.executionAttempts.at(-1);
+      if (
+        metadata.executionProjection === 'latest-attempt'
+        && latest !== undefined
+        && JSON.stringify(latest.execution) !== topLevel
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['execution'],
+          message: 'execution must equal the latest execution attempt',
+        });
+      }
+      if (
+        metadata.executionProjection === 'all-outcomes'
+        && metadata.executionAttempts.some(attempt =>
+          JSON.stringify(attempt.execution) !== topLevel)
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['execution'],
+          message: 'all-outcomes projection requires one uniform execution identity',
+        });
+      }
     }
   });
 
@@ -479,28 +549,45 @@ export const pactTaskEvaluationRecordV1Schema = z
  * is the task-ID-aware source of truth used to finish publication after a
  * host crash or a partial multi-file write.
  */
-export const pactTaskCommitV1Schema = z
+const pactTaskCommitPayloadV1Schema = z
   .object({
-    apiVersion: z.literal('pact-task-commit/v1'),
-    taskId: z.string().min(1).max(128),
+    binding: z
+      .object({
+        runId: z.string().min(1).max(256),
+        taskId: z.string().min(1).max(128),
+        configDigest: z.string().regex(/^[a-f0-9]{64}$/),
+        taskSetDigest: z.string().regex(/^[a-f0-9]{64}$/),
+        publicTaskDigest: z.string().regex(/^[a-f0-9]{64}$/),
+      })
+      .strict(),
     result: pactTaskResultV1Schema,
     evaluation: pactTaskEvaluationRecordV1Schema,
     trace: z.array(pactTraceEventV1Schema).max(100_000),
   })
   .strict()
-  .superRefine((commit, context) => {
+  .superRefine((payload, context) => {
     if (
-      commit.taskId !== commit.result.taskId
-      || commit.taskId !== commit.evaluation.taskId
-      || commit.result.kind !== commit.evaluation.evaluation.kind
-      || commit.trace.some(event => event.taskId !== commit.taskId)
+      payload.binding.taskId !== payload.result.taskId
+      || payload.binding.taskId !== payload.evaluation.taskId
+      || payload.result.kind !== payload.evaluation.evaluation.kind
+      || payload.trace.some(event =>
+        event.taskId !== payload.binding.taskId
+        || event.runId !== payload.binding.runId)
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'task id must agree across every committed task artifact',
+        message: 'run and task identity must agree across every committed artifact',
       });
     }
   });
+
+export const pactTaskCommitV1Schema = z
+  .object({
+    apiVersion: z.literal('pact-task-commit/v1'),
+    payloadDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    payload: pactTaskCommitPayloadV1Schema,
+  })
+  .strict();
 
 // The suite owns the canonical TypeScript types; these aliases keep artifact
 // consumers on the same names the schemas historically exported.
@@ -515,13 +602,7 @@ export type PactTaskEvaluationRecordV1 = {
   evaluation: PactPairEvaluationV1;
   metrics: MetricContribution[];
 };
-export type PactTaskCommitV1 = {
-  apiVersion: 'pact-task-commit/v1';
-  taskId: string;
-  result: SuitePactPairTaskResultV1;
-  evaluation: PactTaskEvaluationRecordV1;
-  trace: PactPairTraceEventV1[];
-};
+export type PactTaskCommitV1 = z.infer<typeof pactTaskCommitV1Schema>;
 export type {
   PactPairPublicActionEvaluationV1,
   PactPairPublicEvaluationV1,

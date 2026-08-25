@@ -434,8 +434,13 @@ test('streams each settled trial to the host once while the job runs', async t =
     tasks: fixture.tasks,
     untilSettled: jobDone,
     pollIntervalMs: 10,
+    runId: 'authoritative-host-run',
     onTaskRun: async taskRun => {
       assert.equal(jobFinished, false, 'trials must stream before the job exits');
+      assert.equal(
+        taskRun.trace.every(event => event.runId === 'authoritative-host-run'),
+        true,
+      );
       emissions.push(taskRun.result.taskId);
     },
   });

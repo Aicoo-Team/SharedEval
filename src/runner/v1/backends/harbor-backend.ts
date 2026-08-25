@@ -143,6 +143,9 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
   async run(
     context: PactExecutionBackendRunContextV1,
   ): Promise<PactExecutionBackendRunResultV1> {
+    const checkpointHostRun = async (taskRun: PactExecutionTaskRunV1) => {
+      await context.onTaskRun?.(bindPactPairTraceToHostRun(taskRun, context.runId));
+    };
     const orchestration = await runHarborTrialsV1({
       repositoryRoot: this.repositoryRoot,
       harborExecutable: this.harborExecutable,
@@ -161,6 +164,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
         tasks: context.tasks,
         untilSettled,
         pollIntervalMs: this.streamPollIntervalMs,
+        runId: context.runId,
         onTaskRun: context.onTaskRun,
       }),
     });
@@ -176,7 +180,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
           message: orchestration.failures.get(task.taskId)
             ?? orchestration.missingMessage,
         });
-      await context.onTaskRun?.(taskRun);
+      await checkpointHostRun(taskRun);
     }
     return { execution: orchestration.execution };
   }
@@ -403,6 +407,8 @@ export type StreamHarborTrialsV1Options = {
   /** Settles (resolve or reject) when the `harbor run` command exits. */
   untilSettled: Promise<unknown>;
   pollIntervalMs: number;
+  /** Authoritative host run id used to rebind container-local trace ids. */
+  runId?: string;
   onTaskRun?: (taskRun: PactExecutionTaskRunV1) => Promise<void>;
 };
 
@@ -438,7 +444,9 @@ export async function streamHarborTrialsV1(
       const trial = trials.get(task.taskId);
       if (!trial || emitted.has(task.taskId)) continue;
       try {
-        await options.onTaskRun?.(trial);
+        await options.onTaskRun?.(options.runId
+          ? bindPactPairTraceToHostRun(trial, options.runId)
+          : trial);
       } catch {
         continue;
       }
@@ -446,6 +454,16 @@ export async function streamHarborTrialsV1(
     }
   }
   return emitted;
+}
+
+function bindPactPairTraceToHostRun(
+  taskRun: PactExecutionTaskRunV1,
+  runId: string,
+): PactExecutionTaskRunV1 {
+  return {
+    ...taskRun,
+    trace: taskRun.trace.map(event => ({ ...event, runId })),
+  };
 }
 
 async function settledOrDelay(

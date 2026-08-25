@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
@@ -21,9 +21,11 @@ import {
 } from '../../runner/v1/backends/index.js';
 import {
   acquirePactPairRunWriterLockV1,
+  atomicWritePactPairRunFileV1,
   canonicalizePactPairRunArtifactsV1,
   commitPactPairTaskRunV1,
   compactResumedRunArtifactsV1,
+  createPactPairRunDirectoryWithWriterLockV1,
   loadPactPairResumeStateV1,
   PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1,
   type PactPairResumeStateV1,
@@ -213,6 +215,8 @@ export type PactPairRunResultV1 = {
    * 'model' the trials were NOT produced by that model.
    */
   execution: PactRunExecutionMetadataV1;
+  executionProjection: 'all-outcomes' | 'latest-attempt';
+  executionAttempts: PactPairRunExecutionAttemptV1[];
   benchmark: PactRunConfigV1['benchmark'];
   policyProvenance: {
     id: PactRunConfigV1['benchmark']['policy'];
@@ -237,6 +241,11 @@ export type PactPairRunResultV1 = {
   resumes?: PactPairRunResumeRecordV1[];
   summary: PactPairRunSummaryV1;
   tasks: PactPairTaskResultV1[];
+};
+
+export type PactPairRunExecutionAttemptV1 = {
+  taskIds: string[];
+  execution: PactRunExecutionMetadataV1;
 };
 
 export type PactPairRunResumeRecordV1 = {
@@ -328,6 +337,7 @@ export async function runPactPairBenchmarkV1(
   let outputDirectory: string | undefined;
   let pendingTasks = tasks;
   let writerLock: PactPairRunWriterLockV1 | undefined;
+  const seed = options.seed ?? loadCanonicalPactPairStoreV1();
   try {
     if (options.resume !== undefined) {
       if (options.writeOutputs === false) {
@@ -350,6 +360,12 @@ export async function runPactPairBenchmarkV1(
         tasks,
         configDigest,
         taskSetDigest,
+        model: runMetadataModelV1(runConfig.model),
+        benchmark: runConfig.benchmark,
+        budget: runConfig.budget,
+        policyProvenance,
+        sourceRevision,
+        seed,
       });
       runId = resumeState.runId;
       const pendingIds = new Set([
@@ -371,24 +387,34 @@ export async function runPactPairBenchmarkV1(
         keepTaskIds: new Set(resumeState.selection.completedTaskIds),
         saveTraces: runConfig.output.saveTraces,
       });
-      await writeFile(join(outputDirectory, 'run.json'), prettyJson({
+      await atomicWritePactPairRunFileV1(join(outputDirectory, 'run.json'), prettyJson({
         runId,
         status: 'running',
         startedAt: resumeState.startedAt,
-        model: runMetadataModelV1(runConfig.model),
-        execution: defaultExecution,
-        benchmark: runConfig.benchmark,
-        policyProvenance,
-        budget: runConfig.budget,
+        model: resumeState.metadata.model,
+        ...(resumeState.metadata.execution
+          ? { execution: resumeState.metadata.execution }
+          : {}),
+        ...(resumeState.metadata.executionProjection
+          ? { executionProjection: resumeState.metadata.executionProjection }
+          : {}),
+        ...(resumeState.metadata.executionAttempts
+          ? { executionAttempts: resumeState.metadata.executionAttempts }
+          : {}),
+        benchmark: resumeState.metadata.benchmark,
+        policyProvenance: resumeState.metadata.policyProvenance,
+        budget: resumeState.metadata.budget,
         configDigest,
         taskSetDigest,
         selectedTasks: tasks.length,
-        ...(sourceRevision ? { sourceRevision } : {}),
+        ...(resumeState.metadata.sourceRevision
+          ? { sourceRevision: resumeState.metadata.sourceRevision }
+          : {}),
         resumed: true,
         resumes,
-      }), 'utf8');
+      }));
     } else if (options.writeOutputs !== false) {
-      outputDirectory = await prepareRunOutputDirectory({
+      const prepared = await prepareRunOutputDirectory({
         workingDirectory: options.workingDirectory ?? process.cwd(),
         configuredDirectory: runConfig.output.directory,
         runId,
@@ -404,10 +430,10 @@ export async function runPactPairBenchmarkV1(
         selectedTasks: tasks.length,
         saveTraces: runConfig.output.saveTraces,
       });
-      writerLock = await acquirePactPairRunWriterLockV1(outputDirectory);
+      outputDirectory = prepared.outputDirectory;
+      writerLock = prepared.writerLock;
     }
 
-    const seed = options.seed ?? loadCanonicalPactPairStoreV1();
     const harnessFactory = options.harnessFactory
       ?? options.adapterFactory
       ?? (context => createOpenAICompatiblePactHarnessV1(context.config, { environment }));
@@ -433,6 +459,9 @@ export async function runPactPairBenchmarkV1(
             if (outputDirectory) {
               await commitPactPairTaskRunV1({
                 runDirectory: outputDirectory,
+                runId,
+                configDigest,
+                taskSetDigest,
                 taskRun,
                 saveTraces: runConfig.output.saveTraces,
                 checkpoint: {
@@ -447,7 +476,29 @@ export async function runPactPairBenchmarkV1(
           },
         });
     const aborted = execution.aborted;
+    const retainedAttempts = resumeState
+      ? retainedExecutionAttempts(
+          resumeState.metadata,
+          resumeState.selection.completedTaskIds,
+        )
+      : [];
+    const freshTaskIds = tasks
+      .map(task => task.taskId)
+      .filter(taskId => taskRuns.has(taskId));
     const executionMetadata = execution.execution ?? defaultExecution;
+    const executionAttempts = [
+      ...retainedAttempts,
+      ...(freshTaskIds.length > 0
+        ? [{ taskIds: freshTaskIds, execution: executionMetadata }]
+        : []),
+    ];
+    if (executionAttempts.length === 0) {
+      throw new Error('PACT-Pair run produced no committed task outcomes');
+    }
+    const executionProjection = executionProjectionFor(executionAttempts);
+    const projectedExecution = executionProjection === 'all-outcomes'
+      ? executionAttempts[0]!.execution
+      : executionAttempts.at(-1)!.execution;
 
     const completedAt = now().toISOString();
     // Canonical task order for the aggregate result: retained and freshly run
@@ -465,13 +516,17 @@ export async function runPactPairBenchmarkV1(
       status: summary.errors > 0 ? 'completed_with_errors' : 'completed',
       selectedTasks: tasks.length,
       model: runMetadataModelV1(runConfig.model),
-      execution: executionMetadata,
-      benchmark: runConfig.benchmark,
-      policyProvenance,
-      budget: runConfig.budget,
+      execution: projectedExecution,
+      executionProjection,
+      executionAttempts,
+      benchmark: resumeState?.metadata.benchmark ?? runConfig.benchmark,
+      policyProvenance: resumeState?.metadata.policyProvenance ?? policyProvenance,
+      budget: resumeState?.metadata.budget ?? runConfig.budget,
       configDigest,
       taskSetDigest,
-      ...(sourceRevision ? { sourceRevision } : {}),
+      ...((resumeState?.metadata.sourceRevision ?? sourceRevision)
+        ? { sourceRevision: resumeState?.metadata.sourceRevision ?? sourceRevision }
+        : {}),
       ...(aborted ? { aborted } : {}),
       ...(outputDirectory ? { outputDirectory } : {}),
       ...(resumes ? { resumed: true as const, resumes } : {}),
@@ -509,6 +564,45 @@ function resolveExecutionBackend(
   }
   if (selected.kind === 'local') return new LocalBackendV1();
   return new HarborBackendV1();
+}
+
+function retainedExecutionAttempts(
+  metadata: PactPairResumeStateV1['metadata'],
+  retainedTaskIds: readonly string[],
+): PactPairRunExecutionAttemptV1[] {
+  if (retainedTaskIds.length === 0) return [];
+  const retained = new Set(retainedTaskIds);
+  if (metadata.executionAttempts === undefined) {
+    if (metadata.execution === undefined) {
+      throw new Error(
+        'Cannot resume committed outcomes without recorded execution provenance',
+      );
+    }
+    return [{ taskIds: [...retainedTaskIds], execution: metadata.execution }];
+  }
+  const attempts = metadata.executionAttempts
+    .map(attempt => ({
+      taskIds: attempt.taskIds.filter(taskId => retained.has(taskId)),
+      execution: attempt.execution,
+    }))
+    .filter(attempt => attempt.taskIds.length > 0);
+  const covered = new Set(attempts.flatMap(attempt => attempt.taskIds));
+  const missing = retainedTaskIds.find(taskId => !covered.has(taskId));
+  if (missing !== undefined) {
+    throw new Error(
+      `Cannot resume task ${missing}: no authoritative execution provenance is recorded`,
+    );
+  }
+  return attempts;
+}
+
+function executionProjectionFor(
+  attempts: readonly PactPairRunExecutionAttemptV1[],
+): 'all-outcomes' | 'latest-attempt' {
+  const identity = JSON.stringify(attempts[0]?.execution);
+  return attempts.every(attempt => JSON.stringify(attempt.execution) === identity)
+    ? 'all-outcomes'
+    : 'latest-attempt';
 }
 
 function runMetadataModelV1(
@@ -564,35 +658,37 @@ async function prepareRunOutputDirectory(options: {
   sourceRevision?: string;
   selectedTasks: number;
   saveTraces: boolean,
-}): Promise<string> {
+}): Promise<{
+  outputDirectory: string;
+  writerLock: PactPairRunWriterLockV1;
+}> {
   const outputRoot = resolve(options.workingDirectory, options.configuredDirectory);
   const outputDirectory = join(outputRoot, safeRunDirectoryName(options.runId));
-  await mkdir(outputRoot, { recursive: true });
-  // An existing run id is a provenance collision, not a directory to overwrite.
-  await mkdir(outputDirectory);
-  // Gold-bearing artifacts live only under private/ and only when the
-  // retention switch (output.saveTraces) is on. See the private-artifact
-  // contract next to PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1.
-  if (options.saveTraces) {
-    await mkdir(privateArtifactDirectory(outputDirectory));
-  }
-  await Promise.all([
-    writeFile(join(outputDirectory, 'results.jsonl'), '', 'utf8'),
-    ...(options.saveTraces
-      ? [
-          writeFile(
-            join(privateArtifactDirectory(outputDirectory), 'evaluation.jsonl'),
-            '',
-            'utf8',
-          ),
-          writeFile(
-            join(privateArtifactDirectory(outputDirectory), 'trace.jsonl'),
-            '',
-            'utf8',
-          ),
-        ]
-      : []),
-    writeFile(join(outputDirectory, 'run.json'), prettyJson({
+  const writerLock = await createPactPairRunDirectoryWithWriterLockV1(
+    outputDirectory,
+  );
+  try {
+    // Gold-bearing artifacts live only under private/ and only when the
+    // retention switch (output.saveTraces) is on. See the private-artifact
+    // contract next to PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1.
+    if (options.saveTraces) {
+      await mkdir(privateArtifactDirectory(outputDirectory));
+    }
+    await atomicWritePactPairRunFileV1(
+      join(outputDirectory, 'results.jsonl'),
+      '',
+    );
+    if (options.saveTraces) {
+      await atomicWritePactPairRunFileV1(
+        join(privateArtifactDirectory(outputDirectory), 'evaluation.jsonl'),
+        '',
+      );
+      await atomicWritePactPairRunFileV1(
+        join(privateArtifactDirectory(outputDirectory), 'trace.jsonl'),
+        '',
+      );
+    }
+    await atomicWritePactPairRunFileV1(join(outputDirectory, 'run.json'), prettyJson({
       runId: options.runId,
       status: 'running',
       startedAt: options.startedAt,
@@ -605,9 +701,12 @@ async function prepareRunOutputDirectory(options: {
       taskSetDigest: options.taskSetDigest,
       selectedTasks: options.selectedTasks,
       ...(options.sourceRevision ? { sourceRevision: options.sourceRevision } : {}),
-    }), 'utf8'),
-  ]);
-  return outputDirectory;
+    }));
+    return { outputDirectory, writerLock };
+  } catch (error) {
+    await writerLock.release();
+    throw error;
+  }
 }
 
 function privateArtifactDirectory(outputDirectory: string): string {
@@ -625,6 +724,8 @@ async function finalizeRunOutputs(
     completedAt: result.completedAt,
     model: result.model,
     execution: result.execution,
+    executionProjection: result.executionProjection,
+    executionAttempts: result.executionAttempts,
     benchmark: result.benchmark,
     policyProvenance: result.policyProvenance,
     budget: result.budget,
@@ -636,17 +737,26 @@ async function finalizeRunOutputs(
     ...(result.aborted ? { aborted: result.aborted } : {}),
     ...(result.resumed ? { resumed: true, resumes: result.resumes } : {}),
   };
-  await Promise.all([
-    writeFile(join(outputDirectory, 'run.json'), prettyJson(runMetadata), 'utf8'),
-    writeFile(join(outputDirectory, 'summary.json'), prettyJson(result.summary), 'utf8'),
-    writeFile(join(outputDirectory, 'checkpoint.json'), prettyJson({
+  // The checkpoint is the completion marker and therefore publishes last.
+  // Until both summary and run metadata are durable, recovery sees `running`.
+  await atomicWritePactPairRunFileV1(
+    join(outputDirectory, 'summary.json'),
+    prettyJson(result.summary),
+  );
+  await atomicWritePactPairRunFileV1(
+    join(outputDirectory, 'run.json'),
+    prettyJson(runMetadata),
+  );
+  await atomicWritePactPairRunFileV1(
+    join(outputDirectory, 'checkpoint.json'),
+    prettyJson({
       status: result.status,
       completedTasks: result.tasks.length,
       selectedTasks: result.selectedTasks,
       lastTaskId: result.tasks.at(-1)?.taskId ?? null,
       errors: result.summary.errors,
-    }), 'utf8'),
-  ]);
+    }),
+  );
 }
 
 function resolveSourceRevision(rootDir: string): string | undefined {
