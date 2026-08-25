@@ -361,6 +361,7 @@ export async function runPactPairBenchmarkV1(
   let outputDirectory: string | undefined;
   let pendingTasks = tasks;
   let writerLock: PactPairRunWriterLockV1 | undefined;
+  let retainedAttempts: PactPairRunExecutionAttemptV1[] = [];
   const seed = options.seed ?? loadCanonicalPactPairStoreV1();
   try {
     if (options.resume !== undefined) {
@@ -392,6 +393,22 @@ export async function runPactPairBenchmarkV1(
         seed,
       });
       runId = resumeState.runId;
+      // Promote any in-progress execution authority into the durable per-task
+      // projection before replacing run.json. From this point onward every
+      // observable metadata state must still bind each retained task commit's
+      // executionDigest, even if later canonical finalization tears.
+      retainedAttempts = retainedExecutionAttempts(
+        resumeState.metadata,
+        resumeState.selection.completedTaskIds,
+      );
+      const retainedProjection = retainedAttempts.length > 0
+        ? executionProjectionFor(retainedAttempts)
+        : undefined;
+      const retainedExecution = retainedProjection === undefined
+        ? undefined
+        : retainedProjection === 'all-outcomes'
+          ? retainedAttempts[0]!.execution
+          : retainedAttempts.at(-1)!.execution;
       const pendingIds = new Set([
         ...resumeState.selection.retryTaskIds,
         ...resumeState.selection.missingTaskIds,
@@ -416,14 +433,14 @@ export async function runPactPairBenchmarkV1(
         status: 'running',
         startedAt: resumeState.startedAt,
         model: resumeState.metadata.model,
-        ...(resumeState.metadata.execution
-          ? { execution: resumeState.metadata.execution }
+        ...(retainedExecution
+          ? { execution: retainedExecution }
           : {}),
-        ...(resumeState.metadata.executionProjection
-          ? { executionProjection: resumeState.metadata.executionProjection }
+        ...(retainedProjection
+          ? { executionProjection: retainedProjection }
           : {}),
-        ...(resumeState.metadata.executionAttempts
-          ? { executionAttempts: resumeState.metadata.executionAttempts }
+        ...(retainedAttempts.length > 0
+          ? { executionAttempts: retainedAttempts }
           : {}),
         benchmark: resumeState.metadata.benchmark,
         policyProvenance: resumeState.metadata.policyProvenance,
@@ -523,12 +540,6 @@ export async function runPactPairBenchmarkV1(
       ? {}
       : await backend.run(backendRunContext);
     const aborted = execution.aborted;
-    const retainedAttempts = resumeState
-      ? retainedExecutionAttempts(
-          resumeState.metadata,
-          resumeState.selection.completedTaskIds,
-        )
-      : [];
     const freshTaskIds = tasks
       .map(task => task.taskId)
       .filter(taskId => taskRuns.has(taskId));

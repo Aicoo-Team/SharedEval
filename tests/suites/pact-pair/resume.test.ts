@@ -773,7 +773,7 @@ test('no-op Harbor resume preserves exact execution, policy, and source provenan
   assert.equal(resumedMetadata.sourceRevision, firstMetadata.sourceRevision);
 });
 
-test('resume preserves execution identity committed before a backend return failure', async t => {
+test('repeated resume preserves pre-return execution identity across torn finalization', async t => {
   const workingDirectory = mkdtempSync(join(tmpdir(), 'pact-execution-authority-'));
   t.after(() => rmSync(workingDirectory, { recursive: true, force: true }));
   const config = configForBackend(['Q1'], 'harbor');
@@ -822,6 +822,26 @@ test('resume preserves execution identity committed before a backend return fail
   assert.equal(modelActions, 1);
   assert.equal(readLines(join(runDirectory, 'results.jsonl')).length, 1);
 
+  // The first resume rewrites running run.json before finalization. Force the
+  // later summary publication to fail so a second process must recover from
+  // that observable intermediate metadata state.
+  const summaryPath = join(runDirectory, 'summary.json');
+  mkdirSync(summaryPath);
+  await assert.rejects(
+    runPactPairBenchmarkV1(config, {
+      adapterFactory: () => {
+        throw new Error('durably committed task must not execute on resume');
+      },
+      executionBackend: crashAfterCommitBackend,
+      workingDirectory,
+      resume: runDirectory,
+    }),
+    /directory|EISDIR|ENOTEMPTY|EEXIST/i,
+  );
+  assert.equal(modelActions, 1);
+  assert.equal(backendCalls, 1);
+
+  rmSync(summaryPath, { recursive: true });
   const resumed = await runPactPairBenchmarkV1(config, {
     adapterFactory: () => {
       throw new Error('durably committed task must not execute on resume');
