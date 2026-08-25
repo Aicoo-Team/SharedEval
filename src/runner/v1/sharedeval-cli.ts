@@ -10,6 +10,7 @@ import {
   type SharedevalCliOverridesV1,
 } from './sharedeval-config.js';
 import { resolveWorkflow, type ResolvedSharedevalWorkflowV1 } from './workflow.js';
+import { mainLegacyMultiTranscriptCliV1 } from '../../suites/pact-pair/legacy-transcript/cli.js';
 
 export type SharedevalCliOptionsV1 = SharedevalCliOverridesV1 & {
   configPath: string;
@@ -100,6 +101,9 @@ export function parseSharedevalCliArgumentsV1(argv: string[]): SharedevalCliOpti
 }
 
 export async function mainSharedevalV1(argv = process.argv.slice(2)): Promise<number> {
+  if (hasExplicitLegacyMultiRouteV1(argv)) {
+    return mainLegacyMultiTranscriptCliV1(argv);
+  }
   const options = parseSharedevalCliArgumentsV1(argv);
   if (options.workflow.protocol !== 'files') {
     return dispatchLegacyV1(options);
@@ -124,6 +128,24 @@ export async function mainSharedevalV1(argv = process.argv.slice(2)): Promise<nu
   throw new Error(
     'File-driven Sharedeval execution is not available yet; use --check or single --legacy for the existing runner',
   );
+}
+
+function hasExplicitLegacyMultiRouteV1(argv: readonly string[]): boolean {
+  let explicitMulti = false;
+  let legacy = false;
+  const valueArguments = new Set([
+    '--config', '-c', '--task', '--tasks', '--max-ticks', '--resume',
+  ]);
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument && valueArguments.has(argument)) {
+      index += 1;
+      continue;
+    }
+    if (argument === 'multi') explicitMulti = true;
+    if (argument === '--legacy') legacy = true;
+  }
+  return explicitMulti && legacy;
 }
 
 async function dispatchLegacyV1(options: SharedevalCliOptionsV1): Promise<number> {

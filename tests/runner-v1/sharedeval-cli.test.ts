@@ -85,6 +85,56 @@ test('recognizes quoted historical YAML with an inline comment before any model 
   }
 });
 
+test('npm run sharedeval routes explicit multi --legacy through the legacy transcript authority', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'sharedeval-legacy-multi-'));
+  const configPath = path.join(directory, 'legacy.json');
+  await writeFile(configPath, JSON.stringify(legacyMultiCheckConfig()), 'utf8');
+  try {
+    const command = spawnSync('npm', [
+      'run', 'sharedeval', '--',
+      'multi', '--legacy', '--config', configPath, '--check',
+    ], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: { ...process.env, PACT_MODEL_API_KEY: 'test-only-key' },
+    });
+
+    assert.equal(command.status, 0, command.stderr);
+    assert.match(command.stdout, /"workflowId": "legacy-multi-transcript"/);
+    assert.match(command.stdout, /preflight completed without creating factories or calling a model API/i);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('explicit legacy multi rejects resume and duplicate or contradictory flags before config loading', async () => {
+  await assert.rejects(
+    () => mainSharedevalV1([
+      'multi', '--legacy', '--resume', 'prior-run', '--config', 'missing.yaml',
+    ]),
+    /resume.*not supported.*start a new run/i,
+  );
+  await assert.rejects(
+    () => mainSharedevalV1([
+      'multi', '--legacy', '--config', 'first.yaml', '--config', 'second.yaml',
+    ]),
+    /accepts --config only once/i,
+  );
+  await assert.rejects(
+    () => mainSharedevalV1([
+      'multi', '--legacy', '--config', 'missing.yaml',
+      '--task', 'PAIR-Q1', '--tasks', 'PAIR-Q2',
+    ]),
+    /either --task or --tasks/i,
+  );
+  await assert.rejects(
+    () => mainSharedevalV1([
+      'multi', 'single', '--legacy', '--config', 'missing.yaml',
+    ]),
+    /accepts only one workflow mode/i,
+  );
+});
+
 test('marks the benchmark command as deprecated while preserving its legacy CLI', () => {
   const command = spawnSync('npm', ['run', 'benchmark', '--', '--help'], {
     cwd: process.cwd(),
@@ -95,3 +145,43 @@ test('marks the benchmark command as deprecated while preserving its legacy CLI'
   assert.match(command.stderr, /deprecated/i);
   assert.match(command.stdout, /Usage: npm run benchmark/);
 });
+
+function legacyMultiCheckConfig() {
+  return {
+    apiVersion: 'pact-run/v1',
+    kind: 'RunConfig',
+    backend: { kind: 'local' },
+    model: {
+      provider: 'openai-compatible',
+      baseUrl: 'https://provider.example/v1',
+      apiKeyEnv: 'PACT_MODEL_API_KEY',
+      model: 'responder-v1',
+      maxOutputTokens: 100,
+    },
+    benchmark: {
+      dataset: 'pact-pair',
+      policy: 'D2',
+      requester: 'R1',
+      gradingMode: 'category',
+      tasks: { kind: 'all', limit: 1 },
+      execution: { adapter: 'pact-public-runner' },
+      agentConfig: {
+        persona: 'alex',
+        coo: 'dataset/pact-pair/agent_configs/alex/COO.md',
+        policy: 'dataset/pact-pair/agent_configs/alex/POLICY.md',
+        memory: 'dataset/pact-pair/agent_configs/alex/MEMORY.md',
+      },
+      trajectory: {
+        maxTicks: 1,
+        count: 1,
+        maxRuntimeMs: 1_000,
+        requesterDriver: {
+          kind: 'scripted',
+          script: 'dataset/pact-pair/legacy-transcript/scripted_driver_v1.json',
+        },
+      },
+    },
+    budget: { maxTurns: 1, maxToolCalls: 1, maxRuntimeMs: 1_000 },
+    output: { directory: 'runs', saveTraces: false },
+  };
+}
