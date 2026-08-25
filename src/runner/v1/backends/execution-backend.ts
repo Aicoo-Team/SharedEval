@@ -42,7 +42,7 @@ export type PactRunExecutionMetadataV1 = {
 export type PactExecutionBackendRunResultV1 = {
   aborted?: {
     afterTaskId: string;
-    reason: 'provider_configuration_error';
+    reason: 'provider_configuration_error' | 'consecutive_infrastructure_errors';
   };
   /**
    * Backend-reported execution provenance. When absent the host derives it

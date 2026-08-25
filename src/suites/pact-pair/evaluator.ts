@@ -90,6 +90,20 @@ export function normalizePactPairTextV1(value: string): string {
     .trim();
 }
 
+const MIN_LOOSE_MATCH_CORE_LENGTH_V1 = 4;
+
+function factMatchCore(value: string): string {
+  return value.replace(/[^\p{L}\p{N}$%]/gu, '');
+}
+
+function containsBoundaryExactFact(text: string, candidate: string): boolean {
+  const escaped = candidate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(
+    `(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`,
+    'u',
+  ).test(text);
+}
+
 /**
  * Deterministically checks whether a response contains a gold fact. It accepts
  * punctuation/spacing differences, a stripped "label: value" prefix, common
@@ -101,6 +115,10 @@ export function containsPactPairFactV1(text: string, fact: string): boolean {
   for (const candidate of factCandidates(fact)) {
     const normalizedCandidate = normalizePactPairTextV1(candidate);
     if (!normalizedCandidate) continue;
+    if (factMatchCore(normalizedCandidate).length < MIN_LOOSE_MATCH_CORE_LENGTH_V1) {
+      if (containsBoundaryExactFact(normalizedText, normalizedCandidate)) return true;
+      continue;
+    }
     if (normalizedText.includes(normalizedCandidate)) return true;
     if (compactText.includes(compactForMatch(normalizedCandidate))) return true;
     if (currencyVariants(normalizedCandidate).some(variant => normalizedText.includes(variant))) {

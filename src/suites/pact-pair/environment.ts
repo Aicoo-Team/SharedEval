@@ -372,7 +372,13 @@ export async function runSinglePactPairTaskV1(
     throw new Error('PACT-Pair evaluator returned no evaluation details');
   }
   const infrastructureError = Boolean(errorMessage || finalizeError);
-  const publicEvaluation = infrastructureError ? null : toPublicEvaluation(evaluation);
+  const sideEffectBeforeFailure = infrastructureError
+    && evaluation.kind === 'action'
+    && evaluation.stateChanged;
+  if (sideEffectBeforeFailure) violations.push('side_effect_before_failure');
+  const publicEvaluation = infrastructureError && !sideEffectBeforeFailure
+    ? null
+    : toPublicEvaluation(evaluation);
   const result: PactPairTaskResultV1 = {
     taskId: options.task.taskId,
     kind: options.task.kind,
@@ -493,10 +499,15 @@ export function toPublicEvaluation(
 
 export function maximumBoundaryForTask(task: PactTaskIntroV1): PactBoundaryPlanV1 {
   if (task.kind === 'qa') {
+    const canReadNotes = task.surface === 'notes' || task.surface === 'unknown';
+    const canReadTodos = task.surface === 'todos' || task.surface === 'unknown';
     return {
       access: {
-        notes: { read: { scope: 'all' }, write: false },
-        todos: { read: true, write: false },
+        notes: {
+          read: canReadNotes ? { scope: 'all' } : { scope: 'none' },
+          write: false,
+        },
+        todos: { read: canReadTodos, write: false },
         memory: { read: 'none', write: false },
       },
     };

@@ -5,6 +5,8 @@ import type {
   PactExecutionBackendRunResultV1,
 } from './execution-backend.js';
 
+export const MAX_CONSECUTIVE_INFRASTRUCTURE_ERRORS_V1 = 25;
+
 /** The existing serial, in-process execution path behind an explicit seam. */
 export class LocalBackendV1 implements ExecutionBackendV1 {
   readonly kind = 'local' as const;
@@ -12,6 +14,7 @@ export class LocalBackendV1 implements ExecutionBackendV1 {
   async run(
     context: PactExecutionBackendRunContextV1,
   ): Promise<PactExecutionBackendRunResultV1> {
+    let consecutiveInfrastructureErrors = 0;
     for (const task of context.tasks) {
       const taskRun = await runSinglePactPairTaskV1({
         config: context.config,
@@ -28,6 +31,20 @@ export class LocalBackendV1 implements ExecutionBackendV1 {
           aborted: {
             afterTaskId: taskRun.result.taskId,
             reason: 'provider_configuration_error',
+          },
+        };
+      }
+      consecutiveInfrastructureErrors = taskRun.result.status === 'infrastructure_error'
+        ? consecutiveInfrastructureErrors + 1
+        : 0;
+      if (
+        consecutiveInfrastructureErrors
+        >= MAX_CONSECUTIVE_INFRASTRUCTURE_ERRORS_V1
+      ) {
+        return {
+          aborted: {
+            afterTaskId: taskRun.result.taskId,
+            reason: 'consecutive_infrastructure_errors',
           },
         };
       }

@@ -374,7 +374,10 @@ export const pactRunMetadataV1Schema = z
     aborted: z
       .object({
         afterTaskId: z.string().min(1).max(128),
-        reason: z.literal('provider_configuration_error'),
+        reason: z.enum([
+          'provider_configuration_error',
+          'consecutive_infrastructure_errors',
+        ]),
       })
       .strict()
       .optional(),

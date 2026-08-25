@@ -46,6 +46,10 @@ export type OpenAICompatiblePactHarnessV1Options = {
   fetch?: FetchImplementation;
   environment?: Record<string, string | undefined>;
   timeoutMs?: number;
+  /** Injectable only to make the equal-jitter retry schedule deterministic. */
+  retryRandom?: () => number;
+  /** Injectable clock boundary; production uses the abort-aware timer below. */
+  retryWait?: typeof waitForProviderRetry;
 };
 
 export class PactProviderRequestErrorV1 extends Error {
@@ -228,6 +232,8 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
   private readonly authHeaders: Readonly<Record<string, string>>;
   private readonly requestModel: string;
   private readonly configuredTimeoutMs: number;
+  private readonly retryRandom: () => number;
+  private readonly retryWait: typeof waitForProviderRetry;
   private requestTimeoutMs: number;
   private runInit: PactRunInitV1 | null = null;
   private messages: OpenAICompatibleMessage[] = [];
@@ -255,6 +261,8 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
     this.configuredTimeoutMs = validateTimeout(
       options.timeoutMs ?? config.budget.maxRuntimeMs,
     );
+    this.retryRandom = options.retryRandom ?? Math.random;
+    this.retryWait = options.retryWait ?? waitForProviderRetry;
     this.requestTimeoutMs = this.configuredTimeoutMs;
   }
 
@@ -574,8 +582,8 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
             throw new Error(`OpenAI-compatible provider timed out after ${timeoutMs}ms`);
           }
           if (attempt < MAX_PROVIDER_ATTEMPTS_V1) {
-            await waitForProviderRetry(
-              retryDelayMs(attempt),
+            await this.retryWait(
+              retryDelayMs(attempt, this.retryRandom),
               abortController.signal,
               timeoutMs,
             );
@@ -611,10 +619,14 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
         }
         if (!response.ok) {
           const retryable = failureRetryable;
-          const retryDelay = providerRetryDelayMs(response, attempt);
+          const retryDelay = providerRetryDelayMs(
+            response,
+            attempt,
+            this.retryRandom,
+          );
           await cancelProviderResponseBody(response);
           if (retryable && attempt < MAX_PROVIDER_ATTEMPTS_V1) {
-            await waitForProviderRetry(
+            await this.retryWait(
               retryDelay,
               abortController.signal,
               timeoutMs,
@@ -914,7 +926,11 @@ function isRedirectProviderResponse(response: Response): boolean {
     || response.type === 'opaqueredirect';
 }
 
-function providerRetryDelayMs(response: Response, attempt: number): number {
+function providerRetryDelayMs(
+  response: Response,
+  attempt: number,
+  random: () => number,
+): number {
   const retryAfter = response.headers.get('retry-after')?.trim();
   if (retryAfter) {
     const seconds = Number(retryAfter);
@@ -929,11 +945,19 @@ function providerRetryDelayMs(response: Response, attempt: number): number {
       );
     }
   }
-  return retryDelayMs(attempt);
+  return retryDelayMs(attempt, random);
 }
 
-function retryDelayMs(attempt: number): number {
-  return Math.min(MAX_PROVIDER_RETRY_DELAY_MS_V1, 250 * 2 ** (attempt - 1));
+function retryDelayMs(attempt: number, random: () => number): number {
+  const backoff = Math.min(
+    MAX_PROVIDER_RETRY_DELAY_MS_V1,
+    250 * 2 ** (attempt - 1),
+  );
+  const sample = random();
+  if (!Number.isFinite(sample) || sample < 0 || sample > 1) {
+    throw new Error('Provider retry random source must return a number in [0, 1]');
+  }
+  return Math.round(backoff / 2 + sample * (backoff / 2));
 }
 
 async function waitForProviderRetry(

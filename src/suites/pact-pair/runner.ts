@@ -231,7 +231,7 @@ export type PactPairRunResultV1 = {
   sourceRevision?: string;
   aborted?: {
     afterTaskId: string;
-    reason: 'provider_configuration_error';
+    reason: 'provider_configuration_error' | 'consecutive_infrastructure_errors';
   };
   outputDirectory?: string;
   /**
@@ -918,10 +918,13 @@ function summarizeTaskRuns(runs: PactPairSingleTaskRunV1[]): PactPairRunSummaryV
   const results = runs.map(run => run.result);
   const qa = results.filter(result => result.kind === 'qa');
   const actions = results.filter(result => result.kind === 'action');
-  const observedRuns = runs.filter(run => run.result.status === 'ok');
+  // A failed trial that already mutated state remains an observed safety
+  // outcome. It carries a public evaluation and must not disappear from the
+  // live denominators merely because the provider failed afterwards.
+  const observedRuns = runs.filter(run => run.result.evaluation !== null);
   const observedResults = observedRuns.map(run => run.result);
-  const observedQa = qa.filter(result => result.status === 'ok');
-  const observedActions = actions.filter(result => result.status === 'ok');
+  const observedQa = qa.filter(result => result.evaluation !== null);
+  const observedActions = actions.filter(result => result.evaluation !== null);
   const aggregatedMetrics = aggregateEvaluationResults(
     observedRuns.map(run => run.evaluationResult),
     PACT_PAIR_METRIC_NAMES_V1,
@@ -988,7 +991,7 @@ function summarizeTaskRuns(runs: PactPairSingleTaskRunV1[]): PactPairRunSummaryV
       total: qa.length,
       attempted: qa.length,
       observed: observedQa.length,
-      errors: qa.length - observedQa.length,
+      errors: qa.filter(result => result.status === 'infrastructure_error').length,
       scorable: observedQa.filter(result => result.evaluation?.scorable).length,
       correct: observedQa.filter(result => result.evaluation?.correct).length,
       expectedAnswer: expectedAnswers.length,
@@ -1011,7 +1014,8 @@ function summarizeTaskRuns(runs: PactPairSingleTaskRunV1[]): PactPairRunSummaryV
       total: actions.length,
       attempted: actions.length,
       observed: observedActions.length,
-      errors: actions.length - observedActions.length,
+      errors: actions.filter(result =>
+        result.status === 'infrastructure_error').length,
       correct: observedActions.filter(result => result.evaluation?.correct).length,
       expectedExecute: expectedExecutions.length,
       correctExecutions,

@@ -25,6 +25,7 @@ import {
   sharedOsWorldInitV1Schema,
   SHAREDOS_PROTOCOL_VERSION_V1,
   type SharedOsModelProvenanceV1,
+  type SharedOsTurnEventV1,
   type SharedOsToolCallRecordV1,
   type SharedOsTurnRequestV1,
   type SharedOsTurnResultV1,
@@ -44,6 +45,35 @@ import type {
   SoToolResult,
   SoTurnDriver,
 } from './embedded-types.js';
+
+type SharedOsDisplayEventInputV1 = Omit<SharedOsTurnEventV1, 'sequence'>;
+
+/**
+ * Produces a stable chronological display of two independently-clocked event
+ * streams. This is diagnostic ordering only: timestamps do not establish
+ * causal order. Consumers that need causality must use a source-provided
+ * monotonic sequence or the kernel audit log.
+ */
+export function orderSharedOsEventsForDisplayV1(
+  runtimeEvents: readonly SharedOsDisplayEventInputV1[],
+  auditEvents: readonly SharedOsDisplayEventInputV1[],
+): SharedOsTurnEventV1[] {
+  return [...runtimeEvents, ...auditEvents]
+    .map((event, sourceIndex) => {
+      const parsedAt = Date.parse(event.occurredAt);
+      return {
+        event,
+        sourceIndex,
+        displayTime: Number.isFinite(parsedAt)
+          ? parsedAt
+          : Number.POSITIVE_INFINITY,
+      };
+    })
+    .sort((left, right) =>
+      (left.displayTime - right.displayTime)
+      || (left.sourceIndex - right.sourceIndex))
+    .map(({ event }, sequence) => ({ sequence, ...event }));
+}
 
 /**
  * What one PACT world looks like to the embedded adapter. Produced per
@@ -297,18 +327,16 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
         : null;
 
     const runtimeEvents = result.events.map(event => ({
-      sequence: event.sequence,
       type: event.type,
       data: event.data,
       occurredAt: event.occurredAt,
     }));
     // Kernel-level audit records (authorization.checked, tool.invoked, …)
-    // are what make authorization decisions reconstructable from the run
-    // transcript; append this turn's slice after the runtime events.
+    // make authorization decisions reconstructable. Merge them into a stable
+    // display order; the separate clocks do not prove causal ordering.
     const auditEvents = state.test.audit.events
       .filter(event => event.traceId === traceId)
-      .map((event, index) => ({
-        sequence: runtimeEvents.length + index,
+      .map(event => ({
         type: `audit.${event.type}`,
         data: event as unknown,
         occurredAt: event.at,
@@ -323,7 +351,7 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
       status: result.status,
       output,
       toolCalls,
-      events: [...runtimeEvents, ...auditEvents],
+      events: orderSharedOsEventsForDisplayV1(runtimeEvents, auditEvents),
       provenance: this.options.provenance,
       usage: null,
       latencyMs: Math.max(0, this.clock.nowMs() - startedAtMs),
