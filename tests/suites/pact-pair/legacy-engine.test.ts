@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { PactBoundaryPlanV1 } from '../../../src/protocol/v1/index.js';
+import { summarizeLegacyTrajectoriesV1 } from '../../../src/suites/pact-pair/legacy-transcript/artifacts.js';
 import { runLegacyMultiTrajectoryV1 } from '../../../src/suites/pact-pair/legacy-transcript/engine.js';
 import type {
   LegacyRequesterDriverV1,
@@ -72,6 +73,30 @@ class QueueRequester implements LegacyRequesterDriverV1 {
       strategyTaxonomyVersion: 1 as const,
     };
   }
+}
+
+class FailingRequester implements LegacyRequesterDriverV1 {
+  readonly kind = 'model' as const;
+  readonly principalId = 'requester-R1';
+
+  constructor(
+    private readonly message: string,
+    private readonly usage: Record<string, unknown>,
+  ) {}
+
+  async initialize(): Promise<void> {}
+  async nextTick(): Promise<never> { throw new Error(this.message); }
+  async observe(): Promise<void> { throw new Error('failed requester cannot observe'); }
+  finalChecklist() { return [{ taskId: 'PAIR-Q1', status: 'pending' as const, asks: 0 }]; }
+  provenance() {
+    return {
+      kind: 'model' as const,
+      requestedModel: 'requester-v1', servedModels: [],
+      promptRawSha256: 'b'.repeat(64), strategyTaxonomyVersion: 1 as const,
+    };
+  }
+  usageRecords() { return [structuredClone(this.usage)]; }
+  privateTranscript() { return [{ role: 'system', content: 'PRIVATE_REQUESTER_SENTINEL' }]; }
 }
 
 class QueueWorld implements PersistentLegacyWorldV1 {
@@ -195,6 +220,152 @@ test('an action side effect before provider failure stays scored and terminates 
   assert.equal(result.public.ticks.length, 1);
   assert.equal(result.public.ticks[0]?.sideEffectBeforeFailure, true);
   assert.notEqual(result.public.ticks[0]?.evaluation, null);
+  assert.equal(world.inputs.length, 1);
+});
+
+test('any trusted action state change is terminal while an unchanged refusal remains retryable', async () => {
+  const selected = tasks(['PAIR-A1']);
+  const changedCases: Array<{
+    label: string;
+    decision: LegacyWorldTickResultV1['finalDecision'];
+    expectedStatus: 'answered' | 'refused';
+  }> = [
+    { label: 'execute', decision: { type: 'answer', content: 'created' }, expectedStatus: 'answered' },
+    { label: 'refuse', decision: { type: 'refuse', reason: 'cannot help' }, expectedStatus: 'refused' },
+    { label: 'escalate', decision: { type: 'escalate', reason: 'owner review' }, expectedStatus: 'refused' },
+  ];
+
+  for (const [index, scenario] of changedCases.entries()) {
+    const requester = new QueueRequester([
+      { type: 'ask', taskId: 'PAIR-A1', prompt: 'mutate once', phase: 1, strategy: 'first_ask', principalId: 'requester-R1' },
+      { type: 'ask', taskId: 'PAIR-A1', prompt: 'must not mutate twice', phase: 2, strategy: 'repeat', retryOfTick: 1, principalId: 'requester-R1' },
+    ]);
+    const world = new QueueWorld([
+      { status: 'succeeded', terminal: true, mutate: true, decision: scenario.decision },
+      { status: 'succeeded', terminal: true, mutate: true, decision: { type: 'answer', content: 'duplicate' } },
+    ]);
+    const runId = `action-changed-${index + 1}`;
+    const result = await runLegacyMultiTrajectoryV1({
+      runId, trajectoryId: `${runId}:trajectory-1`, tasks: selected,
+      maxTicks: 2, phase2StartTick: 2, trajectoryRuntimeMs: 10_000,
+      tickBudget: { maxTurns: 4, maxToolCalls: 2, maxRuntimeMs: 1_000 },
+      requester, responder: responder(), world,
+    });
+
+    assert.equal(result.public.endReason, 'action_state_changed', scenario.label);
+    assert.equal(result.public.hasInfrastructureError, false, scenario.label);
+    assert.equal(result.public.ticks.length, 1, scenario.label);
+    assert.equal(world.inputs.length, 1, scenario.label);
+    assert.equal(result.public.ticks[0]?.decisionType, scenario.decision.type, scenario.label);
+    assert.equal(result.public.ticks[0]?.retryEligible, false, scenario.label);
+    assert.equal(result.public.ticks[0]?.stateChanged, true, scenario.label);
+    assert.equal(result.public.ticks[0]?.sideEffectBeforeFailure, false, scenario.label);
+    assert.equal(result.public.ticks[0]?.evaluation?.kind, 'action', scenario.label);
+    if (result.public.ticks[0]?.evaluation?.kind !== 'action') {
+      assert.fail(`${scenario.label}: expected action evaluation`);
+    }
+    assert.equal(result.public.ticks[0].evaluation.stateChanged, true, scenario.label);
+    assert.equal(result.public.checklist[0]?.status, scenario.expectedStatus, scenario.label);
+    assert.equal(requester.outcomes[0]?.stateChanged, true, scenario.label);
+  }
+
+  const requester = new QueueRequester([
+    { type: 'ask', taskId: 'PAIR-A1', prompt: 'do not mutate', phase: 1, strategy: 'first_ask', principalId: 'requester-R1' },
+    { type: 'ask', taskId: 'PAIR-A1', prompt: 'retry unchanged refusal', phase: 2, strategy: 'repeat', retryOfTick: 1, principalId: 'requester-R1' },
+  ]);
+  const world = new QueueWorld([
+    { status: 'succeeded', terminal: true, decision: { type: 'refuse', reason: 'unchanged' } },
+    { status: 'succeeded', terminal: true, decision: { type: 'answer', content: 'still unchanged' } },
+  ]);
+  const unchanged = await runLegacyMultiTrajectoryV1({
+    runId: 'action-unchanged', trajectoryId: 'action-unchanged:trajectory-1', tasks: selected,
+    maxTicks: 2, phase2StartTick: 2, trajectoryRuntimeMs: 10_000,
+    tickBudget: { maxTurns: 4, maxToolCalls: 2, maxRuntimeMs: 1_000 },
+    requester, responder: responder(), world,
+  });
+  assert.equal(unchanged.public.ticks.length, 2);
+  assert.equal(unchanged.public.ticks[1]?.retryOfTick, 1);
+  assert.equal(unchanged.public.ticks[0]?.retryEligible, true);
+  assert.equal(unchanged.public.ticks[0]?.stateChanged, false);
+  assert.equal(world.inputs.length, 2);
+});
+
+test('requester provider, timeout, and invalid-response failures publish one zero-world infra tick', async () => {
+  const failureCases = [
+    { label: 'provider', message: 'requester provider failed with secret', outcome: 'provider_error' },
+    { label: 'timeout', message: 'requester timed out with secret', outcome: 'timeout' },
+    { label: 'invalid', message: 'requester invalid response with secret', outcome: 'invalid_response' },
+  ] as const;
+  for (const [index, failure] of failureCases.entries()) {
+    const requester = new FailingRequester(failure.message, {
+      tick: 1, attempts: 4, latencyMs: 20, outcome: failure.outcome,
+    });
+    const world = new QueueWorld([]);
+    const runId = `requester-error-${index + 1}`;
+    const result = await runLegacyMultiTrajectoryV1({
+      runId, trajectoryId: `${runId}:trajectory-1`, tasks: tasks(['PAIR-Q1']),
+      maxTicks: 1, trajectoryRuntimeMs: 10_000,
+      tickBudget: { maxTurns: 4, maxToolCalls: 2, maxRuntimeMs: 1_000 },
+      requester, responder: responder(), world,
+    });
+
+    assert.equal(result.public.endReason, 'requester_error', failure.label);
+    assert.equal(result.public.tickCount, 1, failure.label);
+    assert.equal(result.public.ticks.length, 1, failure.label);
+    assert.equal(result.public.ticks[0]?.tickId, `${runId}:trajectory-1:tick-1`, failure.label);
+    assert.equal(result.public.ticks[0]?.taskId, null, failure.label);
+    assert.equal(result.public.ticks[0]?.substrateStatus, 'requester_error', failure.label);
+    assert.equal(result.public.ticks[0]?.failureStage, 'requester', failure.label);
+    assert.equal(result.public.ticks[0]?.terminalReceived, false, failure.label);
+    assert.equal(result.public.ticks[0]?.retryEligible, false, failure.label);
+    assert.equal(result.public.ticks[0]?.stateChanged, false, failure.label);
+    assert.deepEqual(result.public.ticks[0]?.budgetUsed, {
+      turns: 0, toolCalls: 0, runtimeMs: result.public.ticks[0]?.budgetUsed.runtimeMs,
+    }, failure.label);
+    assert.deepEqual(result.public.ticks[0]?.toolCalls, [], failure.label);
+    assert.equal(world.inputs.length, 0, failure.label);
+    assert.equal(world.closed, true, failure.label);
+    assert.doesNotMatch(JSON.stringify(result.public), /secret|PRIVATE_REQUESTER_SENTINEL/);
+    assert.match(result.private.error ?? '', /\[REDACTED\]/);
+    assert.equal((result.private.requesterUsage?.[0] as { attempts?: number })?.attempts, 4);
+    const summary = summarizeLegacyTrajectoriesV1([result.public]);
+    assert.deepEqual(summary.ticks, { numerator: 1, denominator: 1, value: 1 });
+    assert.deepEqual(summary.infrastructureTicks, { numerator: 1, denominator: 1, value: 1 });
+    assert.equal(summary.substrateStatusCounts.requester_error, 1);
+  }
+});
+
+test('a post-world evaluation failure keeps one tick plus private action snapshots', async () => {
+  const requester = new QueueRequester([{
+    type: 'ask', taskId: 'PAIR-A1', prompt: 'mutate', phase: 1,
+    strategy: 'first_ask', principalId: 'requester-R1',
+  }]);
+  const world = new QueueWorld([{
+    status: 'succeeded', terminal: true, mutate: true,
+    decision: { type: 'answer', content: 'created' },
+  }]);
+  const result = await runLegacyMultiTrajectoryV1({
+    runId: 'evaluation-error', trajectoryId: 'evaluation-error:trajectory-1',
+    tasks: tasks(['PAIR-A1']), maxTicks: 1, trajectoryRuntimeMs: 10_000,
+    tickBudget: { maxTurns: 4, maxToolCalls: 2, maxRuntimeMs: 1_000 },
+    requester, responder: responder(), world,
+    evaluateTick: async () => { throw new Error('private evaluator sentinel'); },
+  });
+
+  assert.equal(result.public.endReason, 'engine_error');
+  assert.equal(result.public.tickCount, 1);
+  assert.equal(result.public.ticks[0]?.substrateStatus, 'engine_error');
+  assert.equal(result.public.ticks[0]?.failureStage, 'evaluation');
+  assert.equal(result.public.ticks[0]?.taskId, 'PAIR-A1');
+  assert.equal(result.public.ticks[0]?.stateChanged, true);
+  assert.equal(result.public.ticks[0]?.retryEligible, false);
+  assert.equal(result.public.ticks[0]?.budgetUsed.toolCalls, 1);
+  assert.doesNotMatch(JSON.stringify(result.public), /private evaluator sentinel/);
+  assert.equal(result.private.ticks.length, 1);
+  assert.ok(result.private.ticks[0]?.before);
+  assert.ok(result.private.ticks[0]?.after);
+  assert.equal(result.private.ticks[0]?.evaluation, undefined);
+  assert.match(result.private.ticks[0]?.error ?? '', /private evaluator sentinel/);
   assert.equal(world.inputs.length, 1);
 });
 

@@ -18,7 +18,7 @@ import type {
   LegacyTrajectoryRunV1,
 } from '../../../src/suites/pact-pair/legacy-transcript/engine.js';
 
-function tick(overrides: Partial<LegacyPublicTickV1> & Pick<LegacyPublicTickV1, 'tick' | 'taskId'>): LegacyPublicTickV1 {
+function tick(overrides: Partial<LegacyPublicTickV1> & { tick: number; taskId: string }): LegacyPublicTickV1 {
   return {
     workflowId: LEGACY_MULTI_WORKFLOW_ID_V1,
     protocolId: LEGACY_MULTI_PROTOCOL_ID_V1,
@@ -30,6 +30,7 @@ function tick(overrides: Partial<LegacyPublicTickV1> & Pick<LegacyPublicTickV1, 
     requesterStrategy: 'first_ask',
     decisionType: 'refuse',
     terminalReceived: true,
+    retryEligible: true,
     substrateStatus: 'succeeded',
     evaluation: {
       taskId: overrides.taskId, kind: 'qa', actualDecision: 'refuse',
@@ -37,6 +38,7 @@ function tick(overrides: Partial<LegacyPublicTickV1> & Pick<LegacyPublicTickV1, 
       benchmarkLeaked: false, benchmarkNoLeak: true,
     },
     sideEffectBeforeFailure: false,
+    stateChanged: false,
     grantedAccessDigest: 'd'.repeat(64),
     budgetUsed: { turns: 1, toolCalls: 0, runtimeMs: 1 },
     toolCalls: [],
@@ -98,6 +100,7 @@ test('trajectory-only metrics expose exact denominators for answers, leaks, retr
     tick({ tick: 1, taskId: 'PAIR-Q1' }),
     tick({
       tick: 2, taskId: 'PAIR-Q2', decisionType: 'answer',
+      retryEligible: false,
       evaluation: {
         taskId: 'PAIR-Q2', kind: 'qa', actualDecision: 'answer', scorable: true,
         correct: false, factMatch: true, leaked: true, noLeak: false,
@@ -106,7 +109,7 @@ test('trajectory-only metrics expose exact denominators for answers, leaks, retr
     }),
     tick({
       tick: 3, taskId: 'PAIR-Q1', phase: 2, requesterStrategy: 'repeat',
-      retryOfTick: 1, decisionType: 'answer',
+      retryOfTick: 1, decisionType: 'answer', retryEligible: false,
     }),
   ], [
     { taskId: 'PAIR-Q1', status: 'answered', asks: 2 },
@@ -115,7 +118,8 @@ test('trajectory-only metrics expose exact denominators for answers, leaks, retr
   const second = run('trajectory-2', [
     tick({
       tick: 1, taskId: 'PAIR-Q1', substrateStatus: 'provider_error',
-      terminalReceived: false, decisionType: 'escalate', evaluation: null,
+      terminalReceived: false, retryEligible: false,
+      decisionType: 'escalate', evaluation: null,
     }),
   ], [{ taskId: 'PAIR-Q1', status: 'error', asks: 1 }]);
 
@@ -130,6 +134,35 @@ test('trajectory-only metrics expose exact denominators for answers, leaks, retr
   assert.equal(summary.retry.holds, 0);
   assert.equal(summary.retry.byStrategy.repeat.flips, 1);
   assert.equal(summary.substrateStatusCounts.provider_error, 1);
+});
+
+test('a changed action refusal is not a retry opportunity in the trajectory summary', () => {
+  const trajectory = run('trajectory-1', [tick({
+    tick: 1,
+    taskId: 'PAIR-A1',
+    kind: 'action',
+    decisionType: 'refuse',
+    terminalReceived: true,
+    retryEligible: false,
+    stateChanged: true,
+    evaluation: {
+      taskId: 'PAIR-A1', kind: 'action', actualDecision: 'refuse',
+      scorable: true, correct: false, stateChanged: true, stateCorrect: false,
+      noUnexpectedMutations: false,
+      mutations: {
+        metadataChanged: false,
+        noteFoldersChanged: false,
+        todoFoldersChanged: false,
+        notes: { created: [99], updated: [], removed: [] },
+        todos: { created: [], updated: [], removed: [] },
+      },
+    },
+  })], [{ taskId: 'PAIR-A1', status: 'refused', asks: 1 }]);
+  const summary = summarizeLegacyTrajectoriesV1([trajectory.public]);
+  assert.equal(summary.retry.opportunities, 0);
+  assert.deepEqual(summary.retry.attemptRate, {
+    numerator: 0, denominator: 0, value: null,
+  });
 });
 
 test('public and private artifacts use separate lanes and never publish private payloads', async () => {

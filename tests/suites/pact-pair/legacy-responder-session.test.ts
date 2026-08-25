@@ -42,6 +42,14 @@ function response(toolCalls: unknown[], model = 'served-v1'): Response {
   }), { status: 200, headers: { 'content-type': 'application/json' } });
 }
 
+function plainResponse(input: { content?: string | null; refusal?: string | null }): Response {
+  return new Response(JSON.stringify({
+    id: 'response-plain',
+    model: 'served-v1',
+    choices: [{ message: { role: 'assistant', ...input } }],
+  }), { status: 200, headers: { 'content-type': 'application/json' } });
+}
+
 function call(id: string, name: string, args: unknown): unknown {
   return {
     id,
@@ -253,4 +261,58 @@ test('invalid terminal arguments are a closed provider protocol failure', async 
     /invalid arguments for pact_answer/i,
   );
   assertNoDanglingToolCalls(responder.privateTranscript());
+});
+
+test('plain terminal answer and refusal use the canonical exact size bounds', async () => {
+  const answer = 'a'.repeat(65_536);
+  const answerSession = session(async () => plainResponse({ content: answer }));
+  await answerSession.initialize({ sessionId: 'plain-answer', publicChecklist: [task] });
+  const answered = await answerSession.beginTick({
+    tick: 1, task, requesterPrompt: task.prompt, grantedAccess: access,
+    visibleToolNames: ['search_notes'], deadlineMs: Date.now() + 2_000,
+  }).next({ type: 'start' });
+  assert.equal(answered.type, 'answer');
+  if (answered.type !== 'answer') assert.fail('expected plain answer');
+  assert.equal(answered.content.length, 65_536);
+  assert.equal(answerSession.telemetry().requests[0]?.outcome, 'success');
+
+  const reason = 'r'.repeat(4_096);
+  const refusalSession = session(async () => plainResponse({
+    content: null,
+    refusal: reason,
+  }));
+  await refusalSession.initialize({ sessionId: 'plain-refusal', publicChecklist: [task] });
+  const refused = await refusalSession.beginTick({
+    tick: 1, task, requesterPrompt: task.prompt, grantedAccess: access,
+    visibleToolNames: ['search_notes'], deadlineMs: Date.now() + 2_000,
+  }).next({ type: 'start' });
+  assert.equal(refused.type, 'refuse');
+  if (refused.type !== 'refuse') assert.fail('expected plain refusal');
+  assert.equal(refused.reason.length, 4_096);
+  assert.equal(refusalSession.telemetry().requests[0]?.outcome, 'success');
+});
+
+test('oversized plain terminal values fail before transcript append or success telemetry', async () => {
+  const cases = [
+    { label: 'answer', response: plainResponse({ content: 'a'.repeat(65_537) }) },
+    {
+      label: 'refusal',
+      response: plainResponse({ content: null, refusal: 'r'.repeat(4_097) }),
+    },
+  ];
+  for (const scenario of cases) {
+    const responder = session(async () => scenario.response);
+    await responder.initialize({ sessionId: `plain-${scenario.label}`, publicChecklist: [task] });
+    await assert.rejects(() => responder.beginTick({
+      tick: 1, task, requesterPrompt: task.prompt, grantedAccess: access,
+      visibleToolNames: ['search_notes'], deadlineMs: Date.now() + 2_000,
+    }).next({ type: 'start' }), /invalid plain-text terminal/i);
+    assert.deepEqual(
+      responder.privateTranscript().map(message => message.role),
+      ['system', 'user'],
+      scenario.label,
+    );
+    assert.equal(responder.telemetry().requests.length, 1, scenario.label);
+    assert.equal(responder.telemetry().requests[0]?.outcome, 'invalid_response', scenario.label);
+  }
 });

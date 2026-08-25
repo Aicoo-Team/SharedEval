@@ -65,6 +65,39 @@ test('--check completes all preflight gates with zero factories, spend, or run d
   await assert.rejects(() => stat(path.join(workingDirectory, 'runs')));
 });
 
+test('an explicit task override replaces an inherited limit before zero-spend preflight', async () => {
+  const workingDirectory = await mkdtemp(path.join(os.tmpdir(), 'legacy-exact-tasks-'));
+  let factories = 0;
+  let spend = 0;
+  const limited = legacyMultiConfigV1Schema.parse({
+    ...config(),
+    benchmark: {
+      ...config().benchmark,
+      tasks: { kind: 'all', limit: 1 },
+    },
+  });
+  const result = await runLegacyMultiTranscriptBenchmarkV1({
+    config: limited,
+    overrides: { taskIds: ['PAIR-Q1', 'PAIR-Q2'] },
+    rootDir: repositoryRoot,
+    workingDirectory,
+    environment: { PACT_MODEL_API_KEY: 'secret' },
+    check: true,
+    fetch: async () => { spend += 1; throw new Error('check must not spend'); },
+    factories: {
+      createRequester: () => { factories += 1; throw new Error('factory called'); },
+      createResponder: () => { factories += 1; throw new Error('factory called'); },
+      createWorld: async () => { factories += 1; throw new Error('factory called'); },
+    },
+  });
+  assert.equal(result.mode, 'check');
+  if (result.mode !== 'check') assert.fail('expected preflight result');
+  assert.deepEqual(result.preflight.selectedTaskIds, ['PAIR-Q1', 'PAIR-Q2']);
+  assert.equal(factories, 0);
+  assert.equal(spend, 0);
+  await assert.rejects(() => stat(path.join(workingDirectory, 'runs')));
+});
+
 test('missing credentials fail before factories, model calls, or output directories', async () => {
   const workingDirectory = await mkdtemp(path.join(os.tmpdir(), 'legacy-no-key-'));
   let factories = 0;

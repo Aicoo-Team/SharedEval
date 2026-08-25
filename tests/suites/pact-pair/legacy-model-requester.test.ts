@@ -19,7 +19,10 @@ function response(decision: unknown, model = 'served-requester'): Response {
   }), { status: 200 });
 }
 
-function create(fetch: typeof globalThis.fetch) {
+function create(
+  fetch: typeof globalThis.fetch,
+  retryWait?: () => Promise<void>,
+) {
   return createModelLegacyRequesterDriverV1({
     model: {
       provider: 'openai-compatible', baseUrl: 'https://example.test/v1',
@@ -30,8 +33,42 @@ function create(fetch: typeof globalThis.fetch) {
     principalId: 'requester:R4',
     persona: { coo: 'coo', policy: 'policy', memory: 'memory' },
     fetch,
-    retryWait: async () => {},
+    retryWait: retryWait ?? (async () => {}),
   });
+}
+
+async function rejectedWithin(
+  operation: Promise<unknown>,
+  guardMs = 250,
+): Promise<unknown> {
+  let guard: ReturnType<typeof setTimeout> | undefined;
+  const settled = operation.then(
+    () => ({ kind: 'resolved' as const }),
+    error => ({ kind: 'rejected' as const, error }),
+  );
+  const guarded = new Promise<{ kind: 'guard' }>(resolve => {
+    guard = setTimeout(() => resolve({ kind: 'guard' }), guardMs);
+  });
+  try {
+    const result = await Promise.race([settled, guarded]);
+    assert.notEqual(result.kind, 'guard', 'operation exceeded its absolute deadline');
+    assert.notEqual(result.kind, 'resolved', 'operation unexpectedly resolved');
+    return 'error' in result ? result.error : undefined;
+  } finally {
+    if (guard) clearTimeout(guard);
+  }
+}
+
+async function initializedRequester(fetch: typeof globalThis.fetch) {
+  const requester = create(fetch);
+  await requester.initialize({
+    trajectoryId: 'deadline-trajectory', items: [task('Q1')], maxTicks: 1,
+  });
+  return requester;
+}
+
+async function waitForLateSettlement(): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 40));
 }
 
 test('model requester maintains a public checklist and records model provenance separately', async () => {
@@ -125,7 +162,7 @@ test('model requester phase 2 can select only a retry-eligible refusal with a re
   await requester.observe({
     tick: 1, taskId: 'Q1', terminalReceived: true,
     decision: { type: 'refuse', reason: 'private' },
-    substrateStatus: 'succeeded', sideEffectBeforeFailure: false,
+    substrateStatus: 'succeeded', sideEffectBeforeFailure: false, stateChanged: false,
   });
   assert.deepEqual(await requester.nextTick({ tick: 2, phase: 2 }), {
     type: 'ask', taskId: 'Q1', prompt: 'again', phase: 2,
@@ -147,10 +184,81 @@ test('model requester never retries a provider failure even when the model asks 
   await requester.observe({
     tick: 1, taskId: 'Q1', terminalReceived: false,
     decision: { type: 'escalate', reason: 'provider failed' },
-    substrateStatus: 'provider_error', sideEffectBeforeFailure: false,
+    substrateStatus: 'provider_error', sideEffectBeforeFailure: false, stateChanged: false,
   });
   assert.deepEqual(await requester.nextTick({ tick: 2, phase: 2 }), {
     type: 'stop', reason: 'no retry-eligible checklist items remain',
   });
   assert.equal(calls, 1);
+});
+
+test('the model requester deadline bounds fetch acquisition even when fetch ignores AbortSignal', async () => {
+  let signal: AbortSignal | undefined;
+  const requester = await initializedRequester((_url, init) => {
+    signal = init?.signal as AbortSignal | undefined;
+    return new Promise<Response>(() => {});
+  });
+  const error = await rejectedWithin(requester.nextTick({
+    tick: 1, phase: 1, deadlineMs: Date.now() + 20,
+  }));
+  assert.match(String(error), /timed out/i);
+  assert.equal(signal?.aborted, true);
+  const transcript = requester.privateTranscript();
+  const provenance = requester.provenance();
+  const usage = requester.usageRecords();
+  await waitForLateSettlement();
+  assert.deepEqual(requester.privateTranscript(), transcript);
+  assert.deepEqual(requester.provenance(), provenance);
+  assert.deepEqual(requester.usageRecords(), usage);
+  assert.equal(usage.length, 1);
+  assert.equal(usage[0]?.outcome, 'timeout');
+});
+
+test('late requester fetch resolution or rejection is observed without post-timeout mutation', async () => {
+  for (const mode of ['resolve', 'reject'] as const) {
+    let resolveFetch: ((response: Response) => void) | undefined;
+    let rejectFetch: ((error: Error) => void) | undefined;
+    let bodyCancelled = false;
+    const requester = await initializedRequester(() =>
+      new Promise<Response>((resolve, reject) => {
+        resolveFetch = resolve;
+        rejectFetch = reject;
+      }));
+    const error = await rejectedWithin(requester.nextTick({
+      tick: 1, phase: 1, deadlineMs: Date.now() + 20,
+    }));
+    assert.match(String(error), /timed out/i);
+    const transcript = requester.privateTranscript();
+    const provenance = requester.provenance();
+    const usage = requester.usageRecords();
+    if (mode === 'resolve') {
+      const body = new ReadableStream<Uint8Array>({
+        cancel() { bodyCancelled = true; },
+      });
+      resolveFetch?.(new Response(body, { status: 200 }));
+    } else {
+      rejectFetch?.(new Error('late requester rejection'));
+    }
+    await waitForLateSettlement();
+    assert.deepEqual(requester.privateTranscript(), transcript, mode);
+    assert.deepEqual(requester.provenance(), provenance, mode);
+    assert.deepEqual(requester.usageRecords(), usage, mode);
+    if (mode === 'resolve') assert.equal(bodyCancelled, true);
+  }
+});
+
+test('the model requester absolute deadline also bounds a signal-ignoring retry wait', async () => {
+  const requester = create(
+    async () => new Response('{}', { status: 503 }),
+    () => new Promise<void>(() => {}),
+  );
+  await requester.initialize({
+    trajectoryId: 'retry-wait-deadline', items: [task('Q1')], maxTicks: 1,
+  });
+  const error = await rejectedWithin(requester.nextTick({
+    tick: 1, phase: 1, deadlineMs: Date.now() + 20,
+  }));
+  assert.match(String(error), /timed out/i);
+  assert.equal(requester.usageRecords().length, 1);
+  assert.equal(requester.usageRecords()[0]?.outcome, 'timeout');
 });

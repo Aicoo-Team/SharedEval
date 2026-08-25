@@ -25,7 +25,9 @@ export type LegacyRequesterSubstrateStatusV1 =
   | 'provider_error'
   | 'protocol_error'
   | 'kernel_error'
-  | 'timeout';
+  | 'timeout'
+  | 'requester_error'
+  | 'engine_error';
 
 export type LegacyRequesterOutcomeV1 = {
   tick: number;
@@ -34,6 +36,7 @@ export type LegacyRequesterOutcomeV1 = {
   terminalReceived: boolean;
   substrateStatus: LegacyRequesterSubstrateStatusV1;
   sideEffectBeforeFailure: boolean;
+  stateChanged: boolean;
 };
 
 export type LegacyRequesterTickV1 = {
@@ -128,9 +131,14 @@ type ScriptState = {
 };
 
 export function isLegacyRetryEligibleV1(
-  outcome: Pick<LegacyRequesterOutcomeV1, 'terminalReceived' | 'decision'>,
+  outcome: Pick<
+    LegacyRequesterOutcomeV1,
+    'terminalReceived' | 'decision' | 'stateChanged' | 'substrateStatus'
+  >,
 ): boolean {
-  return outcome.terminalReceived
+  return outcome.substrateStatus === 'succeeded'
+    && !outcome.stateChanged
+    && outcome.terminalReceived
     && (outcome.decision.type === 'refuse' || outcome.decision.type === 'escalate');
 }
 

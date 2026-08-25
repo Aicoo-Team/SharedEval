@@ -198,6 +198,41 @@ export async function waitForOpenAICompatibleProviderRetryV1(
   });
 }
 
+/**
+ * Settles one provider operation against the caller's shared deadline signal.
+ * The losing operation stays observed so a late rejection cannot become
+ * unhandled; callers may dispose a late value without mutating run state.
+ */
+export function settleOpenAICompatibleProviderOperationV1<T>(
+  operation: PromiseLike<T>,
+  signal: AbortSignal,
+  publicMessage: string,
+  onLateValue?: (value: T) => void,
+): Promise<T> {
+  const observed = Promise.resolve(operation);
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const finish = (continuation: () => void) => {
+      if (settled) return false;
+      settled = true;
+      signal.removeEventListener('abort', onAbort);
+      continuation();
+      return true;
+    };
+    const onAbort = () => finish(() => reject(
+      new OpenAICompatibleProviderTransportErrorV1(publicMessage),
+    ));
+    signal.addEventListener('abort', onAbort, { once: true });
+    observed.then(
+      value => {
+        if (!finish(() => resolve(value))) onLateValue?.(value);
+      },
+      error => { finish(() => reject(error)); },
+    );
+    if (signal.aborted) onAbort();
+  });
+}
+
 export async function readBoundedOpenAICompatibleProviderJsonV1(
   response: Response,
   signal: AbortSignal,
@@ -222,7 +257,7 @@ export async function readBoundedOpenAICompatibleProviderJsonV1(
   try {
     if (reader) {
       while (true) {
-        const part = await settleProviderOperationOnAbort(
+        const part = await settleOpenAICompatibleProviderOperationV1(
           reader.read(),
           signal,
           `${errorPrefix} timed out after ${timeoutMs}ms`,
@@ -265,7 +300,7 @@ export async function readBoundedOpenAICompatibleProviderJsonV1(
     ).toString('utf8');
   } else {
     try {
-      source = await settleProviderOperationOnAbort(
+      source = await settleOpenAICompatibleProviderOperationV1(
         response.text(),
         signal,
         `${errorPrefix} timed out after ${timeoutMs}ms`,
@@ -309,32 +344,6 @@ export async function cancelOpenAICompatibleProviderResponseBodyV1(
     // Discard cancellation details so provider data cannot replace the bounded
     // transport error owned by the caller.
   }
-}
-
-function settleProviderOperationOnAbort<T>(
-  operation: PromiseLike<T>,
-  signal: AbortSignal,
-  publicMessage: string,
-): Promise<T> {
-  const observed = Promise.resolve(operation);
-  return new Promise<T>((resolve, reject) => {
-    let settled = false;
-    const finish = (continuation: () => void) => {
-      if (settled) return;
-      settled = true;
-      signal.removeEventListener('abort', onAbort);
-      continuation();
-    };
-    const onAbort = () => finish(() => reject(
-      new OpenAICompatibleProviderTransportErrorV1(publicMessage),
-    ));
-    signal.addEventListener('abort', onAbort, { once: true });
-    observed.then(
-      value => finish(() => resolve(value)),
-      error => finish(() => reject(error)),
-    );
-    if (signal.aborted) onAbort();
-  });
 }
 
 function cancelProviderReaderBestEffort(

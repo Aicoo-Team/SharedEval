@@ -36,7 +36,9 @@ export type LegacyWorldSubstrateStatusV1 =
   | 'provider_error'
   | 'protocol_error'
   | 'timeout'
-  | 'kernel_error';
+  | 'kernel_error'
+  | 'requester_error'
+  | 'engine_error';
 
 export type LegacyWorldToolCallV1 = {
   tickId: string;

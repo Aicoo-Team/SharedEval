@@ -88,6 +88,22 @@ test('task and tick overrides are exact, unique, and part of the effective diges
     effective.effectiveConfigDigest,
     applyLegacyMultiOverridesV1(parsed, { maxTicks: 10 }).effectiveConfigDigest,
   );
+
+  const limited = parseLegacyMultiConfigV1Yaml(
+    validConfig.replace('    ids: [Q156, Q157]', '    limit: 1'),
+  );
+  const exactOverride = applyLegacyMultiOverridesV1(limited, {
+    taskIds: ['Q156', 'Q157'],
+  });
+  assert.deepEqual(exactOverride.benchmark.tasks, {
+    kind: 'qa',
+    ids: ['Q156', 'Q157'],
+  });
+  assert.equal('limit' in exactOverride.benchmark.tasks, false);
+  assert.notEqual(
+    exactOverride.effectiveConfigDigest,
+    applyLegacyMultiOverridesV1(limited).effectiveConfigDigest,
+  );
 });
 
 test('phase 2 starts exactly after every selected task has one first ask', () => {

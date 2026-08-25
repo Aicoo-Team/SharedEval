@@ -54,6 +54,7 @@ test('scripted requester asks the frozen public checklist once in exact order', 
     decision: { type: 'answer', content: 'answer' },
     substrateStatus: 'succeeded',
     sideEffectBeforeFailure: false,
+    stateChanged: false,
   });
   const second = await requester.nextTick({ tick: 2, phase: 1 });
   assert.equal(second.type, 'ask');
@@ -63,13 +64,15 @@ test('scripted requester asks the frozen public checklist once in exact order', 
 
 test('retry eligibility is exactly responder-authored terminal refuse or escalate', () => {
   const cases = [
-    [{ terminalReceived: true, decision: { type: 'refuse', reason: 'no' }, substrateStatus: 'succeeded', sideEffectBeforeFailure: false }, true],
-    [{ terminalReceived: true, decision: { type: 'escalate', reason: 'review' }, substrateStatus: 'succeeded', sideEffectBeforeFailure: false }, true],
-    [{ terminalReceived: true, decision: { type: 'answer', content: 'yes' }, substrateStatus: 'succeeded', sideEffectBeforeFailure: false }, false],
-    [{ terminalReceived: false, decision: { type: 'refuse', reason: 'synthetic' }, substrateStatus: 'budget', sideEffectBeforeFailure: false }, false],
-    [{ terminalReceived: false, decision: { type: 'escalate', reason: 'denied' }, substrateStatus: 'denied', sideEffectBeforeFailure: false }, false],
-    [{ terminalReceived: false, decision: { type: 'escalate', reason: 'failed' }, substrateStatus: 'failed', sideEffectBeforeFailure: false }, false],
-    [{ terminalReceived: false, decision: { type: 'refuse', reason: 'no' }, substrateStatus: 'failed', sideEffectBeforeFailure: true }, false],
+    [{ terminalReceived: true, decision: { type: 'refuse', reason: 'no' }, substrateStatus: 'succeeded', sideEffectBeforeFailure: false, stateChanged: false }, true],
+    [{ terminalReceived: true, decision: { type: 'escalate', reason: 'review' }, substrateStatus: 'succeeded', sideEffectBeforeFailure: false, stateChanged: false }, true],
+    [{ terminalReceived: true, decision: { type: 'refuse', reason: 'mutated' }, substrateStatus: 'succeeded', sideEffectBeforeFailure: false, stateChanged: true }, false],
+    [{ terminalReceived: true, decision: { type: 'escalate', reason: 'mutated' }, substrateStatus: 'succeeded', sideEffectBeforeFailure: false, stateChanged: true }, false],
+    [{ terminalReceived: true, decision: { type: 'answer', content: 'yes' }, substrateStatus: 'succeeded', sideEffectBeforeFailure: false, stateChanged: false }, false],
+    [{ terminalReceived: false, decision: { type: 'refuse', reason: 'synthetic' }, substrateStatus: 'budget', sideEffectBeforeFailure: false, stateChanged: false }, false],
+    [{ terminalReceived: false, decision: { type: 'escalate', reason: 'denied' }, substrateStatus: 'denied', sideEffectBeforeFailure: false, stateChanged: false }, false],
+    [{ terminalReceived: false, decision: { type: 'escalate', reason: 'failed' }, substrateStatus: 'failed', sideEffectBeforeFailure: false, stateChanged: false }, false],
+    [{ terminalReceived: false, decision: { type: 'refuse', reason: 'no' }, substrateStatus: 'failed', sideEffectBeforeFailure: true, stateChanged: true }, false],
   ] as const;
   for (const [input, expected] of cases) {
     assert.equal(isLegacyRetryEligibleV1(input), expected);
@@ -86,6 +89,7 @@ test('phase 2 retries only eligible items and never revives a failed item', asyn
     decision: { type: 'escalate', reason: 'provider failure' },
     substrateStatus: 'failed',
     sideEffectBeforeFailure: false,
+    stateChanged: false,
   });
   await requester.nextTick({ tick: 2, phase: 1 });
   await requester.observe({
@@ -95,6 +99,7 @@ test('phase 2 retries only eligible items and never revives a failed item', asyn
     decision: { type: 'refuse', reason: 'private' },
     substrateStatus: 'succeeded',
     sideEffectBeforeFailure: false,
+    stateChanged: false,
   });
   const retry = await requester.nextTick({ tick: 3, phase: 2 });
   assert.deepEqual(retry, {
@@ -113,6 +118,7 @@ test('phase 2 retries only eligible items and never revives a failed item', asyn
     decision: { type: 'answer', content: 'now answered' },
     substrateStatus: 'succeeded',
     sideEffectBeforeFailure: false,
+    stateChanged: false,
   });
   assert.deepEqual(await requester.nextTick({ tick: 4, phase: 2 }), {
     type: 'stop',

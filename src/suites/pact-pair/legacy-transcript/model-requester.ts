@@ -13,6 +13,7 @@ import {
   readBoundedOpenAICompatibleProviderJsonV1,
   redactOpenAICompatibleProviderCredentialV1,
   resolveOpenAICompatibleProviderRequestTargetV1,
+  settleOpenAICompatibleProviderOperationV1,
   waitForOpenAICompatibleProviderRetryV1,
 } from '../../../runner/v1/openai-compatible-client.js';
 import type { PactModelConfigV1 } from '../../../runner/v1/config.js';
@@ -320,29 +321,40 @@ export class ModelLegacyRequesterDriverV1 implements LegacyRequesterDriverV1 {
         attempts = attempt;
         let response: Response;
         try {
-          response = await this.fetchImplementation(this.target.url, {
-            method: 'POST',
-            headers: { ...this.target.headers, 'content-type': 'application/json' },
-            body: JSON.stringify({
-              model: this.target.bodyModel,
-              ...(this.options.model.temperature === undefined
-                ? {} : { temperature: this.options.model.temperature }),
-              ...openAICompatibleProviderRequestExtrasV1(this.options.model),
-              max_tokens: this.options.model.maxOutputTokens,
-              messages: this.messages,
-              response_format: { type: 'json_object' },
-            }),
-            redirect: 'manual',
-            signal: controller.signal,
-          });
+          const acquisition = Promise.resolve().then(() =>
+            this.fetchImplementation(this.target.url, {
+              method: 'POST',
+              headers: { ...this.target.headers, 'content-type': 'application/json' },
+              body: JSON.stringify({
+                model: this.target.bodyModel,
+                ...(this.options.model.temperature === undefined
+                  ? {} : { temperature: this.options.model.temperature }),
+                ...openAICompatibleProviderRequestExtrasV1(this.options.model),
+                max_tokens: this.options.model.maxOutputTokens,
+                messages: this.messages,
+                response_format: { type: 'json_object' },
+              }),
+              redirect: 'manual',
+              signal: controller.signal,
+            }));
+          response = await settleOpenAICompatibleProviderOperationV1(
+            acquisition,
+            controller.signal,
+            `Legacy requester timed out after ${timeoutMs}ms`,
+            lateResponse => { void cancelOpenAICompatibleProviderResponseBodyV1(lateResponse); },
+          );
         } catch {
           if (controller.signal.aborted) throw new Error(`Legacy requester timed out after ${timeoutMs}ms`);
           if (attempt < this.maxProviderAttempts) {
-            await this.retryWait(
-              Math.min(30_000, 250 * 2 ** (attempt - 1)),
+            await settleOpenAICompatibleProviderOperationV1(
+              Promise.resolve().then(() => this.retryWait(
+                Math.min(30_000, 250 * 2 ** (attempt - 1)),
+                controller.signal,
+                timeoutMs,
+                'Legacy requester',
+              )),
               controller.signal,
-              timeoutMs,
-              'Legacy requester',
+              `Legacy requester timed out after ${timeoutMs}ms`,
             );
             continue;
           }
@@ -357,18 +369,27 @@ export class ModelLegacyRequesterDriverV1 implements LegacyRequesterDriverV1 {
           const delay = openAICompatibleProviderRetryDelayMsV1(response, attempt);
           await cancelOpenAICompatibleProviderResponseBodyV1(response);
           if (retryable && attempt < this.maxProviderAttempts) {
-            await this.retryWait(delay, controller.signal, timeoutMs, 'Legacy requester');
+            await settleOpenAICompatibleProviderOperationV1(
+              Promise.resolve().then(() =>
+                this.retryWait(delay, controller.signal, timeoutMs, 'Legacy requester')),
+              controller.signal,
+              `Legacy requester timed out after ${timeoutMs}ms`,
+            );
             continue;
           }
           throw new Error(`Legacy requester provider failed with HTTP ${response.status}`);
         }
         outcome = 'invalid_response';
         const body = redactOpenAICompatibleProviderCredentialV1(
-          await readBoundedOpenAICompatibleProviderJsonV1(
-            response,
+          await settleOpenAICompatibleProviderOperationV1(
+            readBoundedOpenAICompatibleProviderJsonV1(
+              response,
+              controller.signal,
+              timeoutMs,
+              'Legacy requester provider',
+            ),
             controller.signal,
-            timeoutMs,
-            'Legacy requester provider',
+            `Legacy requester timed out after ${timeoutMs}ms`,
           ),
           this.credential,
         );

@@ -251,6 +251,15 @@ async function preflightLegacyMultiTranscriptV1(
     limit: config.benchmark.tasks.limit,
   });
   const selectedTaskIds = taskSet.tasks.map(task => task.taskId);
+  if (
+    options.overrides?.taskIds
+    && (
+      selectedTaskIds.length !== options.overrides.taskIds.length
+      || selectedTaskIds.some((taskId, index) => taskId !== options.overrides?.taskIds?.[index])
+    )
+  ) {
+    throw new Error('Legacy multi selected tasks do not match the exact command override');
+  }
   validateLegacyPhaseBoundaryV1(config, selectedTaskIds);
   const assets = await freezeLegacyMultiAssetsV1(rootDir, config);
   if (

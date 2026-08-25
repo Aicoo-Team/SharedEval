@@ -25,6 +25,7 @@ import type {
   LegacyAskStrategyV1,
   LegacyRequesterDriverV1,
   LegacyRequesterProvenanceV1,
+  LegacyRequesterTickV1,
 } from './requester-driver.js';
 import type {
   LegacyProviderMessageV1,
@@ -45,9 +46,20 @@ export type LegacyTrajectoryEndReasonV1 =
   | 'max_ticks'
   | 'trajectory_timeout'
   | 'infrastructure_error'
+  | 'action_state_changed'
   | 'side_effect_before_failure'
   | 'requester_error'
   | 'engine_error';
+
+export type LegacyTickFailureStageV1 =
+  | 'requester'
+  | 'authority'
+  | 'boundary'
+  | 'snapshot_before'
+  | 'world'
+  | 'snapshot_after'
+  | 'evaluation'
+  | 'requester_observe';
 
 export type LegacyPublicTickV1 = {
   workflowId: typeof LEGACY_MULTI_WORKFLOW_ID_V1;
@@ -57,16 +69,19 @@ export type LegacyPublicTickV1 = {
   tickId: string;
   tick: number;
   phase: 1 | 2;
-  taskId: string;
-  kind: LoadedPactPairTaskV1['kind'];
-  requesterStrategy: LegacyAskStrategyV1;
+  taskId: string | null;
+  kind: LoadedPactPairTaskV1['kind'] | null;
+  requesterStrategy: LegacyAskStrategyV1 | null;
   retryOfTick?: number;
   decisionType: PactPairTerminalDecisionV1['type'];
   terminalReceived: boolean;
+  retryEligible: boolean;
   substrateStatus: LegacyWorldSubstrateStatusV1;
   evaluation: PactPairPublicEvaluationV1 | null;
   sideEffectBeforeFailure: boolean;
-  grantedAccessDigest: string;
+  stateChanged: boolean;
+  grantedAccessDigest: string | null;
+  failureStage?: LegacyTickFailureStageV1;
   budgetUsed: { turns: number; toolCalls: number; runtimeMs: number };
   toolCalls: Array<{ callId: string; name: string; isError: boolean }>;
   execution: {
@@ -81,14 +96,15 @@ export type LegacyPrivateTickV1 = {
   trajectoryId: string;
   tickId: string;
   tick: number;
-  task: LoadedPactPairTaskV1;
-  requesterPrompt: string;
+  task?: LoadedPactPairTaskV1;
+  requesterPrompt?: string;
   finalDecision: PactPairTerminalDecisionV1;
-  grantedAccess: PactBoundaryPlanV1;
-  before: PairDataStore;
-  after: PairDataStore;
-  evaluation: PactPairEvaluationV1;
+  grantedAccess?: PactBoundaryPlanV1;
+  before?: PairDataStore;
+  after?: PairDataStore;
+  evaluation?: PactPairEvaluationV1;
   privateEvents: unknown[];
+  failureStage?: LegacyTickFailureStageV1;
   error?: string;
 };
 
@@ -148,6 +164,12 @@ export type RunLegacyMultiTrajectoryOptionsV1 = {
     task: LoadedPactPairTaskV1['publicTask'];
     previousGrant?: PactBoundaryPlanV1;
   }) => PactBoundaryPlanV1 | Promise<PactBoundaryPlanV1>;
+  evaluateTick?: (input: {
+    task: LoadedPactPairTaskV1;
+    decision: PactPairTerminalDecisionV1;
+    before: PairDataStore;
+    after: PairDataStore;
+  }) => PactPairEvaluationV1 | Promise<PactPairEvaluationV1>;
   nowMs?: () => number;
 };
 
@@ -158,6 +180,8 @@ const infrastructureStatuses = new Set<LegacyWorldSubstrateStatusV1>([
   'protocol_error',
   'timeout',
   'kernel_error',
+  'requester_error',
+  'engine_error',
 ]);
 
 export async function runLegacyMultiTrajectoryV1(
@@ -191,12 +215,128 @@ export async function runLegacyMultiTrajectoryV1(
   const publicTicks: LegacyPublicTickV1[] = [];
   const privateTicks: LegacyPrivateTickV1[] = [];
   const tickIds = new Set<string>();
+  const publishedTickIds = new Set<string>();
   const initialSnapshot = options.world.snapshot();
   let endReason: LegacyTrajectoryEndReasonV1 = 'max_ticks';
   let privateError: string | undefined;
   let phase1Ticks = 0;
   let phase2Ticks = 0;
   let hasInfrastructureError = false;
+
+  const publishFailedTick = (input: {
+    tick: number;
+    phase: 1 | 2;
+    startedAtMs: number;
+    stage: LegacyTickFailureStageV1;
+    error: unknown;
+    ask?: LegacyRequesterTickV1;
+    task?: LoadedPactPairTaskV1;
+    grantedAccess?: PactBoundaryPlanV1;
+    before?: PairDataStore;
+    worldResult?: LegacyWorldTickResultV1;
+    after?: PairDataStore;
+    evaluation?: PactPairEvaluationV1;
+  }): void => {
+    const tickId = `${trajectoryId}:tick-${input.tick}`;
+    if (publishedTickIds.has(tickId)) {
+      throw new Error('Legacy engine attempted to publish one tick twice');
+    }
+    const stateChanged = input.evaluation?.kind === 'action'
+      ? input.evaluation.stateChanged
+      : input.task?.kind === 'action' && input.before !== undefined && input.after !== undefined
+        ? !isDeepStrictEqual(input.before, input.after)
+        : false;
+    const decision = input.worldResult?.finalDecision ?? legacyFailureDecisionV1();
+    const substrateStatus: LegacyWorldSubstrateStatusV1 = input.stage === 'requester'
+      ? 'requester_error'
+      : 'engine_error';
+    const sanitized = sanitizeEngineError(
+      input.error,
+      options.responder.options.credential,
+    );
+    const world = input.worldResult;
+    if (!tickIds.has(tickId)) tickIds.add(tickId);
+    publishedTickIds.add(tickId);
+    publicTicks.push({
+      workflowId: LEGACY_MULTI_WORKFLOW_ID_V1,
+      protocolId: LEGACY_MULTI_PROTOCOL_ID_V1,
+      metricFamilyId: LEGACY_MULTI_METRIC_FAMILY_ID_V1,
+      trajectoryId,
+      tickId,
+      tick: input.tick,
+      phase: input.phase,
+      taskId: input.task?.taskId ?? null,
+      kind: input.task?.kind ?? null,
+      requesterStrategy: input.ask?.strategy ?? null,
+      ...(input.ask?.retryOfTick === undefined
+        ? {}
+        : { retryOfTick: input.ask.retryOfTick }),
+      decisionType: decision.type,
+      terminalReceived: world?.terminalReceived ?? false,
+      retryEligible: false,
+      substrateStatus,
+      evaluation: input.evaluation ? toPublicEvaluation(input.evaluation) : null,
+      sideEffectBeforeFailure: stateChanged,
+      stateChanged,
+      grantedAccessDigest: input.grantedAccess
+        ? digestObjectV1(input.grantedAccess)
+        : null,
+      failureStage: input.stage,
+      budgetUsed: {
+        turns: world?.turns ?? 0,
+        toolCalls: world?.toolCallCount ?? 0,
+        runtimeMs: world?.runtimeMs ?? Math.max(0, nowMs() - input.startedAtMs),
+      },
+      toolCalls: (world?.toolCalls ?? []).map(call => ({
+        callId: call.callId,
+        name: call.name,
+        isError: call.isError,
+      })),
+      execution: {
+        adapterId: world?.adapterId ?? options.world.adapterId,
+        adapterProtocolVersion: world?.adapterProtocolVersion ?? 'not-started',
+        sharedOsRevision: world?.sharedOsRevision ?? options.world.sharedOsRevision,
+        ...(world?.traceId ? { traceId: world.traceId } : {}),
+      },
+    });
+    privateTicks.push({
+      trajectoryId,
+      tickId,
+      tick: input.tick,
+      ...(input.task ? { task: input.task } : {}),
+      ...(input.ask ? { requesterPrompt: input.ask.prompt } : {}),
+      finalDecision: decision,
+      ...(input.grantedAccess ? { grantedAccess: input.grantedAccess } : {}),
+      ...(input.before ? { before: input.before } : {}),
+      ...(input.after ? { after: input.after } : {}),
+      ...(input.evaluation ? { evaluation: input.evaluation } : {}),
+      privateEvents: world?.privateEvents ?? [],
+      failureStage: input.stage,
+      error: sanitized,
+    });
+    if (input.phase === 1) phase1Ticks += 1;
+    else phase2Ticks += 1;
+    hasInfrastructureError = true;
+  };
+
+  const markPublishedTickFailed = (
+    tickId: string,
+    stage: LegacyTickFailureStageV1,
+    error: unknown,
+  ): void => {
+    const publicTick = publicTicks.find(entry => entry.tickId === tickId);
+    const privateTick = privateTicks.find(entry => entry.tickId === tickId);
+    if (!publicTick || !privateTick) {
+      throw new Error('Legacy engine lost an already-published tick');
+    }
+    publicTick.substrateStatus = 'engine_error';
+    publicTick.retryEligible = false;
+    publicTick.failureStage = stage;
+    publicTick.sideEffectBeforeFailure = publicTick.stateChanged;
+    privateTick.failureStage = stage;
+    privateTick.error = sanitizeEngineError(error, options.responder.options.credential);
+    hasInfrastructureError = true;
+  };
 
   try {
     await options.responder.initialize({
@@ -219,181 +359,239 @@ export async function runLegacyMultiTrajectoryV1(
       }
       const phase: 1 | 2 = options.phase2StartTick !== undefined
         && tick >= options.phase2StartTick ? 2 : 1;
-      if (phase === 2 && firstAskedTasks.size !== tasks.length) {
-        throw new Error('Legacy phase 2 began before every checklist item was asked once');
-      }
+      const tickStartedAt = nowMs();
       const deadlineMs = Math.min(
         trajectoryDeadline,
         nowMs() + tickBudget.maxRuntimeMs,
       );
-      let ask;
+      const tickId = `${trajectoryId}:tick-${tick}`;
+      let failureStage: LegacyTickFailureStageV1 = 'authority';
+      let ask: LegacyRequesterTickV1 | undefined;
+      let task: LoadedPactPairTaskV1 | undefined;
+      let grantedAccess: PactBoundaryPlanV1 | undefined;
+      let before: PairDataStore | undefined;
+      let worldResult: LegacyWorldTickResultV1 | undefined;
+      let after: PairDataStore | undefined;
+      let evaluation: PactPairEvaluationV1 | undefined;
       try {
-        ask = await options.requester.nextTick({ tick, phase, deadlineMs });
-      } catch (error) {
-        endReason = 'requester_error';
-        privateError = sanitizeEngineError(error, options.responder.options.credential);
-        break;
-      }
-      if (ask.type === 'stop') {
-        endReason = 'driver_stop';
-        break;
-      }
-      if (ask.phase !== phase) throw new Error('Legacy requester changed the host-owned phase');
-      if (ask.principalId !== options.requester.principalId) {
-        throw new Error('Legacy requester changed principal inside a trajectory');
-      }
-      const task = tasksById.get(ask.taskId);
-      if (!task) throw new Error('Legacy requester selected an off-list task');
-      assertRequesterTickAuthority({ ask, phase, publicTicks, firstAskedTasks, taskId: task.taskId });
-
-      const previousGrant = grantsByTask.get(task.taskId);
-      const requested = pactBoundaryPlanV1Schema.parse(
-        await (options.boundaryPlanner
-          ? options.boundaryPlanner({
-              tick,
-              phase,
-              task: structuredClone(task.publicTask),
-              ...(previousGrant ? { previousGrant: structuredClone(previousGrant) } : {}),
-            })
-          : maximumBoundaryForTask(task.publicTask)),
-      );
-      const withinTaskMaximum = intersectBoundaryPlans(
-        requested,
-        maximumBoundaryForTask(task.publicTask),
-      );
-      let grantedAccess = withinTaskMaximum;
-      if (previousGrant) {
-        const narrowed = intersectBoundaryPlans(withinTaskMaximum, previousGrant);
-        if (!isDeepStrictEqual(narrowed, withinTaskMaximum)) {
-          throw new Error('Legacy retry boundary replanning attempted to widen the prior grant');
+        if (phase === 2 && firstAskedTasks.size !== tasks.length) {
+          throw new Error('Legacy phase 2 began before every checklist item was asked once');
         }
-        grantedAccess = narrowed;
-      }
-      grantsByTask.set(task.taskId, grantedAccess);
-      if (phase === 1) firstAskedTasks.add(task.taskId);
+        failureStage = 'requester';
+        const next = await options.requester.nextTick({ tick, phase, deadlineMs });
+        if (next.type === 'stop') {
+          endReason = 'driver_stop';
+          break;
+        }
+        ask = next;
+        failureStage = 'authority';
+        if (ask.phase !== phase) throw new Error('Legacy requester changed the host-owned phase');
+        if (ask.principalId !== options.requester.principalId) {
+          throw new Error('Legacy requester changed principal inside a trajectory');
+        }
+        task = tasksById.get(ask.taskId);
+        if (!task) throw new Error('Legacy requester selected an off-list task');
+        assertRequesterTickAuthority({ ask, phase, publicTicks, firstAskedTasks, taskId: task.taskId });
 
-      const before = options.world.snapshot();
-      let worldResult: LegacyWorldTickResultV1;
-      try {
-        worldResult = await options.world.runTick({
+        failureStage = 'boundary';
+        const previousGrant = grantsByTask.get(task.taskId);
+        const requested = pactBoundaryPlanV1Schema.parse(
+          await (options.boundaryPlanner
+            ? options.boundaryPlanner({
+                tick,
+                phase,
+                task: structuredClone(task.publicTask),
+                ...(previousGrant ? { previousGrant: structuredClone(previousGrant) } : {}),
+              })
+            : maximumBoundaryForTask(task.publicTask)),
+        );
+        const withinTaskMaximum = intersectBoundaryPlans(
+          requested,
+          maximumBoundaryForTask(task.publicTask),
+        );
+        grantedAccess = withinTaskMaximum;
+        if (previousGrant) {
+          const narrowed = intersectBoundaryPlans(withinTaskMaximum, previousGrant);
+          if (!isDeepStrictEqual(narrowed, withinTaskMaximum)) {
+            throw new Error('Legacy retry boundary replanning attempted to widen the prior grant');
+          }
+          grantedAccess = narrowed;
+        }
+        grantsByTask.set(task.taskId, grantedAccess);
+        if (phase === 1) firstAskedTasks.add(task.taskId);
+
+        failureStage = 'snapshot_before';
+        before = options.world.snapshot();
+        failureStage = 'world';
+        try {
+          worldResult = await options.world.runTick({
+            trajectoryId,
+            tick,
+            task: task.publicTask,
+            requesterPrompt: ask.prompt,
+            principalId: ask.principalId,
+            grantedAccess,
+            expectedVisibleTools: expectedVisibleSharedOsToolsV1(grantedAccess),
+            budget: {
+              maxTurns: tickBudget.maxTurns,
+              maxToolCalls: tickBudget.maxToolCalls,
+            },
+            deadlineMs,
+            responder: options.responder,
+          });
+          assertWorldResultAuthority(worldResult, options.world, trajectoryId, tick, tickIds);
+        } catch (error) {
+          const classified = classifyLegacyWorldErrorV1(error);
+          worldResult = {
+            tickId,
+            substrateStatus: classified.status,
+            terminalReceived: false,
+            finalDecision: legacyFailureDecisionV1(),
+            turns: 0,
+            toolCallCount: 0,
+            runtimeMs: Math.max(0, nowMs() - tickStartedAt),
+            toolCalls: [],
+            adapterId: options.world.adapterId,
+            adapterProtocolVersion: 'unknown',
+            sharedOsRevision: options.world.sharedOsRevision,
+            error: classified.message,
+          };
+          tickIds.add(tickId);
+        }
+        failureStage = 'snapshot_after';
+        after = options.world.snapshot();
+        failureStage = 'evaluation';
+        if (options.evaluateTick) {
+          evaluation = await options.evaluateTick({
+            task,
+            decision: worldResult.finalDecision,
+            before,
+            after,
+          });
+        } else {
+          const evaluationResult = await evaluateWithRegisteredEvaluator(
+            PACT_PAIR_EVALUATION_TARGET_V1,
+            { task, decision: worldResult.finalDecision, before, after },
+          );
+          evaluation = evaluationResult.details;
+          if (!evaluation) throw new Error('Legacy tick evaluator returned no details');
+        }
+        const failed = worldResult.substrateStatus !== 'succeeded';
+        const stateChanged = evaluation.kind === 'action' && evaluation.stateChanged;
+        const sideEffectBeforeFailure = failed && stateChanged;
+        const retryEligible = worldResult.substrateStatus === 'succeeded'
+          && !stateChanged
+          && worldResult.terminalReceived
+          && (
+            worldResult.finalDecision.type === 'refuse'
+            || worldResult.finalDecision.type === 'escalate'
+          );
+        const infrastructureError = infrastructureStatuses.has(worldResult.substrateStatus);
+        hasInfrastructureError ||= infrastructureError;
+        const publicEvaluation = infrastructureError && !sideEffectBeforeFailure
+          ? null
+          : toPublicEvaluation(evaluation);
+        publicTicks.push({
+          workflowId: LEGACY_MULTI_WORKFLOW_ID_V1,
+          protocolId: LEGACY_MULTI_PROTOCOL_ID_V1,
+          metricFamilyId: LEGACY_MULTI_METRIC_FAMILY_ID_V1,
           trajectoryId,
+          tickId: worldResult.tickId,
           tick,
-          task: task.publicTask,
-          requesterPrompt: ask.prompt,
-          principalId: ask.principalId,
-          grantedAccess,
-          expectedVisibleTools: expectedVisibleSharedOsToolsV1(grantedAccess),
-          budget: {
-            maxTurns: tickBudget.maxTurns,
-            maxToolCalls: tickBudget.maxToolCalls,
+          phase,
+          taskId: task.taskId,
+          kind: task.kind,
+          requesterStrategy: ask.strategy,
+          ...(ask.retryOfTick === undefined ? {} : { retryOfTick: ask.retryOfTick }),
+          decisionType: worldResult.finalDecision.type,
+          terminalReceived: worldResult.terminalReceived,
+          retryEligible,
+          substrateStatus: worldResult.substrateStatus,
+          evaluation: publicEvaluation,
+          sideEffectBeforeFailure,
+          stateChanged,
+          grantedAccessDigest: digestObjectV1(grantedAccess),
+          budgetUsed: {
+            turns: worldResult.turns,
+            toolCalls: worldResult.toolCallCount,
+            runtimeMs: worldResult.runtimeMs,
           },
-          deadlineMs,
-          responder: options.responder,
+          toolCalls: worldResult.toolCalls.map(call => ({
+            callId: call.callId,
+            name: call.name,
+            isError: call.isError,
+          })),
+          execution: {
+            adapterId: worldResult.adapterId,
+            adapterProtocolVersion: worldResult.adapterProtocolVersion,
+            sharedOsRevision: worldResult.sharedOsRevision,
+            ...(worldResult.traceId ? { traceId: worldResult.traceId } : {}),
+          },
         });
-        assertWorldResultAuthority(worldResult, options.world, trajectoryId, tick, tickIds);
-      } catch (error) {
-        const classified = classifyLegacyWorldErrorV1(error);
-        worldResult = {
-          tickId: `${trajectoryId}:tick-${tick}`,
-          substrateStatus: classified.status,
-          terminalReceived: false,
-          finalDecision: legacyFailureDecisionV1(),
-          turns: 0,
-          toolCallCount: 0,
-          runtimeMs: Math.max(0, nowMs() - (deadlineMs - tickBudget.maxRuntimeMs)),
-          toolCalls: [],
-          adapterId: options.world.adapterId,
-          adapterProtocolVersion: 'unknown',
-          sharedOsRevision: options.world.sharedOsRevision,
-          error: classified.message,
-        };
-        tickIds.add(worldResult.tickId);
-      }
-      const after = options.world.snapshot();
-      const evaluationResult = await evaluateWithRegisteredEvaluator(
-        PACT_PAIR_EVALUATION_TARGET_V1,
-        { task, decision: worldResult.finalDecision, before, after },
-      );
-      const evaluation = evaluationResult.details;
-      if (!evaluation) throw new Error('Legacy tick evaluator returned no details');
-      const failed = worldResult.substrateStatus !== 'succeeded';
-      const stateChanged = evaluation.kind === 'action' && evaluation.stateChanged;
-      const sideEffectBeforeFailure = failed && stateChanged;
-      const infrastructureError = infrastructureStatuses.has(worldResult.substrateStatus);
-      hasInfrastructureError ||= infrastructureError;
-      const publicEvaluation = infrastructureError && !sideEffectBeforeFailure
-        ? null
-        : toPublicEvaluation(evaluation);
-      const publicTick: LegacyPublicTickV1 = {
-        workflowId: LEGACY_MULTI_WORKFLOW_ID_V1,
-        protocolId: LEGACY_MULTI_PROTOCOL_ID_V1,
-        metricFamilyId: LEGACY_MULTI_METRIC_FAMILY_ID_V1,
-        trajectoryId,
-        tickId: worldResult.tickId,
-        tick,
-        phase,
-        taskId: task.taskId,
-        kind: task.kind,
-        requesterStrategy: ask.strategy,
-        ...(ask.retryOfTick === undefined ? {} : { retryOfTick: ask.retryOfTick }),
-        decisionType: worldResult.finalDecision.type,
-        terminalReceived: worldResult.terminalReceived,
-        substrateStatus: worldResult.substrateStatus,
-        evaluation: publicEvaluation,
-        sideEffectBeforeFailure,
-        grantedAccessDigest: digestObjectV1(grantedAccess),
-        budgetUsed: {
-          turns: worldResult.turns,
-          toolCalls: worldResult.toolCallCount,
-          runtimeMs: worldResult.runtimeMs,
-        },
-        toolCalls: worldResult.toolCalls.map(call => ({
-          callId: call.callId,
-          name: call.name,
-          isError: call.isError,
-        })),
-        execution: {
-          adapterId: worldResult.adapterId,
-          adapterProtocolVersion: worldResult.adapterProtocolVersion,
-          sharedOsRevision: worldResult.sharedOsRevision,
-          ...(worldResult.traceId ? { traceId: worldResult.traceId } : {}),
-        },
-      };
-      publicTicks.push(publicTick);
-      privateTicks.push({
-        trajectoryId,
-        tickId: worldResult.tickId,
-        tick,
-        task,
-        requesterPrompt: ask.prompt,
-        finalDecision: worldResult.finalDecision,
-        grantedAccess,
-        before,
-        after,
-        evaluation,
-        privateEvents: worldResult.privateEvents ?? [],
-        ...(worldResult.error
-          ? { error: sanitizeEngineError(worldResult.error, options.responder.options.credential) }
-          : {}),
-      });
-      if (phase === 1) phase1Ticks += 1;
-      else phase2Ticks += 1;
+        publishedTickIds.add(worldResult.tickId);
+        privateTicks.push({
+          trajectoryId,
+          tickId: worldResult.tickId,
+          tick,
+          task,
+          requesterPrompt: ask.prompt,
+          finalDecision: worldResult.finalDecision,
+          grantedAccess,
+          before,
+          after,
+          evaluation,
+          privateEvents: worldResult.privateEvents ?? [],
+          ...(worldResult.error
+            ? { error: sanitizeEngineError(worldResult.error, options.responder.options.credential) }
+            : {}),
+        });
+        if (phase === 1) phase1Ticks += 1;
+        else phase2Ticks += 1;
 
-      await options.requester.observe({
-        tick,
-        taskId: task.taskId,
-        decision: worldResult.finalDecision,
-        terminalReceived: worldResult.terminalReceived,
-        substrateStatus: worldResult.substrateStatus,
-        sideEffectBeforeFailure,
-      });
-      if (sideEffectBeforeFailure) {
-        endReason = 'side_effect_before_failure';
-        break;
-      }
-      if (infrastructureError) {
-        endReason = 'infrastructure_error';
-        privateError ??= worldResult.error;
+        failureStage = 'requester_observe';
+        await options.requester.observe({
+          tick,
+          taskId: task.taskId,
+          decision: worldResult.finalDecision,
+          terminalReceived: worldResult.terminalReceived,
+          substrateStatus: worldResult.substrateStatus,
+          sideEffectBeforeFailure,
+          stateChanged,
+        });
+        if (stateChanged) {
+          endReason = sideEffectBeforeFailure
+            ? 'side_effect_before_failure'
+            : 'action_state_changed';
+          break;
+        }
+        if (infrastructureError) {
+          endReason = 'infrastructure_error';
+          privateError ??= worldResult.error
+            ? sanitizeEngineError(worldResult.error, options.responder.options.credential)
+            : undefined;
+          break;
+        }
+      } catch (error) {
+        if (publishedTickIds.has(tickId)) {
+          markPublishedTickFailed(tickId, failureStage, error);
+        } else {
+          publishFailedTick({
+            tick,
+            phase,
+            startedAtMs: tickStartedAt,
+            stage: failureStage,
+            error,
+            ...(ask ? { ask } : {}),
+            ...(task ? { task } : {}),
+            ...(grantedAccess ? { grantedAccess } : {}),
+            ...(before ? { before } : {}),
+            ...(worldResult ? { worldResult } : {}),
+            ...(after ? { after } : {}),
+            ...(evaluation ? { evaluation } : {}),
+          });
+        }
+        endReason = failureStage === 'requester' ? 'requester_error' : 'engine_error';
+        privateError = sanitizeEngineError(error, options.responder.options.credential);
         break;
       }
     }
@@ -460,7 +658,7 @@ function projectLegacyChecklist(
     const latest = itemTicks[itemTicks.length - 1];
     const status = !latest
       ? 'pending' as const
-      : !latest.terminalReceived
+      : latest.substrateStatus !== 'succeeded' || !latest.terminalReceived
         ? 'error' as const
         : latest.decisionType === 'answer'
           ? 'answered' as const
@@ -500,7 +698,7 @@ function assertRequesterTickAuthority(input: {
     || latestForTask !== prior
     || prior.taskId !== input.taskId
     || !prior.terminalReceived
-    || (prior.decisionType !== 'refuse' && prior.decisionType !== 'escalate')
+    || !prior.retryEligible
   ) {
     throw new Error('Legacy phase-2 ask does not reference a retry-eligible outcome');
   }

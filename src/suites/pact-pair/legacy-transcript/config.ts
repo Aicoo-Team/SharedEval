@@ -204,8 +204,8 @@ export function applyLegacyMultiOverridesV1(
     ...config,
     benchmark: {
       ...config.benchmark,
-      tasks: taskIds && !configuredIds
-        ? { ...config.benchmark.tasks, ids: taskIds }
+      tasks: taskIds
+        ? { kind: config.benchmark.tasks.kind, ids: [...taskIds] }
         : config.benchmark.tasks,
       trajectory: {
         ...config.benchmark.trajectory,

@@ -153,6 +153,7 @@ export type LegacyTrajectoryMetricSummaryV1 = {
 
 const infrastructureStatuses = new Set<LegacyWorldSubstrateStatusV1>([
   'cancelled', 'failed', 'provider_error', 'protocol_error', 'timeout', 'kernel_error',
+  'requester_error', 'engine_error',
 ]);
 
 export function summarizeLegacyTrajectoriesV1(
@@ -202,18 +203,15 @@ export function summarizeLegacyTrajectoriesV1(
     const ticksByNumber = new Map(trajectory.ticks.map(tick => [tick.tick, tick]));
     for (const tick of trajectory.ticks) {
       statusCounts[tick.substrateStatus] += 1;
-      if (
-        tick.terminalReceived
-        && (tick.decisionType === 'refuse' || tick.decisionType === 'escalate')
-      ) {
+      if (tick.retryEligible) {
         retryOpportunities += 1;
       }
       if (tick.retryOfTick === undefined) continue;
-      if (tick.requesterStrategy === 'first_ask') {
+      if (tick.requesterStrategy === null || tick.requesterStrategy === 'first_ask') {
         throw new Error('Legacy retry tick cannot use first_ask');
       }
       const prior = ticksByNumber.get(tick.retryOfTick);
-      if (!prior || prior.taskId !== tick.taskId) {
+      if (!prior || tick.taskId === null || prior.taskId !== tick.taskId) {
         throw new Error('Legacy retry metric row has invalid tick authority');
       }
       const strategy = tick.requesterStrategy;
@@ -491,12 +489,37 @@ function validateTrajectoryAuthority(
         tick.workflowId !== manifest.workflowId
         || tick.protocolId !== manifest.protocolId
         || tick.metricFamilyId !== manifest.metricFamilyId
-        || !checklistIds.includes(tick.taskId)
+        || (tick.taskId !== null && !checklistIds.includes(tick.taskId))
         || tick.execution.adapterId !== manifest.execution.adapterId
         || tick.execution.sharedOsRevision !== manifest.execution.sharedOsRevision
         || tick.budgetUsed.toolCalls !== tick.toolCalls.length
       ) {
         throw new Error('Legacy public tick provenance or cardinality is inconsistent');
+      }
+      const isErrorTick = tick.substrateStatus === 'requester_error'
+        || tick.substrateStatus === 'engine_error';
+      if (
+        (!isErrorTick && (
+          tick.taskId === null
+          || tick.kind === null
+          || tick.requesterStrategy === null
+          || tick.grantedAccessDigest === null
+        ))
+        || (tick.taskId === null && tick.evaluation !== null)
+        || (tick.evaluation?.kind === 'action'
+          && tick.evaluation.stateChanged !== tick.stateChanged)
+        || (tick.evaluation?.kind === 'qa' && tick.stateChanged)
+        || tick.sideEffectBeforeFailure
+          !== (tick.stateChanged && tick.substrateStatus !== 'succeeded')
+      ) {
+        throw new Error('Legacy public tick state or failure authority is inconsistent');
+      }
+      const expectedRetryEligible = tick.substrateStatus === 'succeeded'
+        && !tick.stateChanged
+        && tick.terminalReceived
+        && (tick.decisionType === 'refuse' || tick.decisionType === 'escalate');
+      if (tick.retryEligible !== expectedRetryEligible) {
+        throw new Error('Legacy public tick retry authority is inconsistent');
       }
       ticks.add(tick.tickId);
     }
@@ -627,6 +650,8 @@ function emptyStatusCounts(): Record<LegacyWorldSubstrateStatusV1, number> {
     protocol_error: 0,
     timeout: 0,
     kernel_error: 0,
+    requester_error: 0,
+    engine_error: 0,
   };
 }
 

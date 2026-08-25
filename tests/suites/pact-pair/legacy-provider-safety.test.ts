@@ -16,7 +16,11 @@ const access: PactBoundaryPlanV1 = {
   },
 };
 
-function responder(fetch: typeof globalThis.fetch, attempts: number[] = []) {
+function responder(
+  fetch: typeof globalThis.fetch,
+  attempts: number[] = [],
+  retryWait?: () => Promise<void>,
+) {
   return new PersistentLegacyResponderSessionV1({
     model: {
       provider: 'openai-compatible', baseUrl: 'https://example.test/v1',
@@ -25,14 +29,40 @@ function responder(fetch: typeof globalThis.fetch, attempts: number[] = []) {
     credential: 's3cr3t', requesterId: 'R4',
     persona: { coo: 'coo', policy: 'policy', memory: 'memory' },
     tools: [], fetch,
-    retryWait: async delay => { attempts.push(delay); },
+    retryWait: retryWait ?? (async delay => { attempts.push(delay); }),
     maxProviderAttempts: 3,
   });
 }
 
+async function rejectedWithin(
+  operation: Promise<unknown>,
+  guardMs = 250,
+): Promise<unknown> {
+  let guard: ReturnType<typeof setTimeout> | undefined;
+  const settled = operation.then(
+    () => ({ kind: 'resolved' as const }),
+    error => ({ kind: 'rejected' as const, error }),
+  );
+  const guarded = new Promise<{ kind: 'guard' }>(resolve => {
+    guard = setTimeout(() => resolve({ kind: 'guard' }), guardMs);
+  });
+  try {
+    const result = await Promise.race([settled, guarded]);
+    assert.notEqual(result.kind, 'guard', 'operation exceeded its absolute deadline');
+    assert.notEqual(result.kind, 'resolved', 'operation unexpectedly resolved');
+    return 'error' in result ? result.error : undefined;
+  } finally {
+    if (guard) clearTimeout(guard);
+  }
+}
+
+async function waitForLateSettlement(): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, 40));
+}
+
 async function firstStep(
   instance: PersistentLegacyResponderSessionV1,
-  deadlineMs = Date.now() + 500,
+  deadlineMs = Date.now() + 5_000,
 ) {
   await instance.initialize({ sessionId: 's1', publicChecklist: [task] });
   return instance.beginTick({
@@ -106,7 +136,62 @@ test('one deadline aborts a stalled body and late completion cannot resume the s
     },
   });
   const instance = responder(async () => new Response(stream, { status: 200 }));
-  const started = Date.now();
-  await assert.rejects(() => firstStep(instance, Date.now() + 30), /timed out/i);
-  assert.ok(Date.now() - started < 250);
+  const error = await rejectedWithin(firstStep(instance, Date.now() + 30), 2_000);
+  assert.match(String(error), /timed out/i);
+});
+
+test('the responder deadline bounds fetch acquisition even when fetch ignores AbortSignal', async () => {
+  let signal: AbortSignal | undefined;
+  const instance = responder((_url, init) => {
+    signal = init?.signal as AbortSignal | undefined;
+    return new Promise<Response>(() => {});
+  });
+  const error = await rejectedWithin(firstStep(instance, Date.now() + 20));
+  assert.match(String(error), /timed out/i);
+  assert.equal(signal?.aborted, true);
+  const transcript = instance.privateTranscript();
+  const telemetry = instance.telemetry();
+  await waitForLateSettlement();
+  assert.deepEqual(instance.privateTranscript(), transcript);
+  assert.deepEqual(instance.telemetry(), telemetry);
+  assert.equal(telemetry.requests.length, 1);
+});
+
+test('late responder fetch resolution or rejection is observed without post-timeout mutation', async () => {
+  for (const mode of ['resolve', 'reject'] as const) {
+    let resolveFetch: ((response: Response) => void) | undefined;
+    let rejectFetch: ((error: Error) => void) | undefined;
+    let bodyCancelled = false;
+    const instance = responder(() => new Promise<Response>((resolve, reject) => {
+      resolveFetch = resolve;
+      rejectFetch = reject;
+    }));
+    const error = await rejectedWithin(firstStep(instance, Date.now() + 20));
+    assert.match(String(error), /timed out/i);
+    const transcript = instance.privateTranscript();
+    const telemetry = instance.telemetry();
+    if (mode === 'resolve') {
+      const body = new ReadableStream<Uint8Array>({
+        cancel() { bodyCancelled = true; },
+      });
+      resolveFetch?.(new Response(body, { status: 200 }));
+    } else {
+      rejectFetch?.(new Error('late provider rejection'));
+    }
+    await waitForLateSettlement();
+    assert.deepEqual(instance.privateTranscript(), transcript, mode);
+    assert.deepEqual(instance.telemetry(), telemetry, mode);
+    if (mode === 'resolve') assert.equal(bodyCancelled, true);
+  }
+});
+
+test('the responder absolute deadline also bounds a signal-ignoring retry wait', async () => {
+  const instance = responder(
+    async () => new Response('{}', { status: 503 }),
+    [],
+    () => new Promise<void>(() => {}),
+  );
+  const error = await rejectedWithin(firstStep(instance, Date.now() + 20));
+  assert.match(String(error), /timed out/i);
+  assert.equal(instance.telemetry().requests.length, 1);
 });

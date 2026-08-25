@@ -19,6 +19,7 @@ import {
   readOpenAICompatibleProviderResponseHeadersV1,
   redactOpenAICompatibleProviderCredentialV1,
   resolveOpenAICompatibleProviderRequestTargetV1,
+  settleOpenAICompatibleProviderOperationV1,
   waitForOpenAICompatibleProviderRetryV1,
 } from '../../../runner/v1/openai-compatible-client.js';
 import {
@@ -457,9 +458,12 @@ export class PersistentLegacyResponderSessionV1 {
 
     const refusal = message.refusal?.trim();
     if (refusal) {
-      this.messages.push({ role: 'assistant', content: refusal });
+      const reason = parsePlainTerminalValue(
+        () => terminalReasonSchema.parse({ reason: refusal }).reason,
+      );
+      this.messages.push({ role: 'assistant', content: reason });
       telemetry.outcome = 'success';
-      return { terminal: { type: 'refuse', reason: refusal } };
+      return { terminal: { type: 'refuse', reason } };
     }
     const content = message.content?.trim();
     if (!content) {
@@ -468,9 +472,12 @@ export class PersistentLegacyResponderSessionV1 {
         'invalid_response',
       );
     }
-    this.messages.push({ role: 'assistant', content });
+    const answer = parsePlainTerminalValue(
+      () => terminalAnswerSchema.parse({ content }).content,
+    );
+    this.messages.push({ role: 'assistant', content: answer });
     telemetry.outcome = 'success';
-    return { terminal: { type: 'answer', content } };
+    return { terminal: { type: 'answer', content: answer } };
   }
 
   private parseCall(call: LegacyProviderToolCallV1, visible: string[]): ParsedCall {
@@ -550,21 +557,32 @@ export class PersistentLegacyResponderSessionV1 {
         latestHeaders = undefined;
         let response: Response;
         try {
-          response = await this.fetchImplementation(this.target.url, {
-            method: 'POST',
-            headers: { ...this.target.headers, 'content-type': 'application/json' },
-            body: JSON.stringify(body),
-            redirect: 'manual',
-            signal: controller.signal,
-          });
+          const acquisition = Promise.resolve().then(() =>
+            this.fetchImplementation(this.target.url, {
+              method: 'POST',
+              headers: { ...this.target.headers, 'content-type': 'application/json' },
+              body: JSON.stringify(body),
+              redirect: 'manual',
+              signal: controller.signal,
+            }));
+          response = await settleOpenAICompatibleProviderOperationV1(
+            acquisition,
+            controller.signal,
+            `Legacy provider request timed out after ${timeoutMs}ms`,
+            lateResponse => { void cancelOpenAICompatibleProviderResponseBodyV1(lateResponse); },
+          );
         } catch {
           if (controller.signal.aborted) throw timeoutError(timeoutMs);
           if (attempt < this.maxProviderAttempts) {
-            await this.retryWait(
-              Math.min(30_000, 250 * 2 ** (attempt - 1)),
+            await settleOpenAICompatibleProviderOperationV1(
+              Promise.resolve().then(() => this.retryWait(
+                Math.min(30_000, 250 * 2 ** (attempt - 1)),
+                controller.signal,
+                timeoutMs,
+                'Legacy provider request',
+              )),
               controller.signal,
-              timeoutMs,
-              'Legacy provider request',
+              `Legacy provider request timed out after ${timeoutMs}ms`,
             );
             continue;
           }
@@ -590,11 +608,15 @@ export class PersistentLegacyResponderSessionV1 {
           const delay = openAICompatibleProviderRetryDelayMsV1(response, attempt);
           await cancelOpenAICompatibleProviderResponseBodyV1(response);
           if (retryable && attempt < this.maxProviderAttempts) {
-            await this.retryWait(
-              delay,
+            await settleOpenAICompatibleProviderOperationV1(
+              Promise.resolve().then(() => this.retryWait(
+                delay,
+                controller.signal,
+                timeoutMs,
+                'Legacy provider request',
+              )),
               controller.signal,
-              timeoutMs,
-              'Legacy provider request',
+              `Legacy provider request timed out after ${timeoutMs}ms`,
             );
             continue;
           }
@@ -604,11 +626,15 @@ export class PersistentLegacyResponderSessionV1 {
           );
         }
         return {
-          body: await readBoundedOpenAICompatibleProviderJsonV1(
-            response,
+          body: await settleOpenAICompatibleProviderOperationV1(
+            readBoundedOpenAICompatibleProviderJsonV1(
+              response,
+              controller.signal,
+              timeoutMs,
+              'Legacy provider',
+            ),
             controller.signal,
-            timeoutMs,
-            'Legacy provider',
+            `Legacy provider request timed out after ${timeoutMs}ms`,
           ),
           headers: latestHeaders,
           httpStatus: response.status,
@@ -789,6 +815,16 @@ function parseTerminalCall(
   } catch {
     throw new LegacyResponderProtocolErrorV1(
       `Legacy provider returned invalid arguments for ${call.function.name}`,
+    );
+  }
+}
+
+function parsePlainTerminalValue(parse: () => string): string {
+  try {
+    return parse();
+  } catch {
+    throw new LegacyResponderProtocolErrorV1(
+      'Legacy provider returned an invalid plain-text terminal decision',
     );
   }
 }
