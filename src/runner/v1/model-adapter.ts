@@ -19,11 +19,21 @@ import {
   type PactToolSpecV1,
 } from '../../protocol/v1/index.js';
 import {
-  pactModelIdentifierV1,
-  type PactModelConfigV1,
   type PactRunConfigV1,
   resolvePactRunModelApiKeyV1,
 } from './config.js';
+import {
+  cancelOpenAICompatibleProviderResponseBodyV1,
+  isOpenAICompatibleProviderRedirectResponseV1,
+  isRetryableOpenAICompatibleProviderStatusV1,
+  MAX_OPENAI_COMPATIBLE_PROVIDER_RESPONSE_BYTES_V1,
+  openAICompatibleProviderRequestExtrasV1,
+  readBoundedOpenAICompatibleProviderJsonV1,
+  readOpenAICompatibleProviderResponseHeadersV1,
+  redactOpenAICompatibleProviderCredentialV1,
+  resolveOpenAICompatibleProviderRequestTargetV1,
+  type OpenAICompatibleProviderResponseHeadersV1 as ProviderResponseHeadersV1,
+} from './openai-compatible-client.js';
 import {
   buildPactSystemPromptV1,
   buildPactTaskMessageV1,
@@ -32,7 +42,8 @@ import {
 
 type FetchImplementation = typeof globalThis.fetch;
 
-export const MAX_PACT_PROVIDER_RESPONSE_BYTES_V1 = 2 * 1_024 * 1_024;
+export const MAX_PACT_PROVIDER_RESPONSE_BYTES_V1 =
+  MAX_OPENAI_COMPATIBLE_PROVIDER_RESPONSE_BYTES_V1;
 // OpenRouter's pinned open-weight endpoints can emit short 429 bursts even in
 // a sequential run. Eight attempts add at most 31.75s of exponential backoff
 // when Retry-After is absent, while the task deadline remains the hard bound.
@@ -208,12 +219,6 @@ type PactProviderTelemetrySourceV1 = {
   getProviderTelemetryV1(): PactProviderTelemetryV1;
 };
 
-type ProviderResponseHeadersV1 = {
-  requestId?: string;
-  generationId?: string;
-  provider?: string;
-};
-
 type FetchedProviderCompletionV1 = {
   body: unknown;
   headers: ProviderResponseHeadersV1;
@@ -254,7 +259,10 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
       config,
       options.environment ?? process.env,
     );
-    const target = resolveProviderRequestTargetV1(config.model, this.apiKey);
+    const target = resolveOpenAICompatibleProviderRequestTargetV1(
+      config.model,
+      this.apiKey,
+    );
     this.completionUrl = target.url;
     this.authHeaders = target.headers;
     this.requestModel = target.bodyModel;
@@ -410,7 +418,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
       ...(this.config.model.temperature === undefined
         ? {}
         : { temperature: this.config.model.temperature }),
-      ...openAICompatibleRequestExtrasV1(this.config.model),
+      ...openAICompatibleProviderRequestExtrasV1(this.config.model),
       // OpenRouter and the pinned endpoints advertise `max_tokens`. Sending
       // the OpenAI-specific `max_completion_tokens` with
       // require_parameters=true makes routing fail with "No endpoints found".
@@ -422,7 +430,10 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
       ],
       tool_choice: 'auto',
     });
-    const response = redactProviderCredential(fetched.body, this.apiKey);
+    const response = redactOpenAICompatibleProviderCredentialV1(
+      fetched.body,
+      this.apiKey,
+    );
 
     const parsedEnvelope = providerEnvelopeSchema.safeParse(response);
     if (!parsedEnvelope.success) {
@@ -596,18 +607,21 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
           );
         }
 
-        failureHeaders = providerResponseHeaders(response, this.apiKey);
+        failureHeaders = readOpenAICompatibleProviderResponseHeadersV1(
+          response,
+          this.apiKey,
+        );
         failureStatus = response.status;
         failureResponseAttempt = attempt;
         failureRetryable = response.ok
           ? false
-          : isRetryableProviderStatus(response.status);
-        if (isRedirectProviderResponse(response)) {
+          : isRetryableOpenAICompatibleProviderStatusV1(response.status);
+        if (isOpenAICompatibleProviderRedirectResponseV1(response)) {
           // Fail closed instead of re-sending the credential to wherever the
           // Location header points (it may be a different origin).
           failureRetryable = false;
           failureStatus = response.status || undefined;
-          await cancelProviderResponseBody(response);
+          await cancelOpenAICompatibleProviderResponseBodyV1(response);
           throw new PactProviderRequestErrorV1(
             'OpenAI-compatible provider responded with a redirect; refusing to resend credentials',
             {
@@ -624,7 +638,7 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
             attempt,
             this.retryRandom,
           );
-          await cancelProviderResponseBody(response);
+          await cancelOpenAICompatibleProviderResponseBodyV1(response);
           if (retryable && attempt < MAX_PROVIDER_ATTEMPTS_V1) {
             await this.retryWait(
               retryDelay,
@@ -640,12 +654,16 @@ export class OpenAICompatiblePactHarnessV1 implements PactHarnessV1 {
         }
 
         return {
-          body: await readBoundedProviderJson(
+          body: await readBoundedOpenAICompatibleProviderJsonV1(
             response,
             abortController.signal,
             timeoutMs,
+            'OpenAI-compatible provider',
           ),
-          headers: providerResponseHeaders(response, this.apiKey),
+          headers: readOpenAICompatibleProviderResponseHeadersV1(
+            response,
+            this.apiKey,
+          ),
           attempts: attempt,
           latencyMs: Date.now() - startedAt,
         };
@@ -812,120 +830,6 @@ function summarizeProviderSchemaIssues(error: z.ZodError): string {
   return `${issues.join('; ')}${omitted > 0 ? `; +${omitted} more issue(s)` : ''}`;
 }
 
-function providerResponseHeaders(
-  response: Response,
-  secret: string,
-): ProviderResponseHeadersV1 {
-  return {
-    ...firstSafeProviderHeader(
-      response,
-      ['x-request-id', 'request-id'],
-      'requestId',
-      secret,
-    ),
-    ...firstSafeProviderHeader(
-      response,
-      ['x-generation-id', 'x-openrouter-generation-id'],
-      'generationId',
-      secret,
-    ),
-    ...firstSafeProviderHeader(
-      response,
-      ['x-openrouter-provider', 'x-provider'],
-      'provider',
-      secret,
-    ),
-  };
-}
-
-function firstSafeProviderHeader<K extends keyof ProviderResponseHeadersV1>(
-  response: Response,
-  names: string[],
-  key: K,
-  secret: string,
-): Partial<Record<K, string>> {
-  for (const name of names) {
-    const raw = response.headers.get(name);
-    if (!raw) continue;
-    const sanitized = raw
-      .replace(/[\u0000-\u001f\u007f]/g, '')
-      .split(secret)
-      .join('[REDACTED]')
-      .slice(0, 512);
-    if (sanitized) {
-      return { [key]: sanitized } as Partial<Record<K, string>>;
-    }
-  }
-  return {};
-}
-
-/**
- * Builds the OpenRouter/OpenAI-specific request extras (seed, reasoning,
- * provider routing). Azure's v1 chat-completions API accepts none of these
- * controls, so an azure-openai model config contributes nothing here.
- */
-function openAICompatibleRequestExtrasV1(
-  model: PactModelConfigV1,
-): Record<string, unknown> {
-  if (model.provider !== 'openai-compatible') return {};
-  return {
-    ...(model.seed === undefined ? {} : { seed: model.seed }),
-    ...(model.reasoning === undefined ? {} : { reasoning: model.reasoning }),
-    ...(model.providerRouting === undefined
-      ? {}
-      : {
-        provider: {
-          ...(model.providerRouting.requireParameters === undefined
-            ? {}
-            : { require_parameters: model.providerRouting.requireParameters }),
-          ...(model.providerRouting.allowFallbacks === undefined
-            ? {}
-            : { allow_fallbacks: model.providerRouting.allowFallbacks }),
-          ...(model.providerRouting.order === undefined
-            ? {}
-            : { order: model.providerRouting.order }),
-          ...(model.providerRouting.only === undefined
-            ? {}
-            : { only: model.providerRouting.only }),
-        },
-      }),
-  };
-}
-
-/**
- * Computes the completion endpoint, auth headers, and request-body model for the
- * configured provider. Both providers share identical request/response body
- * handling below (so tool-call encoding and scoring stay parity-identical); only
- * the URL, the auth-header name, and how the model is named differ.
- */
-function resolveProviderRequestTargetV1(
-  model: PactModelConfigV1,
-  apiKey: string,
-): { url: URL; headers: Record<string, string>; bodyModel: string } {
-  const bodyModel = pactModelIdentifierV1(model);
-  if (model.provider === 'azure-openai') {
-    // The v1 endpoint already ends in /openai/v1, so this resolves to
-    // {endpoint}/chat/completions — the OpenAI-compatible path. Auth is the
-    // Azure `api-key` header; the deployment is carried as the body model.
-    const url = new URL('chat/completions', `${model.endpoint}/`);
-    if (model.apiVersion) url.searchParams.set('api-version', model.apiVersion);
-    return { url, headers: { 'api-key': apiKey }, bodyModel };
-  }
-  const url = new URL('chat/completions', `${model.baseUrl}/`);
-  return { url, headers: { authorization: `Bearer ${apiKey}` }, bodyModel };
-}
-
-function isRetryableProviderStatus(status: number): boolean {
-  return [408, 409, 429].includes(status) || status >= 500;
-}
-
-function isRedirectProviderResponse(response: Response): boolean {
-  // With redirect: 'manual', undici surfaces redirects either as the raw 3xx
-  // response or as an opaque-redirect filtered response (status 0).
-  return (response.status >= 300 && response.status < 400)
-    || response.type === 'opaqueredirect';
-}
-
 function providerRetryDelayMs(
   response: Response,
   attempt: number,
@@ -1064,95 +968,9 @@ function parseToolArguments(source: string): JsonObject {
   return result.data;
 }
 
-async function readBoundedProviderJson(
-  response: Response,
-  signal: AbortSignal,
-  timeoutMs: number,
-): Promise<unknown> {
-  const declaredLength = Number.parseInt(response.headers.get('content-length') ?? '', 10);
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_PACT_PROVIDER_RESPONSE_BYTES_V1) {
-    await cancelProviderResponseBody(response);
-    throw new Error(
-      `OpenAI-compatible provider response exceeds ${MAX_PACT_PROVIDER_RESPONSE_BYTES_V1} bytes`,
-    );
-  }
-
-  const chunks: Uint8Array[] = [];
-  let totalBytes = 0;
-  const reader = response.body?.getReader();
-  try {
-    if (reader) {
-      while (true) {
-        const part = await reader.read();
-        if (part.done) break;
-        totalBytes += part.value.byteLength;
-        if (totalBytes > MAX_PACT_PROVIDER_RESPONSE_BYTES_V1) {
-          await reader.cancel();
-          throw new Error(
-            `OpenAI-compatible provider response exceeds ${MAX_PACT_PROVIDER_RESPONSE_BYTES_V1} bytes`,
-          );
-        }
-        chunks.push(part.value);
-      }
-    }
-  } catch (error) {
-    if (signal.aborted) {
-      throw new Error(`OpenAI-compatible provider timed out after ${timeoutMs}ms`);
-    }
-    throw error;
-  } finally {
-    reader?.releaseLock();
-  }
-
-  const source = reader
-    ? Buffer.concat(chunks.map(chunk => Buffer.from(chunk)), totalBytes).toString('utf8')
-    : await response.text();
-  if (Buffer.byteLength(source, 'utf8') > MAX_PACT_PROVIDER_RESPONSE_BYTES_V1) {
-    throw new Error(
-      `OpenAI-compatible provider response exceeds ${MAX_PACT_PROVIDER_RESPONSE_BYTES_V1} bytes`,
-    );
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(source) as unknown;
-  } catch {
-    throw new Error('OpenAI-compatible provider returned invalid JSON');
-  }
-  assertPactJsonComplexityV1(parsed, 'OpenAI-compatible provider response');
-  return parsed;
-}
-
-async function cancelProviderResponseBody(response: Response): Promise<void> {
-  try {
-    await response.body?.cancel();
-  } catch {
-    // The response is being discarded; cancellation failure must not expose
-    // provider details or replace the bounded runner error.
-  }
-}
-
 function validateTimeout(value: number): number {
   if (!Number.isSafeInteger(value) || value <= 0 || value > 3_600_000) {
     throw new Error('Model adapter timeout must be a positive integer up to 3600000ms');
-  }
-  return value;
-}
-
-function redactProviderCredential(value: unknown, secret: string): unknown {
-  if (typeof value === 'string') {
-    return value.includes(secret) ? value.split(secret).join('[REDACTED]') : value;
-  }
-  if (Array.isArray(value)) {
-    return value.map(item => redactProviderCredential(item, secret));
-  }
-  if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [
-        key.includes(secret) ? key.split(secret).join('[REDACTED]') : key,
-        redactProviderCredential(item, secret),
-      ]),
-    );
   }
   return value;
 }

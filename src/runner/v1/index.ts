@@ -17,6 +17,8 @@ export {
 } from './artifacts.js';
 export * from './agent-workspace.js';
 export * from './file-memory.js';
+export * from './file-harness.js';
+export * from './file-model-adapter.js';
 export * from './file-workspace.js';
 export * from './backends/index.js';
 export * from './config.js';
