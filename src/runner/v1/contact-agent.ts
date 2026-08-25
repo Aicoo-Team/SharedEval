@@ -34,6 +34,80 @@ const responderPaths = Object.freeze([
   'MEMORY.md',
 ] as const satisfies readonly AgentWorkspaceFilePathV1[]);
 
+type ResponderPublicFailureClassV1 = 'parse' | 'tool' | 'generic';
+
+/**
+ * Auditable classification of every fixed message accepted by Task 4's
+ * `InternalFileTurnPublicErrorV1`. Keep this table synchronized with the
+ * allowlist in `file-harness.ts`; unknown or arbitrary failures stay generic.
+ */
+const responderPublicFailureClassByMessageV1: ReadonlyMap<
+  string,
+  ResponderPublicFailureClassV1
+> = new Map([
+  ['A fresh file harness instance is required for every turn', 'generic'],
+  ['Agent contact failed', 'tool'],
+  ['Agent contact is not authorized for this file turn', 'tool'],
+  ['Agent contact returned an invalid result', 'tool'],
+  ['File harness creation failed', 'generic'],
+  ['File harness finalization failed', 'generic'],
+  ['File harness returned an invalid turn decision', 'parse'],
+  ['File harness step failed', 'generic'],
+  ['File model provider request failed', 'generic'],
+  [
+    'File model provider responded with a redirect; refusing to resend credentials',
+    'generic',
+  ],
+  ['File model provider response stream failed', 'generic'],
+  ['File model provider returned an invalid first choice', 'parse'],
+  ['File model provider returned an invalid response envelope', 'parse'],
+  ['File model provider returned an invalid turn decision', 'parse'],
+  ['File model provider returned duplicate tool-call identifiers', 'parse'],
+  ['File model provider returned invalid contact_agent arguments', 'tool'],
+  ['File model provider returned invalid files_list arguments', 'tool'],
+  ['File model provider returned invalid files_read arguments', 'tool'],
+  ['File model provider returned invalid files_replace_memory arguments', 'tool'],
+  ['File model provider returned invalid reasoning details', 'parse'],
+  ['File model provider returned malformed tool arguments', 'parse'],
+  ['File model provider returned multiple parallel tool calls', 'parse'],
+  ['File model provider returned no tool call', 'parse'],
+  ['File model provider returned no turn decision', 'parse'],
+  ['File model provider returned invalid JSON', 'parse'],
+  ['File model provider reused a prior tool-call identifier', 'parse'],
+  ['File model provider selected an unauthorized logical path', 'tool'],
+  ['File model provider selected an unavailable tool', 'tool'],
+  ['File model timeout must be a positive integer up to 3600000ms', 'generic'],
+  ['File model tool result exceeds 2097152 bytes', 'tool'],
+  ['File model tool result is invalid', 'tool'],
+  ['File turn contact budget exhausted', 'tool'],
+  ['File turn input is invalid', 'generic'],
+  ['File turn runtime deadline exceeded', 'generic'],
+  ['File turn tool-step budget exhausted', 'tool'],
+  ['File workspace MEMORY replacement failed', 'tool'],
+  ['File workspace read failed', 'tool'],
+  ['File workspace returned a mismatched read receipt', 'tool'],
+  ['File workspace returned an invalid MEMORY replacement result', 'tool'],
+  ['File workspace returned an invalid read result', 'tool'],
+  ['MEMORY replacement is not authorized for this file turn', 'tool'],
+  [
+    'MEMORY replacement requires the expected version observed by a read in this file turn',
+    'tool',
+  ],
+  ['Requested model identity is invalid', 'generic'],
+]);
+
+const dynamicResponderPublicFailurePredicatesV1 = Object.freeze([
+  (message: string) => /^File model provider timed out after [1-9][0-9]{0,6}ms$/.test(
+    message,
+  ),
+  (message: string) => /^File model provider request failed with HTTP [1-5][0-9]{2}$/.test(
+    message,
+  ),
+  (message: string) => /^File model provider response exceeds [1-9][0-9]{0,8} bytes$/.test(
+    message,
+  ),
+]);
+
 export const CONTACT_AGENT_ERROR_CODES_V1 = Object.freeze({
   invalidRequest: 'CONTACT_INVALID_REQUEST',
   recipientUnknown: 'CONTACT_RECIPIENT_UNKNOWN',
@@ -301,19 +375,25 @@ class InProcessContactAgentPortV1 implements ContactAgentPortV1 {
         await deadline.settle(finalization);
         deadline.remainingMs();
       } catch (error) {
-        if (this.cancellationSignal?.aborted) {
-          result = cancelled(recipientTraceId, CONTACT_AGENT_ERROR_CODES_V1.cancelled);
-        } else if (deadline.ownsFailure(error)) {
-          result = cancelled(
-            recipientTraceId,
-            CONTACT_AGENT_ERROR_CODES_V1.deadlineExceeded,
-          );
-        } else if (
-          result?.errorCode !== CONTACT_AGENT_ERROR_CODES_V1.deadlineExceeded
-          && result?.errorCode !== CONTACT_AGENT_ERROR_CODES_V1.cancelled
-          && result?.status !== 'failed'
-        ) {
-          result = failed(recipientTraceId, CONTACT_AGENT_ERROR_CODES_V1.finalizeFailed);
+        // Cleanup is still invoked and its promise remains observed, but a
+        // previously established protocol failure is authoritative.
+        if (result?.status !== 'failed') {
+          if (this.cancellationSignal?.aborted) {
+            result = cancelled(recipientTraceId, CONTACT_AGENT_ERROR_CODES_V1.cancelled);
+          } else if (deadline.ownsFailure(error)) {
+            result = cancelled(
+              recipientTraceId,
+              CONTACT_AGENT_ERROR_CODES_V1.deadlineExceeded,
+            );
+          } else if (
+            result?.errorCode !== CONTACT_AGENT_ERROR_CODES_V1.deadlineExceeded
+            && result?.errorCode !== CONTACT_AGENT_ERROR_CODES_V1.cancelled
+          ) {
+            result = failed(
+              recipientTraceId,
+              CONTACT_AGENT_ERROR_CODES_V1.finalizeFailed,
+            );
+          }
         }
       }
       return result ?? failed(
@@ -376,13 +456,14 @@ function resultFromStepFailure(input: {
     );
   }
   if (input.error instanceof InternalFileTurnPublicErrorV1) {
-    if (isResponderParseFailure(input.error.message)) {
+    const failureClass = classifyResponderPublicFailureV1(input.error.message);
+    if (failureClass === 'parse') {
       return failed(
         input.recipientTraceId,
         CONTACT_AGENT_ERROR_CODES_V1.responderParseFailed,
       );
     }
-    if (isResponderToolFailure(input.error.message)) {
+    if (failureClass === 'tool') {
       return failed(
         input.recipientTraceId,
         CONTACT_AGENT_ERROR_CODES_V1.responderToolFailed,
@@ -392,16 +473,18 @@ function resultFromStepFailure(input: {
   return failed(input.recipientTraceId, CONTACT_AGENT_ERROR_CODES_V1.responderFailed);
 }
 
-function isResponderParseFailure(message: string): boolean {
-  return /(?:invalid (?:JSON|response|first choice|turn decision)|malformed tool arguments|duplicate tool-call|multiple parallel tool calls|reused a prior tool-call)/i.test(
-    message,
-  );
-}
-
-function isResponderToolFailure(message: string): boolean {
-  return /^(?:File workspace|MEMORY replacement|Agent contact|File turn (?:contact|tool-step)|File model provider (?:selected|returned invalid (?:contact_agent|files_)))/.test(
-    message,
-  );
+function classifyResponderPublicFailureV1(
+  message: string,
+): ResponderPublicFailureClassV1 {
+  const fixed = responderPublicFailureClassByMessageV1.get(message);
+  if (fixed) return fixed;
+  // The only patterned public messages approved by Task 4 are provider-level
+  // failures. Recognizing them explicitly documents the shared surface even
+  // though both recognized provider failures and unknown failures are generic.
+  if (dynamicResponderPublicFailurePredicatesV1.some(predicate => predicate(message))) {
+    return 'generic';
+  }
+  return 'generic';
 }
 
 function createRecipientTraceId(outerTraceId: string): string {

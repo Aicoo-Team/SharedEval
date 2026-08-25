@@ -546,6 +546,270 @@ test('maps denial, tool, parse, factory, step, and finalize failures without raw
   assert.doesNotMatch(JSON.stringify(failed), /private\/tmp|MEMORY_SECRET|unit-test-key|GOLD/);
 });
 
+test('keeps every established failed result authoritative across cleanup failures', async () => {
+  const stepCases: Array<{
+    name: string;
+    result: FileTurnDecisionV1 | Error;
+    code: string;
+  }> = [
+    {
+      name: 'tool',
+      result: new InternalFileTurnPublicErrorV1('File workspace read failed'),
+      code: CONTACT_AGENT_ERROR_CODES_V1.responderToolFailed,
+    },
+    {
+      name: 'parse',
+      result: {
+        type: 'completed',
+        content: 'invalid decision',
+        toolSteps: -1,
+        contactCalls: 0,
+      } as never,
+      code: CONTACT_AGENT_ERROR_CODES_V1.responderParseFailed,
+    },
+    {
+      name: 'generic',
+      result: new Error('/private/tmp/GENERIC_STEP_SENTINEL'),
+      code: CONTACT_AGENT_ERROR_CODES_V1.responderFailed,
+    },
+    {
+      name: 'tool budget',
+      result: {
+        type: 'completed',
+        content: 'over budget',
+        toolSteps: 2,
+        contactCalls: 0,
+      },
+      code: CONTACT_AGENT_ERROR_CODES_V1.toolBudgetExhausted,
+    },
+    {
+      name: 'recursive contact',
+      result: {
+        type: 'completed',
+        content: 'recursive contact',
+        toolSteps: 1,
+        contactCalls: 1,
+      },
+      code: CONTACT_AGENT_ERROR_CODES_V1.recursiveContactDenied,
+    },
+  ];
+  const cleanupCases = ['throw', 'deadline', 'external cancellation'] as const;
+
+  for (const stepCase of stepCases) {
+    for (const cleanupCase of cleanupCases) {
+      const controller = new AbortController();
+      const lateCleanup = createRejectableDeferred<void>();
+      const harness = new RecordingHarness(stepCase.result, async () => {
+        if (cleanupCase === 'throw') {
+          throw new Error('/private/tmp/FINALIZE_THROW_SENTINEL');
+        }
+        if (cleanupCase === 'external cancellation') controller.abort();
+        return lateCleanup.promise;
+      });
+      const port = createPort({
+        workspace: new ActorWorkspace('responder-1'),
+        budgets: { maxContacts: 1, remainingDepth: 1, maxToolSteps: 1 },
+        cancellationSignal: controller.signal,
+        createResponderHarnessFactory: () => () => harness,
+      });
+
+      const result = await port.contact({
+        ...authorizedInput,
+        deadlineMs: cleanupCase === 'deadline' ? 15 : 2_000,
+      });
+
+      assert.deepEqual(result, {
+        status: 'failed',
+        errorCode: stepCase.code,
+        recipientTraceId: result.recipientTraceId,
+      }, `${stepCase.name} / ${cleanupCase}`);
+      assert.equal(harness.finalizeCalls, 1, `${stepCase.name} / ${cleanupCase}`);
+      if (cleanupCase !== 'throw') {
+        lateCleanup.reject(new Error('/private/tmp/LATE_FINALIZE_SENTINEL'));
+        await new Promise(resolve => setImmediate(resolve));
+        assert.equal(harness.finalizeCalls, 1, `${stepCase.name} / ${cleanupCase} late`);
+        assert.doesNotMatch(JSON.stringify(result), /private\/tmp|FINALIZE_SENTINEL/);
+      }
+    }
+  }
+});
+
+test('keeps approved cleanup failure semantics for completed and denied results', async () => {
+  const stepCases: Array<{
+    name: string;
+    result: FileTurnDecisionV1;
+  }> = [
+    { name: 'completed', result: completed('answer before cleanup') },
+    {
+      name: 'denied',
+      result: {
+        type: 'denied',
+        reason: 'denied before cleanup',
+        toolSteps: 0,
+        contactCalls: 0,
+      },
+    },
+  ];
+  const cleanupCases = [
+    {
+      name: 'throw',
+      expectedStatus: 'failed' as const,
+      expectedCode: CONTACT_AGENT_ERROR_CODES_V1.finalizeFailed,
+    },
+    {
+      name: 'deadline',
+      expectedStatus: 'cancelled' as const,
+      expectedCode: CONTACT_AGENT_ERROR_CODES_V1.deadlineExceeded,
+    },
+    {
+      name: 'external cancellation',
+      expectedStatus: 'cancelled' as const,
+      expectedCode: CONTACT_AGENT_ERROR_CODES_V1.cancelled,
+    },
+  ];
+
+  for (const stepCase of stepCases) {
+    for (const cleanupCase of cleanupCases) {
+      const controller = new AbortController();
+      const lateCleanup = createRejectableDeferred<void>();
+      const harness = new RecordingHarness(stepCase.result, async () => {
+        if (cleanupCase.name === 'throw') throw new Error('cleanup failed');
+        if (cleanupCase.name === 'external cancellation') controller.abort();
+        return lateCleanup.promise;
+      });
+      const port = createPort({
+        workspace: new ActorWorkspace('responder-1'),
+        cancellationSignal: controller.signal,
+        createResponderHarnessFactory: () => () => harness,
+      });
+
+      const result = await port.contact({
+        ...authorizedInput,
+        deadlineMs: cleanupCase.name === 'deadline' ? 15 : 2_000,
+      });
+
+      assert.deepEqual(result, {
+        status: cleanupCase.expectedStatus,
+        errorCode: cleanupCase.expectedCode,
+        recipientTraceId: result.recipientTraceId,
+      }, `${stepCase.name} / ${cleanupCase.name}`);
+      assert.equal(harness.finalizeCalls, 1, `${stepCase.name} / ${cleanupCase.name}`);
+      if (cleanupCase.name !== 'throw') {
+        lateCleanup.reject(new Error('late cleanup failed'));
+        await new Promise(resolve => setImmediate(resolve));
+      }
+    }
+  }
+});
+
+test('classifies the complete Task 4 fixed public failure surface explicitly', async () => {
+  const parseMessages = [
+    'File harness returned an invalid turn decision',
+    'File model provider returned an invalid first choice',
+    'File model provider returned an invalid response envelope',
+    'File model provider returned an invalid turn decision',
+    'File model provider returned duplicate tool-call identifiers',
+    'File model provider returned invalid reasoning details',
+    'File model provider returned malformed tool arguments',
+    'File model provider returned multiple parallel tool calls',
+    'File model provider returned no tool call',
+    'File model provider returned no turn decision',
+    'File model provider returned invalid JSON',
+    'File model provider reused a prior tool-call identifier',
+  ] as const;
+  const toolMessages = [
+    'Agent contact failed',
+    'Agent contact is not authorized for this file turn',
+    'Agent contact returned an invalid result',
+    'File model provider returned invalid contact_agent arguments',
+    'File model provider returned invalid files_list arguments',
+    'File model provider returned invalid files_read arguments',
+    'File model provider returned invalid files_replace_memory arguments',
+    'File model provider selected an unauthorized logical path',
+    'File model provider selected an unavailable tool',
+    'File model tool result exceeds 2097152 bytes',
+    'File model tool result is invalid',
+    'File turn contact budget exhausted',
+    'File turn tool-step budget exhausted',
+    'File workspace MEMORY replacement failed',
+    'File workspace read failed',
+    'File workspace returned a mismatched read receipt',
+    'File workspace returned an invalid MEMORY replacement result',
+    'File workspace returned an invalid read result',
+    'MEMORY replacement is not authorized for this file turn',
+    'MEMORY replacement requires the expected version observed by a read in this file turn',
+  ] as const;
+  const genericMessages = [
+    'A fresh file harness instance is required for every turn',
+    'File harness creation failed',
+    'File harness finalization failed',
+    'File harness step failed',
+    'File model provider request failed',
+    'File model provider responded with a redirect; refusing to resend credentials',
+    'File model provider response stream failed',
+    'File model timeout must be a positive integer up to 3600000ms',
+    'File turn input is invalid',
+    'File turn runtime deadline exceeded',
+    'Requested model identity is invalid',
+  ] as const;
+  const dynamicGenericMessages = [
+    'File model provider timed out after 1200ms',
+    'File model provider request failed with HTTP 503',
+    'File model provider response exceeds 10485760 bytes',
+  ] as const;
+  assert.equal(
+    parseMessages.length + toolMessages.length + genericMessages.length,
+    43,
+  );
+
+  const cases = [
+    ...parseMessages.map(message => ({
+      message,
+      code: CONTACT_AGENT_ERROR_CODES_V1.responderParseFailed,
+    })),
+    ...toolMessages.map(message => ({
+      message,
+      code: CONTACT_AGENT_ERROR_CODES_V1.responderToolFailed,
+    })),
+    ...genericMessages.map(message => ({
+      message,
+      code: CONTACT_AGENT_ERROR_CODES_V1.responderFailed,
+    })),
+    ...dynamicGenericMessages.map(message => ({
+      message,
+      code: CONTACT_AGENT_ERROR_CODES_V1.responderFailed,
+    })),
+  ];
+
+  for (const entry of cases) {
+    const harness = new RecordingHarness(new InternalFileTurnPublicErrorV1(entry.message));
+    const port = createPort({
+      workspace: new ActorWorkspace('responder-1'),
+      createResponderHarnessFactory: () => () => harness,
+    });
+
+    const result = await port.contact(authorizedInput);
+
+    assert.equal(result.status, 'failed', entry.message);
+    assert.equal(result.errorCode, entry.code, entry.message);
+    assert.equal(harness.finalizeCalls, 1, entry.message);
+  }
+
+  for (const error of [
+    new InternalFileTurnPublicErrorV1('/private/tmp/UNKNOWN_PUBLIC_SENTINEL'),
+    new Error('/private/tmp/ARBITRARY_THROWN_SENTINEL'),
+  ]) {
+    const port = createPort({
+      workspace: new ActorWorkspace('responder-1'),
+      createResponderHarnessFactory: () => () => new RecordingHarness(error),
+    });
+    const result = await port.contact(authorizedInput);
+    assert.equal(result.status, 'failed');
+    assert.equal(result.errorCode, CONTACT_AGENT_ERROR_CODES_V1.responderFailed);
+    assert.doesNotMatch(JSON.stringify(result), /private\/tmp|SENTINEL/);
+  }
+});
+
 test('does not expose recursive contact to the responder by default', async () => {
   const requests: ProviderRequest[] = [];
   let factoryInput: ContactResponderHarnessFactoryInputV1 | undefined;
@@ -627,7 +891,7 @@ class RecordingHarness implements FreshFileHarnessV1 {
 
   constructor(
     private readonly stepResult: FileTurnDecisionV1 | Error | Promise<FileTurnDecisionV1>,
-    private readonly finalizeFailure?: Error,
+    private readonly finalizeBehavior?: Error | (() => void | Promise<void>),
   ) {}
 
   async step(input: FileTurnInputV1): Promise<FileTurnDecisionV1> {
@@ -639,7 +903,8 @@ class RecordingHarness implements FreshFileHarnessV1 {
 
   async finalize(): Promise<void> {
     this.finalizeCalls += 1;
-    if (this.finalizeFailure) throw this.finalizeFailure;
+    if (this.finalizeBehavior instanceof Error) throw this.finalizeBehavior;
+    await this.finalizeBehavior?.();
   }
 }
 
@@ -783,4 +1048,14 @@ function createDeferred<T>() {
     resolve = continuation;
   });
   return { promise, resolve };
+}
+
+function createRejectableDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }
