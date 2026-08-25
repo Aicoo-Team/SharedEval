@@ -69,6 +69,49 @@ function recursivelyEncodePercentSigns(value: string, rounds: number): string {
   return encoded;
 }
 
+const principlesPolicyAssets = [
+  {
+    id: 'policies/pact-pair-principles/d2r',
+    version: '1.0.0',
+    actorRoles: ['responder'],
+    sourcePath: 'policies/pact-pair-principles/d2r/1.0.0/POLICY.md',
+    aliases: [
+      'pact:dataset/pact-pair/policies/D2R_PRINCIPLES.md',
+    ],
+    status: 'active',
+    compatibleDatasets: ['pact-pair'],
+    compatibleWorkflowIds: ['files-multi', 'files-single'],
+    byteLength: 2024,
+    sha256: 'f400db896dde936516fa661e61a59367669b60d1d9dcb11c21bbd3f374c5e000',
+    provenance: {
+      kind: 'exact',
+      sourcePath: 'dataset/pact-pair/policies/D2R_PRINCIPLES.md',
+      sourceSha256: 'f400db896dde936516fa661e61a59367669b60d1d9dcb11c21bbd3f374c5e000',
+    },
+    trimmedSha256: 'adfe9d596868259c82ee18e244a2a230c6cddde5f3f2b708645c2b9c8b13a81a',
+  },
+  {
+    id: 'policies/pact-pair-principles/d6-tight',
+    version: '1.0.0',
+    actorRoles: ['responder'],
+    sourcePath: 'policies/pact-pair-principles/d6-tight/1.0.0/POLICY.md',
+    aliases: [
+      'pact:dataset/pact-pair/policies/D6_PRINCIPLES_TIGHT.md',
+    ],
+    status: 'active',
+    compatibleDatasets: ['pact-pair'],
+    compatibleWorkflowIds: ['files-multi', 'files-single'],
+    byteLength: 2167,
+    sha256: 'd428120f6eae211ab0e136d9b573ad691ada3ae50ac00ddae9da6d2c3784ee9a',
+    provenance: {
+      kind: 'exact',
+      sourcePath: 'dataset/pact-pair/policies/D6_PRINCIPLES_TIGHT.md',
+      sourceSha256: 'd428120f6eae211ab0e136d9b573ad691ada3ae50ac00ddae9da6d2c3784ee9a',
+    },
+    trimmedSha256: 'bd01a4581cd7bb54489e5251c04aadd538bf29193bb6fd020a96e8b358551bb9',
+  },
+] as const;
+
 test('loads the canonical registry in stable lexical order with exactly four base slots per PACT-Pair agent', async () => {
   const { loadWorkspaceRegistryV1 } = await loadSubject();
   const registry = await loadWorkspaceRegistryV1({ rootDir: canonicalRoot });
@@ -286,6 +329,95 @@ test('preserves the active D0 policy as an exact executable zero-byte asset', as
     resolved.sha256,
     'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
   );
+});
+
+test('registers the versioned D2R and D6 principles policies as exact responder assets', async () => {
+  const { loadWorkspaceRegistryV1, resolveWorkspaceRegistryAssetV1 } =
+    await loadSubject();
+  const registry = await loadWorkspaceRegistryV1({ rootDir: canonicalRoot });
+  const actual = registry.assets.filter(asset =>
+    asset.id.startsWith('policies/pact-pair-principles/')
+  );
+
+  assert.deepEqual(
+    actual,
+    principlesPolicyAssets.map(({ trimmedSha256: _trimmedSha256, ...asset }) => asset),
+  );
+
+  for (const expected of principlesPolicyAssets) {
+    const source = await readFile(join(repoRoot, expected.provenance.sourcePath));
+    const operational = await readFile(join(canonicalRoot, expected.sourcePath));
+    assert.deepEqual(operational, source, `${expected.id} exact source bytes`);
+    assert.equal(operational.byteLength, expected.byteLength);
+    assert.equal(sha256(operational), expected.sha256);
+    assert.equal(
+      sha256(Buffer.from(operational.toString('utf8').trim())),
+      expected.trimmedSha256,
+      `${expected.id} published trimmed digest`,
+    );
+    assert.equal(expected.aliases[0], `pact:${expected.provenance.sourcePath}`);
+
+    for (const workflowId of ['files-multi', 'files-single'] as const) {
+      const resolved = await resolveWorkspaceRegistryAssetV1({
+        rootDir: canonicalRoot,
+        registry,
+        id: expected.id,
+        version: expected.version,
+        actorRole: 'responder',
+        datasetId: 'pact-pair',
+        workflowId,
+      });
+      assert.deepEqual(Buffer.from(resolved.bytesBase64, 'base64'), source);
+      assert.equal(resolved.content, source.toString('utf8'));
+    }
+
+    await assert.rejects(
+      () => resolveWorkspaceRegistryAssetV1({
+        rootDir: canonicalRoot,
+        registry,
+        id: expected.id,
+        version: expected.version,
+        actorRole: 'requester',
+        datasetId: 'pact-pair',
+        workflowId: 'files-multi',
+      }),
+      /role|requester/i,
+    );
+  }
+});
+
+test('keeps gold schema and rationale markers out of both active principles policies', async () => {
+  const { loadWorkspaceRegistryV1, resolveWorkspaceRegistryAssetV1 } =
+    await loadSubject();
+  const registry = await loadWorkspaceRegistryV1({ rootDir: canonicalRoot });
+  const forbiddenMarkers = [
+    'gold_key_facts',
+    'minimum_correct',
+    'expected_verdict',
+    'gold_check',
+    'pact-pair-relationship-labels/v2',
+    'rationale',
+  ];
+
+  for (const expected of principlesPolicyAssets) {
+    const resolved = await resolveWorkspaceRegistryAssetV1({
+      rootDir: canonicalRoot,
+      registry,
+      id: expected.id,
+      version: expected.version,
+      actorRole: 'responder',
+      datasetId: 'pact-pair',
+      workflowId: 'files-single',
+    });
+    const content = resolved.content.toLowerCase();
+    for (const marker of forbiddenMarkers) {
+      assert.equal(
+        content.includes(marker),
+        false,
+        `${expected.id} must not contain ${marker}`,
+      );
+    }
+  }
 });
 
 test('strict registry parsing rejects unsafe, ambiguous, unordered, or incomplete metadata', async t => {

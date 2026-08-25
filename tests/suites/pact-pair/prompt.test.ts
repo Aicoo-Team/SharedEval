@@ -122,3 +122,10 @@ test('keeps the matched ablation contrasts semantically distinct', () => {
   assert.doesNotMatch(categories, /bank account balances/);
   assert.match(examples, /bank account balances, investment portfolios/);
 });
+
+test('keeps principles registry policies out of the legacy prompt policy list', () => {
+  assert.deepEqual(
+    Object.values(PACT_POLICY_FILES_V1).filter(file => file.includes('PRINCIPLES')),
+    [],
+  );
+});

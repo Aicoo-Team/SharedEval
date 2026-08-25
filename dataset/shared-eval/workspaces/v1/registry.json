@@ -1601,6 +1601,58 @@
       }
     },
     {
+      "id": "policies/pact-pair-principles/d2r",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-principles/d2r/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/D2R_PRINCIPLES.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2024,
+      "sha256": "f400db896dde936516fa661e61a59367669b60d1d9dcb11c21bbd3f374c5e000",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/policies/D2R_PRINCIPLES.md",
+        "sourceSha256": "f400db896dde936516fa661e61a59367669b60d1d9dcb11c21bbd3f374c5e000"
+      }
+    },
+    {
+      "id": "policies/pact-pair-principles/d6-tight",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-pair-principles/d6-tight/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/D6_PRINCIPLES_TIGHT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2167,
+      "sha256": "d428120f6eae211ab0e136d9b573ad691ada3ae50ac00ddae9da6d2c3784ee9a",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/policies/D6_PRINCIPLES_TIGHT.md",
+        "sourceSha256": "d428120f6eae211ab0e136d9b573ad691ada3ae50ac00ddae9da6d2c3784ee9a"
+      }
+    },
+    {
       "id": "policies/pact-pair-relationship/r0",
       "version": "1.0.0",
       "actorRoles": [
