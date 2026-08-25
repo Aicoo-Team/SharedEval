@@ -133,6 +133,9 @@ test('contains one task failure and still runs the next isolated task', async ()
     assert.equal(batch.sessions[0]?.ticks.length, 1);
     assert.equal(batch.sessions[0]?.ticks[0]?.status, 'failed');
     assert.equal(batch.outcomes[0]?.status, 'error');
+    assert.equal(batch.outcomes[0]?.evaluation, null);
+    assert.equal(batch.outcomes[0]?.evaluationResult, null);
+    assert.equal(batch.outcomes[0]?.publicEvaluation, null);
     assert.equal(batch.sessions[1]?.stopReason, 'all_terminal');
     assert.equal(batch.outcomes[1]?.status, 'answered');
     assert.equal(failedFinalizeCalls, 1);
@@ -183,6 +186,9 @@ test('bounds explicit retry ticks and emits exactly one no-response per isolated
       'no_response',
       'no_response',
     ]);
+    assert.equal(batch.outcomes.every(outcome => outcome.evaluation === null), true);
+    assert.equal(batch.outcomes.every(outcome => outcome.evaluationResult === null), true);
+    assert.equal(batch.outcomes.every(outcome => outcome.publicEvaluation === null), true);
     assert.equal(new Set(batch.outcomes.map(outcome => outcome.taskId)).size, 2);
     await assert.rejects(
       () => runPactPairFilesSingleV1({

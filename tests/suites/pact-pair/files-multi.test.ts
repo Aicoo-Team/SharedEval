@@ -269,6 +269,148 @@ test('binds action evaluation to its correlated contact snapshots despite later 
   }
 });
 
+test('rejects action sessions without trusted snapshot support before any registry, workspace, or model spend', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-files-action-gate-'));
+  const tasks = actionTasks(['PAIR-A1']);
+  let registryLoads = 0;
+  let materializations = 0;
+  let requesterFactories = 0;
+  let responderFactories = 0;
+  const dependencies: FileDrivenPairHarnessDependenciesV1 = {
+    loadRegistry: async () => {
+      registryLoads += 1;
+      throw new Error('REGISTRY_SPEND_SENTINEL');
+    },
+    materializeWorkspace: async () => {
+      materializations += 1;
+      throw new Error('WORKSPACE_SPEND_SENTINEL');
+    },
+    createRequesterHarnessFactory: () => {
+      requesterFactories += 1;
+      throw new Error('REQUESTER_SPEND_SENTINEL');
+    },
+    createResponderHarnessFactory: () => {
+      responderFactories += 1;
+      throw new Error('RESPONDER_SPEND_SENTINEL');
+    },
+  };
+
+  try {
+    await assert.rejects(
+      () => runPactPairFilesMultiV1({
+        ...baseOptions({ workspaceRootDir, tasks, dependencies }),
+        runId: 'multi-action-missing-snapshot',
+        maxTicks: 1,
+      }),
+      /trusted responder snapshot support/i,
+    );
+    assert.deepEqual({
+      registryLoads,
+      materializations,
+      requesterFactories,
+      responderFactories,
+    }, {
+      registryLoads: 0,
+      materializations: 0,
+      requesterFactories: 0,
+      responderFactories: 0,
+    });
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('preserves and safety-evaluates correlated action side effects before failure or exhaustion', async () => {
+  const cases = [
+    {
+      name: 'requester failure after an allowed action',
+      taskId: 'PAIR-A1',
+      termination: 'fatal' as const,
+      stopReason: 'fatal_error',
+      nonzeroMetrics: [] as const,
+    },
+    {
+      name: 'tick exhaustion after a forbidden action',
+      taskId: 'PAIR-A51',
+      termination: 'exhausted' as const,
+      stopReason: 'tick_exhausted',
+      nonzeroMetrics: [
+        { metric: 'actionSafety', numerator: 0, denominator: 1 },
+      ] as const,
+    },
+  ];
+
+  for (const entry of cases) {
+    const session = await runInterruptedActionScenario({
+      taskId: entry.taskId,
+      termination: entry.termination,
+      mutate: true,
+    });
+    const outcome = session.outcomes[0];
+    assert.equal(session.stopReason, entry.stopReason, entry.name);
+    assert.equal(session.contacts.length, 1, entry.name);
+    assert.equal(outcome?.status, 'side_effect_before_failure', entry.name);
+    assert.equal(outcome?.contactStatus, 'completed', entry.name);
+    assert.equal(outcome?.evaluation?.kind, 'action', entry.name);
+    assert.equal(outcome?.evaluation?.stateChanged, true, entry.name);
+    assert.equal(outcome?.publicEvaluation?.kind, 'action', entry.name);
+    assert.equal(outcome?.publicEvaluation?.stateChanged, true, entry.name);
+    assert.deepEqual(
+      outcome?.evaluationResult?.metrics.filter(metric => metric.denominator !== 0),
+      entry.nonzeroMetrics,
+      entry.name,
+    );
+    const publicBytes = JSON.stringify(toPublicFileDrivenPairSessionV1(session));
+    assert.doesNotMatch(
+      publicBytes,
+      /SIDE_EFFECT_PRIVATE_SENTINEL|PRIVATE_RESPONSE_SENTINEL|\$185,000|gold_check/i,
+      entry.name,
+    );
+  }
+});
+
+test('keeps unchanged post-contact failures outside the evaluator while retaining correlation', async () => {
+  const cases = [
+    {
+      name: 'requester failure',
+      termination: 'fatal' as const,
+      status: 'error',
+      stopReason: 'fatal_error',
+    },
+    {
+      name: 'tick exhaustion',
+      termination: 'exhausted' as const,
+      status: 'no_response',
+      stopReason: 'tick_exhausted',
+    },
+  ];
+
+  for (const entry of cases) {
+    const session = await runInterruptedActionScenario({
+      taskId: 'PAIR-A51',
+      termination: entry.termination,
+      mutate: false,
+    });
+    const outcome = session.outcomes[0];
+    assert.equal(session.stopReason, entry.stopReason, entry.name);
+    assert.equal(outcome?.status, entry.status, entry.name);
+    assert.equal(outcome?.contactStatus, 'completed', entry.name);
+    assert.equal(outcome?.evaluation, null, entry.name);
+    assert.equal(outcome?.evaluationResult, null, entry.name);
+    assert.equal(outcome?.publicEvaluation, null, entry.name);
+    assert.equal(
+      toPublicFileDrivenPairSessionV1(session).outcomes[0]?.contactStatus,
+      'completed',
+      entry.name,
+    );
+    assert.doesNotMatch(
+      JSON.stringify(toPublicFileDrivenPairSessionV1(session)),
+      /PRIVATE_RESPONSE_SENTINEL|\$185,000|gold_check/i,
+      entry.name,
+    );
+  }
+});
+
 test('keeps the first correlated task contact authoritative and ignores duplicate or forged terminal rows', async () => {
   const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-files-correlation-'));
   const tasks = qaTasks(['PAIR-Q1', 'PAIR-Q2']);
@@ -366,6 +508,98 @@ test('keeps the first correlated task contact authoritative and ignores duplicat
   }
 });
 
+test('rejects fresh-tick terminal MEMORY regression or status changes before CAS publication', async () => {
+  for (const rewrittenStatus of ['pending', 'refused'] as const) {
+    const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-files-monotonic-'));
+    const tasks = qaTasks(['PAIR-Q1', 'PAIR-Q2']);
+    let requesterTurn = 0;
+    const dependencies = scriptedDependencies({
+      tasks,
+      trace: [],
+      requesterFactory: input => () => ({
+        step: async turn => {
+          requesterTurn += 1;
+          const loaded = await readAll(input.workspace, turn, [], 'requester');
+          const rows = parseFileMemoryV1({
+            content: loaded.memory.content,
+            selectedTaskIds: tasks.map(task => task.taskId),
+          });
+          const task = tasks[requesterTurn - 1];
+          assert.ok(task);
+          const contacted = await input.contact.contact({
+            senderId: turn.actorId,
+            recipientId: 'responder-alex',
+            message: task.publicTask.prompt,
+            intent: 'request-task-result',
+            purpose: task.taskId,
+            traceId: turn.traceId,
+            deadlineMs: 1_000,
+          });
+          const nextRows = requesterTurn === 1
+            ? rows.map(row => row.taskId === 'PAIR-Q1'
+              ? { ...row, status: 'answered' as const, note: contacted.response ?? 'answered' }
+              : row)
+            : rows.map(row => row.taskId === 'PAIR-Q1'
+              ? { ...row, status: rewrittenStatus, note: 'ILLEGAL_TERMINAL_REWRITE' }
+              : { ...row, status: 'answered' as const, note: contacted.response ?? 'answered' });
+          await input.workspace.replaceMemory({
+            actorId: turn.actorId,
+            expectedVersion: loaded.memory.receipt.version,
+            content: renderMemory(nextRows),
+          });
+          return {
+            type: 'completed' as const,
+            content: `turn ${requesterTurn}`,
+            toolSteps: paths.length + 2,
+            contactCalls: 1,
+          };
+        },
+        finalize: async () => {},
+      }),
+      responderFactory: input => () => ({
+        step: async turn => {
+          await readAll(input.workspace, turn, [], 'responder');
+          return {
+            type: 'completed' as const,
+            content: input.request.purpose === 'PAIR-Q1'
+              ? 'Launch date: March 15, 2026'
+              : 'Budget: $500k',
+            toolSteps: paths.length,
+            contactCalls: 0,
+          };
+        },
+        finalize: async () => {},
+      }),
+    });
+
+    try {
+      const session = await runPactPairFilesMultiV1({
+        ...baseOptions({ workspaceRootDir, tasks, dependencies }),
+        runId: `multi-monotonic-${rewrittenStatus}`,
+        maxTicks: 2,
+      });
+      assert.equal(session.stopReason, 'fatal_error', rewrittenStatus);
+      assert.equal(session.ticks.length, 2, rewrittenStatus);
+      assert.equal(session.ticks[1]?.status, 'failed', rewrittenStatus);
+      assert.equal(session.final.requester.version, 1, rewrittenStatus);
+      assert.deepEqual(
+        session.outcomes.map(outcome => [outcome.taskId, outcome.status]),
+        [['PAIR-Q1', 'answered'], ['PAIR-Q2', 'error']],
+        rewrittenStatus,
+      );
+      assert.equal(session.outcomes[1]?.contactStatus, 'completed', rewrittenStatus);
+      assert.equal(session.outcomes[1]?.evaluationResult, null, rewrittenStatus);
+      assert.doesNotMatch(
+        JSON.stringify(toPublicFileDrivenPairSessionV1(session)),
+        /ILLEGAL_TERMINAL_REWRITE|March 15, 2026|\$500k/,
+        rewrittenStatus,
+      );
+    } finally {
+      await rm(workspaceRootDir, { recursive: true, force: true });
+    }
+  }
+});
+
 test('fails closed on malformed MEMORY without a partial commit and marks pending exhaustion explicitly', async () => {
   const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-files-memory-'));
   const tasks = qaTasks(['PAIR-Q1', 'PAIR-Q2']);
@@ -408,8 +642,14 @@ test('fails closed on malformed MEMORY without a partial commit and marks pendin
     });
     assert.equal(malformed.stopReason, 'fatal_error');
     assert.deepEqual(malformed.outcomes.map(outcome => outcome.status), ['error', 'error']);
+    assert.equal(malformed.outcomes.every(outcome => outcome.evaluationResult === null), true);
+    assert.equal(malformed.outcomes.every(outcome => outcome.publicEvaluation === null), true);
     assert.equal(malformed.final.requester.version, 0);
     assert.equal(finalizeCalls, 1);
+    assert.doesNotMatch(
+      JSON.stringify(toPublicFileDrivenPairSessionV1(malformed)),
+      /March 15, 2026|\$500k|gold_key|minimum_correct/,
+    );
 
     const idleRoot = await mkdtemp(join(tmpdir(), 'sharedeval-files-idle-'));
     try {
@@ -443,7 +683,13 @@ test('fails closed on malformed MEMORY without a partial commit and marks pendin
         'no_response',
         'no_response',
       ]);
+      assert.equal(exhausted.outcomes.every(outcome => outcome.evaluationResult === null), true);
+      assert.equal(exhausted.outcomes.every(outcome => outcome.publicEvaluation === null), true);
       assert.equal(new Set(exhausted.outcomes.map(outcome => outcome.taskId)).size, 2);
+      assert.doesNotMatch(
+        JSON.stringify(toPublicFileDrivenPairSessionV1(exhausted)),
+        /March 15, 2026|\$500k|gold_key|minimum_correct/,
+      );
     } finally {
       await rm(idleRoot, { recursive: true, force: true });
     }
@@ -495,6 +741,8 @@ test('finalizes a created requester harness when the session starts cancelled', 
     assert.equal(session.ticks.length, 1);
     assert.equal(session.ticks[0]?.decision?.type, 'cancelled');
     assert.equal(session.outcomes[0]?.status, 'error');
+    assert.equal(session.outcomes[0]?.evaluationResult, null);
+    assert.equal(session.outcomes[0]?.publicEvaluation, null);
     assert.equal(session.final.requester.version, 0);
     assert.equal(stepCalls, 0);
     assert.equal(finalizeCalls, 1);
@@ -653,6 +901,88 @@ function qaTasks(ids: string[]): LoadedPactPairTaskV1[] {
     kind: 'qa',
     ids,
   });
+}
+
+function actionTasks(ids: string[]): LoadedPactPairTaskV1[] {
+  return loadPactPairTasksV1({
+    policy: 'D2',
+    requester: 'R0',
+    gradingMode: 'category',
+    kind: 'action',
+    ids,
+  });
+}
+
+async function runInterruptedActionScenario(input: {
+  taskId: string;
+  termination: 'fatal' | 'exhausted';
+  mutate: boolean;
+}) {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-files-action-interrupt-'));
+  const tasks = actionTasks([input.taskId]);
+  const task = tasks[0];
+  assert.ok(task);
+  const data = createPactPairWorkspaceV1(loadCanonicalPactPairStoreV1(), {
+    now: () => '2026-08-25T00:00:00.000Z',
+  });
+  const dependencies = scriptedDependencies({
+    tasks,
+    trace: [],
+    requesterFactory: factoryInput => () => ({
+      step: async turn => {
+        await readAll(factoryInput.workspace, turn, [], 'requester');
+        await factoryInput.contact.contact({
+          senderId: turn.actorId,
+          recipientId: 'responder-alex',
+          message: task.publicTask.prompt,
+          intent: 'request-task-result',
+          purpose: task.taskId,
+          traceId: turn.traceId,
+          deadlineMs: 1_000,
+        });
+        if (input.termination === 'fatal') {
+          throw new Error('PRIVATE_AFTER_CONTACT_FAILURE');
+        }
+        return {
+          type: 'completed' as const,
+          content: 'contact complete without MEMORY publication',
+          toolSteps: paths.length + 1,
+          contactCalls: 1,
+        };
+      },
+      finalize: async () => {},
+    }),
+    responderFactory: factoryInput => () => ({
+      step: async turn => {
+        await readAll(factoryInput.workspace, turn, [], 'responder');
+        if (input.mutate) {
+          data.createNote({
+            folder: 'Shared',
+            title: 'SIDE_EFFECT_PRIVATE_SENTINEL',
+            content: 'SIDE_EFFECT_PRIVATE_SENTINEL',
+          });
+        }
+        return {
+          type: 'completed' as const,
+          content: 'PRIVATE_RESPONSE_SENTINEL',
+          toolSteps: paths.length,
+          contactCalls: 0,
+        };
+      },
+      finalize: async () => {},
+    }),
+    snapshotResponderState: () => data.snapshot(),
+  });
+
+  try {
+    return await runPactPairFilesMultiV1({
+      ...baseOptions({ workspaceRootDir, tasks, dependencies }),
+      runId: `multi-action-${input.taskId}-${input.termination}-${input.mutate ? 'changed' : 'unchanged'}`,
+      maxTicks: 1,
+    });
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
 }
 
 function ref(id: string) {

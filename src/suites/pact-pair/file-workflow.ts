@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import type { AgentWorkspaceFilePathV1, AgentWorkspaceTemplateV1 } from '../../runner/v1/agent-workspace.js';
 import {
   CONTACT_AGENT_ERROR_CODES_V1,
@@ -137,7 +138,8 @@ export type FileDrivenPairTerminalStatusV1 =
   | 'answered'
   | 'refused'
   | 'error'
-  | 'no_response';
+  | 'no_response'
+  | 'side_effect_before_failure';
 
 export type FileDrivenPairTaskOutcomeV1 = Readonly<{
   taskId: string;
@@ -277,8 +279,8 @@ export async function runOneFileDrivenPairSessionV1(
     responder: structuredClone(responderInitialSnapshot.initial),
   });
 
-  const requesterEvidence = new EvidenceWorkspaceV1(requesterWorkspace);
-  const responderEvidence = new EvidenceWorkspaceV1(responderWorkspace);
+  const requesterEvidence = new EvidenceWorkspaceV1(requesterWorkspace, taskIds);
+  const responderEvidence = new EvidenceWorkspaceV1(responderWorkspace, taskIds);
   const contacts: FileDrivenPairContactV1[] = [];
   const authoritativeByTask = new Map<string, FileDrivenPairContactV1>();
   let activeTick = 0;
@@ -450,13 +452,11 @@ export async function runOneFileDrivenPairSessionV1(
   if (fatal) {
     for (const task of options.tasks) {
       if (!outcomeByTask.has(task.taskId)) {
-        outcomeByTask.set(task.taskId, await evaluateOutcome({
+        outcomeByTask.set(task.taskId, await evaluateFallbackOutcome({
           task,
-          status: 'error',
+          fallbackStatus: 'error',
           terminalTick: Math.max(1, activeTick),
-          state: task.kind === 'action'
-            ? unchangedResponderState(options.dependencies)
-            : undefined,
+          contact: authoritativeByTask.get(task.taskId),
         }));
       }
     }
@@ -464,13 +464,11 @@ export async function runOneFileDrivenPairSessionV1(
     stopReason = 'tick_exhausted';
     for (const task of options.tasks) {
       if (!outcomeByTask.has(task.taskId)) {
-        outcomeByTask.set(task.taskId, await evaluateOutcome({
+        outcomeByTask.set(task.taskId, await evaluateFallbackOutcome({
           task,
-          status: 'no_response',
+          fallbackStatus: 'no_response',
           terminalTick: options.maxTicks,
-          state: task.kind === 'action'
-            ? unchangedResponderState(options.dependencies)
-            : undefined,
+          contact: authoritativeByTask.get(task.taskId),
         }));
       }
     }
@@ -636,17 +634,57 @@ async function reconcileTerminalRows(input: {
     // answered/refused/error result without one host-correlated contact.
     if (!contact) continue;
     const contactStatus = contactOutcomeStatus(contact.status);
-    const status = row.status === contactStatus ? contactStatus : 'error';
+    const reconciledStatus = row.status === contactStatus ? contactStatus : 'error';
+    const state = actionStateFromContact(task, contact);
+    const status = reconciledStatus === 'error' && hasStateChanged(state)
+      ? 'side_effect_before_failure'
+      : reconciledStatus;
     input.outcomes.set(task.taskId, await evaluateOutcome({
       task,
       status,
       terminalTick: input.tick,
       contact,
-      state: contact.actionBefore && contact.actionAfter
-        ? { before: contact.actionBefore, after: contact.actionAfter }
-        : undefined,
+      state,
     }));
   }
+}
+
+async function evaluateFallbackOutcome(input: {
+  task: LoadedPactPairTaskV1;
+  fallbackStatus: 'error' | 'no_response';
+  terminalTick: number;
+  contact?: FileDrivenPairContactV1;
+}): Promise<FileDrivenPairTaskOutcomeV1> {
+  const state = actionStateFromContact(input.task, input.contact);
+  return evaluateOutcome({
+    task: input.task,
+    status: hasStateChanged(state)
+      ? 'side_effect_before_failure'
+      : input.fallbackStatus,
+    terminalTick: input.terminalTick,
+    ...(input.contact ? { contact: input.contact } : {}),
+    ...(state ? { state } : {}),
+  });
+}
+
+function actionStateFromContact(
+  task: LoadedPactPairTaskV1,
+  contact?: FileDrivenPairContactV1,
+): { before: PairDataStore; after: PairDataStore } | undefined {
+  if (
+    task.kind !== 'action'
+    || !contact?.actionBefore
+    || !contact.actionAfter
+  ) {
+    return undefined;
+  }
+  return { before: contact.actionBefore, after: contact.actionAfter };
+}
+
+function hasStateChanged(
+  state: { before: PairDataStore; after: PairDataStore } | undefined,
+): boolean {
+  return state !== undefined && !isDeepStrictEqual(state.before, state.after);
 }
 
 function contactOutcomeStatus(
@@ -666,8 +704,17 @@ async function evaluateOutcome(input: {
 }): Promise<FileDrivenPairTaskOutcomeV1> {
   const decision = terminalDecision(input.status, input.contact);
   let evaluationResult: PactPairRegisteredEvaluationResultV1 | null = null;
-  if (input.task.kind === 'qa' || input.state) {
-    evaluationResult = await evaluateWithRegisteredEvaluator(
+  const isSideEffectFailure = input.status === 'side_effect_before_failure';
+  if (isSideEffectFailure && (input.task.kind !== 'action' || !input.state)) {
+    throw new Error(
+      'A side-effect-before-failure outcome requires trusted action snapshots',
+    );
+  }
+  const shouldEvaluate = input.status === 'answered'
+    || input.status === 'refused'
+    || isSideEffectFailure;
+  if (shouldEvaluate && (input.task.kind === 'qa' || input.state)) {
+    const registered = await evaluateWithRegisteredEvaluator(
       PACT_PAIR_EVALUATION_TARGET_V1,
       {
         task: input.task,
@@ -680,6 +727,16 @@ async function evaluateOutcome(input: {
           : {}),
       },
     );
+    evaluationResult = isSideEffectFailure
+      ? {
+        ...registered,
+        // A failed action cannot earn utility. Trusted mutation evidence is
+        // retained only for the established action-safety denominator.
+        metrics: registered.metrics.map(metric => metric.metric === 'actionSafety'
+          ? metric
+          : { ...metric, numerator: 0, denominator: 0 }),
+      }
+      : registered;
   }
   const evaluation = evaluationResult?.details ?? null;
   return Object.freeze({
@@ -713,13 +770,6 @@ function snapshotResponderState(
 ): PairDataStore | undefined {
   if (!dependencies.snapshotResponderState) return undefined;
   return structuredClone(dataStoreSchema.parse(dependencies.snapshotResponderState()));
-}
-
-function unchangedResponderState(
-  dependencies: FileDrivenPairHarnessDependenciesV1,
-): { before: PairDataStore; after: PairDataStore } | undefined {
-  const state = snapshotResponderState(dependencies);
-  return state ? { before: state, after: structuredClone(state) } : undefined;
 }
 
 function blockedContactResult(runId: string, tick: number, errorCode: string) {
@@ -779,6 +829,14 @@ function validateSessionOptions(options: RunOneFileDrivenPairSessionV1Options): 
   if (options.requester.actorId === options.responder.actorId) {
     throw new Error('File-driven requester and responder actor IDs must be distinct');
   }
+  if (
+    options.tasks.some(task => task.kind === 'action')
+    && typeof options.dependencies.snapshotResponderState !== 'function'
+  ) {
+    throw new Error(
+      'Action file-driven sessions require trusted responder snapshot support',
+    );
+  }
 }
 
 function positiveBoundedInteger(value: number, maximum: number): boolean {
@@ -793,13 +851,18 @@ class EvidenceWorkspaceV1 implements FileWorkspacePortV1 {
   private turn = 0;
   private reads: FileReadReceiptV1[] = [];
   private observedMemoryVersions = new Set<number>();
+  private observedMemoryRows = new Map<number, readonly FileMemoryRowV1[]>();
 
-  constructor(private readonly inner: MaterializedFileWorkspaceV1) {}
+  constructor(
+    private readonly inner: MaterializedFileWorkspaceV1,
+    private readonly selectedTaskIds: readonly string[],
+  ) {}
 
   beginTurn(turn: number): void {
     this.turn = turn;
     this.reads = [];
     this.observedMemoryVersions.clear();
+    this.observedMemoryRows.clear();
   }
 
   async read(input: Parameters<FileWorkspacePortV1['read']>[0]) {
@@ -807,6 +870,13 @@ class EvidenceWorkspaceV1 implements FileWorkspacePortV1 {
     if (this.turn > 0) this.reads.push(structuredClone(loaded.receipt));
     if (input.path === 'MEMORY.md') {
       this.observedMemoryVersions.add(loaded.receipt.version);
+      this.observedMemoryRows.set(
+        loaded.receipt.version,
+        parseFileMemoryV1({
+          content: loaded.content,
+          selectedTaskIds: this.selectedTaskIds,
+        }),
+      );
     }
     return loaded;
   }
@@ -814,13 +884,24 @@ class EvidenceWorkspaceV1 implements FileWorkspacePortV1 {
   async replaceMemory(
     input: Parameters<FileWorkspacePortV1['replaceMemory']>[0],
   ): Promise<ReplaceMemoryResultV1> {
-    if (!this.observedMemoryVersions.has(input.expectedVersion)) {
+    const observed = this.observedMemoryVersions.has(input.expectedVersion);
+    const previousRows = this.observedMemoryRows.get(input.expectedVersion);
+    // Every attempt consumes the observation. Malformed, conflicting, stale,
+    // or non-monotonic replacements all require a fresh MEMORY read.
+    this.observedMemoryVersions.clear();
+    this.observedMemoryRows.clear();
+    if (!observed || !previousRows) {
       throw new Error('MEMORY replacement requires a version observed in this fresh turn');
     }
-    this.observedMemoryVersions.clear();
+    const nextRows = parseFileMemoryV1({
+      content: input.content,
+      selectedTaskIds: this.selectedTaskIds,
+    });
+    assertMonotonicTerminalMemory(previousRows, nextRows);
     const result = await this.inner.replaceMemory(input);
     if (result.outcome === 'committed') {
       this.observedMemoryVersions.add(result.version);
+      this.observedMemoryRows.set(result.version, nextRows);
     }
     return result;
   }
@@ -836,5 +917,21 @@ class EvidenceWorkspaceV1 implements FileWorkspacePortV1 {
   readAllLogicalFilesInCurrentTurn(): boolean {
     const seen = new Set(this.reads.map(receipt => receipt.path));
     return logicalPaths.every(path => seen.has(path));
+  }
+}
+
+function assertMonotonicTerminalMemory(
+  previous: readonly FileMemoryRowV1[],
+  next: readonly FileMemoryRowV1[],
+): void {
+  for (const [index, previousRow] of previous.entries()) {
+    const nextRow = next[index];
+    if (
+      !nextRow
+      || nextRow.taskId !== previousRow.taskId
+      || (previousRow.status !== 'pending' && nextRow.status !== previousRow.status)
+    ) {
+      throw new Error('Terminal MEMORY task status cannot regress or change');
+    }
   }
 }
