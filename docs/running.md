@@ -447,6 +447,38 @@ lives under `private/` and is only persisted when the `output.saveTraces`
 retention switch is on; treat that subdirectory as sensitive and never publish
 it with a run.
 
+### Live overview of concurrent runs
+
+Use the read-only watcher to inspect every run directly below an output root:
+
+```bash
+npm run watch:runs -- --dir runs --interval 2
+npm run watch:runs -- --dir runs --once
+```
+
+The table counts canonical task IDs rather than physical JSONL rows. An `ok`
+outcome and a terminal `infrastructure_error` count as done; an error proven
+safe to retry by the runner's versioned PACT-Pair classifier remains pending.
+The error column is `ERR(retryable/terminal)`. It does not replace the public
+task status or maintain a separate watcher-only error taxonomy. Identical
+duplicate outcomes collapse, while conflicting outcomes for one task mark the
+run corrupt.
+
+The watcher opens only `run.json`, `results.jsonl`, `checkpoint.json`, and
+`summary.json` at the run-directory root. It never enters `private/`, reads
+task-commit journals, or inspects agent workspaces. Public files have bounded
+sizes, directory scans use bounded concurrency, and symlink/path escapes are
+rejected. A valid last JSONL record needs no trailing newline. Only one
+malformed, unterminated tail is ignored, and only while `run.json` still says
+`running`; every terminated, interior, or finalized malformed record fails
+closed. Checkpoint/result/summary disagreements likewise render as corrupt.
+
+ETA is intentionally conservative. It is available only when a current public
+progress epoch is recorded (today, the latest `resumes[].at` and its `taskIds`).
+The watcher does not infer completion order from canonical result order, file
+modification time, or the original run start, so an initial or historical run
+without such an epoch displays `?` rather than a misleading estimate.
+
 The requested model string is intent; `providerTelemetry` and
 `summary.provider.servedModels/providers` are the observed route. Token/cost
 fields are present only when the endpoint returns valid usage, while
