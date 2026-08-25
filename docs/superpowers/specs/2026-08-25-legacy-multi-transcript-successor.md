@@ -122,4 +122,3 @@ and never silently disappear from a denominator.
 - Retry taxonomy, same-grant rules, phase FSM, action snapshots,
   side-effect-before-failure, cardinality, denominators, crash boundaries, and
   `--resume` fail-before-spend are covered.
-

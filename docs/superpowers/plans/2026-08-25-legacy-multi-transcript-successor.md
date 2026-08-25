@@ -173,4 +173,3 @@ extracted OpenAI-compatible transport helpers.
 - [ ] Commit `feat(runner): dispatch legacy transcript workflow` and write the
   handoff report with RED/GREEN evidence, commit SHAs, excluded ancestry, and
   any integration-base dependency.
-

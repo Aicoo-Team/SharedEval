@@ -127,4 +127,3 @@ test('model requester selection is explicit and includes its own frozen persona 
   }
   assert.equal(parsed.benchmark.trajectory.requesterDriver.agentConfig.persona, 'dana');
 });
-

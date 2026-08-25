@@ -247,4 +247,3 @@ function canonicalJson(value: unknown): string {
     .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
     .join(',')}}`;
 }
-
