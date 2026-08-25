@@ -10,6 +10,7 @@
   },
   "scripts": {
     "benchmark": "tsx src/runner/v1/cli.ts",
+    "watch:runs": "tsx scripts/watch_runs.ts",
     "build:harbor": "tsc -p tsconfig.harbor.json",
     "generate:golden": "tsx scripts/generate-golden.ts",
     "validate": "tsx src/validate.ts",
