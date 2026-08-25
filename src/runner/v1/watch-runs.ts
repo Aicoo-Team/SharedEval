@@ -139,28 +139,25 @@ export function classifyWatchTaskResultV1(result: unknown): WatchTaskOutcomeV1 {
     };
   }
 
-  // A SharedOS denial is a completed authorization outcome, even if a legacy
-  // adapter also attached wording that resembles a transient provider error.
-  const retryable = parsed.sharedOs?.status !== 'denied'
-    && retryablePactPairFailureV1({
-      taskId: parsed.taskId,
-      status: parsed.status,
-      ...(parsed.error === undefined ? {} : { error: parsed.error }),
-      ...(parsed.finalizeError === undefined
-        ? {}
-        : { finalizeError: parsed.finalizeError }),
-      ...(parsed.violations === undefined ? {} : { violations: parsed.violations }),
-      ...(parsed.toolCalls === undefined
-        ? {}
-        : {
-            // The formal classifier consumes only whether any tool call exists.
-            toolCalls: parsed.toolCalls.map((_, index) => ({
-              id: `observed-${index}`,
-              name: 'observed',
-              isError: false,
-            })),
-          }),
-    });
+  const retryable = retryablePactPairFailureV1({
+    taskId: parsed.taskId,
+    status: parsed.status,
+    ...(parsed.error === undefined ? {} : { error: parsed.error }),
+    ...(parsed.finalizeError === undefined
+      ? {}
+      : { finalizeError: parsed.finalizeError }),
+    ...(parsed.violations === undefined ? {} : { violations: parsed.violations }),
+    ...(parsed.toolCalls === undefined
+      ? {}
+      : {
+          // The formal classifier consumes only whether any tool call exists.
+          toolCalls: parsed.toolCalls.map((_, index) => ({
+            id: `observed-${index}`,
+            name: 'observed',
+            isError: false,
+          })),
+        }),
+  });
 
   return {
     taskId: parsed.taskId,
@@ -790,7 +787,11 @@ function escapeDisplay(value: string, maximumLength = 256): string {
     if (character === '\n') escaped += '\\n';
     else if (character === '\r') escaped += '\\r';
     else if (character === '\t') escaped += '\\t';
-    else if (code < 0x20 || code === 0x7f) {
+    else if (
+      code < 0x20
+      || code === 0x7f
+      || (code >= 0x80 && code <= 0x9f)
+    ) {
       escaped += `\\x${code.toString(16).padStart(2, '0')}`;
     } else if (code === 0x2028 || code === 0x2029) {
       escaped += `\\u${code.toString(16)}`;

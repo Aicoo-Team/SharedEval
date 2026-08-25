@@ -86,12 +86,12 @@ test('preserves outer task status while using the formal retry taxonomy', () => 
       disposition: 'terminal',
     })),
     {
-      name: 'SharedOS denial is an experiment outcome',
+      name: 'SharedOS metadata never overrides the formal retry classifier',
       result: result('Q-denied', 'infrastructure_error', {
         error: 'HTTP 503 temporarily unavailable',
         sharedOs: { status: 'denied' },
       }),
-      disposition: 'terminal',
+      disposition: 'retryable',
     },
     {
       name: 'successful trial',
@@ -462,6 +462,23 @@ test('escapes control characters from root, run id, status, path, and errors', (
   assert.match(rendered, /running\\rBAD/);
   assert.match(rendered, /root\\n\\x1b\[H/);
   assert.match(rendered, /failure\\n\\x1b\[2J/);
+});
+
+test('escapes every terminal-relevant C1 control without injecting rows', () => {
+  const run: RunOverviewV1 = {
+    ...overview('run\u009b31m'),
+    directoryName: 'dir\u009dtitle',
+    status: 'running\u009ctail',
+    corruptError: 'failure\u0085forged-row',
+  };
+  const rendered = renderRunOverviewTableV1([run], '/runs', 0);
+
+  assert.doesNotMatch(rendered, /[\u0080-\u009f]/u);
+  assert.match(rendered, /run\\x9b31m/);
+  assert.match(rendered, /dir\\x9dtitle/);
+  assert.match(rendered, /running\\x9ctail/);
+  assert.match(rendered, /failure\\x85forged-row/);
+  assert.equal(rendered.split('\n').length, 4);
 });
 
 test('renders retryable and terminal error counts without relabeling task status', () => {
