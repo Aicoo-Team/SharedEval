@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   access,
   mkdir,
@@ -7,6 +8,7 @@ import {
   readFile,
   readdir,
   rm,
+  symlink,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -55,6 +57,32 @@ async function materialize(
     selectedTaskIds: ['task-1'],
     faultInjection: faultInjection as never,
   });
+}
+
+function actorDirectory(rootDir: string, runId = 'run-1', actorId = 'actor-1'): string {
+  return join(rootDir, 'runs', runId, 'workspaces', actorId);
+}
+
+async function reopen(rootDir: string, runId = 'run-1', actorId = 'actor-1') {
+  const { openFileWorkspaceV1 } = await loadSubject();
+  return openFileWorkspaceV1({
+    rootDir,
+    runId,
+    actorId,
+    selectedTaskIds: ['task-1'],
+  });
+}
+
+async function readJson(path: string): Promise<Record<string, any>> {
+  return JSON.parse(await readFile(path, 'utf8')) as Record<string, any>;
+}
+
+async function writeJson(path: string, value: unknown): Promise<void> {
+  await writeFile(path, `${JSON.stringify(value)}\n`);
+}
+
+function fileMetadata(path: string, content: string) {
+  return { path, sha256: sha256(content), byteLength: Buffer.byteLength(content, 'utf8') };
 }
 
 test('materializes four exact files, exposes logical receipts only, and makes MEMORY the sole write operation', async () => {
@@ -195,16 +223,38 @@ test('three concurrent stale writers elect one append-only commit without recove
     });
     const actorDir = join(rootDir, 'runs', 'run-1', 'workspaces', 'actor-1');
     await writeFile(join(actorDir, '.memory.lock'), '');
-    const results = await Promise.all([
-      workspace.replaceMemory({ actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — left\n' }),
-      workspace.replaceMemory({ actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — middle\n' }),
-      workspace.replaceMemory({ actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — right\n' }),
-    ]);
+    const contents = [
+      'task-1 [answered] — left\n',
+      'task-1 [answered] — middle\n',
+      'task-1 [answered] — right\n',
+    ];
+    const results = await Promise.all(contents.map(content => workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content,
+    })));
     assert.equal(results.filter(result => result.outcome === 'committed').length, 1);
     assert.equal(results.filter(result => result.outcome === 'conflict').length, 2);
     assert.equal((await workspace.snapshot('actor-1')).final.version, 1);
+    const winnerIndex = results.findIndex(result => result.outcome === 'committed');
+    assert.notEqual(winnerIndex, -1);
+    assert.equal(
+      (await workspace.read({ actorId: 'actor-1', path: 'MEMORY.md' })).content,
+      contents[winnerIndex],
+    );
     assert.deepEqual(
-      (await readdir(actorDir)).filter(name => name.includes('.stale-') || name.includes('.initializing-')),
+      (await readdir(join(actorDir, 'commits'))).sort(),
+      ['commit-0.json', 'commit-1.json'],
+    );
+    assert.equal(
+      (await readdir(join(actorDir, 'versions'))).filter(name => name.startsWith('version-')).length,
+      2,
+    );
+    assert.deepEqual(
+      (await readdir(actorDir)).filter(name => (
+        name.includes('.stale-')
+        || name.includes('.initializing-')
+        || name.startsWith('.memory-stage-')
+        || name.startsWith('.commit-pointer-')
+      )),
       [],
     );
   } finally {
@@ -335,6 +385,361 @@ test('recovers the MEMORY version and digest from disk in a newly opened port', 
       outcome: 'conflict', version: 1,
       sha256: sha256('task-1 [answered] — persisted\n'), byteLength: 32,
     });
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('rejects latest AGENT byte corruption before a materialized port reads MEMORY or reopen returns', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir);
+    const actorDir = actorDirectory(rootDir);
+    const initial = await readJson(join(actorDir, 'commits', 'commit-0.json'));
+    await writeFile(
+      join(actorDir, 'versions', initial.directory, 'AGENT.md'),
+      'corrupted latest agent bytes\n',
+    );
+
+    await assert.rejects(
+      () => workspace.read({ actorId: 'actor-1', path: 'MEMORY.md' }),
+      /AGENT|hash|history|workspace/i,
+    );
+    await assert.rejects(() => workspace.snapshot('actor-1'), /AGENT|hash|history|workspace/i);
+    await assert.rejects(() => reopen(rootDir), /AGENT|hash|history|workspace/i);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('rejects a commit-zero marker that is not exactly bound to initial metadata', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    await materialize(rootDir);
+    const actorDir = actorDirectory(rootDir);
+    const markerPath = join(actorDir, 'commits', 'commit-0.json');
+    const marker = await readJson(markerPath);
+    marker.files['AGENT.md'].sha256 = sha256('different metadata only\n');
+    await writeJson(markerPath, marker);
+
+    await assert.rejects(() => reopen(rootDir), /initial|commit 0|history/i);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('rejects a commit-zero marker whose directory diverges from initial.json', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir);
+    await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — next version\n',
+    });
+    const actorDir = actorDirectory(rootDir);
+    const initialPath = join(actorDir, 'initial.json');
+    const initial = await readJson(initialPath);
+    const next = await readJson(join(actorDir, 'commits', 'commit-1.json'));
+    initial.directory = next.directory;
+    await writeJson(initialPath, initial);
+
+    await assert.rejects(() => reopen(rootDir), /initial|commit 0|directory|history/i);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('rejects a policy-poison marker even when its forged version bytes match its own metadata', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir);
+    await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — valid transition\n',
+    });
+    const actorDir = actorDirectory(rootDir);
+    const markerPath = join(actorDir, 'commits', 'commit-1.json');
+    const marker = await readJson(markerPath);
+    const poisonedDirectory = `version-${randomUUID()}`;
+    const versionsDir = join(actorDir, 'versions');
+    await mkdir(join(versionsDir, poisonedDirectory));
+    for (const path of ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md']) {
+      await writeFile(
+        join(versionsDir, poisonedDirectory, path),
+        await readFile(join(versionsDir, marker.directory, path)),
+      );
+    }
+    await writeFile(join(versionsDir, poisonedDirectory, 'POLICY.md'), 'poisoned policy\n');
+    marker.directory = poisonedDirectory;
+    marker.files['POLICY.md'] = fileMetadata('POLICY.md', 'poisoned policy\n');
+    await writeJson(markerPath, marker);
+
+    await assert.rejects(
+      () => workspace.read({ actorId: 'actor-1', path: 'MEMORY.md' }),
+      /immutable|POLICY|history/i,
+    );
+    await assert.rejects(() => reopen(rootDir), /immutable|POLICY|history/i);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('rejects a corrupted historical version even when the latest MEMORY version remains valid', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir);
+    await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — newest valid\n',
+    });
+    const actorDir = actorDirectory(rootDir);
+    const initial = await readJson(join(actorDir, 'commits', 'commit-0.json'));
+    await writeFile(
+      join(actorDir, 'versions', initial.directory, 'AGENT.md'),
+      'old agent corruption\n',
+    );
+
+    await assert.rejects(() => reopen(rootDir), /AGENT|hash|history|workspace/i);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('rejects historical MEMORY bytes that are hash-valid but no longer canonical for selected tasks', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir);
+    await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — newest valid\n',
+    });
+    const actorDir = actorDirectory(rootDir);
+    const initialPath = join(actorDir, 'initial.json');
+    const markerPath = join(actorDir, 'commits', 'commit-0.json');
+    const initial = await readJson(initialPath);
+    const marker = await readJson(markerPath);
+    const invalidMemory = 'not a canonical MEMORY row\n';
+    await writeFile(join(actorDir, 'versions', marker.directory, 'MEMORY.md'), invalidMemory);
+    const metadata = fileMetadata('MEMORY.md', invalidMemory);
+    initial.files['MEMORY.md'] = metadata;
+    marker.files['MEMORY.md'] = metadata;
+    await writeJson(initialPath, initial);
+    await writeJson(markerPath, marker);
+
+    await assert.rejects(() => reopen(rootDir), /MEMORY|canonical|selected|row/i);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('rejects two append-only markers that reference the same version directory', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir);
+    await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — valid transition\n',
+    });
+    const actorDir = actorDirectory(rootDir);
+    const initial = await readJson(join(actorDir, 'commits', 'commit-0.json'));
+    const markerPath = join(actorDir, 'commits', 'commit-1.json');
+    const marker = await readJson(markerPath);
+    marker.directory = initial.directory;
+    marker.files = initial.files;
+    await writeJson(markerPath, marker);
+
+    await assert.rejects(() => reopen(rootDir), /unique|directory|history/i);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('rejects marker gaps, unknown commit files, malformed JSON, symlinks, and directory markers', async t => {
+  await t.test('gap', async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    try {
+      await materialize(rootDir);
+      const actorDir = actorDirectory(rootDir);
+      const marker = await readJson(join(actorDir, 'commits', 'commit-0.json'));
+      marker.version = 2;
+      await writeJson(join(actorDir, 'commits', 'commit-2.json'), marker);
+      await assert.rejects(() => reopen(rootDir), /contiguous|history/i);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  await t.test('unknown file', async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    try {
+      await materialize(rootDir);
+      await writeFile(join(actorDirectory(rootDir), 'commits', 'unexpected'), 'not a marker\n');
+      await assert.rejects(() => reopen(rootDir), /commit|marker|append/i);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  await t.test('malformed JSON', async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    try {
+      await materialize(rootDir);
+      await writeFile(join(actorDirectory(rootDir), 'commits', 'commit-0.json'), '{');
+      await assert.rejects(() => reopen(rootDir), /JSON|commit/i);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  await t.test('symlink marker', async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    try {
+      await materialize(rootDir);
+      const actorDir = actorDirectory(rootDir);
+      const markerPath = join(actorDir, 'commits', 'commit-0.json');
+      await rm(markerPath);
+      await symlink(join(actorDir, 'initial.json'), markerPath);
+      await assert.rejects(() => reopen(rootDir), /regular|commit/i);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  await t.test('directory marker', async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    try {
+      await materialize(rootDir);
+      await mkdir(join(actorDirectory(rootDir), 'commits', 'commit-1.json'));
+      await assert.rejects(() => reopen(rootDir), /regular|commit/i);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  await t.test('referenced version with an extra file', async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    try {
+      await materialize(rootDir);
+      const actorDir = actorDirectory(rootDir);
+      const marker = await readJson(join(actorDir, 'commits', 'commit-0.json'));
+      await writeFile(join(actorDir, 'versions', marker.directory, 'unexpected'), 'not a logical file\n');
+      await assert.rejects(() => reopen(rootDir), /exactly|four|version/i);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  await t.test('FIFO marker', { skip: process.platform === 'win32' }, async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    try {
+      await materialize(rootDir);
+      const markerPath = join(actorDirectory(rootDir), 'commits', 'commit-0.json');
+      await rm(markerPath);
+      execFileSync('mkfifo', [markerPath]);
+      await assert.rejects(() => reopen(rootDir), /regular|commit/i);
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+});
+
+test('allows exactly one same-actor materialization winner and leaves the loser stage clean', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const { materializeFileWorkspaceV1 } = await loadSubject();
+    const input = {
+      rootDir,
+      runId: 'run-1',
+      actorId: 'actor-1',
+      template: template(),
+      selectedTaskIds: ['task-1'],
+    };
+    const outcomes = await Promise.allSettled([
+      materializeFileWorkspaceV1(input),
+      materializeFileWorkspaceV1(input),
+    ]);
+    assert.equal(outcomes.filter(outcome => outcome.status === 'fulfilled').length, 1);
+    assert.equal(outcomes.filter(outcome => outcome.status === 'rejected').length, 1);
+    assert.equal((await reopen(rootDir)).read !== undefined, true);
+    assert.deepEqual(
+      await readdir(join(rootDir, 'runs', 'run-1', 'workspaces')),
+      ['actor-1'],
+    );
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('fails safely before a configured version ceiling would overflow the durable version space', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      versionCeilingForTest: 0,
+    });
+    const before = await workspace.snapshot('actor-1');
+    await assert.rejects(
+      () => workspace.replaceMemory({
+        actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — must not overflow\n',
+      }),
+      /exhaust|version/i,
+    );
+    assert.deepEqual(await workspace.snapshot('actor-1'), before);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('ignores unreferenced UUID stages, versions, and pointer temps without blocking a later CAS', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir);
+    const actorDir = actorDirectory(rootDir);
+    const stage = join(actorDir, `.memory-stage-${randomUUID()}`);
+    const version = join(actorDir, 'versions', `version-${randomUUID()}`);
+    const temporary = join(actorDir, `.commit-pointer-${randomUUID()}.json`);
+    await mkdir(stage);
+    await writeFile(join(stage, 'sentinel'), 'unreferenced stage\n');
+    await mkdir(version);
+    await writeFile(temporary, '{not a commit marker}\n');
+
+    assert.equal((await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — ignores orphans\n',
+    })).outcome, 'committed');
+    assert.equal(await readFile(join(stage, 'sentinel'), 'utf8'), 'unreferenced stage\n');
+    await access(version);
+    await access(temporary);
+    assert.equal((await reopen(rootDir)).snapshot !== undefined, true);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('returns a qualified committed result when pre-removal pointer cleanup leaves an orphan temp', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      failMemoryPreRemovalCleanup: true,
+    });
+    const actorDir = actorDirectory(rootDir);
+    const result = await workspace.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 0, content: 'task-1 [answered] — committed before cleanup\n',
+    });
+    assert.deepEqual(result, {
+      outcome: 'committed',
+      version: 1,
+      sha256: sha256('task-1 [answered] — committed before cleanup\n'),
+      byteLength: 47,
+      durability: 'published_unsynced',
+    });
+    const orphanTemps = (await readdir(actorDir)).filter(name => name.startsWith('.commit-pointer-'));
+    assert.equal(orphanTemps.length, 1);
+    const reopened = await reopen(rootDir);
+    assert.equal(
+      (await reopened.read({ actorId: 'actor-1', path: 'MEMORY.md' })).content,
+      'task-1 [answered] — committed before cleanup\n',
+    );
+    assert.equal((await reopened.replaceMemory({
+      actorId: 'actor-1', expectedVersion: 1, content: 'task-1 [answered] — later CAS works\n',
+    })).outcome, 'committed');
+    assert.deepEqual(
+      (await readdir(actorDir)).filter(name => name.startsWith('.commit-pointer-')),
+      orphanTemps,
+    );
   } finally {
     await rm(rootDir, { recursive: true, force: true });
   }

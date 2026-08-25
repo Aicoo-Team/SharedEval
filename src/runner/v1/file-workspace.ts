@@ -6,7 +6,6 @@ import {
   lstat,
   mkdir,
   open,
-  readFile,
   readdir,
   rename,
   rm,
@@ -25,10 +24,16 @@ const logicalFiles = [
   'POLICY.md',
   'MEMORY.md',
 ] as const satisfies readonly AgentWorkspaceFilePathV1[];
+const immutableLogicalFiles = [
+  'AGENT.md',
+  'HEARTBEAT.md',
+  'POLICY.md',
+] as const satisfies readonly AgentWorkspaceFilePathV1[];
 const logicalFileSet = new Set<string>(logicalFiles);
 const safeRunOrActorId = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const versionDirectory = /^version-[a-f0-9-]{36}$/;
 const commitMarker = /^commit-(0|[1-9][0-9]*)\.json$/;
+const MAX_POINTER_JSON_BYTES = 64 * 1024;
 
 export type FileWorkspaceFileMetadataV1 = {
   path: AgentWorkspaceFilePathV1;
@@ -100,13 +105,19 @@ export type FileWorkspaceFaultInjectionV1 = {
   failAfterStagingFile?: AgentWorkspaceFilePathV1;
   failInitialPostPublishSync?: boolean;
   failMemoryPostPublishSync?: boolean;
+  /** Fails before the published pointer temp is removed; run-level GC owns it. */
+  failMemoryPreRemovalCleanup?: boolean;
   failMemoryPostPublishCleanup?: boolean;
+  /** Test-only ceiling used to prove the next durable version cannot overflow. */
+  versionCeilingForTest?: number;
 };
 
 type FileWorkspaceFaultStateV1 = {
   failInitialPostPublishSync: boolean;
   failMemoryPostPublishSync: boolean;
+  failMemoryPreRemovalCleanup: boolean;
   failMemoryPostPublishCleanup: boolean;
+  versionCeiling: number;
 };
 
 type DurablePointer = {
@@ -117,8 +128,24 @@ type DurablePointer = {
 
 type StoredInitialSnapshot = {
   version: 0;
+  directory: string;
   files: FileWorkspaceFileSetV1;
 };
+
+type ValidatedWorkspaceHistory = {
+  initial: StoredInitialSnapshot;
+  latest: DurablePointer;
+};
+
+type LoadedWorkspaceFile = {
+  path: AgentWorkspaceFilePathV1;
+  content: string;
+  bytesBase64: string;
+  sha256: string;
+  byteLength: number;
+};
+
+type LoadedWorkspaceFileSet = Record<AgentWorkspaceFilePathV1, LoadedWorkspaceFile>;
 
 /**
  * Creates one private workspace for one actor. The actor directory is an
@@ -164,8 +191,8 @@ export async function materializeFileWorkspaceV1(input: {
       template: input.template,
       faultInjection: input.faultInjection,
     });
-    const initial: StoredInitialSnapshot = { version: 0, files };
     const pointer: DurablePointer = { version: 0, directory: version, files };
+    const initial: StoredInitialSnapshot = { version: 0, directory: version, files };
     await writeJsonDurable(join(stagingDir, 'initial.json'), initial);
     await writeJsonDurable(join(commitsDir, commitMarkerName(0)), pointer);
     await syncDirectory(stagedVersionDir);
@@ -202,7 +229,13 @@ export async function openFileWorkspaceV1(input: {
   assertSafeId(input.runId, 'run');
   assertSafeId(input.actorId, 'actor');
   await assertRealDirectory(input.rootDir, 'workspace root');
-  const actorDir = join(input.rootDir, 'runs', input.runId, 'workspaces', input.actorId);
+  const runsDir = join(input.rootDir, 'runs');
+  await assertRealDirectory(runsDir, 'workspace runs directory');
+  const runDir = join(runsDir, input.runId);
+  await assertRealDirectory(runDir, 'workspace run directory');
+  const workspacesDir = join(runDir, 'workspaces');
+  await assertRealDirectory(workspacesDir, 'workspace actors directory');
+  const actorDir = join(workspacesDir, input.actorId);
   await assertRealDirectory(actorDir, 'actor workspace');
   const workspace = new FileWorkspaceV1({
     actorDir,
@@ -211,10 +244,9 @@ export async function openFileWorkspaceV1(input: {
     faults: createFaultState(),
     publication: { durability: 'synced' },
   });
-  // Verify both durable version state and canonical selection before a new
-  // process receives the port; no in-memory counter participates in recovery.
-  const memory = await workspace.read({ actorId: input.actorId, path: 'MEMORY.md' });
-  assertFileMemoryV1({ content: memory.content, selectedTaskIds: input.selectedTaskIds });
+  // Verify every committed transition before a new process receives a port;
+  // no in-memory counter participates in recovery.
+  await validateWorkspaceHistory(actorDir, input.selectedTaskIds);
   return workspace;
 }
 
@@ -237,7 +269,10 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
   }> {
     this.assertActor(input.actorId);
     assertLogicalPath(input.path);
-    const pointer = await readPointer(this.options.actorDir);
+    const { latest: pointer } = await validateWorkspaceHistory(
+      this.options.actorDir,
+      this.options.selectedTaskIds,
+    );
     const file = await loadVersionFile(this.options.actorDir, pointer, input.path);
     return {
       content: file.content,
@@ -269,14 +304,22 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
 
     // A private, immutable stage needs no mutable ownership protocol. The
     // append-only link below is the sole atomic publisher and CAS winner.
+    const beforeStage = await validateWorkspaceHistory(
+      this.options.actorDir,
+      this.options.selectedTaskIds,
+    );
     let staged: Awaited<ReturnType<typeof stageReplacement>> | undefined = await stageReplacement(
       this.options.actorDir,
       memoryBytes,
+      beforeStage.latest,
     );
     let publishedVersionDirectory: string | undefined;
     let pointerTemporary: string | undefined;
     try {
-      const current = await readPointer(this.options.actorDir);
+      const { latest: current } = await validateWorkspaceHistory(
+        this.options.actorDir,
+        this.options.selectedTaskIds,
+      );
       if (current.version !== input.expectedVersion) {
         await removeOwnedDirectory(staged.directory);
         staged = undefined;
@@ -292,7 +335,7 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
       await syncDirectory(join(this.options.actorDir, 'versions'));
 
       const next: DurablePointer = {
-        version: current.version + 1,
+        version: nextMemoryVersion(current.version, this.options.faults.versionCeiling),
         directory: stagedVersion.name,
         files: stagedVersion.files,
       };
@@ -306,7 +349,10 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
         if (!isCode(error, 'EEXIST')) throw error;
         await removeOwnedDirectory(publishedVersionDirectory);
         publishedVersionDirectory = undefined;
-        return conflictFor(await readPointer(this.options.actorDir));
+        return conflictFor((await validateWorkspaceHistory(
+          this.options.actorDir,
+          this.options.selectedTaskIds,
+        )).latest);
       }
 
       // Once link() succeeds, complete pointer bytes are visible atomically.
@@ -321,6 +367,9 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
         durability = 'published_unsynced';
       }
       try {
+        if (consumeFault(this.options.faults, 'failMemoryPreRemovalCleanup')) {
+          throw new Error('injected pre-removal pointer cleanup failure');
+        }
         await rm(pointerTemporary, { force: true });
         pointerTemporary = undefined;
         await syncDirectory(
@@ -348,17 +397,13 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
 
   async snapshot(actorId: string): Promise<FileWorkspaceSnapshotV1> {
     this.assertActor(actorId);
-    const [initial, current] = await Promise.all([
-      readInitialSnapshot(this.options.actorDir),
-      readPointer(this.options.actorDir),
-    ]);
-    await verifyVersionDirectory(
-      join(this.options.actorDir, 'versions', current.directory),
-      current.files,
+    const { initial, latest: current } = await validateWorkspaceHistory(
+      this.options.actorDir,
+      this.options.selectedTaskIds,
     );
     return {
       actorId,
-      initial,
+      initial: { version: initial.version, files: initial.files },
       final: { version: current.version, files: current.files },
     };
   }
@@ -396,12 +441,15 @@ async function writeTemplateVersion(input: {
   return readVersionFiles(input.directory);
 }
 
-async function stageReplacement(actorDir: string, memoryBytes: Buffer): Promise<{
+async function stageReplacement(
+  actorDir: string,
+  memoryBytes: Buffer,
+  source: DurablePointer,
+): Promise<{
   directory: string;
   name: string;
   files: FileWorkspaceFileSetV1;
 }> {
-  const source = await readPointer(actorDir);
   const name = `version-${randomUUID()}`;
   const directory = join(actorDir, `.memory-stage-${randomUUID()}`);
   await mkdir(directory, { mode: 0o700 });
@@ -424,15 +472,27 @@ async function stageReplacement(actorDir: string, memoryBytes: Buffer): Promise<
 }
 
 async function readVersionFiles(directory: string): Promise<FileWorkspaceFileSetV1> {
+  const rawFiles = await loadVersionFiles(directory);
+  return Object.fromEntries(logicalFiles.map(path => [path, {
+    path,
+    sha256: rawFiles[path].sha256,
+    byteLength: rawFiles[path].byteLength,
+  }])) as FileWorkspaceFileSetV1;
+}
+
+async function loadVersionFiles(directory: string): Promise<LoadedWorkspaceFileSet> {
+  await assertExactVersionDirectory(directory);
   const entries = await Promise.all(logicalFiles.map(async path => {
     const raw = await loadAgentWorkspaceRawFileV1({ rootDir: directory, path });
     return [path, {
+      content: raw.content,
+      bytesBase64: raw.bytesBase64,
       path,
       sha256: raw.sha256,
       byteLength: raw.byteLength,
-    }] as const;
+    } satisfies LoadedWorkspaceFile] as const;
   }));
-  return Object.fromEntries(entries) as FileWorkspaceFileSetV1;
+  return Object.fromEntries(entries) as LoadedWorkspaceFileSet;
 }
 
 async function loadVersionFile(
@@ -441,6 +501,7 @@ async function loadVersionFile(
   path: AgentWorkspaceFilePathV1,
 ) {
   const directory = join(actorDir, 'versions', pointer.directory);
+  await assertExactVersionDirectory(directory);
   const raw = await loadAgentWorkspaceRawFileV1({ rootDir: directory, path });
   const expected = pointer.files[path];
   if (raw.sha256 !== expected.sha256 || raw.byteLength !== expected.byteLength) {
@@ -464,13 +525,91 @@ async function verifyVersionDirectory(
   }
 }
 
-async function readPointer(actorDir: string): Promise<DurablePointer> {
+async function assertExactVersionDirectory(directory: string): Promise<void> {
+  await assertRealDirectory(directory, 'workspace version');
+  const names = await readdir(directory);
+  if (
+    names.length !== logicalFiles.length
+    || names.some(name => !logicalFileSet.has(name))
+  ) {
+    throw new Error('workspace version must contain exactly the four logical files');
+  }
+}
+
+function assertFileSetMatchesLoadedFiles(
+  expected: FileWorkspaceFileSetV1,
+  actual: LoadedWorkspaceFileSet,
+  label: string,
+): void {
+  for (const path of logicalFiles) {
+    if (
+      actual[path].path !== expected[path].path
+      || actual[path].sha256 !== expected[path].sha256
+      || actual[path].byteLength !== expected[path].byteLength
+    ) {
+      throw new Error(`${label} ${path} does not match its published hash`);
+    }
+  }
+}
+
+function matchesInitialPointer(
+  pointer: DurablePointer,
+  initial: StoredInitialSnapshot,
+): boolean {
+  return pointer.version === initial.version
+    && pointer.directory === initial.directory
+    && sameFileSet(pointer.files, initial.files);
+}
+
+function sameFileSet(
+  left: FileWorkspaceFileSetV1,
+  right: FileWorkspaceFileSetV1,
+): boolean {
+  return logicalFiles.every(path => sameFileMetadata(left[path], right[path]));
+}
+
+function sameFileMetadata(
+  left: FileWorkspaceFileMetadataV1,
+  right: FileWorkspaceFileMetadataV1,
+): boolean {
+  return left.path === right.path
+    && left.sha256 === right.sha256
+    && left.byteLength === right.byteLength;
+}
+
+function assertImmutableFiles(
+  pointerFiles: FileWorkspaceFileSetV1,
+  rawFiles: LoadedWorkspaceFileSet,
+  initialMetadata: FileWorkspaceFileSetV1,
+  initialFiles: LoadedWorkspaceFileSet,
+  version: number,
+): void {
+  for (const path of immutableLogicalFiles) {
+    if (!sameFileMetadata(pointerFiles[path], initialMetadata[path])) {
+      throw new Error(`${path} metadata changed in immutable workspace commit ${version}`);
+    }
+    if (rawFiles[path].bytesBase64 !== initialFiles[path].bytesBase64) {
+      throw new Error(`${path} bytes changed in immutable workspace commit ${version}`);
+    }
+  }
+}
+
+async function validateWorkspaceHistory(
+  actorDir: string,
+  selectedTaskIds: readonly string[],
+): Promise<ValidatedWorkspaceHistory> {
+  await assertRealDirectory(actorDir, 'actor workspace');
+  const versionsDir = join(actorDir, 'versions');
+  await assertRealDirectory(versionsDir, 'workspace versions');
   const commitsDir = join(actorDir, 'commits');
   await assertRealDirectory(commitsDir, 'workspace commits');
+  const initial = await readInitialSnapshot(actorDir);
   const markers = await readCommitMarkers(commitsDir);
   if (markers.length === 0 || markers[0].version !== 0) {
     throw new Error('workspace commit history must begin at version 0');
   }
+  const referencedDirectories = new Set<string>();
+  let immutableFiles: LoadedWorkspaceFileSet | undefined;
   let latest: DurablePointer | undefined;
   for (let index = 0; index < markers.length; index += 1) {
     const marker = markers[index];
@@ -481,11 +620,30 @@ async function readPointer(actorDir: string): Promise<DurablePointer> {
     if (!isDurablePointer(value) || value.version !== marker.version) {
       throw new Error(`workspace commit ${marker.version} is invalid`);
     }
-    await assertRealDirectory(join(actorDir, 'versions', value.directory), 'workspace version');
+    if (referencedDirectories.has(value.directory)) {
+      throw new Error('workspace commit history must reference unique version directories');
+    }
+    referencedDirectories.add(value.directory);
+    const versionPath = join(versionsDir, value.directory);
+    const rawFiles = await loadVersionFiles(versionPath);
+    assertFileSetMatchesLoadedFiles(value.files, rawFiles, `workspace commit ${marker.version}`);
+    if (marker.version === 0) {
+      if (!matchesInitialPointer(value, initial)) {
+        throw new Error('workspace commit 0 must exactly match the initial workspace snapshot');
+      }
+      immutableFiles = rawFiles;
+    } else {
+      if (!immutableFiles) throw new Error('workspace commit history is missing its initial immutable files');
+      assertImmutableFiles(value.files, rawFiles, initial.files, immutableFiles, marker.version);
+    }
+    assertFileMemoryV1({
+      content: rawFiles['MEMORY.md'].content,
+      selectedTaskIds,
+    });
     latest = value;
   }
   if (!latest) throw new Error('workspace commit history is empty');
-  return latest;
+  return { initial, latest };
 }
 
 async function readCommitMarkers(commitsDir: string): Promise<Array<{ version: number; path: string }>> {
@@ -512,6 +670,7 @@ async function readInitialSnapshot(actorDir: string): Promise<StoredInitialSnaps
 function isDurablePointer(value: unknown): value is DurablePointer {
   if (
     !isObject(value)
+    || !hasExactKeys(value, ['version', 'directory', 'files'])
     || typeof value.version !== 'number'
     || !Number.isSafeInteger(value.version)
     || value.version < 0
@@ -522,14 +681,20 @@ function isDurablePointer(value: unknown): value is DurablePointer {
 }
 
 function isInitialSnapshot(value: unknown): value is StoredInitialSnapshot {
-  return isObject(value) && value.version === 0 && isFileSet(value.files);
+  return isObject(value)
+    && hasExactKeys(value, ['version', 'directory', 'files'])
+    && value.version === 0
+    && typeof value.directory === 'string'
+    && versionDirectory.test(value.directory)
+    && isFileSet(value.files);
 }
 
 function isFileSet(value: unknown): value is FileWorkspaceFileSetV1 {
-  if (!isObject(value)) return false;
+  if (!isObject(value) || !hasExactKeys(value, logicalFiles)) return false;
   return logicalFiles.every(path => {
     const file = value[path];
     return isObject(file)
+      && hasExactKeys(file, ['path', 'sha256', 'byteLength'])
       && file.path === path
       && typeof file.sha256 === 'string'
       && /^[a-f0-9]{64}$/.test(file.sha256)
@@ -537,6 +702,11 @@ function isFileSet(value: unknown): value is FileWorkspaceFileSetV1 {
       && Number.isSafeInteger(file.byteLength)
       && file.byteLength >= 0;
   });
+}
+
+function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return keys.length === expected.length && expected.every(key => Object.hasOwn(value, key));
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -625,15 +795,31 @@ async function writeCommitPointerTemporary(actorDir: string, pointer: DurablePoi
 }
 
 async function readJsonRegularFile(path: string, label: string): Promise<unknown> {
-  const stats = await lstat(path);
-  if (stats.isSymbolicLink() || !stats.isFile()) {
+  const before = await lstat(path);
+  if (before.isSymbolicLink() || !before.isFile()) {
     throw new Error(`${label} must be a regular file`);
   }
   let bytes: Buffer;
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
   try {
-    bytes = await readFile(path);
+    handle = await open(
+      path,
+      constants.O_RDONLY | constants.O_NONBLOCK | (constants.O_NOFOLLOW ?? 0),
+    );
+    const after = await handle.stat();
+    if (
+      !after.isFile()
+      || before.dev !== after.dev
+      || before.ino !== after.ino
+      || after.size > MAX_POINTER_JSON_BYTES
+    ) {
+      throw new Error(`${label} must be an unchanged regular file`);
+    }
+    bytes = await handle.readFile();
   } catch (error) {
     throw new Error(`${label} cannot be read: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    if (handle) await handle.close();
   }
   let source: string;
   try {
@@ -663,16 +849,23 @@ async function syncDirectory(path: string, failBeforeSync = false): Promise<void
 function createFaultState(
   faultInjection: FileWorkspaceFaultInjectionV1 | undefined = undefined,
 ): FileWorkspaceFaultStateV1 {
+  const versionCeiling = faultInjection?.versionCeilingForTest ?? Number.MAX_SAFE_INTEGER;
+  if (!Number.isSafeInteger(versionCeiling) || versionCeiling < 0) {
+    throw new Error('test version ceiling must be a non-negative safe integer');
+  }
   return {
     failInitialPostPublishSync: faultInjection?.failInitialPostPublishSync === true,
     failMemoryPostPublishSync: faultInjection?.failMemoryPostPublishSync === true,
+    failMemoryPreRemovalCleanup: faultInjection?.failMemoryPreRemovalCleanup === true,
     failMemoryPostPublishCleanup: faultInjection?.failMemoryPostPublishCleanup === true,
+    versionCeiling,
   };
 }
 
 function consumeFault(
   faults: FileWorkspaceFaultStateV1,
-  key: keyof FileWorkspaceFaultStateV1,
+  key: 'failInitialPostPublishSync' | 'failMemoryPostPublishSync'
+    | 'failMemoryPreRemovalCleanup' | 'failMemoryPostPublishCleanup',
 ): boolean {
   if (!faults[key]) return false;
   faults[key] = false;
@@ -684,6 +877,13 @@ function commitMarkerName(version: number): string {
     throw new Error('workspace commit version must be a non-negative safe integer');
   }
   return `commit-${version}.json`;
+}
+
+function nextMemoryVersion(currentVersion: number, ceiling: number): number {
+  if (currentVersion >= ceiling || currentVersion >= Number.MAX_SAFE_INTEGER) {
+    throw new Error('MEMORY durable version space is exhausted');
+  }
+  return currentVersion + 1;
 }
 
 function conflictFor(pointer: DurablePointer): ReplaceMemoryResultV1 {
