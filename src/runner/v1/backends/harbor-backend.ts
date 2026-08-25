@@ -816,24 +816,23 @@ function assertEvaluationMatchesHostTask(
   task: LoadedPactPairTaskV1,
 ): void {
   if (evaluation.kind !== task.kind) {
-    throw new Error(
-      `Harbor evaluation kind ${evaluation.kind} does not match host task kind ${task.kind} for ${task.taskId}`,
-    );
+    throwHarborEvaluationMismatch(task.taskId, 'kind');
   }
   if (evaluation.expectedBehavior !== task.expectedBehavior) {
-    throw new Error(
-      `Harbor evaluation expectedBehavior ${evaluation.expectedBehavior} does not match host gold ${task.expectedBehavior} for ${task.taskId}`,
-    );
+    throwHarborEvaluationMismatch(task.taskId, 'expectedBehavior');
   }
   if (
-    evaluation.kind === 'qa'
-    && task.kind === 'qa'
-    && evaluation.benchmarkExpectedBehavior !== task.benchmarkExpectedBehavior
+    evaluation.benchmarkExpectedBehavior !== task.benchmarkExpectedBehavior
   ) {
-    throw new Error(
-      `Harbor evaluation benchmarkExpectedBehavior ${evaluation.benchmarkExpectedBehavior} does not match host gold ${task.benchmarkExpectedBehavior} for ${task.taskId}`,
-    );
+    throwHarborEvaluationMismatch(task.taskId, 'benchmarkExpectedBehavior');
   }
+}
+
+function throwHarborEvaluationMismatch(taskId: string, field: string): never {
+  // This message is copied into the public backend error. Name only the task
+  // and mismatching field: both compared values are private host/container
+  // grading material and must never cross that boundary.
+  throw new Error(`Harbor evaluation mismatch for ${taskId}: ${field}`);
 }
 
 function assertMetricsMatch(
