@@ -350,6 +350,12 @@ export type LoadPactPairResumeStateV1Options = {
   benchmark: PactRunMetadataV1['benchmark'];
   budget: PactRunMetadataV1['budget'];
   policyProvenance: PactRunMetadataV1['policyProvenance'];
+  requesterIdentityProvenance: NonNullable<
+    PactRunMetadataV1['requesterIdentityProvenance']
+  >;
+  relationshipLabelProvenance?: NonNullable<
+    PactRunMetadataV1['relationshipLabelProvenance']
+  >;
   sourceRevision?: string;
   seed: PairDataStore;
 };
@@ -914,6 +920,24 @@ export async function loadPactPairResumeStateV1(
     throw new Error(
       `Cannot resume ${options.runDirectory}: recorded policy provenance `
       + 'does not match the current host policy',
+    );
+  }
+  if (
+    canonicalJson(metadata.requesterIdentityProvenance)
+    !== canonicalJson(options.requesterIdentityProvenance)
+  ) {
+    throw new Error(
+      `Cannot resume ${options.runDirectory}: recorded requester identity `
+      + 'provenance does not match the current task source',
+    );
+  }
+  if (
+    canonicalJson(metadata.relationshipLabelProvenance)
+    !== canonicalJson(options.relationshipLabelProvenance)
+  ) {
+    throw new Error(
+      `Cannot resume ${options.runDirectory}: recorded relationship label `
+      + 'provenance does not match the current task source',
     );
   }
   if (metadata.sourceRevision !== options.sourceRevision) {

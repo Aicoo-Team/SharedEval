@@ -353,17 +353,15 @@ benchmark:
 `),
     /REL_R3 requires relationship grading/,
   );
-  assert.throws(
-    () => parsePactRunConfigV1Yaml(`${minimalConfig}
+  const relationshipAction = parsePactRunConfigV1Yaml(`${minimalConfig}
 benchmark:
   policy: REL_R3
   requester: R3
   gradingMode: relationship
   tasks:
     kind: action
-`),
-    /REL_R3 is validated only for QA tasks/,
-  );
+`);
+  assert.equal(relationshipAction.benchmark.tasks.kind, 'action');
 });
 
 test('rejects token and cost budgets that the compatible runner cannot enforce', () => {

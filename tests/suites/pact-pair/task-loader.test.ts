@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import {
   mkdirSync,
   mkdtempSync,
@@ -10,7 +11,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { loadPactPairTasksV1 } from '../../../src/suites/pact-pair/task-loader.js';
+import { loadPactPairRelationshipLabelSetV2 } from '../../../src/suites/pact-pair/relationship-labels.js';
+import {
+  loadPactPairTasksV1,
+  loadPactPairTaskSetV1,
+} from '../../../src/suites/pact-pair/task-loader.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -70,7 +75,7 @@ test('grading mode explicitly selects category or relationship expectations', ()
   assert.equal(categoryForStranger?.gradingMode, 'category');
   assert.equal(
     categoryForStranger?.kind === 'qa' && categoryForStranger.relationshipLabel,
-    'P',
+    undefined,
   );
   assert.equal(privateForStranger?.kind, 'qa');
   assert.equal(privateForStranger?.expectedBehavior, 'refuse');
@@ -296,12 +301,168 @@ test('rejects mismatched relationship policy calls outside config parsing', () =
     gradingMode: 'category',
     ids: ['Q101'],
   }), /REL_R3 requires relationship grading/);
-  assert.throws(() => loadPactPairTasksV1({
+  const relationshipAction = loadPactPairTasksV1({
     rootDir: repoRoot,
     policy: 'REL_R3',
     requester: 'R3',
     gradingMode: 'relationship',
     kind: 'action',
     ids: ['A1'],
-  }), /REL_R3 is validated only for QA tasks/);
+  })[0];
+  assert.equal(relationshipAction?.kind, 'action');
+  assert.equal(relationshipAction?.expectedBehavior, 'refuse');
+});
+
+function makeTaskDataFixture(
+  t: { after(callback: () => void): void },
+): { root: string; labelsDir: string } {
+  const root = mkdtempSync(join(tmpdir(), 'pact-pair-task-set-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const tasksDir = join(root, 'dataset', 'pact-pair', 'tasks');
+  const labelsDir = join(root, 'dataset', 'pact-pair', 'relationship_labels');
+  mkdirSync(tasksDir, { recursive: true });
+  mkdirSync(labelsDir, { recursive: true });
+  writeFileSync(
+    join(tasksDir, 'questions.json'),
+    readFileSync(join(repoRoot, 'dataset', 'pact-pair', 'tasks', 'questions.json')),
+  );
+  return { root, labelsDir };
+}
+
+test('category task bytes stay independent of relationship gold', t => {
+  const loadTaskSet = loadPactPairTaskSetV1;
+  const fixture = makeTaskDataFixture(t);
+  const matrixPath = join(fixture.labelsDir, 'relationship_label_matrix_v2.json');
+  writeFileSync(
+    matrixPath,
+    readFileSync(join(
+      repoRoot,
+      'dataset',
+      'pact-pair',
+      'relationship_labels',
+      'relationship_label_matrix_v2.json',
+    )),
+  );
+  const options = {
+    rootDir: fixture.root,
+    policy: 'D2' as const,
+    requester: 'R0' as const,
+    gradingMode: 'category' as const,
+    ids: ['Q1', 'Q101', 'A1'],
+  };
+  const before = loadTaskSet(options);
+  writeFileSync(matrixPath, '{ deliberately invalid and changed gold');
+  const after = loadTaskSet(options);
+
+  const bytes = (value: unknown) => JSON.stringify(value);
+  const digest = (value: unknown) => createHash('sha256').update(bytes(value)).digest('hex');
+  assert.equal(bytes(before), bytes(after));
+  assert.equal(digest(before), digest(after));
+  assert.equal(before.relationshipLabelProvenance, undefined);
+  assert.ok(before.tasks.every(task => !('relationshipLabel' in task)));
+});
+
+test('relationship task set returns exact v2 labels, provenance hash, and Riley identity', () => {
+  const taskSet = loadPactPairTaskSetV1({
+    rootDir: repoRoot,
+    policy: 'D2',
+    requester: 'R0',
+    gradingMode: 'relationship',
+    ids: ['Q1', 'A1'],
+  });
+  const [qa, action] = taskSet.tasks;
+  assert.equal(qa?.kind, 'qa');
+  assert.equal(qa?.expectedBehavior, 'refuse');
+  assert.equal(qa?.kind === 'qa' && qa.relationshipLabel, 'P');
+  assert.equal(action?.kind, 'action');
+  assert.equal(action?.expectedBehavior, 'refuse');
+  assert.equal(action?.kind === 'action' && action.benchmarkExpectedBehavior, 'execute');
+  assert.equal(action?.kind === 'action' && action.relationshipLabel, 'refuse');
+
+  const matrixBytes = readFileSync(join(
+    repoRoot,
+    'dataset',
+    'pact-pair',
+    'relationship_labels',
+    'relationship_label_matrix_v2.json',
+  ));
+  assert.equal(taskSet.relationshipLabelProvenance?.schema, 'pact-pair-relationship-labels/v2');
+  assert.equal(taskSet.relationshipLabelProvenance?.qaRows, 400);
+  assert.equal(taskSet.relationshipLabelProvenance?.actionRows, 200);
+  assert.equal(
+    taskSet.relationshipLabelProvenance?.sha256,
+    createHash('sha256').update(matrixBytes).digest('hex'),
+  );
+  assert.deepEqual(taskSet.requesterIdentityProvenance, {
+    schema: 'pact-pair-requester-identities/v2',
+    version: '2',
+    requesterId: 'R0',
+    displayName: 'Riley Novak',
+  });
+  assert.equal(qa?.publicTask.requester.displayName, 'Riley Novak');
+});
+
+test('loads relationship labels once and binds tasks to that exact source', t => {
+  const loadTaskSet = loadPactPairTaskSetV1;
+  const fixture = makeTaskDataFixture(t);
+  const matrixPath = join(fixture.labelsDir, 'relationship_label_matrix_v2.json');
+  const originalBytes = readFileSync(join(
+    repoRoot,
+    'dataset',
+    'pact-pair',
+    'relationship_labels',
+    'relationship_label_matrix_v2.json',
+  ));
+  writeFileSync(matrixPath, originalBytes);
+  let reads = 0;
+  const taskSet = loadTaskSet({
+    rootDir: fixture.root,
+    policy: 'D2',
+    requester: 'R0',
+    gradingMode: 'relationship',
+    ids: ['Q1'],
+  }, {
+    loadRelationshipLabels(rootDir) {
+      reads += 1;
+      const loaded = loadPactPairRelationshipLabelSetV2(rootDir);
+      writeFileSync(matrixPath, '{ changed between potential reads');
+      return loaded;
+    },
+  });
+
+  assert.equal(reads, 1);
+  assert.equal(taskSet.tasks[0]?.expectedBehavior, 'refuse');
+  assert.equal(
+    taskSet.relationshipLabelProvenance?.sha256,
+    createHash('sha256').update(originalBytes).digest('hex'),
+  );
+});
+
+test('keeps the frozen v1 R0 identity distinct from v2 Riley', t => {
+  const fixture = makeTaskDataFixture(t);
+  writeFileSync(
+    join(fixture.labelsDir, 'relationship_label_matrix.json'),
+    readFileSync(join(
+      repoRoot,
+      'dataset',
+      'pact-pair',
+      'relationship_labels',
+      'relationship_label_matrix.json',
+    )),
+  );
+  const taskSet = loadPactPairTaskSetV1({
+    rootDir: fixture.root,
+    policy: 'D2',
+    requester: 'R0',
+    gradingMode: 'relationship',
+    kind: 'qa',
+    ids: ['Q101'],
+  });
+  assert.deepEqual(taskSet.requesterIdentityProvenance, {
+    schema: 'pact-pair-requester-identities/v1',
+    version: '1',
+    requesterId: 'R0',
+    displayName: 'Tina Rodriguez',
+  });
+  assert.equal(taskSet.tasks[0]?.publicTask.requester.displayName, 'Tina Rodriguez');
 });

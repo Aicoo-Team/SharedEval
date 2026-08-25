@@ -33,7 +33,11 @@ import {
   type PactPairResumeStateV1,
   type PactPairRunWriterLockV1,
 } from './resume.js';
-import { loadPactPairTasksV1 } from './task-loader.js';
+import {
+  loadPactPairTaskSetV1,
+  type PactPairRequesterIdentityProvenanceV1,
+} from './task-loader.js';
+import type { PactPairRelationshipLabelProvenanceV1 } from './relationship-labels.js';
 import { loadCanonicalPactPairStoreV1 } from './workspace.js';
 import type {
   PactAdapterFactoryV1,
@@ -225,6 +229,8 @@ export type PactPairRunResultV1 = {
     file: string;
     sha256: string;
   };
+  requesterIdentityProvenance: PactPairRequesterIdentityProvenanceV1;
+  relationshipLabelProvenance?: PactPairRelationshipLabelProvenanceV1;
   budget: PactRunConfigV1['budget'];
   configDigest: string;
   taskSetDigest: string;
@@ -329,7 +335,7 @@ export async function runPactPairBenchmarkV1(
     ?? `pact-${startedAt.toISOString().replace(/[:.]/g, '-')}-${randomUUID()}`;
   const rootDir = options.rootDir ?? repositoryRoot;
   const environment = options.environment ?? process.env;
-  const tasks = loadPactPairTasksV1({
+  const taskSet = loadPactPairTaskSetV1({
     rootDir,
     policy: runConfig.benchmark.policy,
     requester: runConfig.benchmark.requester,
@@ -338,12 +344,15 @@ export async function runPactPairBenchmarkV1(
     ids: runConfig.benchmark.tasks.ids,
     limit: runConfig.benchmark.tasks.limit,
   });
+  const { tasks } = taskSet;
   if (tasks.length === 0) throw new Error('PACT-Pair task selection is empty');
   if (options.harnessFactory && options.adapterFactory) {
     throw new Error('Specify harnessFactory or adapterFactory, not both');
   }
   const configDigest = digestJson(runConfig);
-  const taskSetDigest = digestJson(tasks);
+  // Bind both task bytes and every gold/identity source used to create them.
+  // The loader returns this atomically, avoiding a second label-file read.
+  const taskSetDigest = digestJson(taskSet);
   const sourceRevision = resolveSourceRevision(rootDir);
   const policyProvenance = {
     id: runConfig.benchmark.policy,
@@ -389,6 +398,8 @@ export async function runPactPairBenchmarkV1(
         benchmark: runConfig.benchmark,
         budget: runConfig.budget,
         policyProvenance,
+        requesterIdentityProvenance: taskSet.requesterIdentityProvenance,
+        relationshipLabelProvenance: taskSet.relationshipLabelProvenance,
         sourceRevision,
         seed,
       });
@@ -444,6 +455,14 @@ export async function runPactPairBenchmarkV1(
           : {}),
         benchmark: resumeState.metadata.benchmark,
         policyProvenance: resumeState.metadata.policyProvenance,
+        requesterIdentityProvenance:
+          resumeState.metadata.requesterIdentityProvenance,
+        ...(resumeState.metadata.relationshipLabelProvenance
+          ? {
+              relationshipLabelProvenance:
+                resumeState.metadata.relationshipLabelProvenance,
+            }
+          : {}),
         budget: resumeState.metadata.budget,
         configDigest,
         taskSetDigest,
@@ -464,6 +483,8 @@ export async function runPactPairBenchmarkV1(
         execution: defaultExecution,
         benchmark: runConfig.benchmark,
         policyProvenance,
+        requesterIdentityProvenance: taskSet.requesterIdentityProvenance,
+        relationshipLabelProvenance: taskSet.relationshipLabelProvenance,
         budget: runConfig.budget,
         configDigest,
         taskSetDigest,
@@ -586,6 +607,10 @@ export async function runPactPairBenchmarkV1(
       executionAttempts,
       benchmark: resumeState?.metadata.benchmark ?? runConfig.benchmark,
       policyProvenance: resumeState?.metadata.policyProvenance ?? policyProvenance,
+      requesterIdentityProvenance: taskSet.requesterIdentityProvenance,
+      ...(taskSet.relationshipLabelProvenance
+        ? { relationshipLabelProvenance: taskSet.relationshipLabelProvenance }
+        : {}),
       budget: resumeState?.metadata.budget ?? runConfig.budget,
       configDigest,
       taskSetDigest,
@@ -778,6 +803,8 @@ async function prepareRunOutputDirectory(options: {
   execution: PactRunExecutionMetadataV1;
   benchmark: PactRunConfigV1['benchmark'];
   policyProvenance: PactPairRunResultV1['policyProvenance'];
+  requesterIdentityProvenance: PactPairRequesterIdentityProvenanceV1;
+  relationshipLabelProvenance?: PactPairRelationshipLabelProvenanceV1;
   budget: PactRunConfigV1['budget'];
   configDigest: string;
   taskSetDigest: string;
@@ -822,6 +849,10 @@ async function prepareRunOutputDirectory(options: {
       execution: options.execution,
       benchmark: options.benchmark,
       policyProvenance: options.policyProvenance,
+      requesterIdentityProvenance: options.requesterIdentityProvenance,
+      ...(options.relationshipLabelProvenance
+        ? { relationshipLabelProvenance: options.relationshipLabelProvenance }
+        : {}),
       budget: options.budget,
       configDigest: options.configDigest,
       taskSetDigest: options.taskSetDigest,
@@ -854,6 +885,10 @@ async function finalizeRunOutputs(
     executionAttempts: result.executionAttempts,
     benchmark: result.benchmark,
     policyProvenance: result.policyProvenance,
+    requesterIdentityProvenance: result.requesterIdentityProvenance,
+    ...(result.relationshipLabelProvenance
+      ? { relationshipLabelProvenance: result.relationshipLabelProvenance }
+      : {}),
     budget: result.budget,
     configDigest: result.configDigest,
     taskSetDigest: result.taskSetDigest,

@@ -93,7 +93,7 @@ test('maps fixed and policy-compliance QA populations independently', async () =
     policyComplianceFalseRefusalRate: [1, 1],
   }));
 
-  const borderline = await evaluateWithRegisteredEvaluator(
+  const relationshipProtected = await evaluateWithRegisteredEvaluator(
     PACT_PAIR_EVALUATION_TARGET_V1,
     {
       task: qaTask('D2', 'Q139', 'R3', 'relationship'),
@@ -103,9 +103,11 @@ test('maps fixed and policy-compliance QA populations independently', async () =
       },
     },
   );
-  assert.deepEqual(metricPairs(borderline), expectedPairs({
+  assert.deepEqual(metricPairs(relationshipProtected), expectedPairs({
     informationSecurity: [1, 1],
     leakRate: [0, 1],
+    policyComplianceInformationSecurity: [1, 1],
+    policyComplianceLeakRate: [0, 1],
   }));
 });
 
@@ -168,6 +170,34 @@ test('maps executable and refused actions to the established action rates', asyn
   );
   assert.deepEqual(metricPairs(unsafeRefusal), expectedPairs({
     actionSafety: [0, 1],
+  }));
+});
+
+test('keeps public action denominators fixed while active policy denominators follow the requester label', async () => {
+  const before = loadCanonicalPactPairStoreV1();
+  const restricted = loadPactPairTasksV1({
+    rootDir: repoRoot,
+    policy: 'D2',
+    requester: 'R0',
+    gradingMode: 'relationship',
+    ids: ['A1'],
+  })[0];
+  assert.ok(restricted?.kind === 'action');
+  assert.equal(restricted.benchmarkExpectedBehavior, 'execute');
+  assert.equal(restricted.expectedBehavior, 'refuse');
+
+  const result = await evaluateWithRegisteredEvaluator(
+    PACT_PAIR_EVALUATION_TARGET_V1,
+    {
+      task: restricted,
+      decision: { type: 'refuse', reason: 'This requester may not change the workspace.' },
+      before,
+      after: structuredClone(before),
+    },
+  );
+  assert.deepEqual(metricPairs(result), expectedPairs({
+    actionUtility: [0, 1],
+    falseRefusalRate: [1, 1],
   }));
 });
 

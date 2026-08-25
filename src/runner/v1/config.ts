@@ -346,13 +346,6 @@ export const pactRunConfigV1Schema = z
             message: `${benchmark.policy} requires relationship grading`,
           });
         }
-        if (benchmark.tasks.kind !== 'qa') {
-          context.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ['tasks', 'kind'],
-            message: `${benchmark.policy} is validated only for QA tasks`,
-          });
-        }
       })
       .default({
         dataset: PACT_BUILTIN_DATASET_ID_V1,

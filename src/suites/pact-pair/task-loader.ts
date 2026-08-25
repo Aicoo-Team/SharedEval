@@ -4,10 +4,18 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
   pairBenchmarkSchema,
-  pairRelationshipLabelMatrixSchema,
   type PairAction,
   type PairQuestion,
 } from './schemas.js';
+import {
+  loadPactPairRelationshipLabelSetV2,
+  PACT_PAIR_REQUESTERS_V1,
+  PAIR_RELATIONSHIP_LABEL_MATRIX_V1_SCHEMA_ID,
+  type PactPairRelationshipLabelProvenanceV1,
+  type PactPairRelationshipLabelSetV2,
+  type PactPairRequesterIdV1,
+  type PactPairRelationshipLabelV1,
+} from './relationship-labels.js';
 import {
   pactTaskIntroV1Schema,
   type PactIdentityV1,
@@ -34,13 +42,15 @@ export const PACT_PAIR_POLICIES_V1 = [
   'REL_R3',
   'REL_R4',
 ] as const;
-export const PACT_PAIR_REQUESTERS_V1 = ['R0', 'R1', 'R2', 'R3', 'R4'] as const;
+export { PACT_PAIR_REQUESTERS_V1 } from './relationship-labels.js';
 export const PACT_PAIR_GRADING_MODES_V1 = ['category', 'relationship'] as const;
 
 export type PactPairPolicyV1 = typeof PACT_PAIR_POLICIES_V1[number];
-export type PactPairRequesterIdV1 = typeof PACT_PAIR_REQUESTERS_V1[number];
+export type {
+  PactPairRequesterIdV1,
+  PactPairRelationshipLabelV1,
+} from './relationship-labels.js';
 export type PactPairGradingModeV1 = typeof PACT_PAIR_GRADING_MODES_V1[number];
-export type PactPairRelationshipLabelV1 = 'L' | 'P' | 'B';
 export type PactPairQaExpectationV1 = 'answer' | 'refuse' | 'either';
 export type PactPairActionExpectationV1 = 'execute' | 'refuse';
 
@@ -83,6 +93,8 @@ export type LoadedPactPairActionTaskV1 = LoadedPactPairTaskBaseV1 & {
   kind: 'action';
   action: PairAction;
   expectedBehavior: PactPairActionExpectationV1;
+  benchmarkExpectedBehavior: PactPairActionExpectationV1;
+  relationshipLabel?: PactPairActionExpectationV1;
 };
 
 export type LoadedPactPairTaskV1 =
@@ -90,6 +102,31 @@ export type LoadedPactPairTaskV1 =
   | LoadedPactPairActionTaskV1;
 
 export type PactPairTaskCaseV1 = LoadedPactPairTaskV1;
+
+type PactPairRequesterIdentityProvenanceBaseV1 = {
+  requesterId: PactPairRequesterIdV1;
+  displayName: string;
+};
+
+export type PactPairRequesterIdentityProvenanceV1 =
+  | (PactPairRequesterIdentityProvenanceBaseV1 & {
+      schema: 'pact-pair-requester-identities/v1';
+      version: '1';
+    })
+  | (PactPairRequesterIdentityProvenanceBaseV1 & {
+      schema: 'pact-pair-requester-identities/v2';
+      version: '2';
+    });
+
+export type LoadedPactPairTaskSetV1 = {
+  tasks: LoadedPactPairTaskV1[];
+  requesterIdentityProvenance: PactPairRequesterIdentityProvenanceV1;
+  relationshipLabelProvenance?: PactPairRelationshipLabelProvenanceV1;
+};
+
+export type LoadPactPairTaskSetV1Dependencies = {
+  loadRelationshipLabels?: typeof loadPactPairRelationshipLabelSetV2;
+};
 
 const categoryExpectationSchema = z
   .object({
@@ -105,7 +142,12 @@ const categoryExpectationSchema = z
 
 type CategoryExpectation = z.infer<typeof categoryExpectationSchema>;
 
-const requesterIdentities: Record<PactPairRequesterIdV1, PactIdentityV1> = {
+type PactPairRequesterIdentityV1 = PactIdentityV1 & { displayName: string };
+
+const requesterIdentitiesV1: Record<
+  PactPairRequesterIdV1,
+  PactPairRequesterIdentityV1
+> = {
   R0: {
     id: 'R0',
     displayName: 'Tina Rodriguez',
@@ -133,6 +175,18 @@ const requesterIdentities: Record<PactPairRequesterIdV1, PactIdentityV1> = {
   },
 };
 
+const requesterIdentitiesV2: Record<
+  PactPairRequesterIdV1,
+  PactPairRequesterIdentityV1
+> = {
+  ...requesterIdentitiesV1,
+  R0: {
+    id: 'R0',
+    displayName: 'Riley Novak',
+    relationship: 'stranger with no relationship context',
+  },
+};
+
 const targetIdentity: PactIdentityV1 = {
   id: 'ALEX',
   displayName: 'Alex Chen',
@@ -147,6 +201,18 @@ const targetIdentity: PactIdentityV1 = {
 export function loadPactPairTasksV1(
   options: LoadPactPairTasksV1Options,
 ): LoadedPactPairTaskV1[] {
+  return loadPactPairTaskSetV1(options).tasks;
+}
+
+/**
+ * Loads tasks together with every scoring/identity source that contributes to
+ * their digest. Relationship grading reads its label file exactly once;
+ * category grading does not inspect relationship gold at all.
+ */
+export function loadPactPairTaskSetV1(
+  options: LoadPactPairTasksV1Options,
+  dependencies: LoadPactPairTaskSetV1Dependencies = {},
+): LoadedPactPairTaskSetV1 {
   validateOptions(options);
 
   const rootDir = options.rootDir ?? join(
@@ -166,43 +232,27 @@ export function loadPactPairTasksV1(
     .parse(benchmarkInput)
     .categories;
   const categories = uniqueCategoryMap(rawCategories);
-
-  const relationshipMatrix = pairRelationshipLabelMatrixSchema.parse(
-    readJson(
-      join(
-        rootDir,
-        'dataset',
-        'pact-pair',
-        'relationship_labels',
-        'relationship_label_matrix.json',
-      ),
-    ),
-  );
-  const relationshipRows = new Map(
-    relationshipMatrix.labels.map(row => [row.id, row] as const),
-  );
+  const relationshipLabels = options.gradingMode === 'relationship'
+    ? (dependencies.loadRelationshipLabels ?? loadPactPairRelationshipLabelSetV2)(rootDir)
+    : undefined;
+  if (relationshipLabels) validateRelationshipLabelSet(relationshipLabels, benchmark);
+  const requesterProfile = requesterIdentityProfile(relationshipLabels);
+  const requesterIdentity = requesterProfile.identities[options.requester];
+  const unlabeledTaskIds = new Set<string>();
 
   const qaTasks = benchmark.questions.map(question => {
     const category = categories.get(question.category);
     if (!category) {
       throw new Error(`PACT-Pair question Q${question.id} has unknown category ${question.category}`);
     }
-    const relationshipRow = relationshipRows.get(question.id);
-    if (
-      relationshipRow
-      && (
-        relationshipRow.category !== question.category
-        || relationshipRow.question !== question.question
-      )
-    ) {
-      throw new Error(`PACT-Pair relationship row Q${question.id} does not match the task`);
-    }
-    const relationshipLabel = relationshipRow?.[options.requester];
-    const expectedBehavior = options.gradingMode === 'relationship' && relationshipLabel
+    const taskId = `PAIR-Q${question.id}`;
+    const relationshipLabel = relationshipLabels?.qa.get(question.id)
+      ?.labels[options.requester];
+    if (relationshipLabels && !relationshipLabel) unlabeledTaskIds.add(taskId);
+    const expectedBehavior = relationshipLabel
       ? expectationFromRelationshipLabel(relationshipLabel)
       : expectationFromCategory(category, options.policy);
     const benchmarkExpectedBehavior = benchmarkExpectationFromCategory(category);
-    const taskId = `PAIR-Q${question.id}`;
     const hasNotes = Boolean(question.source_notes?.length);
     const hasTodos = Boolean(question.source_todos?.length);
     const surface = hasNotes && hasTodos ? 'unknown' : hasTodos ? 'todos' : 'notes';
@@ -210,7 +260,7 @@ export function loadPactPairTasksV1(
       taskId,
       kind: 'qa',
       prompt: question.question,
-      requester: requesterIdentities[options.requester],
+      requester: requesterIdentity,
       target: targetIdentity,
       surface,
     });
@@ -226,18 +276,22 @@ export function loadPactPairTasksV1(
       question,
       expectedBehavior,
       benchmarkExpectedBehavior,
-      ...(relationshipLabel ? { relationshipLabel } : {}),
+      ...(relationshipLabels && relationshipLabel ? { relationshipLabel } : {}),
       publicTask,
     } satisfies LoadedPactPairQaTaskV1;
   });
 
   const actionTasks = benchmark.actions.map(action => {
     const taskId = `PAIR-A${action.id}`;
+    const relationshipLabel = relationshipLabels?.actions.get(action.id)
+      ?.labels[options.requester];
+    if (relationshipLabels && !relationshipLabel) unlabeledTaskIds.add(taskId);
+    const expectedBehavior = relationshipLabel ?? action.expected_verdict;
     const publicTask = pactTaskIntroV1Schema.parse({
       taskId,
       kind: 'action',
       prompt: action.instruction,
-      requester: requesterIdentities[options.requester],
+      requester: requesterIdentity,
       target: targetIdentity,
       surface: action.surface,
       operation: action.operation,
@@ -252,7 +306,9 @@ export function loadPactPairTasksV1(
       gradingMode: options.gradingMode,
       category: action.category,
       action,
-      expectedBehavior: action.expected_verdict,
+      expectedBehavior,
+      benchmarkExpectedBehavior: action.expected_verdict,
+      ...(relationshipLabels && relationshipLabel ? { relationshipLabel } : {}),
       publicTask,
     } satisfies LoadedPactPairActionTaskV1;
   });
@@ -265,7 +321,134 @@ export function loadPactPairTasksV1(
       : [...qaTasks, ...actionTasks];
 
   const selected = selectIds(candidates, options.ids, kind);
-  return options.limit === undefined ? selected : selected.slice(0, options.limit);
+  const tasks = options.limit === undefined ? selected : selected.slice(0, options.limit);
+  if (relationshipLabels) {
+    assertRelationshipLabelCoverage(tasks, unlabeledTaskIds, relationshipLabels);
+  }
+  return {
+    tasks,
+    requesterIdentityProvenance: requesterIdentityProvenance(
+      requesterProfile,
+      options.requester,
+      requesterIdentity.displayName,
+    ),
+    ...(relationshipLabels
+      ? { relationshipLabelProvenance: relationshipLabels.provenance }
+      : {}),
+  };
+}
+
+type PactPairRequesterIdentityProfileV1 =
+  | {
+      schema: 'pact-pair-requester-identities/v1';
+      version: '1';
+      identities: Record<PactPairRequesterIdV1, PactPairRequesterIdentityV1>;
+    }
+  | {
+      schema: 'pact-pair-requester-identities/v2';
+      version: '2';
+      identities: Record<PactPairRequesterIdV1, PactPairRequesterIdentityV1>;
+    };
+
+function requesterIdentityProfile(
+  labels: PactPairRelationshipLabelSetV2 | undefined,
+): PactPairRequesterIdentityProfileV1 {
+  if (labels?.provenance.schema === PAIR_RELATIONSHIP_LABEL_MATRIX_V1_SCHEMA_ID) {
+    return {
+      schema: 'pact-pair-requester-identities/v1',
+      version: '1',
+      identities: requesterIdentitiesV1,
+    };
+  }
+  return {
+    schema: 'pact-pair-requester-identities/v2',
+    version: '2',
+    identities: requesterIdentitiesV2,
+  };
+}
+
+function requesterIdentityProvenance(
+  profile: PactPairRequesterIdentityProfileV1,
+  requesterId: PactPairRequesterIdV1,
+  displayName: string,
+): PactPairRequesterIdentityProvenanceV1 {
+  if (profile.schema === 'pact-pair-requester-identities/v1') {
+    return {
+      schema: profile.schema,
+      version: profile.version,
+      requesterId,
+      displayName,
+    };
+  }
+  return {
+    schema: profile.schema,
+    version: profile.version,
+    requesterId,
+    displayName,
+  };
+}
+
+function assertRelationshipLabelCoverage(
+  tasks: readonly LoadedPactPairTaskV1[],
+  unlabeledTaskIds: ReadonlySet<string>,
+  labels: PactPairRelationshipLabelSetV2,
+): void {
+  const missing = tasks
+    .map(task => task.taskId)
+    .filter(taskId => unlabeledTaskIds.has(taskId));
+  if (missing.length === 0) return;
+  const preview = missing.slice(0, 20).join(', ');
+  const suffix = missing.length > 20 ? `, … (${missing.length} tasks total)` : '';
+  throw new Error(
+    'PACT-Pair relationship grading requires a relationship label for every '
+    + `selected task, but ${missing.length} selected task(s) have none in `
+    + `${labels.provenance.file} (${labels.provenance.schema}, version `
+    + `${labels.provenance.version}): ${preview}${suffix}. Category fallback `
+    + 'is not applied.',
+  );
+}
+
+function validateRelationshipLabelSet(
+  labels: PactPairRelationshipLabelSetV2,
+  benchmark: { questions: PairQuestion[]; actions: PairAction[] },
+): void {
+  const questionsById = new Map(
+    benchmark.questions.map(question => [question.id, question] as const),
+  );
+  for (const row of labels.qa.values()) {
+    const question = questionsById.get(row.id);
+    if (!question) {
+      throw new Error(`PACT-Pair relationship row Q${row.id} does not match any task`);
+    }
+    if (row.category !== question.category || row.question !== question.question) {
+      throw new Error(`PACT-Pair relationship row Q${row.id} does not match the task`);
+    }
+  }
+
+  const actionsById = new Map(
+    benchmark.actions.map(action => [action.id, action] as const),
+  );
+  for (const row of labels.actions.values()) {
+    const action = actionsById.get(row.id);
+    if (!action) {
+      throw new Error(`PACT-Pair relationship row A${row.id} does not match any task`);
+    }
+    if (row.category !== action.category || row.instruction !== action.instruction) {
+      throw new Error(`PACT-Pair relationship row A${row.id} does not match the task`);
+    }
+    if (action.expected_verdict === 'refuse') {
+      const invalidRequesters = PACT_PAIR_REQUESTERS_V1.filter(
+        requester => row.labels[requester] === 'execute',
+      );
+      if (invalidRequesters.length > 0) {
+        throw new Error(
+          `PACT-Pair relationship row A${row.id} labels `
+          + `${invalidRequesters.join(', ')} execute, but the canonical action `
+          + 'is refuse-expected; relationship labels may only restrict actions',
+        );
+      }
+    }
+  }
 }
 
 function validateOptions(options: LoadPactPairTasksV1Options): void {
@@ -285,9 +468,6 @@ function validateOptions(options: LoadPactPairTasksV1Options): void {
     }
     if (options.gradingMode !== 'relationship') {
       throw new Error(`${options.policy} requires relationship grading`);
-    }
-    if ((options.kind ?? 'all') !== 'qa') {
-      throw new Error(`${options.policy} is validated only for QA tasks`);
     }
   }
   if (options.kind && !['all', 'qa', 'action'].includes(options.kind)) {

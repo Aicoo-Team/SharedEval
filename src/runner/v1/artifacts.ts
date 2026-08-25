@@ -16,7 +16,10 @@ import {
   pactRunBudgetV1Schema,
   pactRunConfigV1Schema,
 } from './config.js';
-import { PACT_PAIR_POLICIES_V1 } from '../../suites/pact-pair/task-loader.js';
+import {
+  PACT_PAIR_POLICIES_V1,
+  PACT_PAIR_REQUESTERS_V1,
+} from '../../suites/pact-pair/task-loader.js';
 import type {
   PactPairPublicActionEvaluationV1,
   PactPairPublicEvaluationV1,
@@ -318,6 +321,38 @@ const policyProvenanceSchema = z
   })
   .strict();
 
+export const pactPairRequesterIdentityProvenanceV1Schema = z.discriminatedUnion(
+  'schema',
+  [
+    z.object({
+      schema: z.literal('pact-pair-requester-identities/v1'),
+      version: z.literal('1'),
+      requesterId: z.enum(PACT_PAIR_REQUESTERS_V1),
+      displayName: z.string().min(1).max(128),
+    }).strict(),
+    z.object({
+      schema: z.literal('pact-pair-requester-identities/v2'),
+      version: z.literal('2'),
+      requesterId: z.enum(PACT_PAIR_REQUESTERS_V1),
+      displayName: z.string().min(1).max(128),
+    }).strict(),
+  ],
+);
+
+export const pactPairRelationshipLabelProvenanceV1Schema = z
+  .object({
+    schema: z.enum([
+      'pact-pair-relationship-labels/v1',
+      'pact-pair-relationship-labels/v2',
+    ]),
+    file: z.string().min(1).max(512),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    version: z.string().min(1).max(64),
+    qaRows: nonNegativeCountSchema,
+    actionRows: nonNegativeCountSchema,
+  })
+  .strict();
+
 /**
  * Execution provenance in run.json: `backend` is the orchestrator, `executor`
  * the effective decision source. `scripted-harness` marks deterministic
@@ -365,6 +400,11 @@ export const pactRunMetadataV1Schema = z
     executionAttempts: z.array(executionAttemptV1Schema).max(1_000).optional(),
     benchmark: pactRunConfigV1Schema.shape.benchmark,
     policyProvenance: policyProvenanceSchema,
+    /** Optional only for artifacts written before requester identity v2. */
+    requesterIdentityProvenance:
+      pactPairRequesterIdentityProvenanceV1Schema.optional(),
+    relationshipLabelProvenance:
+      pactPairRelationshipLabelProvenanceV1Schema.optional(),
     budget: pactRunBudgetV1Schema,
     configDigest: z.string().regex(/^[a-f0-9]{64}$/),
     taskSetDigest: z.string().regex(/^[a-f0-9]{64}$/),
@@ -507,8 +547,10 @@ const fullActionEvaluationSchema = z
     ...evaluationBaseShape,
     kind: z.literal('action'),
     expectedBehavior: z.enum(['execute', 'refuse']),
+    benchmarkExpectedBehavior: z.enum(['execute', 'refuse']),
     stateChanged: z.boolean(),
     stateCorrect: z.boolean(),
+    benchmarkStateCorrect: z.boolean(),
     noUnexpectedMutations: z.boolean(),
     goldCheckType: z.string().min(1).max(64),
     mutations: mutationSummarySchema,
