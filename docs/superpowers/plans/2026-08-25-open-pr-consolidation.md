@@ -214,4 +214,3 @@ git diff --check
 
 - [ ] Publish a final table with original PR, disposition, successor, exact merge/close SHA, workflow classification, tests, and any remaining non-merge blocker.
 - [ ] Confirm no legacy result is relabeled as file-driven and no new default silently falls back to a legacy runner.
-

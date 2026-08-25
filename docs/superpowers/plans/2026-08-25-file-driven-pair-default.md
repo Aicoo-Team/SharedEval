@@ -390,4 +390,3 @@ git diff --check
 - [ ] Run two scripted end-to-end fixtures: one two-task `files-multi` run and two independent `files-single` sessions. Assert workflow IDs, stop reasons, selected/result/evaluation cardinality, initial/final digests, fresh harness counts, and zero sentinel leakage.
 - [ ] Request two-stage review: spec compliance first, then code quality/security. Resolve every Critical or Important finding and rerun affected plus full verification.
 - [ ] Rebase onto the actual current `main` merge ancestry once network fetch is available, push a `codex/` branch, open a reviewable PR, and merge only after required checks and approval are green.
-
