@@ -14,8 +14,11 @@ import {
 } from './config.js';
 import {
   FILE_TURN_BOOTSTRAP_V1,
+  InternalFileTurnDeadlineV1,
+  InternalFileTurnPublicErrorV1,
   fileTurnDecisionV1Schema,
   fileTurnInputV1Schema,
+  parseExternalFileTurnValueV1,
   type FileHarnessContactPortV1,
   type FileTurnDecisionV1,
   type FileTurnInputV1,
@@ -28,6 +31,7 @@ import {
   isOpenAICompatibleProviderRedirectResponseV1,
   isRetryableOpenAICompatibleProviderStatusV1,
   MAX_OPENAI_COMPATIBLE_PROVIDER_RESPONSE_BYTES_V1,
+  OpenAICompatibleProviderTransportErrorV1,
   openAICompatibleProviderDefaultRetryDelayMsV1,
   openAICompatibleProviderRequestExtrasV1,
   openAICompatibleProviderRetryDelayMsV1,
@@ -145,7 +149,7 @@ export type OpenAICompatibleFileHarnessV1Options = {
   timeoutMs?: number;
 };
 
-export class FileProviderRequestErrorV1 extends Error {
+export class FileProviderRequestErrorV1 extends InternalFileTurnPublicErrorV1 {
   readonly status?: number;
   readonly retryable: boolean;
 
@@ -260,7 +264,7 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
   private readonly readablePathSet: ReadonlySet<string>;
   private readonly providerTools: ProviderTool[];
   private readonly availableToolNames: ReadonlySet<string>;
-  private readonly activeControllers = new Set<AbortController>();
+  private readonly activeDeadlines = new Set<InternalFileTurnDeadlineV1>();
   private messages: ProviderMessage[] = [];
   private seenToolCallIds = new Set<string>();
   private observedMemoryVersions = new Set<number>();
@@ -302,10 +306,16 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
 
   async step(input: FileTurnInputV1): Promise<FileTurnDecisionV1> {
     if (this.started || this.finalized) {
-      throw new Error('A fresh file harness instance is required for every turn');
+      throw new InternalFileTurnPublicErrorV1(
+        'A fresh file harness instance is required for every turn',
+      );
     }
     this.started = true;
-    const parsed = fileTurnInputV1Schema.parse(input);
+    const parsed = parseExternalFileTurnValueV1(
+      fileTurnInputV1Schema,
+      input,
+      'File turn input is invalid',
+    );
     if (parsed.cancelled) {
       return {
         type: 'cancelled',
@@ -315,59 +325,81 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
       };
     }
 
+    const deadline = new InternalFileTurnDeadlineV1(parsed.deadlineMs);
+    this.activeDeadlines.add(deadline);
+    try {
+      return await this.runStep(parsed, deadline);
+    } finally {
+      deadline.close();
+      this.activeDeadlines.delete(deadline);
+    }
+  }
+
+  private async runStep(
+    parsed: FileTurnInputV1,
+    deadline: InternalFileTurnDeadlineV1,
+  ): Promise<FileTurnDecisionV1> {
     this.messages = [{ role: 'user', content: FILE_TURN_BOOTSTRAP_V1 }];
-    const deadlineAt = Date.now() + parsed.deadlineMs;
     let toolSteps = 0;
     let contactCalls = 0;
     while (true) {
       const fetched = await this.fetchCompletion(
         this.requestBody(),
-        remainingTime(deadlineAt),
+        deadline,
       );
+      deadline.remainingMs();
       const response = redactOpenAICompatibleProviderCredentialV1(
         fetched.body,
         this.apiKey,
       );
-      const envelope = providerEnvelopeSchema.safeParse(response);
-      if (!envelope.success) {
+      const envelopeResult = providerEnvelopeSchema.safeParse(response);
+      if (!envelopeResult.success) {
         this.providerRequests.push(telemetryFromResponse({
           requestedModel: this.requestedModel,
           resolvedModel: this.resolvedModel,
           fetched,
           outcome: 'invalid_response',
         }));
-        throw new Error(
-          `File model provider returned an invalid response envelope: ${summarizeIssues(envelope.error)}`,
+        throw new InternalFileTurnPublicErrorV1(
+          'File model provider returned an invalid response envelope',
         );
       }
+      const envelope = envelopeResult.data;
       const telemetry = telemetryFromResponse({
         requestedModel: this.requestedModel,
         resolvedModel: this.resolvedModel,
         fetched,
-        envelope: envelope.data,
+        envelope,
         outcome: 'invalid_response',
       });
       this.providerRequests.push(telemetry);
-      const choice = providerChoiceSchema.safeParse(envelope.data.choices[0]);
-      if (!choice.success) {
-        throw new Error(
-          `File model provider returned an invalid first choice: ${summarizeIssues(choice.error)}`,
-        );
-      }
-      const message = choice.data.message;
+      const choice = parseExternalFileTurnValueV1(
+        providerChoiceSchema,
+        envelope.choices[0],
+        'File model provider returned an invalid first choice',
+      );
+      const message = choice.message;
       const calls = message.tool_calls ?? [];
       if (calls.length > 0) {
         assertUniqueAndFreshCallIds(calls, this.seenToolCallIds);
         if (calls.length !== 1) {
-          throw new Error('File model provider returned multiple parallel tool calls');
+          throw new InternalFileTurnPublicErrorV1(
+            'File model provider returned multiple parallel tool calls',
+          );
         }
         if (toolSteps >= parsed.maxToolSteps) {
-          throw new Error('File turn tool-step budget exhausted');
+          throw new InternalFileTurnPublicErrorV1('File turn tool-step budget exhausted');
         }
         const call = calls[0];
-        if (!call) throw new Error('File model provider returned no tool call');
+        if (!call) {
+          throw new InternalFileTurnPublicErrorV1(
+            'File model provider returned no tool call',
+          );
+        }
         if (!this.availableToolNames.has(call.function.name)) {
-          throw new Error('File model provider selected an unavailable tool');
+          throw new InternalFileTurnPublicErrorV1(
+            'File model provider selected an unavailable tool',
+          );
         }
         const reasoning = parseReasoningDetails(message.reasoning_details);
         this.messages.push({
@@ -381,7 +413,7 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
         const dispatched = await this.dispatchTool({
           call,
           turn: parsed,
-          deadlineAt,
+          deadline,
           contactCalls,
         });
         contactCalls += dispatched.contactCalls;
@@ -397,30 +429,34 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
       const refusal = message.refusal?.trim();
       if (refusal) {
         telemetry.outcome = 'success';
-        return fileTurnDecisionV1Schema.parse({
+        return parseExternalFileTurnValueV1(fileTurnDecisionV1Schema, {
           type: 'denied',
           reason: refusal,
           toolSteps,
           contactCalls,
-        });
+        }, 'File model provider returned an invalid turn decision');
       }
       const content = message.content?.trim();
-      if (!content) throw new Error('File model provider returned no turn decision');
+      if (!content) {
+        throw new InternalFileTurnPublicErrorV1(
+          'File model provider returned no turn decision',
+        );
+      }
       telemetry.outcome = 'success';
-      return fileTurnDecisionV1Schema.parse({
+      return parseExternalFileTurnValueV1(fileTurnDecisionV1Schema, {
         type: 'completed',
         content,
         toolSteps,
         contactCalls,
-      });
+      }, 'File model provider returned an invalid turn decision');
     }
   }
 
   async finalize(): Promise<void> {
     if (this.finalized) return;
     this.finalized = true;
-    for (const controller of this.activeControllers) controller.abort();
-    this.activeControllers.clear();
+    for (const deadline of this.activeDeadlines) deadline.close();
+    this.activeDeadlines.clear();
     this.messages = [];
     this.seenToolCallIds.clear();
     this.observedMemoryVersions.clear();
@@ -466,37 +502,56 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
   private async dispatchTool(input: {
     call: ProviderToolCall;
     turn: FileTurnInputV1;
-    deadlineAt: number;
+    deadline: InternalFileTurnDeadlineV1;
     contactCalls: number;
   }): Promise<{ result: JsonValue; contactCalls: number }> {
     const raw = parseToolArguments(input.call.function.arguments);
     const name = input.call.function.name as FileToolNameV1;
     if (name === 'files_list') {
-      noArgumentsSchema.parse(raw);
+      parseExternalFileTurnValueV1(
+        noArgumentsSchema,
+        raw,
+        'File model provider returned invalid files_list arguments',
+      );
       return {
         result: { actorId: input.turn.actorId, paths: [...this.readablePaths] },
         contactCalls: 0,
       };
     }
     if (name === 'files_read') {
-      const args = readArgumentsSchema.parse(raw);
+      const args = parseExternalFileTurnValueV1(
+        readArgumentsSchema,
+        raw,
+        'File model provider returned invalid files_read arguments',
+      );
       if (!this.readablePathSet.has(args.path)) {
-        throw new Error('File model provider selected an unauthorized logical path');
+        throw new InternalFileTurnPublicErrorV1(
+          'File model provider selected an unauthorized logical path',
+        );
       }
-      remainingTime(input.deadlineAt);
-      const loaded = fileReadResultSchema.parse(await invokeHostOperation(
-        () => this.options.workspace.read({
-          actorId: input.turn.actorId,
-          path: args.path,
-        }),
-        'File workspace read failed',
-      ));
-      remainingTime(input.deadlineAt);
+      input.deadline.remainingMs();
+      const loaded = parseExternalFileTurnValueV1(
+        fileReadResultSchema,
+        await invokeHostOperation(
+          () => this.options.workspace.read({
+            actorId: input.turn.actorId,
+            path: args.path,
+            signal: input.deadline.signal,
+            deadlineAtMs: input.deadline.deadlineAtMs,
+          }),
+          'File workspace read failed',
+          input.deadline,
+        ),
+        'File workspace returned an invalid read result',
+      );
+      input.deadline.remainingMs();
       if (
         loaded.receipt.actorId !== input.turn.actorId
         || loaded.receipt.path !== args.path
       ) {
-        throw new Error('File workspace returned a mismatched read receipt');
+        throw new InternalFileTurnPublicErrorV1(
+          'File workspace returned a mismatched read receipt',
+        );
       }
       if (args.path === 'MEMORY.md') {
         this.observedMemoryVersions.add(loaded.receipt.version);
@@ -518,29 +573,40 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
     }
     if (name === 'files_replace_memory') {
       if (!this.options.allowMemoryReplacement) {
-        throw new Error('MEMORY replacement is not authorized for this file turn');
+        throw new InternalFileTurnPublicErrorV1(
+          'MEMORY replacement is not authorized for this file turn',
+        );
       }
-      const args = replaceMemoryArgumentsSchema.parse(raw);
+      const args = parseExternalFileTurnValueV1(
+        replaceMemoryArgumentsSchema,
+        raw,
+        'File model provider returned invalid files_replace_memory arguments',
+      );
       if (!this.observedMemoryVersions.has(args.expectedVersion)) {
-        throw new Error(
+        throw new InternalFileTurnPublicErrorV1(
           'MEMORY replacement requires the expected version observed by a read in this file turn',
         );
       }
       // A failed or conflicting attempt requires a fresh read. A successful
       // commit receipt below establishes the only new observable version.
       this.observedMemoryVersions.clear();
-      remainingTime(input.deadlineAt);
-      const replaced = replaceMemoryResultSchema.parse(
+      input.deadline.remainingMs();
+      const replaced = parseExternalFileTurnValueV1(
+        replaceMemoryResultSchema,
         await invokeHostOperation(
           () => this.options.workspace.replaceMemory({
             actorId: input.turn.actorId,
             expectedVersion: args.expectedVersion,
             content: args.content,
+            signal: input.deadline.signal,
+            deadlineAtMs: input.deadline.deadlineAtMs,
           }),
           'File workspace MEMORY replacement failed',
+          input.deadline,
         ),
+        'File workspace returned an invalid MEMORY replacement result',
       );
-      remainingTime(input.deadlineAt);
+      input.deadline.remainingMs();
       if (replaced.outcome === 'committed') {
         this.observedMemoryVersions.add(replaced.version);
       }
@@ -563,26 +629,37 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
     }
     if (name === 'contact_agent') {
       if (!this.options.contact) {
-        throw new Error('Agent contact is not authorized for this file turn');
+        throw new InternalFileTurnPublicErrorV1(
+          'Agent contact is not authorized for this file turn',
+        );
       }
       if (input.contactCalls >= input.turn.maxContactCalls) {
-        throw new Error('File turn contact budget exhausted');
+        throw new InternalFileTurnPublicErrorV1('File turn contact budget exhausted');
       }
-      const args = contactArgumentsSchema.parse(raw);
-      const remaining = remainingTime(input.deadlineAt);
-      const contacted = contactResultSchema.parse(await invokeHostOperation(
-        () => this.options.contact!.contact({
-          senderId: input.turn.actorId,
-          recipientId: args.recipientId,
-          message: args.message,
-          intent: args.intent,
-          purpose: args.purpose,
-          traceId: input.turn.traceId,
-          deadlineMs: Math.min(args.deadlineMs, remaining),
-        }),
-        'Agent contact failed',
-      ));
-      remainingTime(input.deadlineAt);
+      const args = parseExternalFileTurnValueV1(
+        contactArgumentsSchema,
+        raw,
+        'File model provider returned invalid contact_agent arguments',
+      );
+      const remaining = input.deadline.remainingMs();
+      const contacted = parseExternalFileTurnValueV1(
+        contactResultSchema,
+        await invokeHostOperation(
+          () => this.options.contact!.contact({
+            senderId: input.turn.actorId,
+            recipientId: args.recipientId,
+            message: args.message,
+            intent: args.intent,
+            purpose: args.purpose,
+            traceId: input.turn.traceId,
+            deadlineMs: Math.min(args.deadlineMs, remaining),
+          }),
+          'Agent contact failed',
+          input.deadline,
+        ),
+        'Agent contact returned an invalid result',
+      );
+      input.deadline.remainingMs();
       return {
         result: {
           status: contacted.status,
@@ -593,17 +670,24 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
         contactCalls: 1,
       };
     }
-    throw new Error('File model provider selected an unavailable tool');
+    throw new InternalFileTurnPublicErrorV1(
+      'File model provider selected an unavailable tool',
+    );
   }
 
   private async fetchCompletion(
     body: unknown,
-    remainingRuntimeMs: number,
+    turnDeadline: InternalFileTurnDeadlineV1,
   ): Promise<FetchedCompletion> {
-    const timeoutMs = Math.min(this.configuredTimeoutMs, remainingRuntimeMs);
-    const controller = new AbortController();
-    this.activeControllers.add(controller);
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutMs = Math.min(
+      this.configuredTimeoutMs,
+      turnDeadline.remainingMs(),
+    );
+    const requestDeadline = new InternalFileTurnDeadlineV1(
+      timeoutMs,
+      `File model provider timed out after ${timeoutMs}ms`,
+    );
+    this.activeDeadlines.add(requestDeadline);
     const startedAt = Date.now();
     let attempts = 0;
     let failureHeaders: ProviderHeaders = {};
@@ -615,23 +699,39 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
         attempts = attempt;
         let response: Response;
         try {
-          response = await this.fetchImplementation(this.completionUrl, {
+          const fetching = this.fetchImplementation(this.completionUrl, {
             method: 'POST',
             headers: { ...this.authHeaders, 'content-type': 'application/json' },
             body: JSON.stringify(body),
             redirect: 'manual',
-            signal: controller.signal,
+            signal: requestDeadline.signal,
           });
+          response = await turnDeadline.settle(
+            requestDeadline.settle(
+              fetching,
+              cancelOpenAICompatibleProviderResponseBodyV1,
+            ),
+            cancelOpenAICompatibleProviderResponseBodyV1,
+          );
         } catch {
-          if (controller.signal.aborted) {
-            throw new Error(`File model provider timed out after ${timeoutMs}ms`);
+          if (turnDeadline.signal.aborted) {
+            throw new InternalFileTurnPublicErrorV1(
+              'File turn runtime deadline exceeded',
+            );
+          }
+          if (requestDeadline.signal.aborted) {
+            throw new InternalFileTurnPublicErrorV1(
+              `File model provider timed out after ${timeoutMs}ms`,
+            );
           }
           if (attempt < MAX_PROVIDER_ATTEMPTS_V1) {
-            await waitForOpenAICompatibleProviderRetryV1(
-              openAICompatibleProviderDefaultRetryDelayMsV1(attempt),
-              controller.signal,
-              timeoutMs,
-              'File model provider',
+            await turnDeadline.settle(
+              waitForOpenAICompatibleProviderRetryV1(
+                openAICompatibleProviderDefaultRetryDelayMsV1(attempt),
+                requestDeadline.signal,
+                timeoutMs,
+                'File model provider',
+              ),
             );
             continue;
           }
@@ -663,11 +763,13 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
           const delay = openAICompatibleProviderRetryDelayMsV1(response, attempt);
           await cancelOpenAICompatibleProviderResponseBodyV1(response);
           if (retryable && attempt < MAX_PROVIDER_ATTEMPTS_V1) {
-            await waitForOpenAICompatibleProviderRetryV1(
-              delay,
-              controller.signal,
-              timeoutMs,
-              'File model provider',
+            await turnDeadline.settle(
+              waitForOpenAICompatibleProviderRetryV1(
+                delay,
+                requestDeadline.signal,
+                timeoutMs,
+                'File model provider',
+              ),
             );
             continue;
           }
@@ -676,13 +778,17 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
             { status: response.status, retryable },
           );
         }
-        return {
-          body: await readBoundedOpenAICompatibleProviderJsonV1(
+        const responseBody = await turnDeadline.settle(
+          readBoundedOpenAICompatibleProviderJsonV1(
             response,
-            controller.signal,
+            requestDeadline.signal,
             timeoutMs,
             'File model provider',
           ),
+          () => cancelOpenAICompatibleProviderResponseBodyV1(response),
+        );
+        return {
+          body: responseBody,
           headers: readOpenAICompatibleProviderResponseHeadersV1(
             response,
             this.apiKey,
@@ -693,27 +799,33 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
       }
       throw new FileProviderRequestErrorV1('File model provider request failed');
     } catch (error) {
-      this.providerRequests.push({
-        requestedModel: this.requestedModel,
-        resolvedModel: this.resolvedModel,
-        ...(failureHeaders.provider ? { provider: failureHeaders.provider } : {}),
-        ...(failureHeaders.requestId ? { requestId: failureHeaders.requestId } : {}),
-        ...(failureHeaders.generationId
-          ? { generationId: failureHeaders.generationId }
-          : {}),
-        ...(failureStatus === undefined ? {} : { httpStatus: failureStatus }),
-        ...(failureAttempt === undefined ? {} : { lastResponseAttempt: failureAttempt }),
-        ...(failureRetryable === undefined ? {} : { retryable: failureRetryable }),
-        latencyMs: Date.now() - startedAt,
-        attempts: Math.max(1, attempts),
-        outcome: failureStatus !== undefined && failureStatus >= 200 && failureStatus < 300
-          ? 'invalid_response'
-          : 'provider_error',
-      });
-      throw error;
+      if (!this.finalized) {
+        this.providerRequests.push({
+          requestedModel: this.requestedModel,
+          resolvedModel: this.resolvedModel,
+          ...(failureHeaders.provider ? { provider: failureHeaders.provider } : {}),
+          ...(failureHeaders.requestId ? { requestId: failureHeaders.requestId } : {}),
+          ...(failureHeaders.generationId
+            ? { generationId: failureHeaders.generationId }
+            : {}),
+          ...(failureStatus === undefined ? {} : { httpStatus: failureStatus }),
+          ...(failureAttempt === undefined ? {} : { lastResponseAttempt: failureAttempt }),
+          ...(failureRetryable === undefined ? {} : { retryable: failureRetryable }),
+          latencyMs: Date.now() - startedAt,
+          attempts: Math.max(1, attempts),
+          outcome: failureStatus !== undefined && failureStatus >= 200 && failureStatus < 300
+            ? 'invalid_response'
+            : 'provider_error',
+        });
+      }
+      if (error instanceof InternalFileTurnPublicErrorV1) throw error;
+      if (error instanceof OpenAICompatibleProviderTransportErrorV1) {
+        throw new InternalFileTurnPublicErrorV1(error.message);
+      }
+      throw new InternalFileTurnPublicErrorV1('File model provider request failed');
     } finally {
-      clearTimeout(timeout);
-      this.activeControllers.delete(controller);
+      requestDeadline.close();
+      this.activeDeadlines.delete(requestDeadline);
     }
   }
 }
@@ -824,25 +936,32 @@ function validateReadablePaths(
 }
 
 function parseToolArguments(source: string): JsonObject {
+  const publicMessage = 'File model provider returned malformed tool arguments';
   let parsed: unknown;
   try {
     parsed = JSON.parse(source) as unknown;
   } catch {
-    throw new Error('File model provider returned malformed tool arguments');
+    throw new InternalFileTurnPublicErrorV1(publicMessage);
   }
-  assertPactJsonComplexityV1(parsed, 'File model tool arguments');
-  const object = jsonObjectSchema.safeParse(parsed);
-  if (!object.success) {
-    throw new Error('File model provider returned malformed tool arguments');
+  try {
+    assertPactJsonComplexityV1(parsed, 'File model tool arguments');
+  } catch {
+    throw new InternalFileTurnPublicErrorV1(publicMessage);
   }
-  return object.data;
+  return parseExternalFileTurnValueV1(jsonObjectSchema, parsed, publicMessage);
 }
 
 function stringifyToolResult(result: JsonValue): string {
-  assertPactJsonComplexityV1(result, 'File model tool result');
+  try {
+    assertPactJsonComplexityV1(result, 'File model tool result');
+  } catch {
+    throw new InternalFileTurnPublicErrorV1('File model tool result is invalid');
+  }
   const source = JSON.stringify(result);
   if (Buffer.byteLength(source, 'utf8') > MAX_FILE_TOOL_RESULT_BYTES_V1) {
-    throw new Error(`File model tool result exceeds ${MAX_FILE_TOOL_RESULT_BYTES_V1} bytes`);
+    throw new InternalFileTurnPublicErrorV1(
+      `File model tool result exceeds ${MAX_FILE_TOOL_RESULT_BYTES_V1} bytes`,
+    );
   }
   return source;
 }
@@ -852,48 +971,52 @@ function assertUniqueAndFreshCallIds(
   seen: ReadonlySet<string>,
 ): void {
   if (new Set(calls.map(call => call.id)).size !== calls.length) {
-    throw new Error('File model provider returned duplicate tool-call identifiers');
+    throw new InternalFileTurnPublicErrorV1(
+      'File model provider returned duplicate tool-call identifiers',
+    );
   }
   if (calls.some(call => seen.has(call.id))) {
-    throw new Error('File model provider reused a prior tool-call identifier');
+    throw new InternalFileTurnPublicErrorV1(
+      'File model provider reused a prior tool-call identifier',
+    );
   }
 }
 
 function parseReasoningDetails(value: unknown[] | null | undefined): JsonValue[] | undefined {
   if (!value || value.length === 0) return undefined;
-  const parsed = z.array(jsonValueSchema).safeParse(value);
-  if (!parsed.success) {
-    throw new Error('File model provider returned invalid reasoning details');
-  }
-  return parsed.data;
-}
-
-function remainingTime(deadlineAt: number): number {
-  const remaining = deadlineAt - Date.now();
-  if (remaining <= 0) throw new Error('File turn runtime deadline exceeded');
-  return remaining;
+  return parseExternalFileTurnValueV1(
+    z.array(jsonValueSchema),
+    value,
+    'File model provider returned invalid reasoning details',
+  );
 }
 
 async function invokeHostOperation<T>(
   operation: () => Promise<T>,
   publicMessage: string,
+  deadline: InternalFileTurnDeadlineV1,
 ): Promise<T> {
   try {
-    return await operation();
-  } catch {
-    throw new Error(publicMessage);
+    return await deadline.settle(operation());
+  } catch (error) {
+    if (deadline.ownsFailure(error)) throw error;
+    throw new InternalFileTurnPublicErrorV1(publicMessage);
   }
 }
 
 function validateRequestedModel(value: string): string {
   const parsed = z.string().trim().min(1).max(512).safeParse(value);
-  if (!parsed.success) throw new Error('Requested model identity is invalid');
+  if (!parsed.success) {
+    throw new InternalFileTurnPublicErrorV1('Requested model identity is invalid');
+  }
   return parsed.data;
 }
 
 function validateTimeout(value: number): number {
   if (!Number.isSafeInteger(value) || value <= 0 || value > 3_600_000) {
-    throw new Error('File model timeout must be a positive integer up to 3600000ms');
+    throw new InternalFileTurnPublicErrorV1(
+      'File model timeout must be a positive integer up to 3600000ms',
+    );
   }
   return value;
 }
@@ -958,17 +1081,14 @@ function sumUsage<K extends keyof FileProviderUsageV1>(
   });
   return values.length === 0
     ? {}
-    : { [key]: values.reduce((sum, value) => sum + value, 0) } as Partial<Record<K, number>>;
+    : { [key]: sumFiniteUsage(values) } as Partial<Record<K, number>>;
 }
 
-function summarizeIssues(error: z.ZodError): string {
-  const issues = error.issues.slice(0, 6).map(issue => {
-    const path = issue.path.length === 0 ? '<root>' : issue.path.map(segment =>
-      typeof segment === 'number' ? `[${segment}]` : String(segment)).join('.');
-    return issue.code === z.ZodIssueCode.invalid_type
-      ? `${path}: expected ${issue.expected}, received ${issue.received}`
-      : `${path}: ${issue.code}`;
-  });
-  const omitted = error.issues.length - issues.length;
-  return `${issues.join('; ')}${omitted > 0 ? `; +${omitted} more issue(s)` : ''}`;
+function sumFiniteUsage(values: number[]): number {
+  let total = 0;
+  for (const value of values) {
+    const next = total + value;
+    total = Number.isFinite(next) ? next : Number.MAX_VALUE;
+  }
+  return total;
 }

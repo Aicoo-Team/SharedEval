@@ -14,6 +14,7 @@ import {
   OpenAICompatibleFileHarnessV1,
   createOpenAICompatibleFileHarnessFactoryV1,
   readFileProviderTelemetryV1,
+  type FileProviderTelemetryV1,
 } from '../../src/runner/v1/file-model-adapter.js';
 import type {
   FileReadReceiptV1,
@@ -352,6 +353,296 @@ test('bounds contacts independently and binds sender, trace, and deadline', asyn
   assert.equal(deniedContact.calls.length, 0);
 });
 
+test('bounds never-settling workspace read, MEMORY CAS, and contact operations', async () => {
+  const cases: Array<{ name: string; create: () => FreshFileHarnessV1 }> = [
+    {
+      name: 'workspace read',
+      create: () => {
+        const workspace = new MemoryWorkspace();
+        workspace.read = async () => await neverSettles();
+        return createFactory({
+          workspace,
+          fetch: scriptedFetch([
+            toolCompletion('hanging-read', 'files_read', { path: 'MEMORY.md' }),
+          ], []),
+        })();
+      },
+    },
+    {
+      name: 'MEMORY CAS',
+      create: () => {
+        const workspace = new MemoryWorkspace();
+        workspace.replaceMemory = async () => await neverSettles();
+        return createFactory({
+          workspace,
+          fetch: scriptedFetch([
+            toolCompletion('read-before-hanging-cas', 'files_read', { path: 'MEMORY.md' }),
+            toolCompletion('hanging-cas', 'files_replace_memory', {
+              expectedVersion: 0,
+              content: 'TASK-1 [answered] — bounded',
+            }),
+          ], []),
+        })();
+      },
+    },
+    {
+      name: 'contact',
+      create: () => createFactory({
+        workspace: new MemoryWorkspace(),
+        contact: { contact: async () => await neverSettles() },
+        fetch: scriptedFetch([
+          toolCompletion('hanging-contact', 'contact_agent', {
+            recipientId: 'responder-1',
+            message: 'hello',
+            intent: 'ask',
+            purpose: 'PAIR-TASK-1',
+            deadlineMs: 1_000,
+          }),
+        ], []),
+      })(),
+    },
+  ];
+
+  for (const entry of cases) {
+    let finalizeCalls = 0;
+    const harness = countFinalization(entry.create(), () => { finalizeCalls += 1; });
+    const outcome = await settleBeforeWatchdog(
+      harness.step({ ...baseInput, deadlineMs: 20 }),
+      250,
+    );
+    await harness.finalize();
+
+    assert.equal(outcome.type, 'rejected', entry.name);
+    assert.match(String(outcome.error), /runtime deadline exceeded/i, entry.name);
+    assert.equal(finalizeCalls, 1, entry.name);
+  }
+});
+
+test('passes one turn cancellation contract to workspace reads and MEMORY CAS', async () => {
+  const workspace = new MemoryWorkspace();
+  const originalRead = workspace.read.bind(workspace);
+  workspace.read = async input => {
+    workspace.readInputs.push(input);
+    return originalRead(input);
+  };
+  workspace.replaceMemory = async input => {
+    workspace.replaceInputs.push(input);
+    await new Promise<void>(resolve => {
+      if (input.signal?.aborted) {
+        resolve();
+        return;
+      }
+      input.signal?.addEventListener('abort', () => resolve(), { once: true });
+    });
+    if (input.signal?.aborted || Date.now() >= (input.deadlineAtMs ?? Infinity)) {
+      throw new Error('compliant workspace observed cancellation');
+    }
+    workspace.files['MEMORY.md'] = input.content;
+    workspace.version += 1;
+    throw new Error('test workspace unexpectedly published after its deadline');
+  };
+
+  const harness = createFactory({
+    workspace,
+    fetch: scriptedFetch([
+      toolCompletion('read-before-compliant-cas', 'files_read', { path: 'MEMORY.md' }),
+      toolCompletion('compliant-cas', 'files_replace_memory', {
+        expectedVersion: 0,
+        content: 'TASK-1 [answered] — must stay private after timeout',
+      }),
+    ], []),
+  })();
+  const outcome = await settleBeforeWatchdog(
+    harness.step({ ...baseInput, deadlineMs: 20 }),
+    250,
+  );
+  await harness.finalize();
+  await new Promise<void>(resolve => setImmediate(resolve));
+
+  assert.equal(outcome.type, 'rejected');
+  assert.match(String(outcome.error), /runtime deadline exceeded/i);
+  assert.equal(workspace.readInputs.length, 1);
+  assert.equal(workspace.replaceInputs.length, 1);
+  const readBoundary = workspace.readInputs[0];
+  const replaceBoundary = workspace.replaceInputs[0];
+  assert.ok(readBoundary?.signal);
+  assert.strictEqual(replaceBoundary?.signal, readBoundary.signal);
+  assert.equal(replaceBoundary?.deadlineAtMs, readBoundary.deadlineAtMs);
+  assert.equal(readBoundary.signal.aborted, true);
+  assert.equal(workspace.version, 0);
+  assert.equal(workspace.files['MEMORY.md'], 'TASK-1 [pending] — ready');
+});
+
+test('bounds provider fetches and response streams that ignore AbortSignal', async () => {
+  const cases: Array<{ name: string; fetch: typeof fetch }> = [
+    {
+      name: 'fetch',
+      fetch: (async () => await neverSettles<Response>()) as typeof fetch,
+    },
+    {
+      name: 'response stream',
+      fetch: (async () => new Response(new ReadableStream<Uint8Array>({
+        pull: async () => await neverSettles<void>(),
+      }), { status: 200 })) as typeof fetch,
+    },
+  ];
+
+  for (const entry of cases) {
+    let finalizeCalls = 0;
+    const inner = createFactory({
+      workspace: new MemoryWorkspace(),
+      fetch: entry.fetch,
+    })();
+    const harness = countFinalization(inner, () => { finalizeCalls += 1; });
+    const outcome = await settleBeforeWatchdog(
+      harness.step({ ...baseInput, deadlineMs: 20 }),
+      250,
+    );
+    await harness.finalize();
+
+    assert.equal(outcome.type, 'rejected', entry.name);
+    assert.match(String(outcome.error), /timed out|runtime deadline exceeded/i, entry.name);
+    assert.equal(finalizeCalls, 1, entry.name);
+  }
+});
+
+test('sanitizes provider response-stream failures', async () => {
+  const privateSentinel =
+    'PROVIDER_STREAM_SECRET /private/tmp/MEMORY_STREAM_SENTINEL unit-test-key';
+  const adapter = new OpenAICompatibleFileHarnessV1({
+    model: modelConfig(),
+    workspace: new MemoryWorkspace(),
+    readablePaths: allPaths,
+    allowMemoryReplacement: true,
+    fetch: (async () => new Response(new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(new Error(privateSentinel));
+      },
+    }), { status: 200 })) as typeof fetch,
+    environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+  });
+
+  const failure = await captureFailure(
+    runFreshFileTurnV1(() => adapter, baseInput),
+  );
+  const publicSurface = JSON.stringify({
+    error: failure.message,
+    telemetry: readFileProviderTelemetryV1(adapter),
+  });
+  assert.match(failure.message, /response stream failed/i);
+  assert.doesNotMatch(
+    publicSurface,
+    /PROVIDER_STREAM_SECRET|private\/tmp|MEMORY_STREAM_SENTINEL|unit-test-key/,
+  );
+});
+
+test('sanitizes provider text and response-cancellation rejections', async () => {
+  const privateSentinel =
+    'PROVIDER_BODY_SECRET /private/tmp/MEMORY_BODY_SENTINEL unit-test-key';
+  const unhandled: unknown[] = [];
+  const recordUnhandled = (error: unknown) => unhandled.push(error);
+  process.on('unhandledRejection', recordUnhandled);
+  try {
+    const bodylessResponse = {
+      body: null,
+      headers: new Headers(),
+      ok: true,
+      status: 200,
+      type: 'basic',
+      text: async () => {
+        throw new Error(privateSentinel);
+      },
+    } as unknown as Response;
+    const textAdapter = new OpenAICompatibleFileHarnessV1({
+      model: modelConfig(),
+      workspace: new MemoryWorkspace(),
+      readablePaths: allPaths,
+      allowMemoryReplacement: true,
+      fetch: (async () => bodylessResponse) as typeof fetch,
+      environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+    });
+    const textFailure = await captureFailure(
+      runFreshFileTurnV1(() => textAdapter, baseInput),
+    );
+
+    const cancelAdapter = new OpenAICompatibleFileHarnessV1({
+      model: modelConfig(),
+      workspace: new MemoryWorkspace(),
+      readablePaths: allPaths,
+      allowMemoryReplacement: true,
+      fetch: (async () => new Response(new ReadableStream<Uint8Array>({
+        cancel: async () => {
+          throw new Error(privateSentinel);
+        },
+      }), { status: 400 })) as typeof fetch,
+      environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+    });
+    const cancelFailure = await captureFailure(
+      runFreshFileTurnV1(() => cancelAdapter, baseInput),
+    );
+    await new Promise<void>(resolve => setImmediate(resolve));
+
+    const publicSurface = JSON.stringify({
+      errors: [textFailure.message, cancelFailure.message],
+      telemetry: [
+        readFileProviderTelemetryV1(textAdapter),
+        readFileProviderTelemetryV1(cancelAdapter),
+      ],
+    });
+    assert.match(textFailure.message, /response stream failed/i);
+    assert.match(cancelFailure.message, /HTTP 400/i);
+    assert.doesNotMatch(
+      publicSurface,
+      /PROVIDER_BODY_SECRET|private\/tmp|MEMORY_BODY_SENTINEL|unit-test-key/,
+    );
+    assert.deepEqual(unhandled, []);
+  } finally {
+    process.off('unhandledRejection', recordUnhandled);
+  }
+});
+
+test('does not wait for hostile response-body cancellation', async () => {
+  const cases: Array<{
+    name: string;
+    status: number;
+    headers: Record<string, string>;
+  }> = [
+    { name: 'HTTP failure', status: 400, headers: {} },
+    {
+      name: 'declared oversize',
+      status: 200,
+      headers: {
+        'content-length': String(MAX_FILE_PROVIDER_RESPONSE_BYTES_V1 + 1),
+      },
+    },
+  ];
+
+  for (const entry of cases) {
+    let cancelCalls = 0;
+    let finalizeCalls = 0;
+    const inner = createFactory({
+      workspace: new MemoryWorkspace(),
+      fetch: (async () => new Response(new ReadableStream<Uint8Array>({
+        cancel: async () => {
+          cancelCalls += 1;
+          await neverSettles();
+        },
+      }), { status: entry.status, headers: entry.headers })) as typeof fetch,
+    })();
+    const harness = countFinalization(inner, () => { finalizeCalls += 1; });
+
+    const outcome = await settleBeforeWatchdog(
+      harness.step({ ...baseInput, deadlineMs: 20 }),
+      250,
+    );
+    await harness.finalize();
+
+    assert.equal(outcome.type, 'rejected', entry.name);
+    assert.equal(cancelCalls, 1, entry.name);
+    assert.equal(finalizeCalls, 1, entry.name);
+  }
+});
+
 test('finalizes exactly once for success, denial, provider error, malformed arguments, timeout, cancellation, and host failure', async () => {
   const cases: Array<{
     name: string;
@@ -433,6 +724,133 @@ test('does not echo host paths or private payloads from injected tool failures',
   );
 });
 
+test('sanitizes every invalid model tool-argument schema failure', async () => {
+  const privateSentinel =
+    '/private/tmp/MEMORY_SCHEMA_SENTINEL-unit-test-key';
+  const cases = [
+    toolCompletion('invalid-list', 'files_list', { [privateSentinel]: true }),
+    toolCompletion('invalid-read', 'files_read', { path: privateSentinel }),
+    toolCompletion('invalid-replace', 'files_replace_memory', {
+      expectedVersion: 0,
+      content: 'candidate',
+      [privateSentinel]: true,
+    }),
+    toolCompletion('invalid-contact', 'contact_agent', {
+      recipientId: 'responder-1',
+      message: 'hello',
+      intent: 'ask',
+      purpose: 'PAIR-TASK-1',
+      deadlineMs: 100,
+      [privateSentinel]: true,
+    }),
+  ];
+
+  for (const response of cases) {
+    const adapter = new OpenAICompatibleFileHarnessV1({
+      model: modelConfig(),
+      workspace: new MemoryWorkspace(),
+      readablePaths: allPaths,
+      allowMemoryReplacement: true,
+      contact: new RecordingContactPort(),
+      fetch: scriptedFetch([response], []),
+      environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+    });
+
+    const failure = await captureFailure(
+      runFreshFileTurnV1(() => adapter, baseInput),
+    );
+    const publicSurface = JSON.stringify({
+      error: failure.message,
+      telemetry: readFileProviderTelemetryV1(adapter),
+    });
+    assert.doesNotMatch(
+      publicSurface,
+      /private\/tmp|MEMORY_SCHEMA_SENTINEL|unit-test-key/,
+    );
+  }
+});
+
+test('sanitizes malformed workspace and contact result schema failures', async () => {
+  const privateSentinel =
+    '/private/tmp/MEMORY_HOST_SENTINEL-unit-test-key';
+  const cases: Array<{
+    name: string;
+    workspace: MemoryWorkspace;
+    contact?: FileHarnessContactPortV1;
+    responses: unknown[];
+  }> = [];
+
+  const malformedRead = new MemoryWorkspace();
+  malformedRead.receiptExtra = { path: privateSentinel };
+  cases.push({
+    name: 'read receipt',
+    workspace: malformedRead,
+    responses: [toolCompletion('malformed-read', 'files_read', { path: 'MEMORY.md' })],
+  });
+
+  const malformedCas = new MemoryWorkspace();
+  malformedCas.replaceMemory = async () => ({
+    outcome: privateSentinel,
+    version: 1,
+    sha256: '0'.repeat(64),
+    byteLength: 0,
+  } as never);
+  cases.push({
+    name: 'MEMORY receipt',
+    workspace: malformedCas,
+    responses: [
+      toolCompletion('read-before-malformed-cas', 'files_read', { path: 'MEMORY.md' }),
+      toolCompletion('malformed-cas', 'files_replace_memory', {
+        expectedVersion: 0,
+        content: 'TASK-1 [answered] — candidate',
+      }),
+    ],
+  });
+
+  cases.push({
+    name: 'contact result',
+    workspace: new MemoryWorkspace(),
+    contact: {
+      contact: async () => ({
+        status: privateSentinel,
+        recipientTraceId: 'trace-recipient',
+      } as never),
+    },
+    responses: [toolCompletion('malformed-contact', 'contact_agent', {
+      recipientId: 'responder-1',
+      message: 'hello',
+      intent: 'ask',
+      purpose: 'PAIR-TASK-1',
+      deadlineMs: 100,
+    })],
+  });
+
+  for (const entry of cases) {
+    const adapter = new OpenAICompatibleFileHarnessV1({
+      model: modelConfig(),
+      workspace: entry.workspace,
+      readablePaths: allPaths,
+      allowMemoryReplacement: true,
+      ...(entry.contact ? { contact: entry.contact } : {}),
+      fetch: scriptedFetch(entry.responses, []),
+      environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+    });
+
+    const failure = await captureFailure(
+      runFreshFileTurnV1(() => adapter, baseInput),
+    );
+    const publicSurface = JSON.stringify({
+      error: failure.message,
+      telemetry: readFileProviderTelemetryV1(adapter),
+    });
+    assert.doesNotMatch(
+      publicSurface,
+      /private\/tmp|MEMORY_HOST_SENTINEL|unit-test-key/,
+      entry.name,
+    );
+  }
+});
+
 test('rejects oversized provider responses and cannot reuse the finalized transcript', async () => {
   const oversized = JSON.stringify({
     choices: [{ message: { content: 'x'.repeat(MAX_FILE_PROVIDER_RESPONSE_BYTES_V1) } }],
@@ -509,6 +927,55 @@ test('preserves sanitized requested, resolved, served, token, and cost telemetry
     costUsd: 0.001,
   });
   assert.equal(JSON.stringify(telemetry).includes('unit-test-key'), false);
+});
+
+test('caps telemetry aggregation before finite values can overflow JSON', async () => {
+  const hugeUsage = {
+    prompt_tokens: Number.MAX_VALUE,
+    completion_tokens: Number.MAX_VALUE,
+    total_tokens: Number.MAX_VALUE,
+    cost: Number.MAX_VALUE,
+    prompt_tokens_details: { cached_tokens: Number.MAX_VALUE },
+    completion_tokens_details: { reasoning_tokens: Number.MAX_VALUE },
+  };
+  const adapter = new OpenAICompatibleFileHarnessV1({
+    model: modelConfig(),
+    workspace: new MemoryWorkspace(),
+    readablePaths: allPaths,
+    allowMemoryReplacement: true,
+    fetch: scriptedFetch([{
+      usage: hugeUsage,
+      choices: [{
+        message: {
+          content: null,
+          tool_calls: [toolCall('huge-usage-list', 'files_list', {})],
+        },
+      }],
+    }, {
+      usage: hugeUsage,
+      choices: [{ message: { content: 'done' } }],
+    }], []),
+    environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+  });
+
+  await runFreshFileTurnV1(() => adapter, baseInput);
+
+  const telemetry = readFileProviderTelemetryV1(adapter);
+  assert.ok(telemetry);
+  for (const value of [
+    telemetry.totals.promptTokens,
+    telemetry.totals.completionTokens,
+    telemetry.totals.totalTokens,
+    telemetry.totals.reasoningTokens,
+    telemetry.totals.cachedTokens,
+    telemetry.totals.costUsd,
+  ]) {
+    assert.equal(value, Number.MAX_VALUE);
+    assert.equal(Number.isFinite(value), true);
+  }
+  const roundTrip = JSON.parse(JSON.stringify(telemetry)) as FileProviderTelemetryV1;
+  assert.equal(roundTrip.totals.totalTokens, Number.MAX_VALUE);
+  assert.equal(roundTrip.totals.costUsd, Number.MAX_VALUE);
 });
 
 type ProviderRequest = { url: string; init?: RequestInit; body: unknown };
@@ -620,6 +1087,45 @@ function countFinalization(
   };
 }
 
+type TimedOutcome =
+  | { type: 'resolved'; value: unknown }
+  | { type: 'rejected'; error: unknown }
+  | { type: 'watchdog' };
+
+async function settleBeforeWatchdog(
+  operation: Promise<unknown>,
+  watchdogMs: number,
+): Promise<TimedOutcome> {
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation.then<TimedOutcome, TimedOutcome>(
+        value => ({ type: 'resolved', value }),
+        error => ({ type: 'rejected', error }),
+      ),
+      new Promise<TimedOutcome>(resolve => {
+        watchdog = setTimeout(() => resolve({ type: 'watchdog' }), watchdogMs);
+      }),
+    ]);
+  } finally {
+    if (watchdog !== undefined) clearTimeout(watchdog);
+  }
+}
+
+function neverSettles<T = never>(): Promise<T> {
+  return new Promise<T>(() => {});
+}
+
+async function captureFailure(operation: Promise<unknown>): Promise<Error> {
+  try {
+    await operation;
+    assert.fail('Expected operation to reject');
+  } catch (error) {
+    assert.ok(error instanceof Error);
+    return error;
+  }
+}
+
 class MemoryWorkspace implements FileWorkspacePortV1 {
   readonly files: Record<AgentWorkspaceFilePathV1, string> = {
     'AGENT.md': 'Agent instructions.',
@@ -630,6 +1136,19 @@ class MemoryWorkspace implements FileWorkspacePortV1 {
   version = 0;
   readCalls = 0;
   replaceCalls = 0;
+  readInputs: Array<{
+    actorId: string;
+    path: AgentWorkspaceFilePathV1;
+    signal?: AbortSignal;
+    deadlineAtMs?: number;
+  }> = [];
+  replaceInputs: Array<{
+    actorId: string;
+    expectedVersion: number;
+    content: string;
+    signal?: AbortSignal;
+    deadlineAtMs?: number;
+  }> = [];
   receiptExtra: Record<string, unknown> = {};
   conflictNextReplace = false;
   private readonly readFailure?: Error;
@@ -639,7 +1158,12 @@ class MemoryWorkspace implements FileWorkspacePortV1 {
       ?? (options.failRead ? new Error('synthetic host read failure') : undefined);
   }
 
-  async read(input: { actorId: string; path: AgentWorkspaceFilePathV1 }) {
+  async read(input: {
+    actorId: string;
+    path: AgentWorkspaceFilePathV1;
+    signal?: AbortSignal;
+    deadlineAtMs?: number;
+  }) {
     this.readCalls += 1;
     if (this.readFailure) throw this.readFailure;
     const content = this.files[input.path];
@@ -659,6 +1183,8 @@ class MemoryWorkspace implements FileWorkspacePortV1 {
     actorId: string;
     expectedVersion: number;
     content: string;
+    signal?: AbortSignal;
+    deadlineAtMs?: number;
   }): Promise<ReplaceMemoryResultV1> {
     this.replaceCalls += 1;
     const current = this.files['MEMORY.md'];

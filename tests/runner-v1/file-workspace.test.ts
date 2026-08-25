@@ -141,6 +141,95 @@ test('rejects invalid full MEMORY replacements before publishing any bytes or ve
   }
 });
 
+test('fails closed for cancelled or expired workspace operations without changing MEMORY', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const workspace = await materialize(rootDir);
+    const before = await workspace.snapshot('actor-1');
+    const controller = new AbortController();
+    controller.abort();
+
+    await assert.rejects(
+      () => workspace.read({
+        actorId: 'actor-1',
+        path: 'MEMORY.md',
+        signal: controller.signal,
+        deadlineAtMs: Date.now() + 1_000,
+      }),
+      /cancel|deadline/i,
+    );
+    await assert.rejects(
+      () => workspace.replaceMemory({
+        actorId: 'actor-1',
+        expectedVersion: 0,
+        content: 'task-1 [answered] — cancelled\n',
+        deadlineAtMs: Date.now() - 1,
+      }),
+      /cancel|deadline/i,
+    );
+
+    assert.deepEqual(await workspace.snapshot('actor-1'), before);
+    assert.equal(
+      (await workspace.read({ actorId: 'actor-1', path: 'MEMORY.md' })).content,
+      'task-1 [pending] — not started\n',
+    );
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('rechecks the absolute deadline immediately before MEMORY publication', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  let publicationHookCalls = 0;
+  let deadlineAtMs = 0;
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      beforeMemoryPublicationForTest: async () => {
+        publicationHookCalls += 1;
+        const remaining = Math.max(0, deadlineAtMs - Date.now() + 1);
+        await new Promise<void>(resolve => setTimeout(resolve, remaining));
+      },
+    });
+    const actorDir = actorDirectory(rootDir);
+    const before = await workspace.snapshot('actor-1');
+    deadlineAtMs = Date.now() + 1_000;
+
+    await assert.rejects(
+      () => workspace.replaceMemory({
+        actorId: 'actor-1',
+        expectedVersion: 0,
+        content: 'task-1 [answered] — must not publish after deadline\n',
+        deadlineAtMs,
+      }),
+      /deadline/i,
+    );
+
+    assert.equal(publicationHookCalls, 1);
+    assert.deepEqual(await workspace.snapshot('actor-1'), before);
+    assert.equal(
+      (await workspace.read({ actorId: 'actor-1', path: 'MEMORY.md' })).content,
+      'task-1 [pending] — not started\n',
+    );
+    assert.deepEqual(
+      (await readdir(join(actorDir, 'commits'))).sort(),
+      ['commit-0.json'],
+    );
+    assert.equal(
+      (await readdir(join(actorDir, 'versions')))
+        .filter(name => name.startsWith('version-')).length,
+      1,
+    );
+    assert.deepEqual(
+      (await readdir(actorDir)).filter(name => (
+        name.startsWith('.memory-stage-') || name.startsWith('.commit-pointer-')
+      )),
+      [],
+    );
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
 test('returns a stale CAS conflict without changing the durable bytes or version', async () => {
   const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
   try {

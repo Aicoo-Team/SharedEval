@@ -80,8 +80,23 @@ export type FileWorkspaceSnapshotV1 = {
   };
 };
 
+/**
+ * Cooperative host boundary for one workspace operation. Implementations
+ * must fail closed after observing either condition and must not publish a new
+ * MEMORY version. A host that mutates after observation violates this port.
+ */
+export type FileWorkspaceOperationControlV1 = {
+  /** Cooperative cancellation for one read or MEMORY replacement. */
+  signal?: AbortSignal;
+  /** Absolute Unix epoch deadline in milliseconds. */
+  deadlineAtMs?: number;
+};
+
 export interface FileWorkspacePortV1 {
-  read(input: { actorId: string; path: AgentWorkspaceFilePathV1 }): Promise<{
+  read(input: {
+    actorId: string;
+    path: AgentWorkspaceFilePathV1;
+  } & FileWorkspaceOperationControlV1): Promise<{
     content: string;
     receipt: FileReadReceiptV1;
   }>;
@@ -89,7 +104,7 @@ export interface FileWorkspacePortV1 {
     actorId: string;
     expectedVersion: number;
     content: string;
-  }): Promise<ReplaceMemoryResultV1>;
+  } & FileWorkspaceOperationControlV1): Promise<ReplaceMemoryResultV1>;
   snapshot(actorId: string): Promise<FileWorkspaceSnapshotV1>;
 }
 
@@ -108,6 +123,8 @@ export type FileWorkspaceFaultInjectionV1 = {
   /** Fails before the published pointer temp is removed; run-level GC owns it. */
   failMemoryPreRemovalCleanup?: boolean;
   failMemoryPostPublishCleanup?: boolean;
+  /** Deterministic test seam immediately before the sole MEMORY publisher. */
+  beforeMemoryPublicationForTest?: () => void | Promise<void>;
   /** Test-only ceiling used to prove the next durable version cannot overflow. */
   versionCeilingForTest?: number;
 };
@@ -117,6 +134,7 @@ type FileWorkspaceFaultStateV1 = {
   failMemoryPostPublishSync: boolean;
   failMemoryPreRemovalCleanup: boolean;
   failMemoryPostPublishCleanup: boolean;
+  beforeMemoryPublicationForTest?: () => void | Promise<void>;
   versionCeiling: number;
 };
 
@@ -263,17 +281,23 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
     this.publication = options.publication;
   }
 
-  async read(input: { actorId: string; path: AgentWorkspaceFilePathV1 }): Promise<{
+  async read(input: {
+    actorId: string;
+    path: AgentWorkspaceFilePathV1;
+  } & FileWorkspaceOperationControlV1): Promise<{
     content: string;
     receipt: FileReadReceiptV1;
   }> {
+    assertWorkspaceOperationActive(input);
     this.assertActor(input.actorId);
     assertLogicalPath(input.path);
     const { latest: pointer } = await validateWorkspaceHistory(
       this.options.actorDir,
       this.options.selectedTaskIds,
     );
+    assertWorkspaceOperationActive(input);
     const file = await loadVersionFile(this.options.actorDir, pointer, input.path);
+    assertWorkspaceOperationActive(input);
     return {
       content: file.content,
       receipt: {
@@ -291,7 +315,8 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
     actorId: string;
     expectedVersion: number;
     content: string;
-  }): Promise<ReplaceMemoryResultV1> {
+  } & FileWorkspaceOperationControlV1): Promise<ReplaceMemoryResultV1> {
+    assertWorkspaceOperationActive(input);
     this.assertActor(input.actorId);
     if (!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 0) {
       throw new Error('expected MEMORY version must be a non-negative safe integer');
@@ -308,6 +333,7 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
       this.options.actorDir,
       this.options.selectedTaskIds,
     );
+    assertWorkspaceOperationActive(input);
     let staged: Awaited<ReturnType<typeof stageReplacement>> | undefined = await stageReplacement(
       this.options.actorDir,
       memoryBytes,
@@ -316,23 +342,30 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
     let publishedVersionDirectory: string | undefined;
     let pointerTemporary: string | undefined;
     try {
+      assertWorkspaceOperationActive(input);
       const { latest: current } = await validateWorkspaceHistory(
         this.options.actorDir,
         this.options.selectedTaskIds,
       );
+      assertWorkspaceOperationActive(input);
       if (current.version !== input.expectedVersion) {
         await removeOwnedDirectory(staged.directory);
         staged = undefined;
+        assertWorkspaceOperationActive(input);
         return conflictFor(current);
       }
 
       const stagedVersion = staged;
       publishedVersionDirectory = join(this.options.actorDir, 'versions', stagedVersion.name);
       await verifyVersionDirectory(stagedVersion.directory, stagedVersion.files);
+      assertWorkspaceOperationActive(input);
       await rename(stagedVersion.directory, publishedVersionDirectory);
       staged = undefined;
+      assertWorkspaceOperationActive(input);
       await verifyVersionDirectory(publishedVersionDirectory, stagedVersion.files);
+      assertWorkspaceOperationActive(input);
       await syncDirectory(join(this.options.actorDir, 'versions'));
+      assertWorkspaceOperationActive(input);
 
       const next: DurablePointer = {
         version: nextMemoryVersion(current.version, this.options.faults.versionCeiling),
@@ -340,19 +373,29 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
         files: stagedVersion.files,
       };
       pointerTemporary = await writeCommitPointerTemporary(this.options.actorDir, next);
+      assertWorkspaceOperationActive(input);
+      await this.options.faults.beforeMemoryPublicationForTest?.();
+      assertWorkspaceOperationActive(input);
       const marker = join(this.options.actorDir, 'commits', commitMarkerName(next.version));
       try {
+        // No await may separate this final check from the sole authoritative
+        // publication call. A successful link is never rolled back.
+        assertWorkspaceOperationActive(input);
         await link(pointerTemporary, marker);
       } catch (error: unknown) {
         await rm(pointerTemporary, { force: true });
         pointerTemporary = undefined;
+        assertWorkspaceOperationActive(input);
         if (!isCode(error, 'EEXIST')) throw error;
         await removeOwnedDirectory(publishedVersionDirectory);
         publishedVersionDirectory = undefined;
-        return conflictFor((await validateWorkspaceHistory(
+        assertWorkspaceOperationActive(input);
+        const { latest } = await validateWorkspaceHistory(
           this.options.actorDir,
           this.options.selectedTaskIds,
-        )).latest);
+        );
+        assertWorkspaceOperationActive(input);
+        return conflictFor(latest);
       }
 
       // Once link() succeeds, complete pointer bytes are visible atomically.
@@ -858,8 +901,26 @@ function createFaultState(
     failMemoryPostPublishSync: faultInjection?.failMemoryPostPublishSync === true,
     failMemoryPreRemovalCleanup: faultInjection?.failMemoryPreRemovalCleanup === true,
     failMemoryPostPublishCleanup: faultInjection?.failMemoryPostPublishCleanup === true,
+    ...(faultInjection?.beforeMemoryPublicationForTest
+      ? { beforeMemoryPublicationForTest: faultInjection.beforeMemoryPublicationForTest }
+      : {}),
     versionCeiling,
   };
+}
+
+function assertWorkspaceOperationActive(
+  control: FileWorkspaceOperationControlV1,
+): void {
+  if (control.signal?.aborted) {
+    throw new Error('File workspace operation cancelled');
+  }
+  if (control.deadlineAtMs === undefined) return;
+  if (!Number.isSafeInteger(control.deadlineAtMs) || control.deadlineAtMs < 0) {
+    throw new Error('File workspace operation deadline is invalid');
+  }
+  if (Date.now() >= control.deadlineAtMs) {
+    throw new Error('File workspace operation deadline exceeded');
+  }
 }
 
 function consumeFault(

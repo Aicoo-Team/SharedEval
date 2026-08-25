@@ -17,7 +17,17 @@ export {
 } from './artifacts.js';
 export * from './agent-workspace.js';
 export * from './file-memory.js';
-export * from './file-harness.js';
+export {
+  FILE_TURN_BOOTSTRAP_V1,
+  fileTurnDecisionV1Schema,
+  fileTurnInputV1Schema,
+  runFreshFileTurnV1,
+  type FileHarnessContactPortV1,
+  type FileTurnDecisionV1,
+  type FileTurnInputV1,
+  type FreshFileHarnessFactoryV1,
+  type FreshFileHarnessV1,
+} from './file-harness.js';
 export * from './file-model-adapter.js';
 export * from './file-workspace.js';
 export * from './backends/index.js';
