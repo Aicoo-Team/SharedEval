@@ -1,5 +1,6 @@
 export * from './assets.js';
 export * from './artifacts.js';
+export * from './cli.js';
 export * from './config.js';
 export * from './embedded-world.js';
 export * from './engine.js';
