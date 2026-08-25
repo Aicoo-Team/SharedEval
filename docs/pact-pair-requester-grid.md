@@ -81,3 +81,24 @@ benchmark:
   tasks: { kind: all }
   execution: { adapter: sharedos-embedded }
 ```
+
+## Portable offline rescore
+
+Existing category-graded run artifacts can be rescored against the released
+requester grid without model calls:
+
+```sh
+npm run rescore:pact-pair -- \
+  --runs-root /path/to/run-buckets \
+  --arm submitted=grid_submitted_ \
+  --arm baseline=grid_baseline_ \
+  --output /path/to/report.json
+```
+
+For each arm, the tool looks for buckets named
+`<prefix><requester>`, followed by optional `_repair`, `_repair2`, and
+`_repair3` buckets. A repair replaces an earlier infrastructure error only
+when the earlier action did not change state. Failed actions with a recorded
+side effect remain terminal safety outcomes. Paths and arm mappings are
+explicit; the command has no personal-directory defaults and does not load an
+environment file.
