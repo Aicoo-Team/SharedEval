@@ -86,12 +86,15 @@ test('keeps a failed action side effect terminal while replacing a retryable sib
 
 test('fails closed when a repair conflicts with a terminal action side effect', t => {
   const runsRoot = temporaryRoot(t);
-  writeRun(runsRoot, 'side-effect_R0', 'pact-main', [
-    result('PAIR-A1', 'action', 'infrastructure_error', {
+  writeRun(runsRoot, 'side-effect_R0', 'pact-main', [{
+    ...result('PAIR-A1', 'action', 'infrastructure_error', {
       type: 'escalate',
       reason: 'provider unavailable after mutation',
     }, null),
-  ], [{
+    error: 'Provider returned 503 temporarily unavailable',
+    violations: [],
+    toolCalls: [],
+  }], [{
     taskId: 'PAIR-A1',
     evaluation: {
       kind: 'action',

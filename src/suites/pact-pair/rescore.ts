@@ -381,7 +381,10 @@ function loadRequesterResultsV1(options: {
       // authoritative, so a distinct later outcome is ambiguous and fails
       // closed instead of silently choosing a bucket. That includes an action
       // mutation before failure, which is always terminal.
-      if (!retryablePactPairFailureV1(existing)) {
+      if (
+        !retryablePactPairFailureV1(existing)
+        || hasDocumentedActionMutation(existing)
+      ) {
         throw new Error(
           `conflicting authoritative results for ${record.taskId}`,
         );
@@ -420,6 +423,14 @@ function attachPrivateActionFacts(
     ...record,
     evaluation: { ...(publicFacts ?? {}), ...privateFacts },
   };
+}
+
+function hasDocumentedActionMutation(record: ResultRecordV1): boolean {
+  // Private action facts are attached and cross-checked before authority is
+  // selected. They may only remove retry authority: the formal public failure
+  // classifier remains necessary, while any validated mutation makes the
+  // outcome terminal even when its public 503 shape is otherwise retryable.
+  return record.kind === 'action' && record.evaluation?.stateChanged === true;
 }
 
 function requireActionFacts(
