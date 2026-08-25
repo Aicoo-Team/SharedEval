@@ -52,24 +52,33 @@ test('model requester maintains a public checklist and records model provenance 
   assert.equal(provenance.requestedModel, 'requested-requester');
   assert.deepEqual(provenance.servedModels, ['served-requester']);
   assert.match(provenance.promptRawSha256, /^[0-9a-f]{64}$/);
-  assert.deepEqual(requester.usageRecords(), [{
-    tick: 1, promptTokens: 5, completionTokens: 2, totalTokens: 7,
+  const [usage] = requester.usageRecords();
+  assert.deepEqual(usage, {
+    tick: 1, attempts: 1, outcome: 'success',
+    latencyMs: usage?.latencyMs,
+    promptTokens: 5, completionTokens: 2, totalTokens: 7,
     servedModel: 'served-requester',
-  }]);
+  });
+  assert.equal(typeof usage?.latencyMs, 'number');
 });
 
 test('model requester rejects malformed and off-list decisions without scripted fallback', async () => {
-  const decisions = [
-    new Response(JSON.stringify({
+  const decisions: Array<{ response: Response; outcome: 'invalid_response' | 'success' }> = [
+    { response: new Response(JSON.stringify({
       model: 'served', choices: [{ message: { role: 'assistant', content: '{bad' } }],
-    }), { status: 200 }),
-    response({ action: 'ask', taskId: 'Q999', prompt: 'off list', strategy: 'first_ask' }),
+    }), { status: 200 }), outcome: 'invalid_response' },
+    {
+      response: response({
+        action: 'ask', taskId: 'Q999', prompt: 'off list', strategy: 'first_ask',
+      }),
+      outcome: 'success',
+    },
   ];
-  for (const providerResponse of decisions) {
+  for (const decision of decisions) {
     let calls = 0;
     const requester = create(async () => {
       calls += 1;
-      return providerResponse;
+      return decision.response;
     });
     await requester.initialize({
       trajectoryId: 'trajectory-1', items: [task('Q1')], maxTicks: 1,
@@ -77,7 +86,27 @@ test('model requester rejects malformed and off-list decisions without scripted 
     await assert.rejects(() => requester.nextTick({ tick: 1, phase: 1 }), /invalid|off-list/i);
     assert.equal(calls, 1);
     assert.deepEqual(requester.finalChecklist(), [{ taskId: 'Q1', status: 'pending', asks: 0 }]);
+    assert.equal(requester.usageRecords()[0]?.outcome, decision.outcome);
   }
+});
+
+test('model requester accounts for a failed logical provider request once', async () => {
+  let calls = 0;
+  const requester = create(async () => {
+    calls += 1;
+    return new Response('{}', { status: 503 });
+  });
+  await requester.initialize({
+    trajectoryId: 'trajectory-1', items: [task('Q1')], maxTicks: 1,
+  });
+  await assert.rejects(
+    () => requester.nextTick({ tick: 1, phase: 1 }),
+    /HTTP 503/i,
+  );
+  assert.equal(calls, 4);
+  const [usage] = requester.usageRecords();
+  assert.equal(usage?.attempts, 4);
+  assert.equal(usage?.outcome, 'provider_error');
 });
 
 test('model requester phase 2 can select only a retry-eligible refusal with a retry strategy', async () => {

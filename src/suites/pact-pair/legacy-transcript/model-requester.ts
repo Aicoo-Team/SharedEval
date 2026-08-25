@@ -64,6 +64,9 @@ type ItemState = {
 
 export type ModelLegacyRequesterUsageV1 = {
   tick: number;
+  attempts: number;
+  latencyMs: number;
+  outcome: 'success' | 'provider_error' | 'invalid_response' | 'timeout';
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
@@ -305,8 +308,16 @@ export class ModelLegacyRequesterDriverV1 implements LegacyRequesterDriverV1 {
     outerSignal?.addEventListener('abort', abort, { once: true });
     if (outerSignal?.aborted) controller.abort();
     const timeout = setTimeout(abort, timeoutMs);
+    const startedAt = Date.now();
+    let attempts = 0;
+    let outcome: ModelLegacyRequesterUsageV1['outcome'] = 'provider_error';
+    let observedUsage: Omit<
+      ModelLegacyRequesterUsageV1,
+      'tick' | 'attempts' | 'latencyMs' | 'outcome'
+    > = {};
     try {
       for (let attempt = 1; attempt <= this.maxProviderAttempts; attempt += 1) {
+        attempts = attempt;
         let response: Response;
         try {
           response = await this.fetchImplementation(this.target.url, {
@@ -351,6 +362,7 @@ export class ModelLegacyRequesterDriverV1 implements LegacyRequesterDriverV1 {
           }
           throw new Error(`Legacy requester provider failed with HTTP ${response.status}`);
         }
+        outcome = 'invalid_response';
         const body = redactOpenAICompatibleProviderCredentialV1(
           await readBoundedOpenAICompatibleProviderJsonV1(
             response,
@@ -362,6 +374,18 @@ export class ModelLegacyRequesterDriverV1 implements LegacyRequesterDriverV1 {
         );
         const envelope = responseSchema.safeParse(body);
         if (!envelope.success) throw new Error('Legacy requester provider returned an invalid response');
+        if (envelope.data.model) this.servedModels.add(envelope.data.model);
+        observedUsage = {
+          ...(envelope.data.usage?.prompt_tokens === undefined
+            ? {} : { promptTokens: envelope.data.usage.prompt_tokens }),
+          ...(envelope.data.usage?.completion_tokens === undefined
+            ? {} : { completionTokens: envelope.data.usage.completion_tokens }),
+          ...(envelope.data.usage?.total_tokens === undefined
+            ? {} : { totalTokens: envelope.data.usage.total_tokens }),
+          ...(envelope.data.usage?.cost === undefined
+            ? {} : { costUsd: envelope.data.usage.cost }),
+          ...(envelope.data.model ? { servedModel: envelope.data.model } : {}),
+        };
         const content = envelope.data.choices[0]?.message.content?.trim();
         if (!content) throw new Error('Legacy requester provider returned an invalid empty decision');
         let decisionInput: unknown;
@@ -373,19 +397,7 @@ export class ModelLegacyRequesterDriverV1 implements LegacyRequesterDriverV1 {
         const decision = decisionSchema.safeParse(decisionInput);
         if (!decision.success) throw new Error('Legacy requester provider returned an invalid decision');
         this.messages.push({ role: 'assistant', content });
-        if (envelope.data.model) this.servedModels.add(envelope.data.model);
-        this.usage.push({
-          tick,
-          ...(envelope.data.usage?.prompt_tokens === undefined
-            ? {} : { promptTokens: envelope.data.usage.prompt_tokens }),
-          ...(envelope.data.usage?.completion_tokens === undefined
-            ? {} : { completionTokens: envelope.data.usage.completion_tokens }),
-          ...(envelope.data.usage?.total_tokens === undefined
-            ? {} : { totalTokens: envelope.data.usage.total_tokens }),
-          ...(envelope.data.usage?.cost === undefined
-            ? {} : { costUsd: envelope.data.usage.cost }),
-          ...(envelope.data.model ? { servedModel: envelope.data.model } : {}),
-        });
+        outcome = 'success';
         return decision.data;
       }
       throw new Error('Legacy requester provider request failed');
@@ -396,6 +408,13 @@ export class ModelLegacyRequesterDriverV1 implements LegacyRequesterDriverV1 {
     } finally {
       clearTimeout(timeout);
       outerSignal?.removeEventListener('abort', abort);
+      this.usage.push({
+        tick,
+        attempts,
+        latencyMs: Math.max(0, Date.now() - startedAt),
+        outcome: controller.signal.aborted ? 'timeout' : outcome,
+        ...observedUsage,
+      });
     }
   }
 }
