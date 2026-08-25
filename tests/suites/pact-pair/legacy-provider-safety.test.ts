@@ -62,9 +62,10 @@ async function waitForLateSettlement(): Promise<void> {
 
 async function firstStep(
   instance: PersistentLegacyResponderSessionV1,
-  deadlineMs = Date.now() + 5_000,
+  deadlineAfterMs = 5_000,
 ) {
   await instance.initialize({ sessionId: 's1', publicChecklist: [task] });
+  const deadlineMs = Date.now() + deadlineAfterMs;
   return instance.beginTick({
     tick: 1, task, requesterPrompt: 'Prompt', grantedAccess: access,
     visibleToolNames: [], deadlineMs,
@@ -136,7 +137,7 @@ test('one deadline aborts a stalled body and late completion cannot resume the s
     },
   });
   const instance = responder(async () => new Response(stream, { status: 200 }));
-  const error = await rejectedWithin(firstStep(instance, Date.now() + 30), 2_000);
+  const error = await rejectedWithin(firstStep(instance, 100), 2_000);
   assert.match(String(error), /timed out/i);
 });
 
@@ -146,7 +147,7 @@ test('the responder deadline bounds fetch acquisition even when fetch ignores Ab
     signal = init?.signal as AbortSignal | undefined;
     return new Promise<Response>(() => {});
   });
-  const error = await rejectedWithin(firstStep(instance, Date.now() + 20));
+  const error = await rejectedWithin(firstStep(instance, 100), 2_000);
   assert.match(String(error), /timed out/i);
   assert.equal(signal?.aborted, true);
   const transcript = instance.privateTranscript();
@@ -166,7 +167,7 @@ test('late responder fetch resolution or rejection is observed without post-time
       resolveFetch = resolve;
       rejectFetch = reject;
     }));
-    const error = await rejectedWithin(firstStep(instance, Date.now() + 20));
+    const error = await rejectedWithin(firstStep(instance, 100), 2_000);
     assert.match(String(error), /timed out/i);
     const transcript = instance.privateTranscript();
     const telemetry = instance.telemetry();
@@ -191,7 +192,7 @@ test('the responder absolute deadline also bounds a signal-ignoring retry wait',
     [],
     () => new Promise<void>(() => {}),
   );
-  const error = await rejectedWithin(firstStep(instance, Date.now() + 20));
+  const error = await rejectedWithin(firstStep(instance, 100), 2_000);
   assert.match(String(error), /timed out/i);
   assert.equal(instance.telemetry().requests.length, 1);
 });
