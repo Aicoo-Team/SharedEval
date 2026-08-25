@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { chmod, mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, rename, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -101,6 +101,23 @@ test('asset freezing detects a descriptor mutation between read and final fstat'
       },
     }),
     /changed while being read/i,
+  );
+});
+
+test('asset freezing rejects an intermediate directory swapped to an outside symlink', async () => {
+  const root = await fixtureRoot();
+  const outside = await mkdtemp(join(tmpdir(), 'pact-legacy-assets-outside-'));
+  await mkdir(join(outside, 'alex'), { recursive: true });
+  await writeFile(join(outside, 'alex', 'COO.md'), 'OUTSIDE_SENTINEL\n');
+
+  await assert.rejects(
+    () => freezeLegacyAssetV1(root, 'agents/alex/COO.md', 'coo', {
+      afterComponentValidation: async () => {
+        await rename(join(root, 'agents'), join(root, 'agents-inside'));
+        await symlink(outside, join(root, 'agents'));
+      },
+    }),
+    /changed|symbolic link|escape/i,
   );
 });
 

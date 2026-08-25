@@ -31,7 +31,14 @@ export type FrozenLegacyAssetV1 = Readonly<{
   provenance: Readonly<LegacyAssetProvenanceV1>;
 }>;
 
+type LegacyAssetPathComponentV1 = Readonly<{
+  absolutePath: string;
+  stats: Stats;
+  final: boolean;
+}>;
+
 export type FreezeLegacyAssetHooksV1 = {
+  afterComponentValidation?: (absolutePath: string) => void | Promise<void>;
   afterRead?: (absolutePath: string) => void | Promise<void>;
 };
 
@@ -64,11 +71,23 @@ export async function freezeLegacyAssetV1(
     throw new Error('Legacy asset root must be a real directory, not a symbolic link');
   }
   const root = await realpath(rootDirectory);
+  const rootPathAfterResolve = await lstat(rootDirectory).catch(() => undefined);
+  const resolvedRootStats = await lstat(root).catch(() => undefined);
+  if (
+    !rootPathAfterResolve
+    || rootPathAfterResolve.isSymbolicLink()
+    || !samePathIdentity(rootStats, rootPathAfterResolve)
+    || !resolvedRootStats
+    || !samePathIdentity(rootStats, resolvedRootStats)
+  ) {
+    throw new Error('Legacy asset root changed while being resolved');
+  }
   const absolutePath = path.resolve(root, safePath);
   if (!isInsideRoot(root, absolutePath)) {
     throw new Error('Legacy asset path must be relative and cannot escape its root');
   }
-  await rejectSymbolicComponents(root, safePath);
+  const pathComponents = await captureAssetPathComponents(root, safePath);
+  await hooks.afterComponentValidation?.(absolutePath);
 
   let handle: FileHandle | undefined;
   try {
@@ -90,6 +109,7 @@ export async function freezeLegacyAssetV1(
     if (!sameFileVersion(before, after) || after.size !== raw.byteLength) {
       throw new Error('Legacy asset changed while being read');
     }
+    await assertStableAssetPath(root, absolutePath, pathComponents, before);
 
     let content: string;
     try {
@@ -156,15 +176,63 @@ function isInsideRoot(root: string, candidate: string): boolean {
     && !path.isAbsolute(relative);
 }
 
-async function rejectSymbolicComponents(root: string, safePath: string): Promise<void> {
-  let current = root;
-  for (const component of safePath.split('/')) {
-    current = path.join(current, component);
-    const stats = await lstat(current).catch(() => undefined);
+async function captureAssetPathComponents(
+  root: string,
+  safePath: string,
+): Promise<LegacyAssetPathComponentV1[]> {
+  const names = safePath.split('/');
+  const absolutePaths = [
+    root,
+    ...names.map((_, index) => path.join(root, ...names.slice(0, index + 1))),
+  ];
+  const captured: LegacyAssetPathComponentV1[] = [];
+  for (const [index, absolutePath] of absolutePaths.entries()) {
+    const stats = await lstat(absolutePath).catch(() => undefined);
     if (!stats) throw new Error(`Legacy asset is missing: ${safePath}`);
     if (stats.isSymbolicLink()) {
       throw new Error(`Legacy asset path contains a symbolic link: ${safePath}`);
     }
+    const final = index === absolutePaths.length - 1;
+    if (!final && !stats.isDirectory()) {
+      throw new Error(`Legacy asset path contains a non-directory component: ${safePath}`);
+    }
+    captured.push({ absolutePath, stats, final });
+  }
+  return captured;
+}
+
+async function assertStableAssetPath(
+  root: string,
+  absolutePath: string,
+  captured: readonly LegacyAssetPathComponentV1[],
+  openedStats: Stats,
+): Promise<void> {
+  let finalPathStats: Stats | undefined;
+  for (const component of captured) {
+    const current = await lstat(component.absolutePath).catch(() => undefined);
+    if (
+      !current
+      || current.isSymbolicLink()
+      || !samePathIdentity(component.stats, current)
+      || (!component.final && !current.isDirectory())
+    ) {
+      throw new Error('Legacy asset path changed while being read');
+    }
+    if (component.final) finalPathStats = current;
+  }
+  const resolvedAsset = await realpath(absolutePath).catch(() => undefined);
+  if (!resolvedAsset || !isInsideRoot(root, resolvedAsset)) {
+    throw new Error('Legacy asset path escaped its root while being read');
+  }
+  const finalRecheck = await lstat(absolutePath).catch(() => undefined);
+  if (
+    !finalPathStats
+    || !finalRecheck
+    || finalRecheck.isSymbolicLink()
+    || !samePathIdentity(finalPathStats, finalRecheck)
+    || !samePathIdentity(openedStats, finalRecheck)
+  ) {
+    throw new Error('Legacy asset pathname changed while being read');
   }
 }
 
@@ -172,6 +240,12 @@ function validateRegularAsset(stats: Stats): void {
   if (!stats.isFile() || stats.isSymbolicLink()) {
     throw new Error('Legacy asset must be a regular file');
   }
+}
+
+function samePathIdentity(before: Stats, after: Stats): boolean {
+  return before.dev === after.dev
+    && before.ino === after.ino
+    && before.mode === after.mode;
 }
 
 function sameFileVersion(before: Stats, after: Stats): boolean {
