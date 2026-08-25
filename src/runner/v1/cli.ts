@@ -7,8 +7,16 @@ import {
   selectedPactExecutionBackendV1,
   type PactExecutionAdapterIdV1,
 } from './config.js';
-import { inspectPactBenchmarkV1, runPactBenchmarkV1 } from './runner.js';
-import { buildPactCliFailureDiagnosticsV1 } from './diagnostics.js';
+import {
+  inspectPactBenchmarkV1,
+  PactPairRunFatalErrorV1,
+  runPactBenchmarkV1,
+} from './runner.js';
+import {
+  buildPactCliFailureDiagnosticsV1,
+  PACT_CLI_FAILURE_MESSAGE_LIMIT_V1,
+  PACT_CLI_FAILURE_TASK_ID_LIMIT_V1,
+} from './diagnostics.js';
 
 type CliOptions = {
   configPath: string;
@@ -92,10 +100,40 @@ export async function mainPactRunnerV1(argv = process.argv.slice(2)): Promise<nu
   if (options.resume !== undefined && config.benchmark.dataset !== 'pact-pair') {
     throw new Error('--resume is supported only for the legacy pact-pair runner');
   }
-  const result = await runPactBenchmarkV1(
-    config,
-    options.resume === undefined ? {} : { resume: options.resume },
-  );
+  let result: Awaited<ReturnType<typeof runPactBenchmarkV1>>;
+  try {
+    result = await runPactBenchmarkV1(
+      config,
+      options.resume === undefined ? {} : { resume: options.resume },
+    );
+  } catch (error) {
+    if (!(error instanceof PactPairRunFatalErrorV1)) throw error;
+    const taskIds = [...error.taskIds].sort((left, right) =>
+      left < right ? -1 : left > right ? 1 : 0);
+    process.stdout.write(`${JSON.stringify({
+      runId: error.runId,
+      outputDirectory: error.outputDirectory,
+      fatal: true,
+      summary: {
+        total: taskIds.length,
+        errors: taskIds.length,
+      },
+      failures: {
+        groups: [{
+          kind: 'error',
+          message: error.message.slice(0, PACT_CLI_FAILURE_MESSAGE_LIMIT_V1),
+          count: taskIds.length,
+          taskIds: taskIds.slice(0, PACT_CLI_FAILURE_TASK_ID_LIMIT_V1),
+          omittedTaskIds: Math.max(
+            0,
+            taskIds.length - PACT_CLI_FAILURE_TASK_ID_LIMIT_V1,
+          ),
+        }],
+        omittedGroups: 0,
+      },
+    }, null, 2)}\n`);
+    return 1;
+  }
   const failures = buildPactCliFailureDiagnosticsV1(result);
   process.stdout.write(`${JSON.stringify({
     runId: result.runId,

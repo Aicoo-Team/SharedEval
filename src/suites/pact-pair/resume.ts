@@ -358,6 +358,7 @@ export type CommitPactPairTaskRunV1Options = {
   runId: string;
   configDigest: string;
   taskSetDigest: string;
+  execution: NonNullable<PactRunMetadataV1['execution']>;
   taskRun: PactPairSingleTaskRunV1;
   saveTraces: boolean;
   checkpoint: {
@@ -366,6 +367,37 @@ export type CommitPactPairTaskRunV1Options = {
     errors: number;
   };
 };
+
+/**
+ * Durably records the exact identity of the active backend attempt before a
+ * task from that attempt can enter the private journal.
+ */
+export async function recordPactPairExecutionAuthorityV1(
+  runDirectory: string,
+  execution: NonNullable<PactRunMetadataV1['execution']>,
+): Promise<void> {
+  const metadataPath = join(runDirectory, 'run.json');
+  const metadata = pactRunMetadataV1Schema.parse(JSON.parse(
+    await readFile(metadataPath, 'utf8'),
+  ));
+  if (metadata.status !== 'running') {
+    throw new Error(
+      `Cannot record execution identity for non-running run ${metadata.runId}`,
+    );
+  }
+  if (
+    metadata.activeExecution !== undefined
+    && canonicalJson(metadata.activeExecution) !== canonicalJson(execution)
+  ) {
+    throw new Error(
+      `Conflicting active execution identity for run ${metadata.runId}`,
+    );
+  }
+  await atomicWriteFile(metadataPath, prettyJson({
+    ...metadata,
+    activeExecution: execution,
+  }));
+}
 
 /**
  * Prepares and commits one already-executed task before publishing any of its
@@ -383,6 +415,7 @@ export async function commitPactPairTaskRunV1(
       configDigest: options.configDigest,
       taskSetDigest: options.taskSetDigest,
       publicTaskDigest: digestCanonicalJson(options.taskRun.result.publicTask),
+      executionDigest: digestCanonicalJson(options.execution),
     },
     result: options.taskRun.result,
     evaluation: {
@@ -421,6 +454,7 @@ async function persistTaskCommit(
   const directory = taskCommitDirectory(runDirectory);
   await mkdir(directory, { recursive: true });
   await syncDirectory(dirname(directory));
+  const authorityPath = taskCommitAuthorityPath(directory, commit);
   const committedPath = taskCommitPath(directory, commit);
   const preparedPath = join(
     directory,
@@ -429,15 +463,30 @@ async function persistTaskCommit(
   );
   await writeDurably(preparedPath, prettyJson(commit));
   await syncDirectory(directory);
+  let authoritative = commit;
   try {
-    await link(preparedPath, committedPath);
+    try {
+      // The stable run/task address is the one authority claim. Different
+      // payload digests therefore race on the same hard-link destination.
+      await link(preparedPath, authorityPath);
+      await syncDirectory(directory);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      authoritative = await readTaskCommit(authorityPath);
+      assertSameTaskCommit(authoritative, commit, authorityPath);
+    }
+    try {
+      await link(authorityPath, committedPath);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      assertSameTaskCommit(
+        await readTaskCommit(committedPath),
+        authoritative,
+        committedPath,
+      );
+    }
     await syncDirectory(directory);
-    return commit;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-    const existing = await readTaskCommit(committedPath);
-    assertSameTaskCommit(existing, commit, committedPath);
-    return existing;
+    return authoritative;
   } finally {
     await durableUnlink(preparedPath);
   }
@@ -476,12 +525,26 @@ async function recoverTaskCommits(
     pathsByTask.set(taskId, paths);
   }
   for (const [taskId, commit] of commits) {
+    const authorityPath = taskCommitAuthorityPath(directory, commit);
     const committedPath = taskCommitPath(directory, commit);
     const sourcePath = pathsByTask.get(taskId)?.[0];
     if (!sourcePath) continue;
+    if (!pathsByTask.get(taskId)?.includes(authorityPath)) {
+      try {
+        await link(sourcePath, authorityPath);
+        await syncDirectory(directory);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+        assertSameTaskCommit(
+          await readTaskCommit(authorityPath),
+          commit,
+          authorityPath,
+        );
+      }
+    }
     if (!pathsByTask.get(taskId)?.includes(committedPath)) {
       try {
-        await link(sourcePath, committedPath);
+        await link(authorityPath, committedPath);
         await syncDirectory(directory);
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
@@ -489,7 +552,9 @@ async function recoverTaskCommits(
       }
     }
     for (const path of pathsByTask.get(taskId) ?? []) {
-      if (path !== committedPath) await durableUnlink(path);
+      if (path !== authorityPath && path !== committedPath) {
+        await durableUnlink(path);
+      }
     }
   }
   return commits;
@@ -724,6 +789,20 @@ function taskCommitTaskDigest(commit: PactTaskCommitV1): string {
   return taskCommitIdDigest(commit.payload.binding.taskId);
 }
 
+function taskCommitAuthorityDigest(commit: PactTaskCommitV1): string {
+  return digestCanonicalJson({
+    runId: commit.payload.binding.runId,
+    taskId: commit.payload.binding.taskId,
+  });
+}
+
+function taskCommitAuthorityPath(
+  directory: string,
+  commit: PactTaskCommitV1,
+): string {
+  return join(directory, `${taskCommitAuthorityDigest(commit)}.authority.json`);
+}
+
 function taskCommitPath(
   directory: string,
   commit: PactTaskCommitV1,
@@ -745,10 +824,19 @@ function assertTaskCommitFilename(
   commit: PactTaskCommitV1,
 ): void {
   const name = basename(path);
+  const authority = /^([a-f0-9]{64})\.authority\.json$/u.exec(name);
   const committed = /^([a-f0-9]{64})\.([a-f0-9]{64})\.commit\.json$/u.exec(name);
   const prepared = /^([a-f0-9]{64})\.([a-f0-9]{64})\.[^.]+\.prepared\.json$/u
     .exec(name);
   const address = committed ?? prepared;
+  if (authority) {
+    if (authority[1] !== taskCommitAuthorityDigest(commit)) {
+      throw new Error(
+        `journal authority filename ${name} does not match its run/task identity`,
+      );
+    }
+    return;
+  }
   if (!address) {
     throw new Error(
       `journal filename ${name} is not a valid content address`,
@@ -1023,6 +1111,7 @@ async function validateCommittedTaskRun(
   };
   const trace = commit.payload.trace as unknown as PactPairSingleTaskRunV1['trace'];
   const taskId = task.taskId;
+  const recordedExecution = executionAuthorityForTask(metadata, taskId);
   for (const [field, matches] of [
     ['run identity', binding.runId === metadata.runId],
     ['config identity', binding.configDigest === options.configDigest],
@@ -1031,6 +1120,12 @@ async function validateCommittedTaskRun(
     [
       'public task identity',
       binding.publicTaskDigest === digestCanonicalJson(task.publicTask),
+    ],
+    [
+      'execution identity',
+      binding.executionDigest === undefined
+        || (recordedExecution !== undefined
+          && binding.executionDigest === digestCanonicalJson(recordedExecution)),
     ],
   ] as const) {
     if (!matches) {
@@ -1047,6 +1142,17 @@ async function validateCommittedTaskRun(
     metadata.budget,
     options.seed,
   );
+}
+
+function executionAuthorityForTask(
+  metadata: PactRunMetadataV1,
+  taskId: string,
+): NonNullable<PactRunMetadataV1['execution']> | undefined {
+  const committedAttempt = metadata.executionAttempts?.find(attempt =>
+    attempt.taskIds.includes(taskId));
+  return committedAttempt?.execution
+    ?? metadata.activeExecution
+    ?? metadata.execution;
 }
 
 async function validateRetainedTaskRun(
@@ -1282,6 +1388,10 @@ export async function compactResumedRunArtifactsV1(
   const commits = await recoverTaskCommits(options.runDirectory);
   for (const [taskId, commit] of commits) {
     if (!options.keepTaskIds.has(taskId)) {
+      await durableUnlink(taskCommitAuthorityPath(
+        taskCommitDirectory(options.runDirectory),
+        commit,
+      ));
       await durableUnlink(taskCommitPath(
         taskCommitDirectory(options.runDirectory),
         commit,

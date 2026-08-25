@@ -354,6 +354,8 @@ export const pactRunMetadataV1Schema = z
     completedAt: z.string().datetime({ offset: true }).optional(),
     model: pactRunModelMetadataV1Schema,
     execution: pactRunExecutionMetadataV1Schema.optional(),
+    /** Exact identity durably announced by an in-progress backend attempt. */
+    activeExecution: pactRunExecutionMetadataV1Schema.optional(),
     /**
      * Authoritative execution identity for every committed outcome. The
      * top-level `execution` field remains the backward-compatible projection:
@@ -558,6 +560,8 @@ const pactTaskCommitPayloadV1Schema = z
         configDigest: z.string().regex(/^[a-f0-9]{64}$/),
         taskSetDigest: z.string().regex(/^[a-f0-9]{64}$/),
         publicTaskDigest: z.string().regex(/^[a-f0-9]{64}$/),
+        /** Optional only for journals written before execution binding. */
+        executionDigest: z.string().regex(/^[a-f0-9]{64}$/).optional(),
       })
       .strict(),
     result: pactTaskResultV1Schema,

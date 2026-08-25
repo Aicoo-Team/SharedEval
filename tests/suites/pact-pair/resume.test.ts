@@ -7,6 +7,7 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  statSync,
   symlinkSync,
   watch,
   writeFileSync,
@@ -181,6 +182,101 @@ test('a retried host checkpoint converges every task artifact exactly once', asy
     checkpointCompletedTasks: 1,
     runnerExitCode: 0,
   });
+});
+
+test('a committed task rejects a different retry before artifact replacement', async t => {
+  const workingDirectory = mkdtempSync(join(tmpdir(), 'pact-authority-retry-'));
+  t.after(() => rmSync(workingDirectory, { recursive: true, force: true }));
+  const runId = 'immutable-task-authority';
+  const runDirectory = join(workingDirectory, 'runs', runId);
+  const checkpointPath = join(runDirectory, 'checkpoint.json');
+  const local = new LocalBackendV1();
+  let modelActions = 0;
+  let originalRuntimeMs = -1;
+  const conflictingRetryBackend: ExecutionBackendV1 = {
+    kind: 'local',
+    async run(context) {
+      let completed: PactPairSingleTaskRunV1 | undefined;
+      await local.run({
+        ...context,
+        onTaskRun: async taskRun => {
+          completed = taskRun;
+        },
+      });
+      assert.ok(completed);
+      originalRuntimeMs = completed.result.budgetUsed.runtimeMs;
+
+      // The private commit and all task artifacts publish before the final
+      // checkpoint rename. Making the destination a directory injects the
+      // real post-commit failure without replacing filesystem APIs.
+      mkdirSync(checkpointPath);
+      assert.ok(context.onTaskRun);
+      await assert.rejects(
+        context.onTaskRun(completed),
+        /directory|EISDIR|ENOTEMPTY|EEXIST/i,
+      );
+      rmSync(checkpointPath, { recursive: true });
+
+      const different = structuredClone(completed);
+      different.result.budgetUsed.runtimeMs += 1;
+      const completion = different.trace.find(event => event.event === 'task_completed');
+      assert.ok(completion);
+      const completionData = completion.data as Record<string, unknown>;
+      completionData.budgetUsed = different.result.budgetUsed;
+      await context.onTaskRun(different);
+      throw new Error('different payload was accepted for one committed task');
+    },
+  };
+
+  await assert.rejects(
+    runPactPairBenchmarkV1(configFor(['Q1']), {
+      adapterFactory: () => new ScriptedAdapter(() => {
+        modelActions += 1;
+        return {
+          type: 'answer',
+          content: 'Project Alpha launches on March 15, 2026.',
+        };
+      }),
+      executionBackend: conflictingRetryBackend,
+      runId,
+      workingDirectory,
+    }),
+    /Conflicting (?:committed|completed) outcomes.*PAIR-Q1|PAIR-Q1.*Conflicting (?:committed|completed) outcomes/i,
+  );
+
+  assert.equal(modelActions, 1);
+  assert.equal(
+    (JSON.parse(readLines(join(runDirectory, 'results.jsonl'))[0] ?? '{}') as {
+      budgetUsed?: { runtimeMs?: number };
+    }).budgetUsed?.runtimeMs,
+    originalRuntimeMs,
+  );
+  const commitDirectory = join(runDirectory, 'private', 'task-commits');
+  assert.equal(countJournalCommitFiles(commitDirectory), 1);
+  const journalNames = readdirSync(commitDirectory);
+  const contentName = journalNames.find(name => name.endsWith('.commit.json'));
+  const authorityName = journalNames.find(name => name.endsWith('.authority.json'));
+  assert.ok(contentName);
+  assert.ok(authorityName);
+  // The content-addressed compatibility name and stable authority are two
+  // directory entries for one immutable inode, never two commit payloads.
+  assert.equal(
+    statSync(join(commitDirectory, contentName)).ino,
+    statSync(join(commitDirectory, authorityName)).ino,
+  );
+
+  const resumed = await runPactPairBenchmarkV1(configFor(['Q1']), {
+    adapterFactory: () => {
+      throw new Error('committed task must not execute during recovery');
+    },
+    workingDirectory,
+    resume: runDirectory,
+  });
+  assert.equal(modelActions, 1);
+  assert.equal(resumed.tasks.length, 1);
+  assert.equal(resumed.tasks[0]?.budgetUsed.runtimeMs, originalRuntimeMs);
+  assert.equal(readLines(join(runDirectory, 'results.jsonl')).length, 1);
+  assert.equal(readLines(join(runDirectory, 'private', 'evaluation.jsonl')).length, 1);
 });
 
 test('out-of-order backend completions publish artifacts in task selection order', async t => {
@@ -677,6 +773,128 @@ test('no-op Harbor resume preserves exact execution, policy, and source provenan
   assert.equal(resumedMetadata.sourceRevision, firstMetadata.sourceRevision);
 });
 
+test('resume preserves execution identity committed before a backend return failure', async t => {
+  const workingDirectory = mkdtempSync(join(tmpdir(), 'pact-execution-authority-'));
+  t.after(() => rmSync(workingDirectory, { recursive: true, force: true }));
+  const config = configForBackend(['Q1'], 'harbor');
+  const execution: PactRunExecutionMetadataV1 = {
+    backend: 'harbor',
+    executor: 'scripted-harness',
+    harbor: {
+      version: '0.5.0',
+      image: 'pact-bench-harbor:authority',
+      imageId: `sha256:${'4'.repeat(64)}`,
+    },
+  };
+  const local = new LocalBackendV1();
+  let modelActions = 0;
+  let backendCalls = 0;
+  const crashAfterCommitBackend: ExecutionBackendV1 = {
+    kind: 'harbor',
+    async run(context) {
+      backendCalls += 1;
+      const notifyExecution = (context as typeof context & {
+        onExecution?: (value: PactRunExecutionMetadataV1) => Promise<void>;
+      }).onExecution;
+      if (notifyExecution) await notifyExecution(execution);
+      await local.run(context);
+      throw new Error('synthetic failure before backend execution metadata return');
+    },
+  };
+  const runId = 'execution-authority-crash';
+  const runDirectory = join(workingDirectory, 'runs', runId);
+
+  await assert.rejects(
+    runPactPairBenchmarkV1(config, {
+      adapterFactory: () => new ScriptedAdapter(() => {
+        modelActions += 1;
+        return {
+          type: 'answer',
+          content: 'Project Alpha launches on March 15, 2026.',
+        };
+      }),
+      executionBackend: crashAfterCommitBackend,
+      runId,
+      workingDirectory,
+    }),
+    /synthetic failure before backend execution metadata return/,
+  );
+  assert.equal(modelActions, 1);
+  assert.equal(readLines(join(runDirectory, 'results.jsonl')).length, 1);
+
+  const resumed = await runPactPairBenchmarkV1(config, {
+    adapterFactory: () => {
+      throw new Error('durably committed task must not execute on resume');
+    },
+    executionBackend: crashAfterCommitBackend,
+    workingDirectory,
+    resume: runDirectory,
+  });
+
+  assert.equal(modelActions, 1);
+  assert.equal(backendCalls, 1);
+  assert.deepEqual(resumed.execution, execution);
+  assert.deepEqual(resumed.executionAttempts, [{
+    taskIds: ['PAIR-Q1'],
+    execution,
+  }]);
+  const metadata = pactRunMetadataV1Schema.parse(JSON.parse(readFileSync(
+    join(runDirectory, 'run.json'),
+    'utf8',
+  )));
+  assert.deepEqual(metadata.execution, execution);
+});
+
+test('Harbor fails closed when a task arrives before exact execution identity', async t => {
+  const workingDirectory = mkdtempSync(join(tmpdir(), 'pact-execution-missing-'));
+  t.after(() => rmSync(workingDirectory, { recursive: true, force: true }));
+  const config = configForBackend(['Q1'], 'harbor');
+  const local = new LocalBackendV1();
+  let modelActions = 0;
+  const missingIdentityBackend: ExecutionBackendV1 = {
+    kind: 'harbor',
+    async run(context) {
+      await local.run(context);
+      return {
+        execution: {
+          backend: 'harbor',
+          executor: 'scripted-harness',
+          harbor: {
+            version: '0.5.0',
+            image: 'too-late',
+            imageId: `sha256:${'5'.repeat(64)}`,
+          },
+        },
+      };
+    },
+  };
+  const runId = 'execution-authority-missing';
+  const runDirectory = join(workingDirectory, 'runs', runId);
+
+  await assert.rejects(
+    runPactPairBenchmarkV1(config, {
+      adapterFactory: () => new ScriptedAdapter(() => {
+        modelActions += 1;
+        return {
+          type: 'answer',
+          content: 'Project Alpha launches on March 15, 2026.',
+        };
+      }),
+      executionBackend: missingIdentityBackend,
+      runId,
+      workingDirectory,
+    }),
+    /exact harbor execution identity was not durably recorded/i,
+  );
+  assert.equal(modelActions, 1);
+  assert.deepEqual(readLines(join(runDirectory, 'results.jsonl')), []);
+  assert.equal(
+    readdirSync(join(runDirectory, 'private'))
+      .includes('task-commits'),
+    false,
+  );
+});
+
 test('mixed resume records authoritative execution identity per outcome', async t => {
   const workingDirectory = mkdtempSync(join(tmpdir(), 'pact-resume-mixed-exec-'));
   t.after(() => rmSync(workingDirectory, { recursive: true, force: true }));
@@ -890,8 +1108,15 @@ test('resume promotes a prepared task commit and recovers missing artifacts', as
     join(initial.outputDirectory, 'private', 'evaluation.jsonl'),
   ).length, 1);
   assert.deepEqual(
-    readdirSync(commitDirectory).map(name => name.endsWith('.commit.json')),
-    [true],
+    {
+      commits: readdirSync(commitDirectory)
+        .filter(name => name.endsWith('.commit.json')).length,
+      authorities: readdirSync(commitDirectory)
+        .filter(name => name.endsWith('.authority.json')).length,
+      prepared: readdirSync(commitDirectory)
+        .filter(name => name.endsWith('.prepared.json')).length,
+    },
+    { commits: 1, authorities: 1, prepared: 0 },
   );
 });
 
@@ -954,7 +1179,16 @@ test('resume rejects a schema-valid journal edit whose payload digest is stale',
   const result = commit.payload?.result ?? commit.result;
   assert.ok(result);
   result.budgetUsed.runtimeMs = 999_999;
-  writeFileSync(commitPath, `${JSON.stringify(commit)}\n`, 'utf8');
+  const poisoned = `${JSON.stringify(commit)}\n`;
+  writeFileSync(commitPath, poisoned, 'utf8');
+  const authorityName = readdirSync(join(runDirectory, 'private', 'task-commits'))
+    .find(name => name.endsWith('.authority.json'));
+  assert.ok(authorityName);
+  writeFileSync(
+    join(runDirectory, 'private', 'task-commits', authorityName),
+    poisoned,
+    'utf8',
+  );
 
   await assert.rejects(
     runPactPairBenchmarkV1(config, {
@@ -1601,6 +1835,15 @@ function readLines(path: string): string[] {
   return readFileSync(path, 'utf8').split('\n').filter(line => line.trim().length > 0);
 }
 
+function countJournalCommitFiles(directory: string): number {
+  return readdirSync(directory, { withFileTypes: true }).reduce(
+    (count, entry) => count + (entry.isDirectory()
+      ? countJournalCommitFiles(join(directory, entry.name))
+      : Number(entry.isFile() && entry.name.endsWith('.commit.json'))),
+    0,
+  );
+}
+
 function answerAdapter(taskId: string): PactAdapterV1 {
   return new ScriptedAdapter(() => taskId === 'PAIR-Q1'
     ? { type: 'answer', content: 'Project Alpha launches on March 15, 2026.' }
@@ -1691,6 +1934,10 @@ function backendWithExecution(
   return {
     kind: execution.backend,
     async run(context) {
+      const notifyExecution = (context as typeof context & {
+        onExecution?: (value: PactRunExecutionMetadataV1) => Promise<void>;
+      }).onExecution;
+      await notifyExecution?.(execution);
       const result = await local.run(context);
       return { ...result, execution };
     },
@@ -1704,6 +1951,7 @@ type JournalPayloadFixture = {
     configDigest: string;
     taskSetDigest: string;
     publicTaskDigest: string;
+    executionDigest?: string;
   };
   result: PactPairSingleTaskRunV1['result'];
   evaluation: {
@@ -1776,8 +2024,24 @@ function replaceWithStateBoundEnvelope(
     join(runDirectory, 'private', 'task-commits'),
     `${fixtureStringDigest(payload.binding.taskId)}.${payloadDigest}.commit.json`,
   );
+  const commitDirectory = join(runDirectory, 'private', 'task-commits');
+  for (const name of readdirSync(commitDirectory)) {
+    if (name.endsWith('.authority.json')) rmSync(join(commitDirectory, name));
+  }
   rmSync(commitPath);
-  writeFileSync(addressedPath, `${JSON.stringify(envelope)}\n`, 'utf8');
+  const serialized = `${JSON.stringify(envelope)}\n`;
+  writeFileSync(addressedPath, serialized, 'utf8');
+  writeFileSync(
+    join(
+      commitDirectory,
+      `${fixtureDigest({
+        runId: payload.binding.runId,
+        taskId: payload.binding.taskId,
+      })}.authority.json`,
+    ),
+    serialized,
+    'utf8',
+  );
 }
 
 function fixtureStringDigest(value: string): string {

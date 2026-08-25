@@ -54,6 +54,14 @@ const defaultRepositoryRoot = join(
   '..',
 );
 
+/** Harbor stopped before an immutable execution identity could be announced. */
+export class PactHarborExecutionIdentityUnavailableErrorV1 extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PactHarborExecutionIdentityUnavailableErrorV1';
+  }
+}
+
 /**
  * The only Harbor release this backend is validated against. The task packages
  * rely on v0.5.0 config semantics — most importantly `allow_internet = false`
@@ -143,6 +151,9 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
   async run(
     context: PactExecutionBackendRunContextV1,
   ): Promise<PactExecutionBackendRunResultV1> {
+    const onExecution = (context as PactExecutionBackendRunContextV1 & {
+      onExecution?: (execution: PactRunExecutionMetadataV1) => Promise<void>;
+    }).onExecution;
     const checkpointHostRun = async (taskRun: PactExecutionTaskRunV1) => {
       await context.onTaskRun?.(bindPactPairTraceToHostRun(taskRun, context.runId));
     };
@@ -158,6 +169,7 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
       tasks: context.tasks,
       runId: context.runId,
       environment: context.environment,
+      onExecution,
       collect: jobsDirectory => collectHarborTaskRunsV1(jobsDirectory, context.tasks),
       stream: (jobsDirectory, untilSettled) => streamHarborTrialsV1({
         jobsDirectory,
@@ -168,6 +180,12 @@ export class HarborBackendV1 implements ExecutionBackendV1 {
         onTaskRun: context.onTaskRun,
       }),
     });
+    if (onExecution && !orchestration.execution.harbor?.imageId) {
+      throw new PactHarborExecutionIdentityUnavailableErrorV1(
+        'Harbor failed before its exact execution identity could be durably '
+        + `recorded: ${orchestration.missingMessage}`,
+      );
+    }
     for (const task of context.tasks) {
       if (orchestration.emittedTaskIds.has(task.taskId)) continue;
       const taskRun = orchestration.taskRuns.get(task.taskId)
@@ -200,6 +218,8 @@ export type RunHarborTrialsV1Options<Run> = {
   tasks: readonly PactHarborPackagedTaskV1[];
   runId: string;
   environment: Record<string, string | undefined>;
+  /** Durably records exact Harbor identity before any trial can be emitted. */
+  onExecution?: (execution: PactRunExecutionMetadataV1) => Promise<void>;
   /**
    * Trust-boundary collection of the verifier artifacts back into host task
    * runs (collectHarborDatasetTaskRunsV1 with the dataset's artifact
@@ -317,9 +337,13 @@ export async function runHarborTrialsV1<Run>(
       repositoryRoot,
       options.environment,
     )).trim();
-    if (/^sha256:[0-9a-f]{64}$/.test(imageId) && execution.harbor) {
-      execution.harbor.imageId = imageId;
+    if (!/^sha256:[0-9a-f]{64}$/.test(imageId) || !execution.harbor) {
+      throw new Error(
+        `Docker returned an invalid immutable image identity for ${imageName}`,
+      );
     }
+    execution.harbor.imageId = imageId;
+    await options.onExecution?.(structuredClone(execution));
     await mapWithConcurrencyV1(
       [...options.tasks],
       HARBOR_IMAGE_TAG_CONCURRENCY_V1,

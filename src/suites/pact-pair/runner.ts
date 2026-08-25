@@ -16,6 +16,7 @@ import {
 import {
   HarborBackendV1,
   LocalBackendV1,
+  PactHarborExecutionIdentityUnavailableErrorV1,
   type ExecutionBackendV1,
   type PactRunExecutionMetadataV1,
 } from '../../runner/v1/backends/index.js';
@@ -28,6 +29,7 @@ import {
   createPactPairRunDirectoryWithWriterLockV1,
   loadPactPairResumeStateV1,
   PACT_PRIVATE_RUN_ARTIFACT_DIRECTORY_V1,
+  recordPactPairExecutionAuthorityV1,
   type PactPairResumeStateV1,
   type PactPairRunWriterLockV1,
 } from './resume.js';
@@ -253,6 +255,28 @@ export type PactPairRunResumeRecordV1 = {
   taskIds: string[];
 };
 
+/**
+ * Machine-readable context for a run that failed closed before Harbor could
+ * publish any task outcome. The run directory remains resumable; the CLI can
+ * report the root cause without inventing execution provenance or task rows.
+ */
+export class PactPairRunFatalErrorV1 extends Error {
+  readonly runId: string;
+  readonly outputDirectory: string;
+  readonly taskIds: string[];
+
+  constructor(
+    message: string,
+    context: { runId: string; outputDirectory: string; taskIds: string[] },
+  ) {
+    super(message);
+    this.name = 'PactPairRunFatalErrorV1';
+    this.runId = context.runId;
+    this.outputDirectory = context.outputDirectory;
+    this.taskIds = [...context.taskIds];
+  }
+}
+
 export type RunPactPairBenchmarkV1Options = {
   harnessFactory?: PactHarnessFactoryV1;
   /** @deprecated Use harnessFactory. */
@@ -439,42 +463,65 @@ export async function runPactPairBenchmarkV1(
       ?? (context => createOpenAICompatiblePactHarnessV1(context.config, { environment }));
     const retainedRuns = resumeState?.retainedRuns ?? [];
     const taskRuns = new Map<string, PactPairSingleTaskRunV1>();
+    let activeExecution = backend.kind === 'harbor'
+      ? undefined
+      : defaultExecution;
 
+    const backendRunContext = {
+      config: runConfig,
+      tasks: pendingTasks,
+      seed,
+      runId,
+      now,
+      harnessFactory,
+      environment,
+      onExecution: async (reportedExecution: PactRunExecutionMetadataV1) => {
+        assertExactExecutionIdentity(reportedExecution, backend.kind);
+        if (activeExecution !== undefined) {
+          assertSameExecutionIdentity(activeExecution, reportedExecution);
+        }
+        if (outputDirectory) {
+          await recordPactPairExecutionAuthorityV1(
+            outputDirectory,
+            reportedExecution,
+          );
+        }
+        activeExecution = structuredClone(reportedExecution);
+      },
+      onTaskRun: async (taskRun: PactPairSingleTaskRunV1) => {
+        const taskId = taskRun.result.taskId;
+        if (activeExecution === undefined) {
+          throw new Error(
+            `Cannot commit task ${taskId}: exact ${backend.kind} execution `
+            + 'identity was not durably recorded before task completion',
+          );
+        }
+        const existing = taskRuns.get(taskId);
+        if (existing) assertSameInMemoryTaskRun(existing, taskRun);
+        else taskRuns.set(taskId, taskRun);
+        const nextRuns = new Map(taskRuns);
+        if (outputDirectory) {
+          await commitPactPairTaskRunV1({
+            runDirectory: outputDirectory,
+            runId,
+            configDigest,
+            taskSetDigest,
+            execution: activeExecution,
+            taskRun,
+            saveTraces: runConfig.output.saveTraces,
+            checkpoint: {
+              completedTasks: retainedRuns.length + nextRuns.size,
+              selectedTasks: tasks.length,
+              errors: [...retainedRuns, ...nextRuns.values()]
+                .filter(run => run.result.status === 'infrastructure_error').length,
+            },
+          });
+        }
+      },
+    };
     const execution = pendingTasks.length === 0
       ? {}
-      : await backend.run({
-          config: runConfig,
-          tasks: pendingTasks,
-          seed,
-          runId,
-          now,
-          harnessFactory,
-          environment,
-          onTaskRun: async taskRun => {
-            const taskId = taskRun.result.taskId;
-            const existing = taskRuns.get(taskId);
-            if (existing) assertSameInMemoryTaskRun(existing, taskRun);
-            const nextRuns = new Map(taskRuns);
-            nextRuns.set(taskId, taskRun);
-            if (outputDirectory) {
-              await commitPactPairTaskRunV1({
-                runDirectory: outputDirectory,
-                runId,
-                configDigest,
-                taskSetDigest,
-                taskRun,
-                saveTraces: runConfig.output.saveTraces,
-                checkpoint: {
-                  completedTasks: retainedRuns.length + nextRuns.size,
-                  selectedTasks: tasks.length,
-                  errors: [...retainedRuns, ...nextRuns.values()]
-                    .filter(run => run.result.status === 'infrastructure_error').length,
-                },
-              });
-            }
-            taskRuns.set(taskId, taskRun);
-          },
-        });
+      : await backend.run(backendRunContext);
     const aborted = execution.aborted;
     const retainedAttempts = resumeState
       ? retainedExecutionAttempts(
@@ -485,7 +532,14 @@ export async function runPactPairBenchmarkV1(
     const freshTaskIds = tasks
       .map(task => task.taskId)
       .filter(taskId => taskRuns.has(taskId));
-    const executionMetadata = execution.execution ?? defaultExecution;
+    if (execution.execution !== undefined) {
+      assertExactExecutionIdentity(execution.execution, backend.kind);
+      if (activeExecution !== undefined) {
+        assertSameExecutionIdentity(activeExecution, execution.execution);
+      }
+      activeExecution = execution.execution;
+    }
+    const executionMetadata = activeExecution ?? defaultExecution;
     const executionAttempts = [
       ...retainedAttempts,
       ...(freshTaskIds.length > 0
@@ -544,6 +598,18 @@ export async function runPactPairBenchmarkV1(
     }
 
     return result;
+  } catch (error) {
+    if (
+      error instanceof PactHarborExecutionIdentityUnavailableErrorV1
+      && outputDirectory !== undefined
+    ) {
+      throw new PactPairRunFatalErrorV1(error.message, {
+        runId,
+        outputDirectory,
+        taskIds: tasks.map(task => task.taskId),
+      });
+    }
+    throw error;
   } finally {
     await writerLock?.release();
   }
@@ -572,28 +638,77 @@ function retainedExecutionAttempts(
 ): PactPairRunExecutionAttemptV1[] {
   if (retainedTaskIds.length === 0) return [];
   const retained = new Set(retainedTaskIds);
-  if (metadata.executionAttempts === undefined) {
-    if (metadata.execution === undefined) {
-      throw new Error(
-        'Cannot resume committed outcomes without recorded execution provenance',
-      );
-    }
-    return [{ taskIds: [...retainedTaskIds], execution: metadata.execution }];
-  }
-  const attempts = metadata.executionAttempts
+  const attempts = (metadata.executionAttempts ?? [])
     .map(attempt => ({
       taskIds: attempt.taskIds.filter(taskId => retained.has(taskId)),
       execution: attempt.execution,
     }))
     .filter(attempt => attempt.taskIds.length > 0);
   const covered = new Set(attempts.flatMap(attempt => attempt.taskIds));
-  const missing = retainedTaskIds.find(taskId => !covered.has(taskId));
-  if (missing !== undefined) {
+  const missing = retainedTaskIds.filter(taskId => !covered.has(taskId));
+  if (missing.length > 0) {
+    const fallback = metadata.activeExecution ?? metadata.execution;
+    if (fallback === undefined) {
+      throw new Error(
+        `Cannot resume task ${missing[0]}: no authoritative execution `
+        + 'provenance is recorded',
+      );
+    }
+    assertExactExecutionIdentity(fallback, fallback.backend);
+    attempts.push({ taskIds: missing, execution: fallback });
+  }
+  for (const attempt of attempts) {
+    try {
+      assertExactExecutionIdentity(attempt.execution, attempt.execution.backend);
+    } catch (error) {
+      const taskId = attempt.taskIds[0] ?? 'unknown';
+      throw new Error(
+        `Cannot resume task ${taskId}: exact execution provenance is not `
+        + `durably known (${error instanceof Error ? error.message : String(error)})`,
+      );
+    }
+  }
+  const finalCovered = new Set(attempts.flatMap(attempt => attempt.taskIds));
+  const unresolved = retainedTaskIds.find(taskId => !finalCovered.has(taskId));
+  if (unresolved !== undefined) {
     throw new Error(
-      `Cannot resume task ${missing}: no authoritative execution provenance is recorded`,
+      `Cannot resume task ${unresolved}: no authoritative execution provenance is recorded`,
     );
   }
   return attempts;
+}
+
+function assertExactExecutionIdentity(
+  execution: PactRunExecutionMetadataV1,
+  backendKind: ExecutionBackendV1['kind'],
+): void {
+  if (execution.backend !== backendKind) {
+    throw new Error(
+      `Execution backend identity ${execution.backend} does not match ${backendKind}`,
+    );
+  }
+  if (
+    execution.backend === 'harbor'
+    && (
+      execution.harbor === undefined
+      || !/^sha256:[0-9a-f]{64}$/u.test(execution.harbor.imageId ?? '')
+    )
+  ) {
+    throw new Error(
+      'Harbor execution identity requires version, image, and immutable imageId',
+    );
+  }
+}
+
+function assertSameExecutionIdentity(
+  existing: PactRunExecutionMetadataV1,
+  incoming: PactRunExecutionMetadataV1,
+): void {
+  if (JSON.stringify(existing) !== JSON.stringify(incoming)) {
+    throw new Error(
+      'Backend returned an execution identity that conflicts with its durable authority',
+    );
+  }
 }
 
 function executionProjectionFor(

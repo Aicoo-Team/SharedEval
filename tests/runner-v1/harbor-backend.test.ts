@@ -219,7 +219,7 @@ test('Harbor backend generalizes materialization beyond the smoke set', async t 
   }
 });
 
-test('Harbor backend maps command failures to canonical backend errors', async () => {
+test('Harbor fails closed when setup fails before exact execution identity', async () => {
   // Force the external toolchain to be missing so the run fails before any
   // Docker/Harbor work — the version gate runs first, so the missing Harbor
   // binary is the failure surfaced. This exercises the backend_error mapping
@@ -229,24 +229,21 @@ test('Harbor backend maps command failures to canonical backend errors', async (
     dockerExecutable: 'pact-nonexistent-docker-binary',
     harborExecutable: 'pact-nonexistent-harbor-binary',
   });
-  const result = await runPactPairBenchmarkV1(configFor('harbor', ['PAIR-Q2']), {
-    executionBackend: backend,
-    environment: {},
-    runId: 'harbor-command-failure',
-    writeOutputs: false,
-  });
-
-  assert.equal(result.summary.total, 1);
-  assert.equal(result.summary.errors, 1);
-  assert.deepEqual(result.tasks[0]?.violations, ['backend_error']);
-  assert.match(result.tasks[0]?.error ?? '', /pact-nonexistent-harbor-binary/);
-  assert.match(result.tasks[0]?.error ?? '', /Harbor version/);
-  assert.doesNotMatch(result.tasks[0]?.error ?? '', /smoke set/);
-  // Even a failed Harbor run records honest execution provenance: the
-  // backend and its scripted executor, never the caller-selected model.
-  assert.equal(result.execution.backend, 'harbor');
-  assert.equal(result.execution.executor, 'scripted-harness');
-  assert.equal(result.execution.harbor?.version, PACT_HARBOR_VERSION_V1);
+  await assert.rejects(
+    runPactPairBenchmarkV1(configFor('harbor', ['PAIR-Q2']), {
+      executionBackend: backend,
+      environment: {},
+      runId: 'harbor-command-failure',
+      writeOutputs: false,
+    }),
+    error => {
+      assert.match(String(error), /before its exact execution identity/i);
+      assert.match(String(error), /pact-nonexistent-harbor-binary/);
+      assert.match(String(error), /Harbor version/);
+      assert.doesNotMatch(String(error), /smoke set/);
+      return true;
+    },
+  );
 });
 
 test('Harbor backend refuses to run under an unsupported Harbor version', async t => {
@@ -260,17 +257,23 @@ test('Harbor backend refuses to run under an unsupported Harbor version', async 
     harborExecutable: fakeHarbor,
     dockerExecutable: 'pact-nonexistent-docker-binary',
   });
-  const result = await runPactPairBenchmarkV1(configFor('harbor', ['PAIR-Q1']), {
-    executionBackend: backend,
-    environment: {},
-    runId: 'harbor-version-mismatch',
-    writeOutputs: false,
-  });
-
-  assert.equal(result.summary.errors, 1);
-  assert.deepEqual(result.tasks[0]?.violations, ['backend_error']);
-  assert.match(result.tasks[0]?.error ?? '', /Unsupported Harbor version 0\.4\.9/);
-  assert.match(result.tasks[0]?.error ?? '', new RegExp(PACT_HARBOR_VERSION_V1.replace(/\./g, '\\.')));
+  await assert.rejects(
+    runPactPairBenchmarkV1(configFor('harbor', ['PAIR-Q1']), {
+      executionBackend: backend,
+      environment: {},
+      runId: 'harbor-version-mismatch',
+      writeOutputs: false,
+    }),
+    error => {
+      assert.match(String(error), /before its exact execution identity/i);
+      assert.match(String(error), /Unsupported Harbor version 0\.4\.9/);
+      assert.match(
+        String(error),
+        new RegExp(PACT_HARBOR_VERSION_V1.replace(/\./g, '\\.')),
+      );
+      return true;
+    },
+  );
 });
 
 test('collects valid Harbor trials even when a sibling artifact is malformed', async t => {
