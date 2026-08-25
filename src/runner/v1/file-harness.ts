@@ -102,6 +102,7 @@ const approvedFileTurnPublicMessagesV1 = new Set([
   'File workspace returned an invalid MEMORY replacement result',
   'File workspace returned an invalid read result',
   'MEMORY replacement is not authorized for this file turn',
+  'MEMORY replacement is limited to one successful publication per file turn',
   'MEMORY replacement requires the expected version observed by a read in this file turn',
   'Requested model identity is invalid',
 ]);

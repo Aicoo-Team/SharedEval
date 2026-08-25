@@ -295,6 +295,7 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
   private messages: ProviderMessage[] = [];
   private seenToolCallIds = new Set<string>();
   private observedMemoryVersions = new Set<number>();
+  private memoryPublicationSucceeded = false;
   private providerRequests: FileProviderRequestTelemetryV1[] = [];
   private authorizedRequest?: AuthorizedContactRequestPresentationV1;
   private started = false;
@@ -614,6 +615,11 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
           'MEMORY replacement is not authorized for this file turn',
         );
       }
+      if (this.memoryPublicationSucceeded) {
+        throw new InternalFileTurnPublicErrorV1(
+          'MEMORY replacement is limited to one successful publication per file turn',
+        );
+      }
       const args = parseExternalFileTurnValueV1(
         replaceMemoryArgumentsSchema,
         raw,
@@ -643,6 +649,11 @@ export class OpenAICompatibleFileHarnessV1 implements FreshFileHarnessV1 {
         ),
         'File workspace returned an invalid MEMORY replacement result',
       );
+      if (replaced.outcome === 'committed') {
+        // Publication is authoritative even when the following durability sync
+        // or deadline observation is uncertain. This fresh turn must not CAS again.
+        this.memoryPublicationSucceeded = true;
+      }
       input.deadline.remainingMs();
       if (replaced.outcome === 'committed') {
         this.observedMemoryVersions.add(replaced.version);

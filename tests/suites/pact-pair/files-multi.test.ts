@@ -209,6 +209,334 @@ test('runs two ordered tasks across fresh heartbeats with file evidence and imme
   }
 });
 
+test('rejects a second successful requester MEMORY publication before another CAS', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-files-one-requester-cas-'));
+  const tasks = qaTasks(['PAIR-Q1']);
+  const dependencies = scriptedDependencies({
+    tasks,
+    trace: [],
+    requesterFactory: input => () => ({
+      step: async turn => {
+        const memory = await input.workspace.read({
+          actorId: turn.actorId,
+          path: 'MEMORY.md',
+        });
+        await input.workspace.replaceMemory({
+          actorId: turn.actorId,
+          expectedVersion: memory.receipt.version,
+          content: 'PAIR-Q1 [pending] — first publication\n',
+        });
+        await input.workspace.replaceMemory({
+          actorId: turn.actorId,
+          expectedVersion: memory.receipt.version + 1,
+          content: 'PAIR-Q1 [pending] — forbidden second publication\n',
+        });
+        return {
+          type: 'completed' as const,
+          content: 'incorrectly accepted two publications',
+          toolSteps: 3,
+          contactCalls: 0,
+        };
+      },
+      finalize: async () => {},
+    }),
+    responderFactory: () => () => ({
+      step: async () => ({
+        type: 'completed' as const,
+        content: 'unused',
+        toolSteps: 0,
+        contactCalls: 0,
+      }),
+      finalize: async () => {},
+    }),
+  });
+
+  try {
+    const session = await runPactPairFilesMultiV1({
+      ...baseOptions({ workspaceRootDir, tasks, dependencies }),
+      runId: 'multi-one-requester-cas',
+      maxTicks: 1,
+    });
+    assert.equal(session.stopReason, 'fatal_error');
+    assert.equal(session.ticks[0]?.status, 'failed');
+    assert.equal(session.final.requester.version, 1);
+    assert.doesNotMatch(
+      JSON.stringify(toPublicFileDrivenPairSessionV1(session)),
+      /forbidden second publication|incorrectly accepted two publications/,
+    );
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('classifies a second responder MEMORY publication as one stable tool failure', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-files-one-responder-cas-'));
+  const tasks = qaTasks(['PAIR-Q1']);
+  const dependencies = scriptedDependencies({
+    tasks,
+    trace: [],
+    requesterFactory: input => () => ({
+      step: async turn => {
+        const loaded = await readAll(input.workspace, turn, [], 'requester');
+        const contacted = await input.contact.contact({
+          senderId: turn.actorId,
+          recipientId: 'responder-alex',
+          message: 'Answer the selected task.',
+          intent: 'request-task-result',
+          purpose: 'PAIR-Q1',
+          traceId: turn.traceId,
+          deadlineMs: 1_000,
+        });
+        await input.workspace.replaceMemory({
+          actorId: turn.actorId,
+          expectedVersion: loaded.memory.receipt.version,
+          content: renderMemory([contactMemoryRow({
+            taskId: 'PAIR-Q1', status: 'pending', note: 'ready',
+          }, contacted)]),
+        });
+        return {
+          type: 'completed' as const,
+          content: 'contact terminalized',
+          toolSteps: paths.length + 2,
+          contactCalls: 1,
+        };
+      },
+      finalize: async () => {},
+    }),
+    responderFactory: input => () => ({
+      step: async turn => {
+        const loaded = await readAll(input.workspace, turn, [], 'responder');
+        await input.workspace.replaceMemory({
+          actorId: turn.actorId,
+          expectedVersion: loaded.memory.receipt.version,
+          content: 'PAIR-Q1 [pending] — first responder publication\n',
+        });
+        await input.workspace.replaceMemory({
+          actorId: turn.actorId,
+          expectedVersion: loaded.memory.receipt.version + 1,
+          content: 'PAIR-Q1 [pending] — forbidden responder publication\n',
+        });
+        return {
+          type: 'completed' as const,
+          content: 'incorrectly accepted two responder publications',
+          toolSteps: paths.length + 2,
+          contactCalls: 0,
+        };
+      },
+      finalize: async () => {},
+    }),
+  });
+
+  try {
+    const session = await runPactPairFilesMultiV1({
+      ...baseOptions({ workspaceRootDir, tasks, dependencies }),
+      runId: 'multi-one-responder-cas',
+      maxTicks: 1,
+    });
+    assert.equal(session.stopReason, 'all_terminal');
+    assert.equal(session.contacts[0]?.status, 'failed');
+    assert.equal(
+      session.contacts[0]?.errorCode,
+      CONTACT_AGENT_ERROR_CODES_V1.responderToolFailed,
+    );
+    assert.equal(session.final.responder.version, 1);
+    assert.equal(session.outcomes[0]?.status, 'error');
+    assert.doesNotMatch(
+      JSON.stringify(toPublicFileDrivenPairSessionV1(session)),
+      /forbidden responder publication|incorrectly accepted two responder publications/,
+    );
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('allows conflict recovery and resets the MEMORY publication guard next heartbeat', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-files-cas-reset-'));
+  const tasks = qaTasks(['PAIR-Q1']);
+  let requesterTurn = 0;
+  let injectConflict = true;
+  const baseDependencies = scriptedDependencies({
+    tasks,
+    trace: [],
+    requesterFactory: input => () => ({
+      step: async turn => {
+        requesterTurn += 1;
+        let memory = await input.workspace.read({ actorId: turn.actorId, path: 'MEMORY.md' });
+        let result = await input.workspace.replaceMemory({
+          actorId: turn.actorId,
+          expectedVersion: memory.receipt.version,
+          content: `PAIR-Q1 [pending] — turn ${requesterTurn} first attempt\n`,
+        });
+        if (requesterTurn === 1) {
+          assert.equal(result.outcome, 'conflict');
+          memory = await input.workspace.read({ actorId: turn.actorId, path: 'MEMORY.md' });
+          result = await input.workspace.replaceMemory({
+            actorId: turn.actorId,
+            expectedVersion: memory.receipt.version,
+            content: 'PAIR-Q1 [pending] — turn 1 recovered\n',
+          });
+        }
+        assert.equal(result.outcome, 'committed');
+        return {
+          type: 'completed' as const,
+          content: `turn ${requesterTurn}`,
+          toolSteps: requesterTurn === 1 ? 4 : 2,
+          contactCalls: 0,
+        };
+      },
+      finalize: async () => {},
+    }),
+    responderFactory: () => () => ({
+      step: async () => ({
+        type: 'completed' as const,
+        content: 'unused',
+        toolSteps: 0,
+        contactCalls: 0,
+      }),
+      finalize: async () => {},
+    }),
+  });
+  const materializeWorkspace = baseDependencies.materializeWorkspace;
+  assert.ok(materializeWorkspace);
+  const dependencies: FileDrivenPairHarnessDependenciesV1 = {
+    ...baseDependencies,
+    materializeWorkspace: async options => {
+      const workspace = await materializeWorkspace(options);
+      if (options.actorId !== 'requester-tina') return workspace;
+      return {
+        publication: workspace.publication,
+        read: input => workspace.read(input),
+        snapshot: actor => workspace.snapshot(actor),
+        replaceMemory: async input => {
+          if (injectConflict) {
+            injectConflict = false;
+            await workspace.replaceMemory({
+              ...input,
+              content: 'PAIR-Q1 [pending] — concurrent publication\n',
+            });
+          }
+          return workspace.replaceMemory(input);
+        },
+      };
+    },
+  };
+
+  try {
+    const session = await runPactPairFilesMultiV1({
+      ...baseOptions({ workspaceRootDir, tasks, dependencies }),
+      runId: 'multi-memory-conflict-reset',
+      maxTicks: 2,
+    });
+    assert.equal(session.stopReason, 'tick_exhausted');
+    assert.deepEqual(session.ticks.map(tick => tick.status), ['completed', 'completed']);
+    assert.equal(session.final.requester.version, 3);
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('admits only one concurrent requester MEMORY publication while a commit return is delayed', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-files-concurrent-cas-'));
+  const tasks = qaTasks(['PAIR-Q1']);
+  let signalPublished!: () => void;
+  const published = new Promise<void>(resolve => { signalPublished = resolve; });
+  let releaseFirst!: () => void;
+  const firstMayReturn = new Promise<void>(resolve => { releaseFirst = resolve; });
+  let innerReplaceCalls = 0;
+  const baseDependencies = scriptedDependencies({
+    tasks,
+    trace: [],
+    requesterFactory: input => () => ({
+      step: async turn => {
+        const initial = await input.workspace.read({
+          actorId: turn.actorId,
+          path: 'MEMORY.md',
+        });
+        const first = input.workspace.replaceMemory({
+          actorId: turn.actorId,
+          expectedVersion: initial.receipt.version,
+          content: 'PAIR-Q1 [pending] — first concurrent publication\n',
+        });
+        await published;
+        const afterPublication = await input.workspace.read({
+          actorId: turn.actorId,
+          path: 'MEMORY.md',
+        });
+        const second = input.workspace.replaceMemory({
+          actorId: turn.actorId,
+          expectedVersion: afterPublication.receipt.version,
+          content: 'PAIR-Q1 [pending] — forbidden concurrent publication\n',
+        }).then(
+          result => ({ result }),
+          error => ({ error }),
+        );
+        releaseFirst();
+        await first;
+        const secondOutcome = await second;
+        if ('error' in secondOutcome) throw secondOutcome.error;
+        return {
+          type: 'completed' as const,
+          content: 'incorrectly accepted concurrent publications',
+          toolSteps: 4,
+          contactCalls: 0,
+        };
+      },
+      finalize: async () => { releaseFirst(); },
+    }),
+    responderFactory: () => () => ({
+      step: async () => ({
+        type: 'completed' as const,
+        content: 'unused',
+        toolSteps: 0,
+        contactCalls: 0,
+      }),
+      finalize: async () => {},
+    }),
+  });
+  const materializeWorkspace = baseDependencies.materializeWorkspace;
+  assert.ok(materializeWorkspace);
+  const dependencies: FileDrivenPairHarnessDependenciesV1 = {
+    ...baseDependencies,
+    materializeWorkspace: async options => {
+      const workspace = await materializeWorkspace(options);
+      if (options.actorId !== 'requester-tina') return workspace;
+      return {
+        publication: workspace.publication,
+        read: input => workspace.read(input),
+        snapshot: actor => workspace.snapshot(actor),
+        replaceMemory: async input => {
+          innerReplaceCalls += 1;
+          const result = await workspace.replaceMemory(input);
+          if (innerReplaceCalls === 1 && result.outcome === 'committed') {
+            signalPublished();
+            await firstMayReturn;
+          }
+          return result;
+        },
+      };
+    },
+  };
+
+  try {
+    const session = await runPactPairFilesMultiV1({
+      ...baseOptions({ workspaceRootDir, tasks, dependencies }),
+      runId: 'multi-concurrent-memory-publication',
+      maxTicks: 1,
+    });
+    assert.equal(session.stopReason, 'fatal_error');
+    assert.equal(session.ticks[0]?.status, 'failed');
+    assert.equal(session.final.requester.version, 1);
+    assert.equal(innerReplaceCalls, 1);
+    assert.doesNotMatch(
+      JSON.stringify(toPublicFileDrivenPairSessionV1(session)),
+      /forbidden concurrent publication|incorrectly accepted concurrent publications/,
+    );
+  } finally {
+    releaseFirst();
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
 test('binds action evaluation to its correlated contact snapshots despite later responder mutation', async () => {
   const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-files-action-'));
   const tasks = loadPactPairTasksV1({

@@ -89,6 +89,7 @@ const responderPublicFailureClassByMessageV1: ReadonlyMap<
   ['File workspace returned an invalid MEMORY replacement result', 'tool'],
   ['File workspace returned an invalid read result', 'tool'],
   ['MEMORY replacement is not authorized for this file turn', 'tool'],
+  ['MEMORY replacement is limited to one successful publication per file turn', 'tool'],
   [
     'MEMORY replacement requires the expected version observed by a read in this file turn',
     'tool',

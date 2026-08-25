@@ -379,6 +379,142 @@ test('uses a fresh provider transcript per heartbeat and persists only committed
   assert.doesNotMatch(secondAfterRead, /h1-read|h1-write/);
 });
 
+test('permits only one successful MEMORY publication in one fresh file turn', async () => {
+  const workspace = new MemoryWorkspace();
+  const requests: ProviderRequest[] = [];
+  const failure = await captureFailure(runFreshFileTurnV1(createFactory({
+    workspace,
+    fetch: scriptedFetch([
+      toolCompletion('read-v0', 'files_read', { path: 'MEMORY.md' }),
+      toolCompletion('write-v1', 'files_replace_memory', {
+        expectedVersion: 0,
+        content: 'TASK-1 [pending] — first publication',
+      }),
+      toolCompletion('write-v2', 'files_replace_memory', {
+        expectedVersion: 1,
+        content: 'TASK-1 [answered] — forbidden second publication',
+      }),
+      textCompletion('incorrectly accepted a second publication'),
+    ], requests),
+  }), baseInput));
+
+  assert.equal(
+    failure.message,
+    'MEMORY replacement is limited to one successful publication per file turn',
+  );
+  assert.equal(workspace.replaceCalls, 1);
+  assert.equal(workspace.version, 1);
+  assert.equal(workspace.files['MEMORY.md'], 'TASK-1 [pending] — first publication');
+  assert.equal(requests.length, 3);
+  const messages = (requests[2]?.body as ProviderBody).messages;
+  const firstPublicationResult = messages.find(message => (
+    message.role === 'tool' && message.tool_call_id === 'write-v1'
+  )) as { role: 'tool'; tool_call_id: string; content: string } | undefined;
+  assert.deepEqual(JSON.parse(firstPublicationResult?.content ?? ''), {
+    actorId,
+    path: 'MEMORY.md',
+    action: 'replace',
+    outcome: 'committed',
+    version: 1,
+    sha256: sha256('TASK-1 [pending] — first publication'),
+    byteLength: Buffer.byteLength('TASK-1 [pending] — first publication', 'utf8'),
+  });
+  const transcript = JSON.stringify(messages);
+  assert.doesNotMatch(transcript, /private\/tmp|forbidden second publication/);
+});
+
+test('allows a conflicting MEMORY attempt to re-read and publish once', async () => {
+  const workspace = new MemoryWorkspace();
+  workspace.conflictNextReplace = true;
+  const decision = await runFreshFileTurnV1(createFactory({
+    workspace,
+    fetch: scriptedFetch([
+      toolCompletion('read-v0', 'files_read', { path: 'MEMORY.md' }),
+      toolCompletion('conflict-v0', 'files_replace_memory', {
+        expectedVersion: 0,
+        content: 'TASK-1 [pending] — conflict loses',
+      }),
+      toolCompletion('read-v1', 'files_read', { path: 'MEMORY.md' }),
+      toolCompletion('write-v2', 'files_replace_memory', {
+        expectedVersion: 1,
+        content: 'TASK-1 [answered] — committed after conflict',
+      }),
+      textCompletion('done'),
+    ], []),
+  }), baseInput);
+
+  assert.equal(decision.type, 'completed');
+  assert.equal(workspace.replaceCalls, 2);
+  assert.equal(workspace.version, 2);
+  assert.equal(workspace.files['MEMORY.md'], 'TASK-1 [answered] — committed after conflict');
+});
+
+test('treats published_unsynced as the one successful MEMORY publication', async () => {
+  const workspace = new MemoryWorkspace();
+  const replaceMemory = workspace.replaceMemory.bind(workspace);
+  workspace.replaceMemory = async input => {
+    const result = await replaceMemory(input);
+    return result.outcome === 'committed'
+      ? { ...result, durability: 'published_unsynced' as const }
+      : result;
+  };
+  const failure = await captureFailure(runFreshFileTurnV1(createFactory({
+    workspace,
+    fetch: scriptedFetch([
+      toolCompletion('read-v0', 'files_read', { path: 'MEMORY.md' }),
+      toolCompletion('write-v1', 'files_replace_memory', {
+        expectedVersion: 0,
+        content: 'TASK-1 [pending] — published but sync uncertain',
+      }),
+      toolCompletion('write-v2', 'files_replace_memory', {
+        expectedVersion: 1,
+        content: 'TASK-1 [answered] — forbidden after publication',
+      }),
+      textCompletion('incorrectly accepted a second publication'),
+    ], []),
+  }), baseInput));
+
+  assert.equal(
+    failure.message,
+    'MEMORY replacement is limited to one successful publication per file turn',
+  );
+  assert.equal(workspace.replaceCalls, 1);
+  assert.equal(workspace.version, 1);
+});
+
+test('resets the successful MEMORY publication guard for each fresh turn', async () => {
+  const workspace = new MemoryWorkspace();
+  const first = createFactory({
+    workspace,
+    fetch: scriptedFetch([
+      toolCompletion('first-read', 'files_read', { path: 'MEMORY.md' }),
+      toolCompletion('first-write', 'files_replace_memory', {
+        expectedVersion: 0,
+        content: 'TASK-1 [pending] — first turn',
+      }),
+      textCompletion('first done'),
+    ], []),
+  });
+  const second = createFactory({
+    workspace,
+    fetch: scriptedFetch([
+      toolCompletion('second-read', 'files_read', { path: 'MEMORY.md' }),
+      toolCompletion('second-write', 'files_replace_memory', {
+        expectedVersion: 1,
+        content: 'TASK-1 [answered] — second turn',
+      }),
+      textCompletion('second done'),
+    ], []),
+  });
+
+  await runFreshFileTurnV1(first, baseInput);
+  await runFreshFileTurnV1(second, { ...baseInput, traceId: 'trace-heartbeat-2' });
+
+  assert.equal(workspace.replaceCalls, 2);
+  assert.equal(workspace.version, 2);
+  assert.equal(workspace.files['MEMORY.md'], 'TASK-1 [answered] — second turn');
+});
+
 test('does not turn a conflicting MEMORY replacement into cross-heartbeat continuity', async () => {
   const workspace = new MemoryWorkspace();
   workspace.conflictNextReplace = true;

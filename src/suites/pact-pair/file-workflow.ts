@@ -9,6 +9,7 @@ import {
   type ContactResponderHarnessFactoryInputV1,
 } from '../../runner/v1/contact-agent.js';
 import {
+  InternalFileTurnPublicErrorV1,
   runFreshFileTurnV1,
   type FileTurnDecisionV1,
   type FreshFileHarnessFactoryV1,
@@ -852,6 +853,8 @@ class EvidenceWorkspaceV1 implements FileWorkspacePortV1 {
   private reads: FileReadReceiptV1[] = [];
   private observedMemoryVersions = new Set<number>();
   private observedMemoryRows = new Map<number, readonly FileMemoryRowV1[]>();
+  private memoryPublicationSucceeded = false;
+  private memoryReplacementInFlight = false;
 
   constructor(
     private readonly inner: MaterializedFileWorkspaceV1,
@@ -863,6 +866,7 @@ class EvidenceWorkspaceV1 implements FileWorkspacePortV1 {
     this.reads = [];
     this.observedMemoryVersions.clear();
     this.observedMemoryRows.clear();
+    this.memoryPublicationSucceeded = false;
   }
 
   async read(input: Parameters<FileWorkspacePortV1['read']>[0]) {
@@ -884,26 +888,41 @@ class EvidenceWorkspaceV1 implements FileWorkspacePortV1 {
   async replaceMemory(
     input: Parameters<FileWorkspacePortV1['replaceMemory']>[0],
   ): Promise<ReplaceMemoryResultV1> {
-    const observed = this.observedMemoryVersions.has(input.expectedVersion);
-    const previousRows = this.observedMemoryRows.get(input.expectedVersion);
-    // Every attempt consumes the observation. Malformed, conflicting, stale,
-    // or non-monotonic replacements all require a fresh MEMORY read.
-    this.observedMemoryVersions.clear();
-    this.observedMemoryRows.clear();
-    if (!observed || !previousRows) {
-      throw new Error('MEMORY replacement requires a version observed in this fresh turn');
+    if (this.memoryPublicationSucceeded || this.memoryReplacementInFlight) {
+      throw new InternalFileTurnPublicErrorV1(
+        'MEMORY replacement is limited to one successful publication per file turn',
+      );
     }
-    const nextRows = parseFileMemoryV1({
-      content: input.content,
-      selectedTaskIds: this.selectedTaskIds,
-    });
-    assertMonotonicTerminalMemory(previousRows, nextRows);
-    const result = await this.inner.replaceMemory(input);
-    if (result.outcome === 'committed') {
-      this.observedMemoryVersions.add(result.version);
-      this.observedMemoryRows.set(result.version, nextRows);
+    // Admission is synchronous so a custom harness cannot overlap two CAS
+    // calls while the first published result is delayed in a host wrapper.
+    this.memoryReplacementInFlight = true;
+    try {
+      const observed = this.observedMemoryVersions.has(input.expectedVersion);
+      const previousRows = this.observedMemoryRows.get(input.expectedVersion);
+      // Every attempt consumes the observation. Malformed, conflicting, stale,
+      // or non-monotonic replacements all require a fresh MEMORY read.
+      this.observedMemoryVersions.clear();
+      this.observedMemoryRows.clear();
+      if (!observed || !previousRows) {
+        throw new Error('MEMORY replacement requires a version observed in this fresh turn');
+      }
+      const nextRows = parseFileMemoryV1({
+        content: input.content,
+        selectedTaskIds: this.selectedTaskIds,
+      });
+      assertMonotonicTerminalMemory(previousRows, nextRows);
+      const result = await this.inner.replaceMemory(input);
+      if (result.outcome === 'committed') {
+        // A published_unsynced commit is still visible authority and consumes
+        // this fresh turn's single successful MEMORY publication.
+        this.memoryPublicationSucceeded = true;
+        this.observedMemoryVersions.add(result.version);
+        this.observedMemoryRows.set(result.version, nextRows);
+      }
+      return result;
+    } finally {
+      this.memoryReplacementInFlight = false;
     }
-    return result;
   }
 
   snapshot(actorId: string): Promise<FileWorkspaceSnapshotV1> {

@@ -737,6 +737,7 @@ test('classifies the complete Task 4 fixed public failure surface explicitly', a
     'File workspace returned an invalid MEMORY replacement result',
     'File workspace returned an invalid read result',
     'MEMORY replacement is not authorized for this file turn',
+    'MEMORY replacement is limited to one successful publication per file turn',
     'MEMORY replacement requires the expected version observed by a read in this file turn',
   ] as const;
   const genericMessages = [
@@ -759,7 +760,7 @@ test('classifies the complete Task 4 fixed public failure surface explicitly', a
   ] as const;
   assert.equal(
     parseMessages.length + toolMessages.length + genericMessages.length,
-    43,
+    44,
   );
 
   const cases = [
