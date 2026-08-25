@@ -185,6 +185,7 @@ export class PersistentLegacyResponderSessionV1 {
   private readonly toolsByName: Map<string, PactToolSpecV1>;
   private messages: LegacyProviderMessageV1[] = [];
   private requests: LegacyProviderRequestTelemetryV1[] = [];
+  private seenProviderCallIds = new Set<string>();
   private initialized = false;
   private activeTick: LegacyResponderTickSessionV1 | undefined;
   private systemPromptSha256 = '';
@@ -246,6 +247,7 @@ export class PersistentLegacyResponderSessionV1 {
     this.systemPromptSha256 = createHash('sha256').update(system).digest('hex');
     this.messages = [{ role: 'system', content: system }];
     this.requests = [];
+    this.seenProviderCallIds.clear();
     this.initialized = true;
   }
 
@@ -336,6 +338,10 @@ export class PersistentLegacyResponderSessionV1 {
     });
   }
 
+  requestCount(): number {
+    return this.requests.length;
+  }
+
   async requestStep(
     tick: LegacyResponderTickSessionV1,
   ): Promise<{ calls?: ParsedCall[]; terminal?: PactPairTerminalDecisionV1 }> {
@@ -397,12 +403,25 @@ export class PersistentLegacyResponderSessionV1 {
     }
     const calls = (message.tool_calls ?? []) as LegacyProviderToolCallV1[];
     if (calls.length > 0) {
-      assertUniqueCallIds(calls);
       this.messages.push({
         role: 'assistant',
         content: message.content ?? null,
         tool_calls: structuredClone(calls),
       });
+      try {
+        assertUniqueCallIds(calls);
+        for (const call of calls) {
+          if (this.seenProviderCallIds.has(call.id)) {
+            throw new LegacyResponderProtocolErrorV1(
+              'Legacy provider reused a tool-call identifier in one transcript',
+            );
+          }
+        }
+      } catch (error) {
+        this.closeCallsWithProtocolError(calls);
+        throw error;
+      }
+      for (const call of calls) this.seenProviderCallIds.add(call.id);
       let parsed: ParsedCall[];
       try {
         parsed = calls.map(call => this.parseCall(call, tick.visibleToolNames()));
@@ -457,22 +476,22 @@ export class PersistentLegacyResponderSessionV1 {
   private parseCall(call: LegacyProviderToolCallV1, visible: string[]): ParsedCall {
     const input = parseToolArguments(call.function.arguments, this.credential);
     if (call.function.name === 'pact_answer') {
-      return { raw: call, kind: 'terminal', step: {
-        type: 'answer',
-        content: terminalAnswerSchema.parse(input).content,
-      } };
+      return { raw: call, kind: 'terminal', step: parseTerminalCall(
+        call,
+        () => ({ type: 'answer', content: terminalAnswerSchema.parse(input).content }),
+      ) };
     }
     if (call.function.name === 'pact_refuse') {
-      return { raw: call, kind: 'terminal', step: {
-        type: 'refuse',
-        reason: terminalReasonSchema.parse(input).reason,
-      } };
+      return { raw: call, kind: 'terminal', step: parseTerminalCall(
+        call,
+        () => ({ type: 'refuse', reason: terminalReasonSchema.parse(input).reason }),
+      ) };
     }
     if (call.function.name === 'pact_escalate') {
-      return { raw: call, kind: 'terminal', step: {
-        type: 'escalate',
-        reason: terminalReasonSchema.parse(input).reason,
-      } };
+      return { raw: call, kind: 'terminal', step: parseTerminalCall(
+        call,
+        () => ({ type: 'escalate', reason: terminalReasonSchema.parse(input).reason }),
+      ) };
     }
     if (!visible.includes(call.function.name) || !this.toolsByName.has(call.function.name)) {
       throw new LegacyResponderProtocolErrorV1(
@@ -639,11 +658,14 @@ export class LegacyResponderTickSessionV1 {
   private pending: ParsedCall[] = [];
   private closed = false;
   private started = false;
+  private readonly requestCountAtStart: number;
 
   constructor(
     private readonly parent: PersistentLegacyResponderSessionV1,
     private readonly input: LegacyResponderTickInputV1,
-  ) {}
+  ) {
+    this.requestCountAtStart = parent.requestCount();
+  }
 
   isClosed(): boolean {
     return this.closed;
@@ -661,6 +683,10 @@ export class LegacyResponderTickSessionV1 {
     return this.input.signal;
   }
 
+  providerRequestCount(): number {
+    return this.parent.requestCount() - this.requestCountAtStart;
+  }
+
   async next(input: LegacyResponderStepInputV1): Promise<LegacyResponderStepV1> {
     if (this.closed) throw new Error('Legacy responder tick is already closed');
     if (input.type === 'start') {
@@ -668,21 +694,7 @@ export class LegacyResponderTickSessionV1 {
       this.started = true;
     } else {
       if (!this.started) throw new Error('Legacy responder tool result arrived before start');
-      const expected = this.pending[0];
-      if (
-        !expected
-        || expected.raw.id !== input.providerCallId
-        || expected.raw.function.name !== input.toolName
-      ) {
-        throw new LegacyResponderProtocolErrorV1(
-          'Legacy responder tool result does not match the pending call',
-        );
-      }
-      this.parent.appendToolResult(expected.raw, {
-        output: input.output,
-        isError: input.isError,
-      });
-      this.pending.shift();
+      this.acceptToolResult(input);
       const queued = this.pending[0];
       if (queued) return queued.step;
     }
@@ -722,6 +734,36 @@ export class LegacyResponderTickSessionV1 {
     this.closed = true;
     return count;
   }
+
+  closeAfterToolResult(
+    input: Extract<LegacyResponderStepInputV1, { type: 'tool_result' }>,
+    code: 'tool_budget_exhausted' | 'turn_budget_exhausted',
+  ): number {
+    if (this.closed) throw new Error('Legacy responder tick is already closed');
+    if (!this.started) throw new Error('Legacy responder tool result arrived before start');
+    this.acceptToolResult(input);
+    return this.truncatePending(code);
+  }
+
+  private acceptToolResult(
+    input: Extract<LegacyResponderStepInputV1, { type: 'tool_result' }>,
+  ): void {
+    const expected = this.pending[0];
+    if (
+      !expected
+      || expected.raw.id !== input.providerCallId
+      || expected.raw.function.name !== input.toolName
+    ) {
+      throw new LegacyResponderProtocolErrorV1(
+        'Legacy responder tool result does not match the pending call',
+      );
+    }
+    this.parent.appendToolResult(expected.raw, {
+      output: input.output,
+      isError: input.isError,
+    });
+    this.pending.shift();
+  }
 }
 
 function parseToolArguments(source: string, credential: string): JsonValue {
@@ -736,6 +778,19 @@ function parseToolArguments(source: string, credential: string): JsonValue {
   assertPactJsonComplexityV1(parsed, 'Legacy provider tool arguments');
   const redacted = redactOpenAICompatibleProviderCredentialV1(parsed, credential);
   return redacted as JsonValue;
+}
+
+function parseTerminalCall(
+  call: LegacyProviderToolCallV1,
+  parse: () => PactPairTerminalDecisionV1,
+): PactPairTerminalDecisionV1 {
+  try {
+    return parse();
+  } catch {
+    throw new LegacyResponderProtocolErrorV1(
+      `Legacy provider returned invalid arguments for ${call.function.name}`,
+    );
+  }
 }
 
 function assertUniqueCallIds(calls: LegacyProviderToolCallV1[]): void {

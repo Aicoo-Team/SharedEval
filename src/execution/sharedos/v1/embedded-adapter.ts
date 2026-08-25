@@ -274,7 +274,9 @@ export class EmbeddedSharedOsAdapterV1 implements SharedOsExecutionAdapterV1 {
     // permission filtering yields a different effective tool set than
     // the host declared at init, refuse to run the turn.
     const effectiveTools = [...new Set(tools.map(tool => tool.name))].sort();
-    const expectedTools = [...new Set(state.expectedVisibleTools)].sort();
+    const expectedTools = [...(
+      parsed.expectedVisibleTools ?? state.expectedVisibleTools
+    )].sort();
     if (
       effectiveTools.length !== expectedTools.length
       || effectiveTools.some((name, index) => name !== expectedTools[index])

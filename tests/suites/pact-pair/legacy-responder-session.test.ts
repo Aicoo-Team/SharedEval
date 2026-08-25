@@ -203,3 +203,54 @@ test('mixed terminal and ordinary tool calls fail closed after closing the trans
   await assert.rejects(() => tick.next({ type: 'start' }), /mixed terminal and ordinary/i);
   assertNoDanglingToolCalls(responder.privateTranscript());
 });
+
+test('provider tool-call identifiers remain unique across the persistent transcript', async () => {
+  const responder = session(async () => response([
+    call('reused-terminal-id', 'pact_answer', { content: 'safe answer' }),
+  ]));
+  await responder.initialize({ sessionId: 'session-1', publicChecklist: [task] });
+
+  const first = responder.beginTick({
+    tick: 1,
+    task,
+    requesterPrompt: task.prompt,
+    grantedAccess: access,
+    visibleToolNames: ['search_notes'],
+    deadlineMs: Date.now() + 1_000,
+  });
+  assert.equal((await first.next({ type: 'start' })).type, 'answer');
+
+  const second = responder.beginTick({
+    tick: 2,
+    task,
+    requesterPrompt: 'Please answer again',
+    grantedAccess: access,
+    visibleToolNames: ['search_notes'],
+    deadlineMs: Date.now() + 1_000,
+  });
+  await assert.rejects(
+    () => second.next({ type: 'start' }),
+    /reused a tool-call identifier/i,
+  );
+  assertNoDanglingToolCalls(responder.privateTranscript());
+});
+
+test('invalid terminal arguments are a closed provider protocol failure', async () => {
+  const responder = session(async () => response([
+    call('invalid-terminal', 'pact_answer', { reason: 'wrong schema' }),
+  ]));
+  await responder.initialize({ sessionId: 'session-1', publicChecklist: [task] });
+  const tick = responder.beginTick({
+    tick: 1,
+    task,
+    requesterPrompt: task.prompt,
+    grantedAccess: access,
+    visibleToolNames: ['search_notes'],
+    deadlineMs: Date.now() + 1_000,
+  });
+  await assert.rejects(
+    () => tick.next({ type: 'start' }),
+    /invalid arguments for pact_answer/i,
+  );
+  assertNoDanglingToolCalls(responder.privateTranscript());
+});

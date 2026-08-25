@@ -68,6 +68,12 @@ export const DEFAULT_TURN_TIMEOUT_MS_V1 = 120_000;
 export const MAX_TURN_TIMEOUT_MS_V1 = 300_000;
 /** Matches the `maxSteps` bound in the SharedOS ExecutionOptions schema. */
 export const MAX_TURN_STEPS_V1 = 1_000;
+const sharedOsVisibleToolListV1Schema = z
+  .array(sharedOsIdentifierV1Schema)
+  .max(MAX_TURN_STEPS_V1)
+  .refine(names => new Set(names).size === names.length, {
+    message: 'expectedVisibleTools must contain unique tool names',
+  });
 
 /** Mirrors the SharedOS protocol version literal. */
 export const SHAREDOS_PROTOCOL_VERSION_V1 = '1' as const;
@@ -148,7 +154,7 @@ export const sharedOsWorldInitV1Schema = z
      * mismatch (SharedOS remains the authority on what the model sees;
      * PACT refuses to run when authority and expectation disagree).
      */
-    expectedVisibleTools: z.array(sharedOsIdentifierV1Schema),
+    expectedVisibleTools: sharedOsVisibleToolListV1Schema,
   })
   .strict();
 export type SharedOsWorldInitV1 = z.infer<typeof sharedOsWorldInitV1Schema>;
@@ -206,6 +212,12 @@ export const sharedOsTurnRequestV1Schema = z
     turnId: sharedOsIdentifierV1Schema,
     message: sharedOsTurnMessageV1Schema,
     options: sharedOsTurnOptionsV1Schema.default({}),
+    /**
+     * Persistent worlds may recompute a narrower host grant at each tick.
+     * When present, this exact tool list replaces the init-time expectation
+     * for this turn; the adapter still fails closed on any visibility drift.
+     */
+    expectedVisibleTools: sharedOsVisibleToolListV1Schema.optional(),
   })
   .strict();
 export type SharedOsTurnRequestV1 = z.infer<typeof sharedOsTurnRequestV1Schema>;

@@ -59,6 +59,21 @@ test('turn options default to the SharedOS 120s timeout and reject above-maximum
   assert.equal(overSteps.success, false);
 });
 
+test('a persistent world may bind a unique expected tool surface per turn', () => {
+  const parsed = sharedOsTurnRequestV1Schema.parse({
+    turnId: 'trajectory-1:tick-2',
+    message: { intent: 'go', purpose: 'benchmark' },
+    expectedVisibleTools: ['search_notes', 'get_note'],
+  });
+  assert.deepEqual(parsed.expectedVisibleTools, ['search_notes', 'get_note']);
+
+  assert.equal(sharedOsTurnRequestV1Schema.safeParse({
+    turnId: 'trajectory-1:tick-2',
+    message: { intent: 'go', purpose: 'benchmark' },
+    expectedVisibleTools: ['search_notes', 'search_notes'],
+  }).success, false);
+});
+
 test('world init requires a fresh namespace and a host-measured sha256 digest', () => {
   const base = {
     worldId: 'world-1',

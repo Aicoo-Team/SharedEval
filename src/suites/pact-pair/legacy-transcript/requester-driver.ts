@@ -24,6 +24,7 @@ export type LegacyRequesterSubstrateStatusV1 =
   | 'budget'
   | 'provider_error'
   | 'protocol_error'
+  | 'kernel_error'
   | 'timeout';
 
 export type LegacyRequesterOutcomeV1 = {
