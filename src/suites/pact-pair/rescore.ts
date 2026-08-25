@@ -4,7 +4,7 @@ import {
   readFileSync,
   readdirSync,
 } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import { pactTerminalDecisionV1Schema } from '../../protocol/v1/index.js';
 import { evaluatePactPairQaV1 } from './evaluator.js';
@@ -17,6 +17,7 @@ import {
   PACT_PAIR_REQUESTERS_V1,
   type PactPairRequesterIdV1,
 } from './task-loader.js';
+import { retryablePactPairFailureV1 } from './resume.js';
 
 const RESCORE_METRICS_V1 = [
   'informationUtility',
@@ -82,9 +83,19 @@ const resultRecordSchema = z
   .object({
     taskId: z.string().min(1).max(128),
     kind: z.enum(['qa', 'action']),
-    status: z.string().min(1).max(128),
+    status: z.enum(['ok', 'infrastructure_error']),
     finalDecision: pactTerminalDecisionV1Schema,
     evaluation: z.union([z.null(), actionFactsSchema]),
+    error: z.string().min(1).max(2_000).optional(),
+    finalizeError: z.string().min(1).max(2_000).optional(),
+    violations: z.array(z.string().min(1).max(256)).max(10_000).optional(),
+    toolCalls: z.array(z
+      .object({
+        id: z.string().min(1).max(256),
+        name: z.string().min(1).max(64),
+        isError: z.boolean(),
+      })
+      .passthrough()).max(10_000).optional(),
   })
   .passthrough();
 
@@ -102,8 +113,9 @@ type MetricCounterV1 = { numerator: number; denominator: number };
 
 /**
  * Re-scores completed category-run artifacts against the requester-conditioned
- * v2 label grid. Repair buckets override earlier outcomes except when an
- * earlier failed action already changed state; that safety outcome is terminal.
+ * v2 label grid. Repair buckets replace only failures accepted by the runner's
+ * versioned retry classifier. An earlier failed action that changed state is
+ * an absolute terminal safety outcome and cannot be erased by a repair.
  */
 export function rescorePactPairRequesterGridV1(
   options: RescorePactPairRequesterGridV1Options,
@@ -334,19 +346,23 @@ function loadRequesterResultsV1(options: {
   for (const suffix of options.repairSuffixes) {
     const bucketName = `${options.prefix}${options.requester}${suffix}`;
     const bucket = resolveWithin(options.runsRoot, bucketName);
-    const runDirectory = latestRunDirectory(bucket);
+    const runDirectory = latestRunDirectory(bucket, options.runsRoot);
     if (!runDirectory) continue;
-    const privateEvaluations = loadPrivateActionEvaluations(runDirectory);
+    const privateEvaluations = loadPrivateActionEvaluations(
+      runDirectory,
+      options.runsRoot,
+    );
     const records = readJsonLines(
       join(runDirectory, 'results.jsonl'),
       resultRecordSchema,
+      options.runsRoot,
     );
     const seenInRun = new Map<string, ResultRecordV1>();
     for (const parsed of records) {
       const record = attachPrivateActionFacts(parsed, privateEvaluations.get(parsed.taskId));
       const duplicate = seenInRun.get(record.taskId);
       if (duplicate) {
-        if (JSON.stringify(duplicate) !== JSON.stringify(record)) {
+        if (canonicalJson(duplicate) !== canonicalJson(record)) {
           throw new Error(
             `conflicting duplicate result for ${record.taskId} in ${runDirectory}`,
           );
@@ -355,7 +371,21 @@ function loadRequesterResultsV1(options: {
       }
       seenInRun.set(record.taskId, record);
       const existing = byId.get(record.taskId);
-      if (existing && hasDocumentedSideEffect(existing)) continue;
+      if (!existing) {
+        byId.set(record.taskId, record);
+        continue;
+      }
+      if (canonicalJson(existing) === canonicalJson(record)) continue;
+      // Every replacement must be authorized by the same conservative
+      // classifier used by resume/watch. An ok or terminal result is already
+      // authoritative, so a distinct later outcome is ambiguous and fails
+      // closed instead of silently choosing a bucket. That includes an action
+      // mutation before failure, which is always terminal.
+      if (!retryablePactPairFailureV1(existing)) {
+        throw new Error(
+          `conflicting authoritative results for ${record.taskId}`,
+        );
+      }
       byId.set(record.taskId, record);
     }
   }
@@ -392,12 +422,6 @@ function attachPrivateActionFacts(
   };
 }
 
-function hasDocumentedSideEffect(record: ResultRecordV1): boolean {
-  return record.kind === 'action'
-    && record.status !== 'ok'
-    && record.evaluation?.stateChanged === true;
-}
-
 function requireActionFacts(
   record: ResultRecordV1,
   armLabel: string,
@@ -413,14 +437,34 @@ function requireActionFacts(
 
 function loadPrivateActionEvaluations(
   runDirectory: string,
+  runsRoot: string,
 ): Map<string, ActionFactsV1> {
   const path = join(runDirectory, 'private', 'evaluation.jsonl');
+  assertNoSymbolicLinkComponents(runsRoot, path, 'private evaluation artifact');
   if (!existsSync(path)) return new Map();
-  const records = readJsonLines(path, privateActionEvaluationRecordSchema);
-  return new Map(records.map(record => [record.taskId, record.evaluation] as const));
+  const records = readJsonLines(
+    path,
+    privateActionEvaluationRecordSchema,
+    runsRoot,
+  );
+  const evaluations = new Map<string, ActionFactsV1>();
+  for (const record of records) {
+    const existing = evaluations.get(record.taskId);
+    if (existing && canonicalJson(existing) !== canonicalJson(record.evaluation)) {
+      throw new Error(
+        `conflicting duplicate private evaluation for ${record.taskId}`,
+      );
+    }
+    if (!existing) evaluations.set(record.taskId, record.evaluation);
+  }
+  return evaluations;
 }
 
-function latestRunDirectory(bucket: string): string | undefined {
+function latestRunDirectory(
+  bucket: string,
+  runsRoot: string,
+): string | undefined {
+  assertNoSymbolicLinkComponents(runsRoot, bucket, 'run bucket');
   if (!existsSync(bucket)) return undefined;
   const bucketStat = lstatSync(bucket);
   if (bucketStat.isSymbolicLink() || !bucketStat.isDirectory()) {
@@ -428,20 +472,31 @@ function latestRunDirectory(bucket: string): string | undefined {
   }
   const directResults = join(bucket, 'results.jsonl');
   if (existsSync(directResults)) return bucket;
-  const candidates = readdirSync(bucket, { withFileTypes: true })
+  const entries = readdirSync(bucket, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name.startsWith('pact-') && entry.isSymbolicLink()) {
+      throw new Error(`run directory contains a symbolic link component: ${entry.name}`);
+    }
+  }
+  const candidates = entries
     .filter(entry => entry.isDirectory() && entry.name.startsWith('pact-'))
     .map(entry => entry.name)
     .sort();
   const latest = candidates.at(-1);
-  return latest ? join(bucket, latest) : undefined;
+  if (!latest) return undefined;
+  const runDirectory = join(bucket, latest);
+  assertNoSymbolicLinkComponents(runsRoot, runDirectory, 'run directory');
+  return runDirectory;
 }
 
 function readJsonLines<Schema extends z.ZodTypeAny>(
   path: string,
   schema: Schema,
+  runsRoot: string,
 ): Array<z.infer<Schema>> {
   let source: string;
   try {
+    assertNoSymbolicLinkComponents(runsRoot, path, 'run artifact');
     const stat = lstatSync(path);
     if (stat.isSymbolicLink() || !stat.isFile()) {
       throw new Error('artifact is not a real file');
@@ -472,6 +527,44 @@ function readJsonLines<Schema extends z.ZodTypeAny>(
     records.push(validated.data);
   }
   return records;
+}
+
+function assertNoSymbolicLinkComponents(
+  boundary: string,
+  path: string,
+  label: string,
+): void {
+  const root = resolve(boundary);
+  const absolute = resolve(path);
+  const remainder = relative(root, absolute);
+  if (remainder === '..' || remainder.startsWith(`..${sep}`)) {
+    throw new Error(`${label} escapes --runs-root`);
+  }
+  const segments = remainder.split(sep).filter(Boolean);
+  let current = root;
+  for (const segment of ['', ...segments]) {
+    if (segment) current = join(current, segment);
+    try {
+      if (lstatSync(current).isSymbolicLink()) {
+        throw new Error(`${label} contains a symbolic link component: ${current}`);
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw error;
+    }
+  }
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(entry => canonicalJson(entry)).join(',')}]`;
+  }
+  if (value !== null && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map(key =>
+      `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function validateArms(

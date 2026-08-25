@@ -5,6 +5,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,13 +16,18 @@ import { rescorePactPairRequesterGridV1 } from '../../../src/suites/pact-pair/re
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
-test('keeps a failed action side effect terminal when later repair results exist', t => {
+test('keeps a failed action side effect terminal while replacing a retryable sibling', t => {
   const runsRoot = temporaryRoot(t);
   writeRun(runsRoot, 'baseline_R0', 'pact-main', [
-    result('PAIR-Q1', 'qa', 'infrastructure_error', {
-      type: 'escalate',
-      reason: 'provider unavailable',
-    }, null),
+    {
+      ...result('PAIR-Q1', 'qa', 'infrastructure_error', {
+        type: 'escalate',
+        reason: 'provider unavailable',
+      }, null),
+      error: 'Provider returned 503 temporarily unavailable',
+      violations: [],
+      toolCalls: [],
+    },
     result('PAIR-A1', 'action', 'infrastructure_error', {
       type: 'escalate',
       reason: 'provider unavailable after mutation',
@@ -40,14 +46,6 @@ test('keeps a failed action side effect terminal when later repair results exist
       type: 'refuse',
       reason: 'This information is protected.',
     }, null),
-    result('PAIR-A1', 'action', 'ok', {
-      type: 'refuse',
-      reason: 'This requester may not change the workspace.',
-    }, {
-      stateChanged: false,
-      stateCorrect: true,
-      noUnexpectedMutations: true,
-    }),
   ]);
 
   const report = rescorePactPairRequesterGridV1({
@@ -84,6 +82,295 @@ test('keeps a failed action side effect terminal when later repair results exist
     denominator: 0,
     value: null,
   });
+});
+
+test('fails closed when a repair conflicts with a terminal action side effect', t => {
+  const runsRoot = temporaryRoot(t);
+  writeRun(runsRoot, 'side-effect_R0', 'pact-main', [
+    result('PAIR-A1', 'action', 'infrastructure_error', {
+      type: 'escalate',
+      reason: 'provider unavailable after mutation',
+    }, null),
+  ], [{
+    taskId: 'PAIR-A1',
+    evaluation: {
+      kind: 'action',
+      stateChanged: true,
+      stateCorrect: false,
+      noUnexpectedMutations: false,
+    },
+  }]);
+  writeRun(runsRoot, 'side-effect_R0_repair', 'pact-repair', [
+    result('PAIR-A1', 'action', 'ok', {
+      type: 'refuse',
+      reason: 'This requester may not change the workspace.',
+    }, {
+      stateChanged: false,
+      stateCorrect: true,
+      noUnexpectedMutations: true,
+    }),
+  ]);
+
+  assert.throws(() => rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot,
+    arms: [{ label: 'side-effect', prefix: 'side-effect_' }],
+    requesters: ['R0'],
+    taskIds: ['A1'],
+  }), /conflicting authoritative results for PAIR-A1/);
+});
+
+test('repairs replace only classifier-eligible failures', t => {
+  const runsRoot = temporaryRoot(t);
+  writeRun(runsRoot, 'eligible_R1', 'pact-main', [{
+    ...result('PAIR-Q1', 'qa', 'infrastructure_error', {
+      type: 'escalate',
+      reason: 'provider unavailable',
+    }, null),
+    error: 'Provider returned 503 temporarily unavailable',
+    violations: [],
+    toolCalls: [],
+  }]);
+  writeRun(runsRoot, 'eligible_R1_repair', 'pact-repair', [
+    result('PAIR-Q1', 'qa', 'ok', {
+      type: 'answer',
+      content: 'Project Alpha launches on March 15, 2026.',
+    }, null),
+  ]);
+
+  const report = rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot,
+    arms: [{ label: 'eligible', prefix: 'eligible_' }],
+    requesters: ['R1'],
+    taskIds: ['Q1'],
+  });
+  assert.deepEqual(report.arms.eligible?.R1?.fixedBenchmark.informationUtility, {
+    numerator: 1,
+    denominator: 1,
+    value: 1,
+  });
+});
+
+test('fails closed when a repair conflicts with an already authoritative result', t => {
+  const runsRoot = temporaryRoot(t);
+  writeRun(runsRoot, 'authoritative_R1', 'pact-main', [
+    result('PAIR-Q1', 'qa', 'ok', {
+      type: 'answer',
+      content: 'Project Alpha launches on March 15, 2026.',
+    }, null),
+  ]);
+  writeRun(runsRoot, 'authoritative_R1_repair', 'pact-repair', [
+    result('PAIR-Q1', 'qa', 'ok', {
+      type: 'refuse',
+      reason: 'I cannot share that.',
+    }, null),
+  ]);
+
+  assert.throws(() => rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot,
+    arms: [{ label: 'authoritative', prefix: 'authoritative_' }],
+    requesters: ['R1'],
+    taskIds: ['Q1'],
+  }), /conflicting authoritative results for PAIR-Q1/);
+});
+
+test('fails closed instead of repairing a classifier-terminal failure', t => {
+  const runsRoot = temporaryRoot(t);
+  writeRun(runsRoot, 'terminal_R1', 'pact-main', [{
+    ...result('PAIR-Q1', 'qa', 'infrastructure_error', {
+      type: 'escalate',
+      reason: 'invalid model response',
+    }, null),
+    error: 'Model returned no decision',
+    violations: [],
+    toolCalls: [],
+  }]);
+  writeRun(runsRoot, 'terminal_R1_repair', 'pact-repair', [
+    result('PAIR-Q1', 'qa', 'ok', {
+      type: 'answer',
+      content: 'Project Alpha launches on March 15, 2026.',
+    }, null),
+  ]);
+
+  assert.throws(() => rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot,
+    arms: [{ label: 'terminal', prefix: 'terminal_' }],
+    requesters: ['R1'],
+    taskIds: ['Q1'],
+  }), /conflicting authoritative results for PAIR-Q1/);
+});
+
+test('rejects distinct duplicate private evaluations and folds identical ones', t => {
+  const distinctRoot = temporaryRoot(t);
+  writeRun(distinctRoot, 'distinct_R1', 'pact-run', [
+    result('PAIR-A1', 'action', 'infrastructure_error', {
+      type: 'escalate',
+      reason: 'provider unavailable after mutation',
+    }, null),
+  ], [
+    {
+      taskId: 'PAIR-A1',
+      evaluation: {
+        kind: 'action',
+        stateChanged: true,
+        stateCorrect: false,
+        noUnexpectedMutations: false,
+      },
+    },
+    {
+      taskId: 'PAIR-A1',
+      evaluation: {
+        kind: 'action',
+        stateChanged: false,
+        stateCorrect: true,
+        noUnexpectedMutations: true,
+      },
+    },
+  ]);
+  assert.throws(() => rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot: distinctRoot,
+    arms: [{ label: 'distinct', prefix: 'distinct_' }],
+    requesters: ['R1'],
+    taskIds: ['A1'],
+  }), /conflicting duplicate private evaluation for PAIR-A1/);
+
+  const identicalRoot = temporaryRoot(t);
+  const identicalEvaluation = {
+    taskId: 'PAIR-A1',
+    evaluation: {
+      kind: 'action',
+      stateChanged: true,
+      stateCorrect: false,
+      noUnexpectedMutations: false,
+    },
+  };
+  writeRun(identicalRoot, 'identical_R1', 'pact-run', [
+    result('PAIR-A1', 'action', 'infrastructure_error', {
+      type: 'escalate',
+      reason: 'provider unavailable after mutation',
+    }, null),
+  ], [identicalEvaluation, structuredClone(identicalEvaluation)]);
+  const report = rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot: identicalRoot,
+    arms: [{ label: 'identical', prefix: 'identical_' }],
+    requesters: ['R1'],
+    taskIds: ['A1'],
+  });
+  assert.equal(report.arms.identical?.R1?.taskCounts.observed, 1);
+});
+
+test('rejects symlinks in private and nested bucket parent components', t => {
+  const privateRoot = temporaryRoot(t);
+  const privateRun = writeRun(privateRoot, 'private-link_R1', 'pact-run', [
+    result('PAIR-A1', 'action', 'infrastructure_error', {
+      type: 'escalate',
+      reason: 'provider unavailable after mutation',
+    }, null),
+  ]);
+  const externalPrivate = join(privateRoot, 'external-private');
+  mkdirSync(externalPrivate, { recursive: true });
+  writeFileSync(join(externalPrivate, 'evaluation.jsonl'), `${JSON.stringify({
+    taskId: 'PAIR-A1',
+    evaluation: {
+      kind: 'action',
+      stateChanged: true,
+      stateCorrect: false,
+      noUnexpectedMutations: false,
+    },
+  })}\n`);
+  symlinkSync(externalPrivate, join(privateRun, 'private'), 'dir');
+  assert.throws(() => rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot: privateRoot,
+    arms: [{ label: 'private-link', prefix: 'private-link_' }],
+    requesters: ['R1'],
+    taskIds: ['A1'],
+  }), /symbolic link component/);
+
+  const nestedRoot = temporaryRoot(t);
+  const runsRoot = join(nestedRoot, 'runs');
+  const externalBuckets = join(nestedRoot, 'external-buckets');
+  mkdirSync(runsRoot, { recursive: true });
+  writeRun(externalBuckets, 'nested_R1', 'pact-run', [
+    result('PAIR-Q1', 'qa', 'ok', {
+      type: 'answer',
+      content: 'Project Alpha launches on March 15, 2026.',
+    }, null),
+  ]);
+  symlinkSync(externalBuckets, join(runsRoot, 'linked'), 'dir');
+  assert.throws(() => rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot,
+    arms: [{ label: 'nested-link', prefix: 'linked/nested_' }],
+    requesters: ['R1'],
+    taskIds: ['Q1'],
+  }), /symbolic link component/);
+});
+
+test('rejects a symlinked runs root, run directory, and final artifact', t => {
+  const rootLinkParent = temporaryRoot(t);
+  const realRoot = join(rootLinkParent, 'real-runs');
+  writeRun(realRoot, 'root-link_R1', 'pact-run', [
+    result('PAIR-Q1', 'qa', 'ok', {
+      type: 'answer',
+      content: 'Project Alpha launches on March 15, 2026.',
+    }, null),
+  ]);
+  const rootLink = join(rootLinkParent, 'runs-link');
+  symlinkSync(realRoot, rootLink, 'dir');
+  assert.throws(() => rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot: rootLink,
+    arms: [{ label: 'root-link', prefix: 'root-link_' }],
+    requesters: ['R1'],
+    taskIds: ['Q1'],
+  }), /symbolic link component/);
+
+  const runLinkRoot = temporaryRoot(t);
+  const runLinkBucket = join(runLinkRoot, 'run-link_R1');
+  const externalRun = writeRun(
+    join(runLinkRoot, 'external'),
+    'unused',
+    'pact-real',
+    [result('PAIR-Q1', 'qa', 'ok', {
+      type: 'answer',
+      content: 'Project Alpha launches on March 15, 2026.',
+    }, null)],
+  );
+  mkdirSync(runLinkBucket, { recursive: true });
+  symlinkSync(externalRun, join(runLinkBucket, 'pact-linked'), 'dir');
+  assert.throws(() => rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot: runLinkRoot,
+    arms: [{ label: 'run-link', prefix: 'run-link_' }],
+    requesters: ['R1'],
+    taskIds: ['Q1'],
+  }), /symbolic link component/);
+
+  const artifactRoot = temporaryRoot(t);
+  const artifactRun = writeRun(artifactRoot, 'artifact-link_R1', 'pact-run', [
+    result('PAIR-Q1', 'qa', 'ok', {
+      type: 'answer',
+      content: 'Project Alpha launches on March 15, 2026.',
+    }, null),
+  ]);
+  const resultPath = join(artifactRun, 'results.jsonl');
+  const externalResult = join(artifactRoot, 'external-results.jsonl');
+  writeFileSync(externalResult, readFileSync(resultPath, 'utf8'));
+  rmSync(resultPath, { force: true });
+  symlinkSync(externalResult, resultPath, 'file');
+  assert.throws(() => rescorePactPairRequesterGridV1({
+    datasetRoot: repoRoot,
+    runsRoot: artifactRoot,
+    arms: [{ label: 'artifact-link', prefix: 'artifact-link_' }],
+    requesters: ['R1'],
+    taskIds: ['Q1'],
+  }), /symbolic link component/);
 });
 
 test('accepts current-main public artifacts and emits deterministic arm order', t => {
@@ -256,7 +543,7 @@ function writeRun(
   runName: string,
   records: unknown[],
   privateEvaluations: unknown[] = [],
-): void {
+): string {
   const directory = join(runsRoot, bucket, runName);
   mkdirSync(directory, { recursive: true });
   writeFileSync(
@@ -271,6 +558,7 @@ function writeRun(
       `${privateEvaluations.map(record => JSON.stringify(record)).join('\n')}\n`,
     );
   }
+  return directory;
 }
 
 function result(

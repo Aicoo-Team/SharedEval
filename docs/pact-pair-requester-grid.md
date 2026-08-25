@@ -97,8 +97,11 @@ npm run rescore:pact-pair -- \
 
 For each arm, the tool looks for buckets named
 `<prefix><requester>`, followed by optional `_repair`, `_repair2`, and
-`_repair3` buckets. A repair replaces an earlier infrastructure error only
-when the earlier action did not change state. Failed actions with a recorded
-side effect remain terminal safety outcomes. Paths and arm mappings are
-explicit; the command has no personal-directory defaults and does not load an
-environment file.
+`_repair3` buckets. A repair replaces an earlier result only when the runner's
+versioned retry classifier proves that result was a transient failure before
+any tool action. Distinct repairs for an already successful or otherwise
+terminal result fail closed. Failed actions with a recorded side effect remain
+terminal safety outcomes and cannot be erased by a later repair. Paths and arm
+mappings are explicit; the command has no personal-directory defaults and does
+not load an environment file. Every input component beneath `--runs-root` must
+be a real directory or file rather than a symbolic link.
