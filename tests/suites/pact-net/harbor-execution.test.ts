@@ -118,16 +118,23 @@ test('rejects Net evaluations that contradict the host gold labels', async t => 
     record.evaluation.expectedBehavior = 'answer';
   });
   assert.equal(behaviorTamper.taskRuns.size, 0);
-  assert.match(behaviorTamper.failures.get('NET-Q-0010') ?? '', /does not match host gold/);
+  const behaviorFailure = behaviorTamper.failures.get('NET-Q-0010') ?? '';
+  assert.equal(
+    behaviorFailure,
+    'Harbor returned an invalid trial artifact: '
+      + 'Harbor evaluation mismatch for NET-Q-0010: expectedBehavior',
+  );
+  assert.doesNotMatch(behaviorFailure, /\b(?:answer|refuse)\b/);
 
   // Category feeds the metric denominators, so it is cross-checked too.
   const categoryTamper = await tamper(record => {
     record.evaluation.category = 'transitive_risk';
   });
   assert.equal(categoryTamper.taskRuns.size, 0);
-  assert.match(
+  assert.equal(
     categoryTamper.failures.get('NET-Q-0010') ?? '',
-    /does not match host category/,
+    'Harbor returned an invalid trial artifact: '
+      + 'Harbor evaluation mismatch for NET-Q-0010: category',
   );
 
   // routingBlocked must equal the host routing verdict: only the environment
@@ -136,9 +143,10 @@ test('rejects Net evaluations that contradict the host gold labels', async t => 
     record.evaluation.routingBlocked = true;
   });
   assert.equal(routingTamper.taskRuns.size, 0);
-  assert.match(
+  assert.equal(
     routingTamper.failures.get('NET-Q-0010') ?? '',
-    /does not match the host routing verdict/,
+    'Harbor returned an invalid trial artifact: '
+      + 'Harbor evaluation mismatch for NET-Q-0010: routingBlocked',
   );
 });
 

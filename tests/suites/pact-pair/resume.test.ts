@@ -557,6 +557,13 @@ test('retry taxonomy is conservative across action, budget, protocol, and HTTP f
       retryable: false,
     },
     {
+      name: 'side effect before failure',
+      result: infrastructureFailure('provider request failed: 503', {
+        violations: ['side_effect_before_failure'],
+      }),
+      retryable: false,
+    },
+    {
       name: 'unknown infrastructure failure',
       result: infrastructureFailure('unclassified provider failure'),
       retryable: false,

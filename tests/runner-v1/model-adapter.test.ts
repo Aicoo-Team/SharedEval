@@ -559,6 +559,31 @@ test('retries transient provider responses within the request budget', async () 
   assert.equal(calls, 8);
 });
 
+test('uses injectable equal jitter for provider retry delays', async () => {
+  const delays: number[] = [];
+  const randomValues = [0, 1];
+  let calls = 0;
+  const adapter = new OpenAICompatiblePactAdapterV1(validConfig(), {
+    fetch: (async () => {
+      calls += 1;
+      if (calls < 3) return new Response(null, { status: 503 });
+      return jsonResponse({ choices: [{ message: { content: 'Recovered.' } }] });
+    }) as typeof fetch,
+    environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+    retryRandom: () => randomValues.shift() ?? 0,
+    retryWait: async delayMs => {
+      delays.push(delayMs);
+    },
+  });
+  await adapter.initialize(validRunInitV1);
+
+  assert.deepEqual(
+    await adapter.step(taskObservation(deniedAccessV1)),
+    { type: 'answer', content: 'Recovered.' },
+  );
+  assert.deepEqual(delays, [125, 500]);
+});
+
 test('records exhausted provider retries as one failed logical request', async () => {
   let calls = 0;
   const adapter = new OpenAICompatiblePactAdapterV1(validConfig(), {

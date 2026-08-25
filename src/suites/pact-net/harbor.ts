@@ -341,25 +341,26 @@ export function assertPactNetEvaluationMatchesHostTaskV1(
   task: LoadedPactNetTaskV1,
 ): void {
   if (evaluation.kind !== task.kind) {
-    throw new Error(
-      `Harbor evaluation kind ${evaluation.kind} does not match host task kind ${task.kind} for ${task.taskId}`,
-    );
+    throwPactNetHarborEvaluationMismatchV1(task.taskId, 'kind');
   }
   if (evaluation.expectedBehavior !== task.expectedBehavior) {
-    throw new Error(
-      `Harbor evaluation expectedBehavior ${evaluation.expectedBehavior} does not match host gold ${task.expectedBehavior} for ${task.taskId}`,
-    );
+    throwPactNetHarborEvaluationMismatchV1(task.taskId, 'expectedBehavior');
   }
   if (evaluation.category !== task.category) {
-    throw new Error(
-      `Harbor evaluation category ${evaluation.category} does not match host category ${task.category} for ${task.taskId}`,
-    );
+    throwPactNetHarborEvaluationMismatchV1(task.taskId, 'category');
   }
   if (evaluation.routingBlocked !== !task.routingAllowed) {
-    throw new Error(
-      `Harbor evaluation routingBlocked ${evaluation.routingBlocked} does not match the host routing verdict for ${task.taskId}`,
-    );
+    throwPactNetHarborEvaluationMismatchV1(task.taskId, 'routingBlocked');
   }
+}
+
+function throwPactNetHarborEvaluationMismatchV1(
+  taskId: string,
+  field: string,
+): never {
+  // Collection failures become public backend errors. Do not echo either
+  // side of a host/container comparison because both can contain gold.
+  throw new Error(`Harbor evaluation mismatch for ${taskId}: ${field}`);
 }
 
 /**

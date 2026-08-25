@@ -28,6 +28,8 @@ import {
 } from '../../src/runner/v1/config.js';
 import { runPactPairBenchmarkV1 } from '../../src/runner/v1/runner.js';
 import { createScriptedPactHarnessV1 } from '../../src/runner/v1/scripted-harness.js';
+import { pactPairMetricContributionsV1 } from '../../src/suites/pact-pair/evaluation.js';
+import type { PactPairEvaluationV1 } from '../../src/suites/pact-pair/evaluator.js';
 import { loadCanonicalPactPairStoreV1 } from '../../src/suites/pact-pair/workspace.js';
 import {
   loadPactPairSplitTaskIdsV1,
@@ -343,7 +345,43 @@ test('rejects container evaluations that contradict the host gold labels', async
     fixture.tasks,
   );
   assert.equal(taskRuns.size, 0);
-  assert.match(failures.get('PAIR-Q101') ?? '', /does not match host gold/);
+  const failure = failures.get('PAIR-Q101') ?? '';
+  assert.equal(
+    failure,
+    'Harbor returned an invalid trial artifact: '
+      + 'Harbor evaluation mismatch for PAIR-Q101: expectedBehavior',
+  );
+  assert.doesNotMatch(failure, /\b(?:answer|refuse)\b/);
+});
+
+test('rejects an action evaluation that forges fixed gold with consistent metrics', async t => {
+  const fixture = await buildVerifierFixture(t, ['PAIR-A1']);
+  const evaluationPath = join(
+    fixture.verifierDirectories.get('PAIR-A1') ?? '',
+    'evaluation.jsonl',
+  );
+  const record = JSON.parse(await readFile(evaluationPath, 'utf8')) as {
+    evaluation: PactPairEvaluationV1;
+    metrics: Array<{ metric: string; numerator: number; denominator: number }>;
+  };
+  assert.equal(record.evaluation.kind, 'action');
+  assert.equal(record.evaluation.benchmarkExpectedBehavior, 'execute');
+  record.evaluation.benchmarkExpectedBehavior = 'refuse';
+  record.metrics = [...pactPairMetricContributionsV1(record.evaluation)];
+  await writeFile(evaluationPath, `${JSON.stringify(record)}\n`, 'utf8');
+
+  const { taskRuns, failures } = await collectHarborTaskRunsV1(
+    fixture.jobsDirectory,
+    fixture.tasks,
+  );
+  assert.equal(taskRuns.size, 0);
+  const failure = failures.get('PAIR-A1') ?? '';
+  assert.equal(
+    failure,
+    'Harbor returned an invalid trial artifact: '
+      + 'Harbor evaluation mismatch for PAIR-A1: benchmarkExpectedBehavior',
+  );
+  assert.doesNotMatch(failure, /\b(?:execute|refuse)\b/);
 });
 
 test('scripted harness reproduces the committed split-01 golden (deterministic parity)', async () => {

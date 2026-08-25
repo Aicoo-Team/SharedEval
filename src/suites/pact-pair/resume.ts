@@ -267,6 +267,7 @@ export function retryablePactPairFailureV1(
     || violations.has('max_runtime_ms_exceeded')
     || violations.has('max_turns_exceeded')
     || violations.has('max_tool_calls_exceeded')
+    || violations.has('side_effect_before_failure')
   ) return false;
   const message = result.error ?? '';
   if (NON_RETRYABLE_MODEL_FAILURE_PATTERN_V1.test(message)) return false;
@@ -349,6 +350,12 @@ export type LoadPactPairResumeStateV1Options = {
   benchmark: PactRunMetadataV1['benchmark'];
   budget: PactRunMetadataV1['budget'];
   policyProvenance: PactRunMetadataV1['policyProvenance'];
+  requesterIdentityProvenance: NonNullable<
+    PactRunMetadataV1['requesterIdentityProvenance']
+  >;
+  relationshipLabelProvenance?: NonNullable<
+    PactRunMetadataV1['relationshipLabelProvenance']
+  >;
   sourceRevision?: string;
   seed: PairDataStore;
 };
@@ -913,6 +920,24 @@ export async function loadPactPairResumeStateV1(
     throw new Error(
       `Cannot resume ${options.runDirectory}: recorded policy provenance `
       + 'does not match the current host policy',
+    );
+  }
+  if (
+    canonicalJson(metadata.requesterIdentityProvenance)
+    !== canonicalJson(options.requesterIdentityProvenance)
+  ) {
+    throw new Error(
+      `Cannot resume ${options.runDirectory}: recorded requester identity `
+      + 'provenance does not match the current task source',
+    );
+  }
+  if (
+    canonicalJson(metadata.relationshipLabelProvenance)
+    !== canonicalJson(options.relationshipLabelProvenance)
+  ) {
+    throw new Error(
+      `Cannot resume ${options.runDirectory}: recorded relationship label `
+      + 'provenance does not match the current task source',
     );
   }
   if (metadata.sourceRevision !== options.sourceRevision) {
