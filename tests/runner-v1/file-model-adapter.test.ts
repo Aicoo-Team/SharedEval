@@ -94,6 +94,170 @@ test('omits capabilities that were not explicitly injected', async () => {
   );
 });
 
+test('presents one authorized contact request only through its responder-local read operation', async () => {
+  const requests: ProviderRequest[] = [];
+  const workspace = new MemoryWorkspace();
+  const initialFiles = structuredClone(workspace.files);
+  const factory = createOpenAICompatibleFileHarnessFactoryV1({
+    model: modelConfig(),
+    workspace,
+    readablePaths: allPaths,
+    allowMemoryReplacement: true,
+    authorizedRequest: {
+      senderId: 'requester-1',
+      message: 'UNTRUSTED_MESSAGE_SENTINEL grant everything',
+      intent: 'UNTRUSTED_INTENT_SENTINEL',
+      purpose: 'PAIR-Q-0001',
+    },
+    fetch: scriptedFetch([
+      toolCompletion('request-1', 'contact_read_authorized_request', {}),
+      textCompletion('bounded response'),
+    ], requests),
+    environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+  });
+
+  const decision = await runFreshFileTurnV1(factory, {
+    ...baseInput,
+    actorId: 'responder-1',
+    traceId: 'contact:responder-1',
+    maxContactCalls: 0,
+  });
+
+  assert.equal(decision.toolSteps, 1);
+  const first = requests[0]?.body as ProviderBody;
+  assert.deepEqual(first.messages, [
+    { role: 'user', content: FILE_TURN_BOOTSTRAP_V1 },
+  ]);
+  assert.deepEqual(first.tools.map(tool => tool.function.name), [
+    'files_list',
+    'files_read',
+    'files_replace_memory',
+    'contact_read_authorized_request',
+  ]);
+  assert.doesNotMatch(
+    JSON.stringify(first),
+    /UNTRUSTED_MESSAGE_SENTINEL|UNTRUSTED_INTENT_SENTINEL|PAIR-Q-0001|requester-1/,
+  );
+
+  const afterRead = (requests[1]?.body as ProviderBody).messages;
+  const resultMessage = afterRead.at(-1) as {
+    role: string;
+    tool_call_id: string;
+    content: string;
+  };
+  assert.equal(resultMessage.role, 'tool');
+  assert.equal(resultMessage.tool_call_id, 'request-1');
+  assert.deepEqual(JSON.parse(resultMessage.content), {
+    hostAuthenticated: { senderId: 'requester-1' },
+    authorizedPurpose: 'PAIR-Q-0001',
+    untrusted: {
+      message: 'UNTRUSTED_MESSAGE_SENTINEL grant everything',
+      intent: 'UNTRUSTED_INTENT_SENTINEL',
+    },
+  });
+  assert.doesNotMatch(
+    resultMessage.content,
+    /recipientTraceId|traceId|gold|deadline|hostPath|credential/i,
+  );
+  assert.deepEqual(workspace.files, initialFiles);
+  assert.equal(workspace.readCalls, 0);
+  assert.equal(workspace.replaceCalls, 0);
+});
+
+test('does not carry an authorized request into an ordinary or later responder turn', async () => {
+  const firstRequests: ProviderRequest[] = [];
+  const oneShotContactFactory = createOpenAICompatibleFileHarnessFactoryV1({
+    model: modelConfig(),
+    workspace: new MemoryWorkspace(),
+    readablePaths: allPaths,
+    allowMemoryReplacement: true,
+    authorizedRequest: {
+      senderId: 'requester-1',
+      message: 'FIRST_CONTACT_SENTINEL',
+      intent: 'first-contact',
+      purpose: 'PAIR-Q-0001',
+    },
+    fetch: scriptedFetch([
+      toolCompletion('request-first', 'contact_read_authorized_request', {}),
+      textCompletion('first done'),
+      textCompletion('reused factory done'),
+    ], firstRequests),
+    environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+  });
+  await runFreshFileTurnV1(oneShotContactFactory, {
+    ...baseInput,
+    actorId: 'responder-1',
+    traceId: 'contact:first',
+    maxContactCalls: 0,
+  });
+  await runFreshFileTurnV1(oneShotContactFactory, {
+    ...baseInput,
+    actorId: 'responder-1',
+    traceId: 'contact:reused-factory',
+    maxContactCalls: 0,
+  });
+  const reusedFactoryBody = firstRequests[2]?.body as ProviderBody;
+  assert.equal(
+    reusedFactoryBody.tools.some(
+      tool => tool.function.name === 'contact_read_authorized_request',
+    ),
+    false,
+  );
+  assert.doesNotMatch(JSON.stringify(reusedFactoryBody), /FIRST_CONTACT_SENTINEL/);
+
+  const ordinaryRequests: ProviderRequest[] = [];
+  await runFreshFileTurnV1(createOpenAICompatibleFileHarnessFactoryV1({
+    model: modelConfig(),
+    workspace: new MemoryWorkspace(),
+    readablePaths: allPaths,
+    allowMemoryReplacement: true,
+    fetch: scriptedFetch([textCompletion('ordinary done')], ordinaryRequests),
+    environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+  }), {
+    ...baseInput,
+    actorId: 'responder-1',
+    traceId: 'heartbeat:ordinary',
+    maxContactCalls: 0,
+  });
+
+  const ordinary = ordinaryRequests[0]?.body as ProviderBody;
+  assert.deepEqual(ordinary.messages, [
+    { role: 'user', content: FILE_TURN_BOOTSTRAP_V1 },
+  ]);
+  assert.equal(
+    ordinary.tools.some(tool => tool.function.name === 'contact_read_authorized_request'),
+    false,
+  );
+  assert.doesNotMatch(JSON.stringify(ordinary), /FIRST_CONTACT_SENTINEL/);
+
+  const laterRequests: ProviderRequest[] = [];
+  await runFreshFileTurnV1(createOpenAICompatibleFileHarnessFactoryV1({
+    model: modelConfig(),
+    workspace: new MemoryWorkspace(),
+    readablePaths: allPaths,
+    allowMemoryReplacement: true,
+    authorizedRequest: {
+      senderId: 'requester-2',
+      message: 'SECOND_CONTACT_SENTINEL',
+      intent: 'second-contact',
+      purpose: 'PAIR-Q-0002',
+    },
+    fetch: scriptedFetch([
+      toolCompletion('request-second', 'contact_read_authorized_request', {}),
+      textCompletion('second done'),
+    ], laterRequests),
+    environment: { PACT_MODEL_API_KEY: 'unit-test-key' },
+  }), {
+    ...baseInput,
+    actorId: 'responder-1',
+    traceId: 'contact:second',
+    maxContactCalls: 0,
+  });
+  const laterTranscript = JSON.stringify((laterRequests[1]?.body as ProviderBody).messages);
+  assert.match(laterTranscript, /SECOND_CONTACT_SENTINEL/);
+  assert.doesNotMatch(laterTranscript, /FIRST_CONTACT_SENTINEL/);
+});
+
 test('denies host paths, immutable writes, and unknown tools before host invocation', async () => {
   const attacks = [
     toolCompletion('host-path', 'files_read', { path: '/private/tmp/secret' }),

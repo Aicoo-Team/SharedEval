@@ -47,6 +47,11 @@ export * from './model-adapter.js';
 export * from './prompt.js';
 export * from './runner.js';
 export * from './sharedeval-config.js';
+export {
+  runSharedevalPactPairFilesV1,
+  type RunSharedevalPactPairFilesV1Options,
+  type SharedevalPactPairFilesRunV1,
+} from './sharedeval-runner.js';
 export * from './workflow.js';
 export * from './task-loader.js';
 export * from './tools.js';
