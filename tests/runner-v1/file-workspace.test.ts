@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import {
+  closeSync,
+  constants,
+  existsSync,
+  openSync,
+  writeSync,
+} from 'node:fs';
+import {
   access,
   mkdir,
   mkdtemp,
@@ -226,6 +233,114 @@ test('rechecks the absolute deadline immediately before MEMORY publication', asy
       [],
     );
   } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('rechecks cancellation immediately before MEMORY publication', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  const controller = new AbortController();
+  try {
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      beforeMemoryPublicationForTest: () => controller.abort(),
+    });
+    const actorDir = actorDirectory(rootDir);
+    const before = await workspace.snapshot('actor-1');
+
+    await assert.rejects(
+      () => workspace.replaceMemory({
+        actorId: 'actor-1',
+        expectedVersion: 0,
+        content: 'task-1 [answered] — cancelled before publication\n',
+        signal: controller.signal,
+        deadlineAtMs: Date.now() + 1_000,
+      }),
+      /cancel/i,
+    );
+
+    assert.deepEqual(await workspace.snapshot('actor-1'), before);
+    assert.deepEqual(
+      (await readdir(join(actorDir, 'commits'))).sort(),
+      ['commit-0.json'],
+    );
+    assert.equal(
+      (await workspace.read({ actorId: 'actor-1', path: 'MEMORY.md' })).content,
+      'task-1 [pending] — not started\n',
+    );
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('never publishes MEMORY after its deadline while all libuv workers are occupied', {
+  skip: process.platform === 'win32',
+}, async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  const fifoPaths = Array.from(
+    { length: 4 },
+    (_value, index) => join(rootDir, `threadpool-blocker-${index}`),
+  );
+  let blockerReads: Array<Promise<Buffer>> = [];
+  let blockersReleased = false;
+  const releaseBlockers = () => {
+    if (blockersReleased || blockerReads.length !== fifoPaths.length) return;
+    blockersReleased = true;
+    for (const fifoPath of fifoPaths) {
+      const descriptor = openSync(fifoPath, constants.O_WRONLY);
+      try {
+        writeSync(descriptor, Buffer.from('release'));
+      } finally {
+        closeSync(descriptor);
+      }
+    }
+  };
+
+  try {
+    for (const fifoPath of fifoPaths) execFileSync('mkfifo', [fifoPath]);
+    let publicationHookReached: (() => void) | undefined;
+    const atPublicationHook = new Promise<void>(resolve => {
+      publicationHookReached = resolve;
+    });
+    const workspace = await materialize(rootDir, 'run-1', 'actor-1', {
+      beforeMemoryPublicationForTest: async () => {
+        blockerReads = fifoPaths.map(fifoPath => readFile(fifoPath));
+        await new Promise<void>(resolve => setImmediate(resolve));
+        publicationHookReached?.();
+      },
+    });
+    const actorDir = actorDirectory(rootDir);
+    const marker = join(actorDir, 'commits', 'commit-1.json');
+    const deadlineAtMs = Date.now() + 200;
+    const replacement = workspace.replaceMemory({
+      actorId: 'actor-1',
+      expectedVersion: 0,
+      content: 'task-1 [answered] — no late publication\n',
+      deadlineAtMs,
+    });
+
+    await atPublicationHook;
+    await new Promise<void>(resolve => {
+      setTimeout(resolve, Math.max(0, deadlineAtMs - Date.now() + 20));
+    });
+    const markerExistedAtDeadline = existsSync(marker);
+    releaseBlockers();
+    const result = await replacement;
+    await Promise.all(blockerReads);
+    assert.ok(Date.now() >= deadlineAtMs);
+    assert.equal(result.outcome, 'committed');
+    assert.equal(
+      markerExistedAtDeadline,
+      true,
+      'a committed result must have crossed the atomic publication boundary before its deadline',
+    );
+    assert.equal((await workspace.snapshot('actor-1')).final.version, 1);
+    assert.equal(
+      (await workspace.read({ actorId: 'actor-1', path: 'MEMORY.md' })).content,
+      'task-1 [answered] — no late publication\n',
+    );
+  } finally {
+    releaseBlockers();
+    await Promise.allSettled(blockerReads);
     await rm(rootDir, { recursive: true, force: true });
   }
 });

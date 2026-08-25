@@ -1,8 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { createHash, randomUUID } from 'node:crypto';
-import { constants } from 'node:fs';
+import { constants, linkSync } from 'node:fs';
 import {
-  link,
   lstat,
   mkdir,
   open,
@@ -381,7 +380,7 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
         // No await may separate this final check from the sole authoritative
         // publication call. A successful link is never rolled back.
         assertWorkspaceOperationActive(input);
-        await link(pointerTemporary, marker);
+        linkSync(pointerTemporary, marker);
       } catch (error: unknown) {
         await rm(pointerTemporary, { force: true });
         pointerTemporary = undefined;
@@ -398,7 +397,7 @@ class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
         return conflictFor(latest);
       }
 
-      // Once link() succeeds, complete pointer bytes are visible atomically.
+      // Once linkSync() succeeds, complete pointer bytes are visible atomically.
       // All later failures are qualified as a committed, reopenable result.
       let durability: 'published_unsynced' | undefined;
       try {
