@@ -39,6 +39,8 @@ export {
   type FreshFileHarnessV1,
 } from './file-harness.js';
 export * from './file-model-adapter.js';
+export * from './file-workflow-artifacts.js';
+export * from './file-workflow-ledger.js';
 export * from './file-workspace.js';
 export * from './backends/index.js';
 export * from './config.js';

@@ -14,7 +14,12 @@ import {
   type FileTurnDecisionV1,
   type FreshFileHarnessFactoryV1,
 } from '../../runner/v1/file-harness.js';
-import { parseFileMemoryV1, type FileMemoryRowV1 } from '../../runner/v1/file-memory.js';
+import {
+  assertMonotonicFileMemoryRowsV1,
+  deriveFileMemoryTerminalStatusV1,
+  parseFileMemoryV1,
+  type FileMemoryRowV1,
+} from '../../runner/v1/file-memory.js';
 import {
   materializeFileWorkspaceV1,
   type FileReadReceiptV1,
@@ -634,12 +639,13 @@ async function reconcileTerminalRows(input: {
     // MEMORY alone is not a terminal event. A model cannot manufacture an
     // answered/refused/error result without one host-correlated contact.
     if (!contact) continue;
-    const contactStatus = contactOutcomeStatus(contact.status);
-    const reconciledStatus = row.status === contactStatus ? contactStatus : 'error';
     const state = actionStateFromContact(task, contact);
-    const status = reconciledStatus === 'error' && hasStateChanged(state)
-      ? 'side_effect_before_failure'
-      : reconciledStatus;
+    const status = deriveFileMemoryTerminalStatusV1({
+      memoryStatus: row.status,
+      contactStatus: contact.status,
+      stateChanged: hasStateChanged(state),
+    });
+    if (!status) continue;
     input.outcomes.set(task.taskId, await evaluateOutcome({
       task,
       status,
@@ -686,14 +692,6 @@ function hasStateChanged(
   state: { before: PairDataStore; after: PairDataStore } | undefined,
 ): boolean {
   return state !== undefined && !isDeepStrictEqual(state.before, state.after);
-}
-
-function contactOutcomeStatus(
-  status: FileDrivenPairContactV1['status'],
-): Exclude<FileDrivenPairTerminalStatusV1, 'no_response'> {
-  if (status === 'completed') return 'answered';
-  if (status === 'denied') return 'refused';
-  return 'error';
 }
 
 async function evaluateOutcome(input: {
@@ -910,7 +908,7 @@ class EvidenceWorkspaceV1 implements FileWorkspacePortV1 {
         content: input.content,
         selectedTaskIds: this.selectedTaskIds,
       });
-      assertMonotonicTerminalMemory(previousRows, nextRows);
+      assertMonotonicFileMemoryRowsV1(previousRows, nextRows);
       const result = await this.inner.replaceMemory(input);
       if (result.outcome === 'committed') {
         // A published_unsynced commit is still visible authority and consumes
@@ -936,21 +934,5 @@ class EvidenceWorkspaceV1 implements FileWorkspacePortV1 {
   readAllLogicalFilesInCurrentTurn(): boolean {
     const seen = new Set(this.reads.map(receipt => receipt.path));
     return logicalPaths.every(path => seen.has(path));
-  }
-}
-
-function assertMonotonicTerminalMemory(
-  previous: readonly FileMemoryRowV1[],
-  next: readonly FileMemoryRowV1[],
-): void {
-  for (const [index, previousRow] of previous.entries()) {
-    const nextRow = next[index];
-    if (
-      !nextRow
-      || nextRow.taskId !== previousRow.taskId
-      || (previousRow.status !== 'pending' && nextRow.status !== previousRow.status)
-    ) {
-      throw new Error('Terminal MEMORY task status cannot regress or change');
-    }
   }
 }

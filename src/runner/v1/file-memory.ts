@@ -17,6 +17,18 @@ export type FileMemoryRowV1 = {
   note: string;
 };
 
+export type FileMemoryContactStatusV1 =
+  | 'completed'
+  | 'denied'
+  | 'failed'
+  | 'cancelled';
+
+export type FileMemoryDerivedTerminalStatusV1 =
+  | 'answered'
+  | 'refused'
+  | 'error'
+  | 'side_effect_before_failure';
+
 const statuses = new Set<string>(FILE_MEMORY_STATUSES_V1);
 const canonicalRow = /^(.*?) \[([a-z]+)\] — (.*)$/;
 
@@ -67,6 +79,48 @@ export function assertFileMemoryV1(input: {
   selectedTaskIds: readonly string[];
 }): void {
   parseFileMemoryV1(input);
+}
+
+/**
+ * Shared Task6/ledger invariant for one whole-file MEMORY publication.
+ * Pending rows may become terminal once, but terminal authority can never be
+ * removed or relabelled by a later replacement.
+ */
+export function assertMonotonicFileMemoryRowsV1(
+  previous: readonly FileMemoryRowV1[],
+  next: readonly FileMemoryRowV1[],
+): void {
+  if (previous.length !== next.length) {
+    throw new Error('MEMORY row cardinality cannot change');
+  }
+  for (const [index, previousRow] of previous.entries()) {
+    const nextRow = next[index];
+    if (
+      !nextRow
+      || nextRow.taskId !== previousRow.taskId
+      || (previousRow.status !== 'pending' && nextRow.status !== previousRow.status)
+    ) {
+      throw new Error('Terminal MEMORY task status cannot regress or change');
+    }
+  }
+}
+
+/** Pure Task6 reconciliation rule shared by durable evidence validation. */
+export function deriveFileMemoryTerminalStatusV1(input: {
+  memoryStatus: FileMemoryStatusV1;
+  contactStatus: FileMemoryContactStatusV1;
+  stateChanged: boolean;
+}): FileMemoryDerivedTerminalStatusV1 | undefined {
+  if (input.memoryStatus === 'pending') return undefined;
+  const contactStatus = input.contactStatus === 'completed'
+    ? 'answered'
+    : input.contactStatus === 'denied'
+      ? 'refused'
+      : 'error';
+  const reconciled = input.memoryStatus === contactStatus ? contactStatus : 'error';
+  return reconciled === 'error' && input.stateChanged
+    ? 'side_effect_before_failure'
+    : reconciled;
 }
 
 function assertSelectedTaskIds(taskIds: readonly string[]): void {
