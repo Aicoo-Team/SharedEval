@@ -48,6 +48,8 @@ const MAX_RECORD_BYTES = 4 * 1024 * 1024;
 const MAX_SESSION_GRANTS = 10_000;
 const LOCK_WAIT_LIMIT_MS = 15_000;
 const LOCK_POLL_MS = 5;
+
+class BoundedReadChangedError extends Error {}
 const recordNamePattern = /^record-([0-9]{12})\.json$/;
 const responderBindingNamePattern = /^task-[a-f0-9]{64}\.json$/;
 const stageNamePattern = /^stage-[0-9a-f-]{36}\.json$/;
@@ -1068,6 +1070,10 @@ async function acquireMutationLock(
           'SharedOS mutation lock owner',
         )));
       } catch (ownerError) {
+        if (ownerError instanceof BoundedReadChangedError) {
+          await delay(LOCK_POLL_MS);
+          continue;
+        }
         if ((ownerError as NodeJS.ErrnoException).code !== 'ENOENT') throw ownerError;
       }
       if (owner && !processIsAlive(owner.pid)) {
@@ -1488,7 +1494,7 @@ async function readBoundedRegular(
       || after.size !== before.size
       || offset !== before.size
     ) {
-      throw new Error(`${label} changed during its bounded read`);
+      throw new BoundedReadChangedError(`${label} changed during its bounded read`);
     }
     try {
       return new TextDecoder('utf-8', { fatal: true })

@@ -37,12 +37,20 @@ import { createPactPairWorkspaceV1 } from '../../src/suites/pact-pair/workspace.
 
 const FILES = ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'] as const;
 const NOW = '2026-08-26T12:00:00.000Z';
+const SHAREDOS_DIRECTORY = resolve(
+  process.env.SHAREDEVAL_SHAREDOS_DIR
+    ?? '/private/tmp/sharedos-message-foundation.NkahQk/repo',
+);
+const SHAREDOS_BUILD_SKIP =
+  !process.env.SHAREDEVAL_REQUIRE_SHAREDOS
+  && !existsSync(join(SHAREDOS_DIRECTORY, 'packages', 'runtime', 'dist', 'index.js'))
+    ? `SharedOS build is unavailable at ${SHAREDOS_DIRECTORY}`
+    : false;
 
-test('real SharedOS mediates both actors, files, task tools, and request/reply', async t => {
-  const sharedOsDirectory = resolve(
-    process.env.SHAREDEVAL_SHAREDOS_DIR
-      ?? '/private/tmp/sharedos-message-foundation.NkahQk/repo',
-  );
+test('real SharedOS mediates both actors, files, task tools, and request/reply', {
+  skip: SHAREDOS_BUILD_SKIP,
+}, async t => {
+  const sharedOsDirectory = SHAREDOS_DIRECTORY;
   if (!existsSync(join(sharedOsDirectory, 'packages', 'runtime', 'dist', 'index.js'))) {
     if (process.env.SHAREDEVAL_REQUIRE_SHAREDOS) {
       assert.fail(`required SharedOS build is unavailable at ${sharedOsDirectory}`);
@@ -265,7 +273,9 @@ test('real SharedOS mediates both actors, files, task tools, and request/reply',
   );
 });
 
-test('an accepted request without a selected task fails the heartbeat closed', async t => {
+test('an accepted request without a selected task fails the heartbeat closed', {
+  skip: SHAREDOS_BUILD_SKIP,
+}, async t => {
   const fixture = await createSessionFixture(t, 'unbound-message', input => (
     new UnboundRequestDriver(input.role)
   ));
@@ -277,7 +287,9 @@ test('an accepted request without a selected task fails the heartbeat closed', a
   await fixture.session.close();
 });
 
-test('durable router corruption remains fatal across the SharedOS tool boundary', async t => {
+test('durable router corruption remains fatal across the SharedOS tool boundary', {
+  skip: SHAREDOS_BUILD_SKIP,
+}, async t => {
   let fixtureRoot = '';
   const fixture = await createSessionFixture(t, 'router-corruption', input => (
     new UnboundRequestDriver(input.role, 'PAIR-Q1', async () => {
@@ -298,7 +310,9 @@ test('durable router corruption remains fatal across the SharedOS tool boundary'
   );
 });
 
-test('a failed close never reopens the session to model work', async t => {
+test('a failed close never reopens the session to model work', {
+  skip: SHAREDOS_BUILD_SKIP,
+}, async t => {
   let driverCreations = 0;
   const fixture = await createSessionFixture(t, 'failed-close', input => {
     driverCreations += 1;
@@ -320,7 +334,9 @@ test('a failed close never reopens the session to model work', async t => {
   assert.equal(driverCreations, 0);
 });
 
-test('session reconstruction reuses byte-identical startedAt authority', async t => {
+test('session reconstruction reuses byte-identical startedAt authority', {
+  skip: SHAREDOS_BUILD_SKIP,
+}, async t => {
   let driverCreations = 0;
   const fixture = await createSessionFixture(t, 'restart-authority', input => {
     driverCreations += 1;
@@ -346,7 +362,9 @@ test('session reconstruction reuses byte-identical startedAt authority', async t
   await fixture.session.close();
 });
 
-test('session reconstruction fails loud on malformed prior binding authority', async t => {
+test('session reconstruction fails loud on malformed prior binding authority', {
+  skip: SHAREDOS_BUILD_SKIP,
+}, async t => {
   let driverCreations = 0;
   const fixture = await createSessionFixture(t, 'restart-malformed', input => {
     driverCreations += 1;
@@ -558,10 +576,7 @@ async function createSessionFixture(
   name: string,
   createDriver: Parameters<typeof createSharedOsFileSessionV1>[0]['createDriver'],
 ) {
-  const sharedOsDirectory = resolve(
-    process.env.SHAREDEVAL_SHAREDOS_DIR
-      ?? '/private/tmp/sharedos-message-foundation.NkahQk/repo',
-  );
+  const sharedOsDirectory = SHAREDOS_DIRECTORY;
   assert.ok(
     existsSync(join(sharedOsDirectory, 'packages', 'runtime', 'dist', 'index.js')),
     'the pinned SharedOS build is required for runtime conformance',
