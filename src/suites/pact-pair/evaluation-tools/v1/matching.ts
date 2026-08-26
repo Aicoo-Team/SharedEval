@@ -11,9 +11,8 @@
  *   "version" matches inside "conversion";
  * - no stemming; plural/singular differ unless one is a substring of the other.
  *
- * This intentionally diverges from `src/runner/v1/evaluator.ts`
- * (containsPactPairFactV1): head-to-head over the full benchmark corpus the
- * two agree on 99.57% of (text, fact) pairs but are not identical.
+ * This intentionally preserves the historical matcher used to produce the
+ * benchmark report; changing it would make past and current scores diverge.
  */
 
 export function norm(s: string): string {

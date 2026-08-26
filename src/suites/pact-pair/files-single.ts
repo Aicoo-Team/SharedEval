@@ -1,25 +1,33 @@
 import { createHash } from 'node:crypto';
 import {
+  FileDrivenPairSessionPreparationErrorV1,
   runOneFileDrivenPairSessionV1,
   toPublicFileDrivenPairSessionV1,
-  type FileDrivenPairHarnessDependenciesV1,
   type FileDrivenPairSessionV1,
   type FileDrivenPairTaskOutcomeV1,
   type PublicFileDrivenPairSessionV1,
   type RunOneFileDrivenPairSessionV1Options,
 } from './file-workflow.js';
 import type { LoadedPactPairTaskV1 } from './task-loader.js';
+import type { PactPairWorkspaceV1 } from './workspace.js';
 
 export type RunPactPairFilesSingleV1Options = Omit<
   RunOneFileDrivenPairSessionV1Options,
-  'workflowId' | 'sessionId' | 'maxTicks' | 'dependencies' | 'tasks'
+  | 'workflowId'
+  | 'sessionId'
+  | 'sessionIndex'
+  | 'maxTicks'
+  | 'tasks'
+  | 'pactWorkspace'
+  | 'storeRoot'
 > & Readonly<{
   tasks: readonly LoadedPactPairTaskV1[];
   maxTicks?: number;
-  dependenciesForTask: (
+  pactWorkspaceForTask: (
     task: LoadedPactPairTaskV1,
     index: number,
-  ) => FileDrivenPairHarnessDependenciesV1;
+  ) => PactPairWorkspaceV1;
+  storeRootForTask: (task: LoadedPactPairTaskV1, index: number) => string;
 }>;
 
 export type FileDrivenPairSinglePreparationFailureV1 = Readonly<{
@@ -48,7 +56,8 @@ export type PactPairFilesSingleBatchV1 = Readonly<{
 
 /**
  * Single creates one fully isolated invocation of the shared scheduler per
- * task. A task-local fatal error is data; it never suppresses a later task.
+ * task. Only a typed pre-session preparation failure is contained; once a
+ * durable session may have acted, every other failure stops the batch.
  */
 export async function runPactPairFilesSingleV1(
   options: RunPactPairFilesSingleV1Options,
@@ -59,7 +68,8 @@ export async function runPactPairFilesSingleV1(
   const outcomes: FileDrivenPairTaskOutcomeV1[] = [];
   const preparationFailures: FileDrivenPairSinglePreparationFailureV1[] = [];
   const {
-    dependenciesForTask,
+    pactWorkspaceForTask,
+    storeRootForTask,
     tasks: _tasks,
     maxTicks: _maxTicks,
     ...common
@@ -72,10 +82,11 @@ export async function runPactPairFilesSingleV1(
         ...common,
         workflowId: 'files-single',
         runId: physicalRunId,
-        sessionId: `single:${digest(`${options.runId}:${task.taskId}:${index}`)}`,
+        sessionIndex: index,
         tasks: [task],
         maxTicks,
-        dependencies: dependenciesForTask(task, index),
+        pactWorkspace: pactWorkspaceForTask(task, index),
+        storeRoot: storeRootForTask(task, index),
       });
       sessions.push(session);
       const outcome = session.outcomes[0];
@@ -83,7 +94,8 @@ export async function runPactPairFilesSingleV1(
         throw new Error('File-driven single session returned a mismatched task outcome');
       }
       outcomes.push(outcome);
-    } catch {
+    } catch (error) {
+      if (!(error instanceof FileDrivenPairSessionPreparationErrorV1)) throw error;
       const failure = Object.freeze({
         taskId: task.taskId,
         errorCode: 'FILE_SESSION_PREPARATION_FAILED' as const,

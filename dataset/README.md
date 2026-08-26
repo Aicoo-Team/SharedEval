@@ -1,6 +1,6 @@
 # Benchmark datasets
 
-This directory is the canonical home for versioned public PACT-Bench dataset
+This directory is the canonical home for versioned public SharedEval benchmark
 assets. Each child directory contains one dataset manifest and its supporting
 data; dataset-specific runtime code lives under `src/suites/`.
 
@@ -8,12 +8,12 @@ data; dataset-specific runtime code lives under `src/suites/`.
 
 | ID | Version | Description | Entry point |
 | --- | --- | --- | --- |
-| `pact-pair` | `6.0.0` | Paired privacy-aware QA and delegated actions over notes and todos | [`pact-pair/manifest.yaml`](pact-pair/manifest.yaml) |
+| `pact-pair` | `7.0.0` | Paired privacy-aware QA and delegated actions over notes and todos | [`pact-pair/manifest.yaml`](pact-pair/manifest.yaml) |
 | `pact-net` | `1.0.0` | 25-agent network benchmark with relational access labels, QA, and actions | [`pact-net/manifest.yaml`](pact-net/manifest.yaml) |
 
 For PACT-Pair, use `pact-pair/tasks/questions.json` as the task source of truth.
-The legacy `pact_pair/` location has moved here; consumers should not maintain a
-fallback copy or treat both paths as canonical.
+Consumers must resolve asset paths from the manifest rather than maintain a
+second copy or guess an alternate location.
 
 ## Boundaries
 

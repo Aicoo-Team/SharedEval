@@ -6,7 +6,7 @@ import {
 
 export type RunPactPairFilesMultiV1Options = Omit<
   RunOneFileDrivenPairSessionV1Options,
-  'workflowId'
+  'workflowId' | 'sessionIndex'
 >;
 
 /** Multi is only a policy selection over the one shared session scheduler. */
@@ -16,5 +16,6 @@ export function runPactPairFilesMultiV1(
   return runOneFileDrivenPairSessionV1({
     ...options,
     workflowId: 'files-multi',
+    sessionIndex: 0,
   });
 }

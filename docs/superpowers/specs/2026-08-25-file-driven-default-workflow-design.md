@@ -239,8 +239,8 @@ One multi run owns one ordered public task set and one workspace per actor.
 4. Authorize file discovery/read for the requester's four files. File content
    is never preloaded by the host.
 5. The requester reads its `POLICY.md` and `MEMORY.md`, selects the next pending
-   task, and may call `contact_agent`.
-6. `contact_agent` starts a fresh recipient turn with the same minimal
+   task, and may call `messages.request` with the authorized recipient and payload.
+6. `messages.request` starts a fresh recipient turn with the same minimal
    bootstrap. The recipient can read only its own workspace and authorized task
    data. The message grants no authority.
 7. The requester replaces its complete `MEMORY.md` using compare-and-swap

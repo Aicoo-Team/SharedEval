@@ -1,16 +1,14 @@
 # ADR 0001: File-driven agent workspace v1
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-24
 - Owners: SharedEval maintainers
 
 ## Context
 
-The current PACT runner constructs the benchmark policy prompt, creates a
-task-local in-memory workspace, and drives the participant loop. The checked-in
-`agent_configs` files are only used by a legacy experiment path. This makes it
-impossible to distinguish an agent that inspected its own instructions from a
-host that preloaded those instructions into the model prompt.
+SharedEval previously had competing execution paths that preloaded instructions
+or bypassed the canonical workspace. Those paths have been retired. This ADR
+defines the single SharedOS-mediated execution boundary.
 
 SharedEval needs to evaluate the agent runtime that users actually operate:
 the host starts an agent, the agent reads its own identity and heartbeat, and
@@ -78,10 +76,10 @@ byte count, and outcome. It must not include evaluator gold.
 
 ### Agent contact
 
-`contact_agent` is a host adapter over recipient-scoped SharedOS messaging. It
-does not grant authority through message content. The host binds sender,
-recipient, purpose, and trace, starts the recipient turn, and records the causal
-relationship between both turns.
+The requester uses the canonical `messages.request` tool with only an authorized
+recipient and JSON-safe payload. SharedOS supplies the trusted actor, purpose,
+trace, and message identity, starts the recipient-owned turn, and records the
+causal request/reply relationship. Message content never grants authority.
 
 Whether an agent also receives scheduled heartbeats is a run configuration;
 contacting it never grants access to another agent's workspace.
@@ -95,25 +93,9 @@ it is not a SharedOS authorization policy and can never grant a capability.
 
 ## Compatibility
 
-The existing `COO.md` files remain temporarily as legacy experiment inputs.
-Canonical agent templates now also provide `AGENT.md`; the v1 loader ignores
-`COO.md`. Removing the legacy files and loader is a later migration after the
-legacy experiment path is retired.
-
-Any experimental runner that preloads `COO.md`, `POLICY.md`, or `MEMORY.md`
-into a prompt is not an implementation of `sharedeval/agent-workspace/v1` and
-must use a distinct compatibility-mode name.
-
-The existing public runner, SharedOS-embedded runner, and Harbor backend are
-unchanged by this proposal. They will adopt the contract incrementally.
-
-## Delivery sequence
-
-1. Land this explicit template contract and canonical `AGENT.md` seeds.
-2. Add a run-scoped persistent resource provider and versioned memory writes.
-3. Add the fresh-turn heartbeat scheduler and minimal bootstrap prompt.
-4. Add the recipient-scoped `contact_agent` router and causal trace.
-5. Move all formal runner modes, including Harbor, onto the same lifecycle.
+There is no compatibility execution mode. `files-multi` is the default,
+`files-single` is selected explicitly, and retired flags fail before model
+spend. Git history is the archive for removed runners and assets.
 
 ## Rejected alternatives
 

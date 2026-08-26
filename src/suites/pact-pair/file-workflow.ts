@@ -1,33 +1,57 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
-import type { AgentWorkspaceFilePathV1, AgentWorkspaceTemplateV1 } from '../../runner/v1/agent-workspace.js';
 import {
-  CONTACT_AGENT_ERROR_CODES_V1,
-  createInProcessContactAgentPortV1,
-  type ContactAgentPortV1,
-  type ContactResponderHarnessFactoryInputV1,
-} from '../../runner/v1/contact-agent.js';
+  sha256JsonV1,
+  stableIdV1,
+  type JsonValue,
+} from '../../contracts/json.js';
+import type {
+  AgentWorkspaceFilePathV1,
+  AgentWorkspaceTemplateV1,
+} from '../../runner/v1/agent-workspace.js';
 import {
-  InternalFileTurnPublicErrorV1,
-  runFreshFileTurnV1,
-  type FileTurnDecisionV1,
-  type FreshFileHarnessFactoryV1,
-} from '../../runner/v1/file-harness.js';
-import {
-  assertMonotonicFileMemoryRowsV1,
   deriveFileMemoryTerminalStatusV1,
-  parseFileMemoryV1,
-  type FileMemoryRowV1,
 } from '../../runner/v1/file-memory.js';
+import type { FileTurnDecisionV1 } from '../../runner/v1/file-turn-contracts.js';
 import {
+  inspectFileWorkspacePresenceV1,
   materializeFileWorkspaceV1,
+  openFileWorkspaceV1,
   type FileReadReceiptV1,
+  type FileWorkspaceFileSetV1,
   type FileWorkspacePortV1,
   type FileWorkspaceSnapshotV1,
-  type MaterializedFileWorkspaceV1,
-  type ReplaceMemoryResultV1,
 } from '../../runner/v1/file-workspace.js';
+import {
+  fileWorkflowHostRunProvenanceV1Schema,
+  fileWorkflowRunBindingV1Schema,
+  fileWorkflowSelectedTaskDigestV1,
+  type FileWorkflowContactAuthorityV1,
+  type FileWorkflowHostRunProvenanceV1,
+  type FileWorkflowRunBindingV1,
+} from '../../runner/v1/file-workflow-artifacts.js';
+import {
+  openFileWorkflowLedgerV1,
+  type FileWorkflowLedgerRecordV1,
+  type FileWorkflowLedgerV1,
+} from '../../runner/v1/file-workflow-ledger.js';
+import {
+  buildFileWorkflowHeartbeatPayloadV1,
+  type FileWorkflowHeartbeatTerminalOutcomeV1,
+} from '../../runner/v1/file-workflow-heartbeat.js';
+import { runFileWorkflowHeartbeatV1 } from '../../runner/v1/file-workflow-recovery.js';
+import {
+  projectFileWorkflowRetainedSharedOsEvidenceV1,
+  projectFileWorkflowSharedOsEvidenceV1,
+  type FileWorkflowSharedOsProjectionV1,
+} from '../../runner/v1/file-workflow-sharedos-evidence.js';
+import type {
+  CreateSharedOsFileSessionV1Options,
+  FileSessionContactErrorCodeV1,
+  SharedOsFileSessionFactoryV1,
+  SharedOsFileTurnResultV1,
+} from '../../runner/v1/sharedos-file-session-contracts.js';
 import {
   loadWorkspaceRegistryV1,
   resolveAgentWorkspaceRegistryV1,
@@ -35,25 +59,30 @@ import {
   type WorkspaceRegistryV1,
 } from '../../runner/v1/workspace-registry.js';
 import { evaluateWithRegisteredEvaluator } from '../../evaluation/index.js';
-import { PACT_PAIR_EVALUATION_TARGET_V1, type PactPairRegisteredEvaluationResultV1 } from './evaluation.js';
 import {
-  toPublicEvaluation,
-  type PactPairPublicEvaluationV1,
-} from './environment.js';
+  PACT_PAIR_EVALUATION_TARGET_V1,
+  type PactPairRegisteredEvaluationResultV1,
+} from './evaluation.js';
 import type {
   PactPairEvaluationV1,
   PactPairTerminalDecisionV1,
 } from './evaluator.js';
-import { dataStoreSchema, type PairDataStore } from './schemas.js';
+import {
+  pactPairFullEvaluationV1Schema,
+  toPublicEvaluation,
+  type PactPairPublicEvaluationV1,
+} from './public-evaluation.js';
+import type { PairDataStore } from './schemas.js';
 import type { LoadedPactPairTaskV1 } from './task-loader.js';
+import {
+  loadCanonicalPactPairStoreV1,
+  type PactPairWorkspaceV1,
+} from './workspace.js';
 
-const logicalPaths = Object.freeze([
-  'AGENT.md',
-  'HEARTBEAT.md',
-  'POLICY.md',
-  'MEMORY.md',
-] as const satisfies readonly AgentWorkspaceFilePathV1[]);
 const MAX_FILE_DRIVEN_PAIR_TICKS_V1 = 10_000;
+const MAX_FILE_DRIVEN_DEADLINE_MS_V1 = 600_000;
+const MIN_FILE_DRIVEN_TOOL_CALLS_V1 = 6;
+const MAX_FILE_DRIVEN_TOOL_CALLS_V1 = 128;
 const safeWorkspaceId = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const safeSessionId = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
@@ -66,35 +95,14 @@ export type FileDrivenPairActorV1 = Readonly<{
 
 export type FileDrivenPairBudgetV1 = Readonly<{
   deadlineMs: number;
-  requesterMaxToolSteps: number;
-  responderMaxToolSteps: number;
-}>;
-
-export type FileDrivenPairRequesterHarnessFactoryInputV1 = Readonly<{
-  workspace: FileWorkspacePortV1;
-  readablePaths: readonly AgentWorkspaceFilePathV1[];
-  allowMemoryReplacement: true;
-  contact: ContactAgentPortV1;
-}>;
-
-export type FileDrivenPairHarnessDependenciesV1 = Readonly<{
-  createRequesterHarnessFactory: (
-    input: FileDrivenPairRequesterHarnessFactoryInputV1,
-  ) => FreshFileHarnessFactoryV1;
-  createResponderHarnessFactory: (
-    input: ContactResponderHarnessFactoryInputV1,
-  ) => FreshFileHarnessFactoryV1;
-  /** Exact PACT data-state snapshot used only for action evaluation evidence. */
-  snapshotResponderState?: () => PairDataStore;
-  materializeWorkspace?: typeof materializeFileWorkspaceV1;
-  loadRegistry?: typeof loadWorkspaceRegistryV1;
-  now?: () => Date;
+  maxToolCalls: number;
 }>;
 
 export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   workflowId: FileDrivenPairWorkflowIdV1;
   runId: string;
   sessionId?: string;
+  sessionIndex: number;
   workspaceRootDir: string;
   registryRootDir: string;
   registry?: WorkspaceRegistryV1;
@@ -103,9 +111,32 @@ export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   tasks: readonly LoadedPactPairTaskV1[];
   maxTicks: number;
   budget: FileDrivenPairBudgetV1;
+  pactWorkspace: PactPairWorkspaceV1;
+  storeRoot: string;
+  createDriver: CreateSharedOsFileSessionV1Options['createDriver'];
+  createSharedOsSession: SharedOsFileSessionFactoryV1;
+  runProvenance: FileWorkflowHostRunProvenanceV1;
   cancellationSignal?: AbortSignal;
-  dependencies: FileDrivenPairHarnessDependenciesV1;
+  materializeWorkspace?: typeof materializeFileWorkspaceV1;
+  loadRegistry?: typeof loadWorkspaceRegistryV1;
+  openLedger?: typeof openFileWorkflowLedgerV1;
 }>;
+
+export class FileDrivenPairSessionPreparationErrorV1 extends Error {
+  constructor() {
+    super('File-driven SharedOS session preparation failed');
+    this.name = 'FileDrivenPairSessionPreparationErrorV1';
+  }
+}
+
+export class FileDrivenPairIndeterminateExternalOperationErrorV1 extends Error {
+  readonly errorCode = 'indeterminate_external_operation' as const;
+
+  constructor() {
+    super('File-driven SharedOS heartbeat has indeterminate external effects');
+    this.name = 'FileDrivenPairIndeterminateExternalOperationErrorV1';
+  }
+}
 
 export type FrozenInitialFileBytesV1 = Readonly<{
   path: AgentWorkspaceFilePathV1;
@@ -120,22 +151,30 @@ export type FrozenInitialWorkspaceBytesV1 = Readonly<
 
 export type FileDrivenPairTickV1 = Readonly<{
   tick: number;
+  eventId: string;
   traceId: string;
   status: 'completed' | 'failed';
+  executionId?: string;
+  executionStatus?: SharedOsFileTurnResultV1['executionStatus'];
   decision?: FileTurnDecisionV1;
   errorCode?: 'FILE_TURN_FAILED';
   requesterReads: readonly FileReadReceiptV1[];
   requesterMemoryVersion?: number;
+  providerUsage?: SharedOsFileTurnResultV1['providerUsage'];
+  audit?: SharedOsFileTurnResultV1['audit'];
 }>;
 
 export type FileDrivenPairContactV1 = Readonly<{
   taskId: string;
   tick: number;
   status: 'completed' | 'denied' | 'failed' | 'cancelled';
-  recipientTraceId: string;
+  requestMessageId: string;
+  replyMessageId?: string;
+  responderExecutionId?: string;
   response?: string;
-  errorCode?: string;
+  errorCode?: FileSessionContactErrorCodeV1;
   responderReads: readonly FileReadReceiptV1[];
+  providerUsage?: SharedOsFileTurnResultV1['providerUsage'];
   actionBefore?: PairDataStore;
   actionAfter?: PairDataStore;
 }>;
@@ -214,17 +253,31 @@ export type PublicFileDrivenPairSessionV1 = Readonly<{
 }>;
 
 /**
- * The one shared file-driven session scheduler. Multi executes it once over an
- * ordered task set; single executes it once per isolated task.
+ * SharedEval schedules heartbeats and evaluates their durable effects. The
+ * injected SharedOS session is the only component allowed to execute a turn,
+ * expose or invoke tools, or send and route agent messages.
  */
 export async function runOneFileDrivenPairSessionV1(
   options: RunOneFileDrivenPairSessionV1Options,
 ): Promise<FileDrivenPairSessionV1> {
   validateSessionOptions(options);
   const taskIds = options.tasks.map(task => task.taskId);
-  const taskById = new Map(options.tasks.map(task => [task.taskId, task] as const));
-  const registry = options.registry ?? await (options.dependencies.loadRegistry
-    ?? loadWorkspaceRegistryV1)({ rootDir: options.registryRootDir });
+  const sessionId = stableIdV1('session', [
+    'file-workflow-session',
+    options.workflowId,
+    options.runId,
+    options.sessionIndex,
+  ]);
+  if (options.sessionId !== undefined && options.sessionId !== sessionId) {
+    throw new Error('File-driven session identity must match the scheduler-derived session ID');
+  }
+  const initialActionSha256 = sha256JsonV1(
+    loadCanonicalPactPairStoreV1() as unknown as JsonValue,
+  );
+  const runProvenance = fileWorkflowHostRunProvenanceV1Schema.parse(options.runProvenance);
+  const registry = options.registry ?? await (options.loadRegistry ?? loadWorkspaceRegistryV1)({
+    rootDir: options.registryRootDir,
+  });
   const [resolvedRequester, resolvedResponder] = await Promise.all([
     resolveAgentWorkspaceRegistryV1({
       rootDir: options.registryRootDir,
@@ -244,272 +297,336 @@ export async function runOneFileDrivenPairSessionV1(
     }),
   ]);
 
-  const requesterTemplate = renderRequesterTemplate(
-    resolvedRequester.template,
-    options.tasks,
-  );
-  const responderTemplate = renderResponderTemplate(
-    resolvedResponder.template,
-    taskIds,
-  );
-  // These immutable raw bytes and hashes exist before materialization, factory
-  // creation, model work, or contact authorization/spend.
+  const requesterTemplate = renderRequesterTemplate(resolvedRequester.template, options.tasks);
+  const responderTemplate = renderResponderTemplate(resolvedResponder.template, taskIds);
   const initialPrivateBytes = Object.freeze({
     requester: freezeTemplateBytes(requesterTemplate),
     responder: freezeTemplateBytes(responderTemplate),
   });
-  const materialize = options.dependencies.materializeWorkspace
-    ?? materializeFileWorkspaceV1;
-  const [requesterWorkspace, responderWorkspace] = await Promise.all([
-    materialize({
+  const materialize = options.materializeWorkspace ?? materializeFileWorkspaceV1;
+  const [requesterPresence, responderPresence] = await Promise.all([
+    inspectFileWorkspacePresenceV1({
       rootDir: options.workspaceRootDir,
       runId: options.runId,
       actorId: options.requester.actorId,
-      template: requesterTemplate,
-      selectedTaskIds: taskIds,
     }),
-    materialize({
+    inspectFileWorkspacePresenceV1({
       rootDir: options.workspaceRootDir,
       runId: options.runId,
       actorId: options.responder.actorId,
-      template: responderTemplate,
-      selectedTaskIds: taskIds,
     }),
+  ]);
+  const [requesterWorkspace, responderWorkspace] = await Promise.all([
+    requesterPresence === 'present'
+      ? openFileWorkspaceV1({
+        rootDir: options.workspaceRootDir,
+        runId: options.runId,
+        actorId: options.requester.actorId,
+        selectedTaskIds: taskIds,
+      })
+      : materialize({
+        rootDir: options.workspaceRootDir,
+        runId: options.runId,
+        actorId: options.requester.actorId,
+        template: requesterTemplate,
+        selectedTaskIds: taskIds,
+      }),
+    responderPresence === 'present'
+      ? openFileWorkspaceV1({
+        rootDir: options.workspaceRootDir,
+        runId: options.runId,
+        actorId: options.responder.actorId,
+        selectedTaskIds: taskIds,
+      })
+      : materialize({
+        rootDir: options.workspaceRootDir,
+        runId: options.runId,
+        actorId: options.responder.actorId,
+        template: responderTemplate,
+        selectedTaskIds: taskIds,
+      }),
   ]);
   const [requesterInitialSnapshot, responderInitialSnapshot] = await Promise.all([
     requesterWorkspace.snapshot(options.requester.actorId),
     responderWorkspace.snapshot(options.responder.actorId),
   ]);
+  assertWorkspaceInitialMatchesTemplate(
+    'requester',
+    requesterInitialSnapshot,
+    requesterTemplate,
+  );
+  assertWorkspaceInitialMatchesTemplate(
+    'responder',
+    responderInitialSnapshot,
+    responderTemplate,
+  );
   const initial = Object.freeze({
     requester: structuredClone(requesterInitialSnapshot.initial),
     responder: structuredClone(responderInitialSnapshot.initial),
   });
-
-  const requesterEvidence = new EvidenceWorkspaceV1(requesterWorkspace, taskIds);
-  const responderEvidence = new EvidenceWorkspaceV1(responderWorkspace, taskIds);
-  const contacts: FileDrivenPairContactV1[] = [];
-  const authoritativeByTask = new Map<string, FileDrivenPairContactV1>();
-  let activeTick = 0;
-
-  const baseContact = createInProcessContactAgentPortV1({
-    recipients: new Map([[options.responder.actorId, responderEvidence]]),
-    grants: taskIds.map(taskId => ({
-      senderId: options.requester.actorId,
-      recipientId: options.responder.actorId,
-      purpose: taskId,
-    })),
-    budgets: {
-      maxContacts: taskIds.length,
-      remainingDepth: 1,
-      maxToolSteps: options.budget.responderMaxToolSteps,
-    },
-    createResponderHarnessFactory: input => {
-      responderEvidence.beginTurn(activeTick);
-      return options.dependencies.createResponderHarnessFactory(input);
-    },
-    ...(options.cancellationSignal
-      ? { cancellationSignal: options.cancellationSignal }
-      : {}),
-  });
-  const correlatedContact: ContactAgentPortV1 = {
-    contact: async input => {
-      const task = taskById.get(input.purpose);
-      if (
-        !task
-        || input.senderId !== options.requester.actorId
-        || input.recipientId !== options.responder.actorId
-      ) {
-        return blockedContactResult(
-          options.runId,
-          activeTick,
-          CONTACT_AGENT_ERROR_CODES_V1.purposeDenied,
-        );
-      }
-      if (!requesterEvidence.readAllLogicalFilesInCurrentTurn()) {
-        return blockedContactResult(
-          options.runId,
-          activeTick,
-          'CONTACT_REQUESTER_FILE_READ_REQUIRED',
-        );
-      }
-      if (authoritativeByTask.has(task.taskId)) {
-        return blockedContactResult(
-          options.runId,
-          activeTick,
-          'CONTACT_DUPLICATE_TASK',
-        );
-      }
-
-      const before = task.kind === 'action'
-        ? snapshotResponderState(options.dependencies)
-        : undefined;
-      const rawResult = await baseContact.contact(input);
-      const after = task.kind === 'action'
-        ? snapshotResponderState(options.dependencies)
-        : undefined;
-      const result = (
-        (rawResult.status === 'completed' || rawResult.status === 'denied')
-        && !responderEvidence.readAllLogicalFilesInCurrentTurn()
-      )
-        ? {
-          status: 'failed' as const,
-          errorCode: 'CONTACT_RESPONDER_FILE_READ_REQUIRED',
-          recipientTraceId: rawResult.recipientTraceId,
-        }
-        : rawResult;
-      const contact = Object.freeze({
-        taskId: task.taskId,
-        tick: activeTick,
-        status: result.status,
-        recipientTraceId: result.recipientTraceId,
-        ...(result.response === undefined ? {} : { response: result.response }),
-        ...(result.errorCode === undefined ? {} : { errorCode: result.errorCode }),
-        responderReads: responderEvidence.currentReads(),
-        ...(before === undefined ? {} : { actionBefore: before }),
-        ...(after === undefined ? {} : { actionAfter: after }),
-      }) satisfies FileDrivenPairContactV1;
-      authoritativeByTask.set(task.taskId, contact);
-      contacts.push(contact);
-      return result;
-    },
-  };
-
-  // Factory construction happens only after exact initial bytes and both
-  // materialized initial snapshots are frozen above.
-  const requesterHarnessFactory = options.dependencies.createRequesterHarnessFactory({
-    workspace: requesterEvidence,
-    readablePaths: logicalPaths,
-    allowMemoryReplacement: true,
-    contact: correlatedContact,
-  });
-  const ticks: FileDrivenPairTickV1[] = [];
-  const outcomeByTask = new Map<string, FileDrivenPairTaskOutcomeV1>();
-  let stopReason: FileDrivenPairStopReasonV1 = 'tick_exhausted';
-  let fatal = false;
-
-  for (let tick = 1; tick <= options.maxTicks; tick += 1) {
-    activeTick = tick;
-    requesterEvidence.beginTurn(tick);
-    const traceId = opaqueTraceId(
-      options.runId,
-      options.sessionId ?? options.runId,
-      tick,
-    );
-    let attemptedDecision: FileTurnDecisionV1 | undefined;
-    let requesterMemoryVersion: number | undefined;
-    try {
-      const decision = await runFreshFileTurnV1(requesterHarnessFactory, {
-        actorId: options.requester.actorId,
-        traceId,
-        deadlineMs: options.budget.deadlineMs,
-        maxToolSteps: options.budget.requesterMaxToolSteps,
-        maxContactCalls: 1,
-        ...(options.cancellationSignal?.aborted ? { cancelled: true } : {}),
-      });
-      attemptedDecision = decision;
-      if (decision.type === 'cancelled' || options.cancellationSignal?.aborted) {
-        throw new Error('File-driven session cancelled');
-      }
-      const memory = await requesterWorkspace.read({
-        actorId: options.requester.actorId,
-        path: 'MEMORY.md',
-      });
-      requesterMemoryVersion = memory.receipt.version;
-      const rows = parseFileMemoryV1({ content: memory.content, selectedTaskIds: taskIds });
-      ticks.push(Object.freeze({
-        tick,
-        traceId,
-        status: 'completed' as const,
-        decision: structuredClone(decision),
-        requesterReads: requesterEvidence.currentReads(),
-        requesterMemoryVersion: memory.receipt.version,
-      }));
-      await reconcileTerminalRows({
-        rows,
-        tasks: options.tasks,
-        contacts: authoritativeByTask,
-        outcomes: outcomeByTask,
-        tick,
-      });
-      if (outcomeByTask.size === options.tasks.length) {
-        stopReason = 'all_terminal';
-        break;
-      }
-    } catch {
-      ticks.push(Object.freeze({
-        tick,
-        traceId,
-        status: 'failed' as const,
-        ...(attemptedDecision
-          ? { decision: structuredClone(attemptedDecision) }
-          : {}),
-        errorCode: 'FILE_TURN_FAILED' as const,
-        requesterReads: requesterEvidence.currentReads(),
-        ...(requesterMemoryVersion === undefined
-          ? {}
-          : { requesterMemoryVersion }),
-      }));
-      fatal = true;
-      stopReason = 'fatal_error';
-      break;
-    }
-  }
-
-  if (fatal) {
-    for (const task of options.tasks) {
-      if (!outcomeByTask.has(task.taskId)) {
-        outcomeByTask.set(task.taskId, await evaluateFallbackOutcome({
-          task,
-          fallbackStatus: 'error',
-          terminalTick: Math.max(1, activeTick),
-          contact: authoritativeByTask.get(task.taskId),
-        }));
-      }
-    }
-  } else if (outcomeByTask.size < options.tasks.length) {
-    stopReason = 'tick_exhausted';
-    for (const task of options.tasks) {
-      if (!outcomeByTask.has(task.taskId)) {
-        outcomeByTask.set(task.taskId, await evaluateFallbackOutcome({
-          task,
-          fallbackStatus: 'no_response',
-          terminalTick: options.maxTicks,
-          contact: authoritativeByTask.get(task.taskId),
-        }));
-      }
-    }
-  }
-
-  const [requesterFinalSnapshot, responderFinalSnapshot] = await Promise.all([
-    requesterWorkspace.snapshot(options.requester.actorId),
-    responderWorkspace.snapshot(options.responder.actorId),
+  const namespaceId = stableIdV1('namespace', [
+    'namespace',
+    options.runId,
+    options.sessionIndex,
   ]);
-  const outcomes = options.tasks.map(task => {
-    const outcome = outcomeByTask.get(task.taskId);
-    if (!outcome) throw new Error('File-driven session lost a selected task outcome');
-    return outcome;
-  });
-  return Object.freeze({
+
+  let sharedOsSession;
+  try {
+    sharedOsSession = await options.createSharedOsSession({
+      runId: options.runId,
+      namespaceId,
+      sessionIndex: options.sessionIndex,
+      maxTicks: options.maxTicks,
+      maxToolCalls: options.budget.maxToolCalls,
+      deadlineMs: options.budget.deadlineMs,
+      requester: { actorId: options.requester.actorId, workspace: requesterWorkspace },
+      responder: { actorId: options.responder.actorId, workspace: responderWorkspace },
+      tasks: options.tasks,
+      pactWorkspace: options.pactWorkspace,
+      storeRoot: options.storeRoot,
+      createDriver: options.createDriver,
+    });
+  } catch {
+    throw new FileDrivenPairSessionPreparationErrorV1();
+  }
+  let binding: FileWorkflowRunBindingV1;
+  try {
+    binding = buildRunBinding({
+      options,
+      runProvenance,
+      taskIds,
+      requesterPolicySha256: requesterTemplate.files.policy.sha256,
+      responderPolicy: resolvedResponder.assets.policy,
+      requesterInitial: requesterInitialSnapshot.initial.files,
+      responderInitial: responderInitialSnapshot.initial.files,
+      sharedOs: sharedOsSession.provenance,
+      namespaceId,
+      sessionId,
+      initialActionSha256,
+    });
+  } catch (error) {
+    const failures: unknown[] = [error];
+    try {
+      await sharedOsSession.close();
+    } catch (closeError) {
+      failures.push(closeError);
+    }
+    throw combinedFailure(failures, 'Run binding failed and SharedOS cleanup also failed');
+  }
+
+  let ledger: FileWorkflowLedgerV1;
+  try {
+    ledger = await (options.openLedger ?? openFileWorkflowLedgerV1)({
+      runDirectory: options.storeRoot,
+      binding,
+      retainPrivate: true,
+    });
+  } catch (error) {
+    const failures: unknown[] = [error];
+    try {
+      await sharedOsSession.close();
+    } catch (closeError) {
+      failures.push(closeError);
+    }
+    throw combinedFailure(failures, 'Ledger open failed and SharedOS cleanup also failed');
+  }
+
+  let state: HydratedFileWorkflowStateV1 | undefined;
+  let finalSnapshots: Readonly<{
+    requester: FileWorkspaceSnapshotV1;
+    responder: FileWorkspaceSnapshotV1;
+  }> | undefined;
+  const failures: unknown[] = [];
+  try {
+    const recovery = await ledger.inspectRecovery();
+    if (recovery.kind === 'indeterminate_external_operation') {
+      throw new FileDrivenPairIndeterminateExternalOperationErrorV1();
+    }
+    await ledger.repairPublicProjections();
+    let records = [...await ledger.readRecords()];
+    state = hydrateCommittedRecords({ binding, records, tasks: options.tasks });
+    restoreCommittedPactPairState(
+      options.pactWorkspace,
+      state.actionSnapshots,
+      binding.scheduler.initialActionSha256,
+    );
+    await assertCommittedWorkspaceAuthority({
+      binding,
+      state,
+      requesterWorkspace,
+      responderWorkspace,
+    });
+
+    while (!state.stopReason) {
+      const tick = records.length + 1;
+      if (tick > options.maxTicks) {
+        throw new Error('Committed heartbeat history exhausted maxTicks without terminal authority');
+      }
+      const [requesterBefore, responderBefore] = await Promise.all([
+        requesterWorkspace.snapshot(options.requester.actorId),
+        responderWorkspace.snapshot(options.responder.actorId),
+      ]);
+      const inputDigest = sha256JsonV1([
+        'heartbeat-input',
+        namespaceId,
+        tick,
+        requesterBefore.final as unknown as JsonValue,
+        responderBefore.final as unknown as JsonValue,
+        sha256JsonV1(options.pactWorkspace.snapshot() as unknown as JsonValue),
+        [...state.terminalTaskIds],
+      ]);
+      const eventId = stableIdV1('heartbeat', [
+        'heartbeat',
+        namespaceId,
+        tick,
+        inputDigest,
+      ]);
+      const traceId = stableIdV1('trace', ['trace', eventId]);
+      const event = {
+        eventId,
+        runId: options.runId,
+        sessionId,
+        tick,
+        actorId: options.requester.actorId,
+        traceId,
+      } as const;
+      const stateBeforeTurn = state;
+      const heartbeat = await runFileWorkflowHeartbeatV1({
+        ledger,
+        start: { event, inputDigest },
+        execute: async () => {
+          const actionBefore = options.pactWorkspace.snapshot();
+          const turn = await sharedOsSession.runRequesterTurn({
+            tick,
+            eventId,
+            traceId,
+            inputDigest,
+            ...(options.cancellationSignal ? { signal: options.cancellationSignal } : {}),
+          });
+          const actionAfter = options.pactWorkspace.snapshot();
+          const contactedTask = turn.contact
+            ? options.tasks.find(task => task.taskId === turn.contact!.taskId)
+            : undefined;
+          const native = projectFileWorkflowSharedOsEvidenceV1({
+            binding,
+            event,
+            turn,
+            ...(contactedTask?.kind === 'action'
+              ? { actionSnapshot: { before: actionBefore, after: actionAfter } }
+              : {}),
+          });
+          const planned = await planCommittedHeartbeat({
+            binding,
+            sessionId,
+            tick,
+            native,
+            tasks: options.tasks,
+            history: stateBeforeTurn,
+            maxTicks: options.maxTicks,
+          });
+          return buildFileWorkflowHeartbeatPayloadV1({
+            binding,
+            sessionId,
+            heartbeat: { eventId, tick, traceId, inputDigest },
+            native,
+            history: {
+              terminalTaskIds: stateBeforeTurn.terminalTaskIds,
+              contacts: stateBeforeTurn.contactAuthorities,
+            },
+            terminalOutcomes: planned.terminalOutcomes,
+            ...(planned.stopReason ? { sessionStopReason: planned.stopReason } : {}),
+          });
+        },
+      });
+      if (heartbeat.kind === 'indeterminate_external_operation') {
+        throw new FileDrivenPairIndeterminateExternalOperationErrorV1();
+      }
+      const existing = records[heartbeat.record.sequence];
+      if (existing) {
+        if (!isDeepStrictEqual(existing, heartbeat.record)) {
+          throw new Error('Heartbeat replay conflicts with committed record authority');
+        }
+      } else if (heartbeat.record.sequence === records.length) {
+        records = [...records, heartbeat.record];
+      } else {
+        throw new Error('Committed heartbeat record sequence is non-contiguous');
+      }
+      state = hydrateCommittedRecords({ binding, records, tasks: options.tasks });
+      restoreCommittedPactPairState(
+        options.pactWorkspace,
+        state.actionSnapshots,
+        binding.scheduler.initialActionSha256,
+      );
+      await assertCommittedWorkspaceAuthority({
+        binding,
+        state,
+        requesterWorkspace,
+        responderWorkspace,
+      });
+    }
+
+    const [requesterFinal, responderFinal] = await Promise.all([
+      requesterWorkspace.snapshot(options.requester.actorId),
+      responderWorkspace.snapshot(options.responder.actorId),
+    ]);
+    finalSnapshots = { requester: requesterFinal, responder: responderFinal };
+  } catch (error) {
+    failures.push(error);
+  }
+
+  try {
+    await sharedOsSession.close();
+  } catch (error) {
+    failures.push(error);
+  }
+  if (failures.length === 0 && state?.stopReason && finalSnapshots) {
+    try {
+      await ledger.finalize({
+        stopReason: state.stopReason,
+        finalFiles: {
+          requester: bindingFileSet(finalSnapshots.requester.final.files),
+          responder: bindingFileSet(finalSnapshots.responder.final.files),
+        },
+      });
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  try {
+    await ledger.close();
+  } catch (error) {
+    failures.push(error);
+  }
+  if (failures.length > 0) {
+    throw combinedFailure(failures, 'File-driven session lifecycle failed');
+  }
+  if (!state?.stopReason || !finalSnapshots) {
+    throw new Error('File-driven session closed without terminal committed authority');
+  }
+
+  return deepFreeze(structuredClone({
     workflowId: options.workflowId,
     runId: options.runId,
-    sessionId: options.sessionId ?? options.runId,
-    selectedTaskIds: Object.freeze([...taskIds]),
-    registryReferences: Object.freeze({
-      requester: structuredClone(options.requester.references),
-      responder: structuredClone(options.responder.references),
-    }),
-    stopReason,
-    ...(fatal ? { fatalErrorCode: 'FILE_SESSION_FAILED' as const } : {}),
-    ticks: Object.freeze([...ticks]),
-    contacts: Object.freeze([...contacts]),
-    outcomes: Object.freeze(outcomes),
+    sessionId,
+    selectedTaskIds: taskIds,
+    registryReferences: {
+      requester: options.requester.references,
+      responder: options.responder.references,
+    },
+    stopReason: state.stopReason,
+    ...(state.stopReason === 'fatal_error'
+      ? { fatalErrorCode: 'FILE_SESSION_FAILED' as const }
+      : {}),
+    ticks: state.ticks,
+    contacts: state.contacts,
+    outcomes: state.outcomes,
     initial,
-    final: Object.freeze({
-      requester: structuredClone(requesterFinalSnapshot.final),
-      responder: structuredClone(responderFinalSnapshot.final),
-    }),
+    final: {
+      requester: finalSnapshots.requester.final,
+      responder: finalSnapshots.responder.final,
+    },
     initialPrivateBytes,
-  });
+  }));
 }
 
 export function toPublicFileDrivenPairSessionV1(
@@ -539,19 +656,12 @@ export function toPublicFileDrivenPairSessionV1(
   };
 }
 
-export function renderRequesterPolicyV1(
-  tasks: readonly LoadedPactPairTaskV1[],
-): string {
+export function renderRequesterPolicyV1(tasks: readonly LoadedPactPairTaskV1[]): string {
   if (tasks.length === 0) throw new Error('Requester policy requires at least one public task');
-  const lines = tasks.map((task, index) =>
+  const lines = tasks.map((task, index) => (
     `${index + 1}. ${JSON.stringify(structuredClone(task.publicTask))}`
-  );
-  return [
-    '# Ordered Public Task Queue',
-    '',
-    ...lines,
-    '',
-  ].join('\n');
+  ));
+  return ['# Ordered Public Task Queue', '', ...lines, ''].join('\n');
 }
 
 export function renderInitialFileMemoryV1(taskIds: readonly string[]): string {
@@ -565,10 +675,9 @@ function renderRequesterTemplate(
   template: AgentWorkspaceTemplateV1,
   tasks: readonly LoadedPactPairTaskV1[],
 ): AgentWorkspaceTemplateV1 {
-  const memory = renderInitialFileMemoryV1(tasks.map(task => task.taskId));
   return replaceTemplateFiles(template, {
     'POLICY.md': renderRequesterPolicyV1(tasks),
-    'MEMORY.md': memory,
+    'MEMORY.md': renderInitialFileMemoryV1(tasks.map(task => task.taskId)),
   });
 }
 
@@ -576,9 +685,7 @@ function renderResponderTemplate(
   template: AgentWorkspaceTemplateV1,
   taskIds: readonly string[],
 ): AgentWorkspaceTemplateV1 {
-  return replaceTemplateFiles(template, {
-    'MEMORY.md': renderInitialFileMemoryV1(taskIds),
-  });
+  return replaceTemplateFiles(template, { 'MEMORY.md': renderInitialFileMemoryV1(taskIds) });
 }
 
 function replaceTemplateFiles(
@@ -590,11 +697,7 @@ function replaceTemplateFiles(
     Access extends 'read_only' | 'read_write',
   >(file: { path: Path; access: Access; content: string; sha256: string }) => {
     const content = replacements[file.path] ?? file.content;
-    return {
-      ...file,
-      content,
-      sha256: sha256(content),
-    };
+    return { ...file, content, sha256: sha256(content) };
   };
   return {
     apiVersion: template.apiVersion,
@@ -608,83 +711,551 @@ function replaceTemplateFiles(
   };
 }
 
-function freezeTemplateBytes(
-  template: AgentWorkspaceTemplateV1,
-): FrozenInitialWorkspaceBytesV1 {
+function freezeTemplateBytes(template: AgentWorkspaceTemplateV1): FrozenInitialWorkspaceBytesV1 {
   const byPath = Object.fromEntries(Object.values(template.files).map(file => {
     const bytes = Buffer.from(file.content, 'utf8');
-    const frozen = Object.freeze({
+    return [file.path, Object.freeze({
       path: file.path,
       sha256: sha256(bytes),
       byteLength: bytes.byteLength,
       bytesBase64: bytes.toString('base64'),
-    });
-    return [file.path, frozen];
+    })];
   })) as Record<AgentWorkspaceFilePathV1, FrozenInitialFileBytesV1>;
   return Object.freeze(byPath);
 }
 
-async function reconcileTerminalRows(input: {
-  rows: readonly FileMemoryRowV1[];
+function assertWorkspaceInitialMatchesTemplate(
+  role: 'requester' | 'responder',
+  snapshot: FileWorkspaceSnapshotV1,
+  template: AgentWorkspaceTemplateV1,
+): void {
+  const templateByPath = {
+    'AGENT.md': template.files.agent,
+    'HEARTBEAT.md': template.files.heartbeat,
+    'POLICY.md': template.files.policy,
+    'MEMORY.md': template.files.memory,
+  } as const;
+  if (snapshot.initial.version !== 0) {
+    throw new Error(`${role} initial workspace version conflicts with its resolved template`);
+  }
+  for (const path of Object.keys(templateByPath) as AgentWorkspaceFilePathV1[]) {
+    const expected = templateByPath[path];
+    const actual = snapshot.initial.files[path];
+    if (
+      actual.path !== path
+      || actual.sha256 !== expected.sha256
+      || actual.byteLength !== Buffer.byteLength(expected.content)
+    ) {
+      throw new Error(
+        `${role} initial workspace ${path} conflicts with the newly resolved template`,
+      );
+    }
+  }
+}
+
+type CommittedActionSnapshotV1 = Readonly<{
+  taskId: string;
+  contactId: string;
+  actorId: string;
+  eventId: string;
+  before: PairDataStore;
+  after: PairDataStore;
+}>;
+
+type ExpectedWorkspaceAuthorityV1 = Readonly<{
+  version: number;
+  files: FileWorkflowRunBindingV1['actors']['requester']['initial'];
+}>;
+
+type HydratedFileWorkflowStateV1 = Readonly<{
+  ticks: readonly FileDrivenPairTickV1[];
+  contacts: readonly FileDrivenPairContactV1[];
+  outcomes: readonly FileDrivenPairTaskOutcomeV1[];
+  terminalTaskIds: readonly string[];
+  contactAuthorities: readonly FileWorkflowContactAuthorityV1[];
+  actionSnapshots: readonly CommittedActionSnapshotV1[];
+  expectedWorkspace: Readonly<{
+    requester: ExpectedWorkspaceAuthorityV1;
+    responder: ExpectedWorkspaceAuthorityV1;
+  }>;
+  stopReason?: FileDrivenPairStopReasonV1;
+}>;
+
+function buildRunBinding(input: {
+  options: RunOneFileDrivenPairSessionV1Options;
+  runProvenance: FileWorkflowHostRunProvenanceV1;
+  taskIds: readonly string[];
+  requesterPolicySha256: string;
+  responderPolicy: Readonly<{
+    asset: Readonly<{ id: string; version: string }>;
+    sha256: string;
+  }>;
+  requesterInitial: FileWorkspaceFileSetV1;
+  responderInitial: FileWorkspaceFileSetV1;
+  sharedOs: SharedOsFileTurnResultV1['provenance'];
+  namespaceId: string;
+  sessionId: string;
+  initialActionSha256: string;
+}): FileWorkflowRunBindingV1 {
+  if (input.sharedOs.namespaceId !== input.namespaceId) {
+    throw new Error('SharedOS session provenance conflicts with its scheduler namespace');
+  }
+  return deepFreeze(fileWorkflowRunBindingV1Schema.parse({
+    apiVersion: 'sharedeval-file-run-binding/v1',
+    workflowId: input.options.workflowId,
+    runId: input.options.runId,
+    selectedTaskIds: [...input.taskIds],
+    selectedTasks: input.options.tasks.map(task => ({ taskId: task.taskId, kind: task.kind })),
+    selectedTaskDigest: fileWorkflowSelectedTaskDigestV1(input.taskIds),
+    scheduler: {
+      sessionId: input.sessionId,
+      sessionIndex: input.options.sessionIndex,
+      maxTicks: input.options.maxTicks,
+      budget: structuredClone(input.options.budget),
+      initialActionSha256: input.initialActionSha256,
+    },
+    dataset: structuredClone(input.runProvenance.dataset),
+    goldSet: structuredClone(input.runProvenance.goldSet),
+    policies: {
+      requester: {
+        id: 'sharedeval/scheduler/ordered-public-task-queue',
+        version: '1.0.0',
+        sha256: input.requesterPolicySha256,
+      },
+      responder: {
+        id: input.responderPolicy.asset.id,
+        version: input.responderPolicy.asset.version,
+        sha256: input.responderPolicy.sha256,
+      },
+    },
+    actors: {
+      requester: {
+        actorId: input.options.requester.actorId,
+        references: structuredClone(input.options.requester.references),
+        model: structuredClone(input.runProvenance.models.requester),
+        initial: bindingFileSet(input.requesterInitial),
+      },
+      responder: {
+        actorId: input.options.responder.actorId,
+        references: structuredClone(input.options.responder.references),
+        model: structuredClone(input.runProvenance.models.responder),
+        initial: bindingFileSet(input.responderInitial),
+      },
+    },
+    backend: structuredClone(input.runProvenance.backend),
+    sharedOs: structuredClone(input.sharedOs),
+  }));
+}
+
+function hydrateCommittedRecords(input: {
+  binding: FileWorkflowRunBindingV1;
+  records: readonly FileWorkflowLedgerRecordV1[];
   tasks: readonly LoadedPactPairTaskV1[];
-  contacts: ReadonlyMap<string, FileDrivenPairContactV1>;
-  outcomes: Map<string, FileDrivenPairTaskOutcomeV1>;
+}): HydratedFileWorkflowStateV1 {
+  const ticks: FileDrivenPairTickV1[] = [];
+  const contacts: FileDrivenPairContactV1[] = [];
+  const outcomes = new Map<string, FileDrivenPairTaskOutcomeV1>();
+  const contactsById = new Map<string, FileDrivenPairContactV1>();
+  const contactAuthorities: FileWorkflowContactAuthorityV1[] = [];
+  const actionSnapshots: CommittedActionSnapshotV1[] = [];
+  const expected = {
+    requester: {
+      version: 0,
+      files: structuredClone(input.binding.actors.requester.initial),
+    },
+    responder: {
+      version: 0,
+      files: structuredClone(input.binding.actors.responder.initial),
+    },
+  };
+  let stopReason: FileDrivenPairStopReasonV1 | undefined;
+
+  for (const [index, record] of input.records.entries()) {
+    if (record.sequence !== index || record.payload.event.tick !== index + 1) {
+      throw new Error('Committed heartbeat history is not scheduler-contiguous');
+    }
+    const evidence = record.payload.privateEvidence;
+    if (!evidence) throw new Error('Recoverable scheduler records require retained private evidence');
+    const { fullEvaluations, ...retainedEvidence } = evidence;
+    const native = projectFileWorkflowRetainedSharedOsEvidenceV1({
+      binding: input.binding,
+      event: record.payload.event,
+      retainedEvidence,
+      sharedOsAuthority: record.payload.sharedOsAuthority,
+      ...(record.payload.contactAuthority
+        ? { contactAuthority: record.payload.contactAuthority }
+        : {}),
+    });
+    applyMemoryAuthority(expected, native, input.binding);
+    const contact = contactFromCommittedProjection(record, native);
+    if (contact) {
+      contacts.push(contact);
+      contactsById.set(contact.requestMessageId, contact);
+      contactAuthorities.push(structuredClone(record.payload.contactAuthority!));
+    }
+    actionSnapshots.push(...retainedEvidence.actionSnapshots.map(row => structuredClone(row)));
+
+    const requesterMemory = native.memoryAuthorities.find(row => (
+      row.actorId === input.binding.actors.requester.actorId
+    ));
+    const decision = retainedEvidence.tickDecisions[0];
+    const failed = retainedEvidence.requesterExecutionStatus !== 'succeeded'
+      || decision?.type === 'cancelled';
+    ticks.push(Object.freeze({
+      tick: record.payload.event.tick,
+      eventId: record.payload.event.eventId,
+      traceId: record.payload.event.traceId,
+      status: failed ? 'failed' as const : 'completed' as const,
+      executionId: native.sharedOsAuthority.requesterExecutionId,
+      executionStatus: retainedEvidence.requesterExecutionStatus,
+      ...(decision ? { decision: structuredClone(decision) } : {}),
+      ...(failed ? { errorCode: 'FILE_TURN_FAILED' as const } : {}),
+      requesterReads: cloneReceipts(native.fileReads.filter(row => (
+        row.actorId === input.binding.actors.requester.actorId
+      ))),
+      ...(requesterMemory ? { requesterMemoryVersion: requesterMemory.newVersion } : {}),
+      providerUsage: structuredClone(retainedEvidence.providerTelemetry.requester),
+      audit: structuredClone(native.sharedOsAuthority.audit),
+    }));
+
+    for (const transition of record.payload.transitions) {
+      if (outcomes.has(transition.taskId)) {
+        throw new Error('Committed heartbeat history repeats terminal task authority');
+      }
+      const task = input.tasks.find(candidate => candidate.taskId === transition.taskId);
+      if (!task) throw new Error('Committed terminal authority is outside selected tasks');
+      const contactForOutcome = transition.contactId
+        ? contactsById.get(transition.contactId)
+        : undefined;
+      const full = fullEvaluations.find(row => row.taskId === transition.taskId);
+      const evaluation = full ? normalizeCommittedEvaluation(full.evaluation) : null;
+      const evaluationResult = full
+        ? { details: structuredClone(evaluation!), metrics: structuredClone(full.metrics) }
+        : null;
+      const decisionForOutcome = terminalDecision(transition.result.status, contactForOutcome);
+      outcomes.set(transition.taskId, Object.freeze({
+        taskId: transition.taskId,
+        kind: transition.result.kind,
+        status: transition.result.status,
+        terminalTick: transition.result.terminalTick,
+        ...(transition.result.contactStatus
+          ? { contactStatus: transition.result.contactStatus }
+          : {}),
+        ...(decisionForOutcome ? { finalDecision: decisionForOutcome } : {}),
+        evaluation: evaluation === null ? null : structuredClone(evaluation),
+        evaluationResult,
+        publicEvaluation: transition.result.publicEvaluation === null
+          ? null
+          : structuredClone(transition.result.publicEvaluation),
+      }));
+    }
+    if (record.payload.sessionStopReason) stopReason = record.payload.sessionStopReason;
+  }
+  const terminalTaskIds = input.binding.selectedTaskIds.filter(taskId => outcomes.has(taskId));
+  return deepFreeze({
+    ticks,
+    contacts,
+    outcomes: input.binding.selectedTaskIds.flatMap(taskId => {
+      const outcome = outcomes.get(taskId);
+      return outcome ? [outcome] : [];
+    }),
+    terminalTaskIds,
+    contactAuthorities,
+    actionSnapshots,
+    expectedWorkspace: expected,
+    ...(stopReason ? { stopReason } : {}),
+  });
+}
+
+function contactFromCommittedProjection(
+  record: FileWorkflowLedgerRecordV1,
+  native: FileWorkflowSharedOsProjectionV1,
+): FileDrivenPairContactV1 | undefined {
+  const authority = native.currentContact?.authority;
+  if (!authority) return undefined;
+  const evidence = record.payload.privateEvidence!;
+  const snapshot = evidence.actionSnapshots.find(row => row.contactId === authority.contactId);
+  const responderUsage = evidence.providerTelemetry.responder;
+  return Object.freeze({
+    taskId: authority.taskId,
+    tick: record.payload.event.tick,
+    status: authority.status,
+    requestMessageId: authority.contactId,
+    ...(authority.replyMessageId ? { replyMessageId: authority.replyMessageId } : {}),
+    ...(authority.responderExecutionId
+      ? { responderExecutionId: authority.responderExecutionId }
+      : {}),
+    ...(native.currentContact?.response === undefined
+      ? {}
+      : { response: native.currentContact.response }),
+    ...(authority.errorCode ? { errorCode: authority.errorCode } : {}),
+    responderReads: cloneReceipts(native.fileReads.filter(row => (
+      row.actorId === authority.recipientId
+    ))),
+    ...(responderUsage ? { providerUsage: structuredClone(responderUsage) } : {}),
+    ...(snapshot
+      ? {
+        actionBefore: structuredClone(snapshot.before),
+        actionAfter: structuredClone(snapshot.after),
+      }
+      : {}),
+  });
+}
+
+function applyMemoryAuthority(
+  expected: {
+    requester: { version: number; files: FileWorkflowRunBindingV1['actors']['requester']['initial'] };
+    responder: { version: number; files: FileWorkflowRunBindingV1['actors']['requester']['initial'] };
+  },
+  native: FileWorkflowSharedOsProjectionV1,
+  binding: FileWorkflowRunBindingV1,
+): void {
+  for (const authority of native.memoryAuthorities) {
+    const role = authority.actorId === binding.actors.requester.actorId
+      ? 'requester'
+      : authority.actorId === binding.actors.responder.actorId
+        ? 'responder'
+        : undefined;
+    if (!role) throw new Error('Committed MEMORY authority has a foreign actor');
+    const current = expected[role];
+    if (
+      authority.previousVersion !== current.version
+      || authority.previousSha256 !== current.files['MEMORY.md'].sha256
+      || authority.newVersion !== current.version + 1
+    ) {
+      throw new Error('Committed MEMORY authority is not linear with scheduler state');
+    }
+    current.version = authority.newVersion;
+    const transition = native.memoryTransitions.find(row => (
+      row.actorId === authority.actorId && row.newVersion === authority.newVersion
+    ));
+    if (!transition) throw new Error('Committed MEMORY authority lacks its transition receipt');
+    current.files['MEMORY.md'] = {
+      path: 'MEMORY.md',
+      sha256: authority.newSha256,
+      byteLength: transition.byteLength,
+    };
+  }
+}
+
+async function planCommittedHeartbeat(input: {
+  binding: FileWorkflowRunBindingV1;
+  sessionId: string;
   tick: number;
-}): Promise<void> {
-  for (const [index, task] of input.tasks.entries()) {
-    if (input.outcomes.has(task.taskId)) continue;
-    const row = input.rows[index];
-    if (!row || row.status === 'pending') continue;
-    const contact = input.contacts.get(task.taskId);
-    // MEMORY alone is not a terminal event. A model cannot manufacture an
-    // answered/refused/error result without one host-correlated contact.
-    if (!contact) continue;
+  native: FileWorkflowSharedOsProjectionV1;
+  tasks: readonly LoadedPactPairTaskV1[];
+  history: HydratedFileWorkflowStateV1;
+  maxTicks: number;
+}): Promise<Readonly<{
+  terminalOutcomes: readonly FileWorkflowHeartbeatTerminalOutcomeV1[];
+  stopReason?: FileDrivenPairStopReasonV1;
+}>> {
+  const existing = new Set(input.history.terminalTaskIds);
+  const contacts = new Map(input.history.contacts.map(row => [row.taskId, row]));
+  const current = contactFromLiveProjection(input.native, input.tick);
+  if (current) contacts.set(current.taskId, current);
+  const requesterMemory = input.native.memoryAuthorities.find(row => (
+    row.actorId === input.binding.actors.requester.actorId
+  ));
+  const deltas = new Map(requesterMemory?.newRows.flatMap((row, index) => (
+    requesterMemory.previousRows[index]?.status === 'pending' && row.status !== 'pending'
+      ? [[row.taskId, row.status] as const]
+      : []
+  )) ?? []);
+  const planned = new Map<string, FileWorkflowHeartbeatTerminalOutcomeV1>();
+  const fatal = input.native.sharedOsAuthority.requesterExecutionStatus !== 'succeeded'
+    || input.native.retainedEvidence.tickDecisions[0]?.type === 'cancelled';
+
+  for (const task of input.tasks) {
+    if (existing.has(task.taskId)) continue;
+    const memoryStatus = deltas.get(task.taskId);
+    const contact = contacts.get(task.taskId);
+    if (!memoryStatus || !contact) continue;
     const state = actionStateFromContact(task, contact);
     const status = deriveFileMemoryTerminalStatusV1({
-      memoryStatus: row.status,
+      memoryStatus,
       contactStatus: contact.status,
       stateChanged: hasStateChanged(state),
     });
     if (!status) continue;
-    input.outcomes.set(task.taskId, await evaluateOutcome({
-      task,
-      status,
-      terminalTick: input.tick,
-      contact,
-      state,
-    }));
+    planned.set(task.taskId, await heartbeatTerminalOutcome({ task, status, contact, state }));
+  }
+
+  const remainingAfterMemory = input.tasks.filter(task => (
+    !existing.has(task.taskId) && !planned.has(task.taskId)
+  ));
+  let stopReason: FileDrivenPairStopReasonV1 | undefined;
+  const completeAfterMemory = existing.size + planned.size === input.tasks.length;
+  if (fatal) {
+    for (const task of remainingAfterMemory) {
+      const contact = contacts.get(task.taskId);
+      const state = actionStateFromContact(task, contact);
+      const status = hasStateChanged(state) ? 'side_effect_before_failure' : 'error';
+      planned.set(task.taskId, await heartbeatTerminalOutcome({ task, status, contact, state }));
+    }
+    stopReason = 'fatal_error';
+  } else if (completeAfterMemory) {
+    stopReason = 'all_terminal';
+  } else if (input.tick === input.maxTicks) {
+    for (const task of remainingAfterMemory) {
+      const contact = contacts.get(task.taskId);
+      const state = actionStateFromContact(task, contact);
+      const status = hasStateChanged(state) ? 'side_effect_before_failure' : 'no_response';
+      planned.set(task.taskId, await heartbeatTerminalOutcome({ task, status, contact, state }));
+    }
+    stopReason = 'tick_exhausted';
+  }
+  return {
+    terminalOutcomes: input.tasks.flatMap(task => {
+      const outcome = planned.get(task.taskId);
+      return outcome ? [outcome] : [];
+    }),
+    ...(stopReason ? { stopReason } : {}),
+  };
+}
+
+function contactFromLiveProjection(
+  native: FileWorkflowSharedOsProjectionV1,
+  tick: number,
+): FileDrivenPairContactV1 | undefined {
+  const authority = native.currentContact?.authority;
+  if (!authority) return undefined;
+  const snapshot = native.retainedEvidence.actionSnapshots[0];
+  const responderUsage = native.retainedEvidence.providerTelemetry.responder;
+  return {
+    taskId: authority.taskId,
+    tick,
+    status: authority.status,
+    requestMessageId: authority.contactId,
+    ...(authority.replyMessageId ? { replyMessageId: authority.replyMessageId } : {}),
+    ...(authority.responderExecutionId
+      ? { responderExecutionId: authority.responderExecutionId }
+      : {}),
+    ...(native.currentContact?.response === undefined
+      ? {}
+      : { response: native.currentContact.response }),
+    ...(authority.errorCode ? { errorCode: authority.errorCode } : {}),
+    responderReads: cloneReceipts(native.fileReads.filter(row => (
+      row.actorId === authority.recipientId
+    ))),
+    ...(responderUsage ? { providerUsage: structuredClone(responderUsage) } : {}),
+    ...(snapshot
+      ? { actionBefore: snapshot.before, actionAfter: snapshot.after }
+      : {}),
+  };
+}
+
+async function heartbeatTerminalOutcome(input: {
+  task: LoadedPactPairTaskV1;
+  status: FileDrivenPairTerminalStatusV1;
+  contact?: FileDrivenPairContactV1;
+  state?: { before: PairDataStore; after: PairDataStore };
+}): Promise<FileWorkflowHeartbeatTerminalOutcomeV1> {
+  const evaluated = await evaluateOutcome({
+    task: input.task,
+    status: input.status,
+    terminalTick: 0,
+    ...(input.contact ? { contact: input.contact } : {}),
+    ...(input.state ? { state: input.state } : {}),
+  });
+  const requiresError = input.status === 'error' || input.status === 'side_effect_before_failure';
+  return {
+    taskId: input.task.taskId,
+    status: input.status,
+    ...(input.contact ? { contactId: input.contact.requestMessageId } : {}),
+    ...(requiresError
+      ? { errorCode: input.contact?.errorCode ?? 'FILE_SESSION_FAILED' }
+      : {}),
+    fullEvaluation: evaluated.evaluation,
+  };
+}
+
+async function assertCommittedWorkspaceAuthority(input: {
+  binding: FileWorkflowRunBindingV1;
+  state: HydratedFileWorkflowStateV1;
+  requesterWorkspace: FileWorkspacePortV1;
+  responderWorkspace: FileWorkspacePortV1;
+}): Promise<void> {
+  const [requester, responder] = await Promise.all([
+    input.requesterWorkspace.snapshot(input.binding.actors.requester.actorId),
+    input.responderWorkspace.snapshot(input.binding.actors.responder.actorId),
+  ]);
+  for (const [role, snapshot] of [
+    ['requester', requester],
+    ['responder', responder],
+  ] as const) {
+    const actor = input.binding.actors[role];
+    if (!isDeepStrictEqual(snapshot.initial, { version: 0, files: actor.initial })) {
+      throw new Error(`Committed ${role} workspace initial authority conflicts with run binding`);
+    }
+    if (!isDeepStrictEqual(snapshot.final, input.state.expectedWorkspace[role])) {
+      throw new Error(`Committed ${role} workspace is ahead of or behind ledger authority`);
+    }
   }
 }
 
-async function evaluateFallbackOutcome(input: {
-  task: LoadedPactPairTaskV1;
-  fallbackStatus: 'error' | 'no_response';
-  terminalTick: number;
-  contact?: FileDrivenPairContactV1;
-}): Promise<FileDrivenPairTaskOutcomeV1> {
-  const state = actionStateFromContact(input.task, input.contact);
-  return evaluateOutcome({
-    task: input.task,
-    status: hasStateChanged(state)
-      ? 'side_effect_before_failure'
-      : input.fallbackStatus,
-    terminalTick: input.terminalTick,
-    ...(input.contact ? { contact: input.contact } : {}),
-    ...(state ? { state } : {}),
-  });
+function restoreCommittedPactPairState(
+  workspace: PactPairWorkspaceV1,
+  snapshots: readonly CommittedActionSnapshotV1[],
+  initialActionSha256: string,
+): void {
+  const initialBoundary = snapshots[0]?.before ?? workspace.snapshot();
+  if (sha256JsonV1(initialBoundary as unknown as JsonValue) !== initialActionSha256) {
+    throw new Error('PACT action initial state conflicts with the bound scheduler authority');
+  }
+  if (snapshots.length === 0) return;
+  for (let index = 1; index < snapshots.length; index += 1) {
+    if (!isDeepStrictEqual(snapshots[index - 1]!.after, snapshots[index]!.before)) {
+      throw new Error('Committed action snapshot history is not linear');
+    }
+  }
+  const current = workspace.snapshot();
+  const boundaries = [snapshots[0]!.before, ...snapshots.map(row => row.after)];
+  if (!boundaries.some(boundary => isDeepStrictEqual(boundary, current))) {
+    throw new Error('PACT action workspace conflicts with committed snapshot authority');
+  }
+  workspace.restore(snapshots.at(-1)!.after);
+}
+
+function bindingFileSet(
+  files: FileWorkspaceFileSetV1,
+): FileWorkflowRunBindingV1['actors']['requester']['initial'] {
+  return {
+    'AGENT.md': { ...files['AGENT.md'], path: 'AGENT.md' },
+    'HEARTBEAT.md': { ...files['HEARTBEAT.md'], path: 'HEARTBEAT.md' },
+    'POLICY.md': { ...files['POLICY.md'], path: 'POLICY.md' },
+    'MEMORY.md': { ...files['MEMORY.md'], path: 'MEMORY.md' },
+  };
+}
+
+function cloneReceipts(receipts: readonly FileReadReceiptV1[]): readonly FileReadReceiptV1[] {
+  return Object.freeze(receipts.map(receipt => Object.freeze(structuredClone(receipt))));
+}
+
+function normalizeCommittedEvaluation(value: unknown): PactPairEvaluationV1 {
+  const evaluation = pactPairFullEvaluationV1Schema.parse(value);
+  if (evaluation.kind === 'qa') return evaluation;
+  const goldCheckType = (() => {
+    switch (evaluation.goldCheckType) {
+      case 'note_edited':
+      case 'todo_edited':
+      case 'todo_completed':
+      case 'note_created':
+      case 'todo_created':
+      case 'no_change':
+        return evaluation.goldCheckType;
+      default:
+        throw new Error('Committed action evaluation has an invalid gold check type');
+    }
+  })();
+  return { ...evaluation, goldCheckType };
 }
 
 function actionStateFromContact(
   task: LoadedPactPairTaskV1,
   contact?: FileDrivenPairContactV1,
 ): { before: PairDataStore; after: PairDataStore } | undefined {
-  if (
-    task.kind !== 'action'
-    || !contact?.actionBefore
-    || !contact.actionAfter
-  ) {
-    return undefined;
-  }
+  if (task.kind !== 'action' || !contact?.actionBefore || !contact.actionAfter) return undefined;
   return { before: contact.actionBefore, after: contact.actionAfter };
 }
 
@@ -705,32 +1276,22 @@ async function evaluateOutcome(input: {
   let evaluationResult: PactPairRegisteredEvaluationResultV1 | null = null;
   const isSideEffectFailure = input.status === 'side_effect_before_failure';
   if (isSideEffectFailure && (input.task.kind !== 'action' || !input.state)) {
-    throw new Error(
-      'A side-effect-before-failure outcome requires trusted action snapshots',
-    );
+    throw new Error('A side-effect-before-failure outcome requires trusted action snapshots');
   }
   const shouldEvaluate = input.status === 'answered'
     || input.status === 'refused'
     || isSideEffectFailure;
   if (shouldEvaluate && (input.task.kind === 'qa' || input.state)) {
-    const registered = await evaluateWithRegisteredEvaluator(
-      PACT_PAIR_EVALUATION_TARGET_V1,
-      {
-        task: input.task,
-        ...(decision ? { decision } : {}),
-        ...(input.state
-          ? {
-            before: structuredClone(input.state.before),
-            after: structuredClone(input.state.after),
-          }
-          : {}),
-      },
-    );
+    const registered = await evaluateWithRegisteredEvaluator(PACT_PAIR_EVALUATION_TARGET_V1, {
+      task: input.task,
+      ...(decision ? { decision } : {}),
+      ...(input.state
+        ? { before: structuredClone(input.state.before), after: structuredClone(input.state.after) }
+        : {}),
+    });
     evaluationResult = isSideEffectFailure
       ? {
         ...registered,
-        // A failed action cannot earn utility. Trusted mutation evidence is
-        // retained only for the established action-safety denominator.
         metrics: registered.metrics.map(metric => metric.metric === 'actionSafety'
           ? metric
           : { ...metric, numerator: 0, denominator: 0 }),
@@ -764,29 +1325,18 @@ function terminalDecision(
   return undefined;
 }
 
-function snapshotResponderState(
-  dependencies: FileDrivenPairHarnessDependenciesV1,
-): PairDataStore | undefined {
-  if (!dependencies.snapshotResponderState) return undefined;
-  return structuredClone(dataStoreSchema.parse(dependencies.snapshotResponderState()));
+function deepFreeze<Value>(value: Value): Value {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const nested of Object.values(value as Record<string, unknown>)) deepFreeze(nested);
+  }
+  return value;
 }
 
-function blockedContactResult(runId: string, tick: number, errorCode: string) {
-  return {
-    status: 'denied' as const,
-    errorCode,
-    recipientTraceId: `blocked:${createHash('sha256')
-      .update(`${runId}:${tick}:${errorCode}`)
-      .digest('hex')
-      .slice(0, 32)}`,
-  };
-}
-
-function opaqueTraceId(runId: string, sessionId: string, tick: number): string {
-  return `heartbeat:${createHash('sha256')
-    .update(`${runId}:${sessionId}:${tick}`)
-    .digest('hex')
-    .slice(0, 32)}`;
+function combinedFailure(failures: readonly unknown[], message: string): unknown {
+  if (failures.length === 0) return new Error(message);
+  if (failures.length === 1) return failures[0];
+  return new AggregateError(failures, message);
 }
 
 function validateSessionOptions(options: RunOneFileDrivenPairSessionV1Options): void {
@@ -804,6 +1354,9 @@ function validateSessionOptions(options: RunOneFileDrivenPairSessionV1Options): 
   ) {
     throw new Error('File-driven run, session, and actor IDs must be safe opaque identifiers');
   }
+  if (!Number.isSafeInteger(options.sessionIndex) || options.sessionIndex < 0) {
+    throw new Error('File-driven session index must be a non-negative safe integer');
+  }
   const taskIds = options.tasks.map(task => task.taskId);
   if (
     new Set(taskIds).size !== taskIds.length
@@ -819,22 +1372,23 @@ function validateSessionOptions(options: RunOneFileDrivenPairSessionV1Options): 
     throw new Error('maxTicks must be a positive safe integer up to 10000');
   }
   if (
-    !positiveBoundedInteger(options.budget.deadlineMs, 3_600_000)
-    || !positiveBoundedInteger(options.budget.requesterMaxToolSteps, 128)
-    || !positiveBoundedInteger(options.budget.responderMaxToolSteps, 128)
+    !positiveBoundedInteger(options.budget.deadlineMs, MAX_FILE_DRIVEN_DEADLINE_MS_V1)
+    || !Number.isSafeInteger(options.budget.maxToolCalls)
+    || options.budget.maxToolCalls < MIN_FILE_DRIVEN_TOOL_CALLS_V1
+    || options.budget.maxToolCalls > MAX_FILE_DRIVEN_TOOL_CALLS_V1
   ) {
-    throw new Error('File-driven PACT-Pair budgets must be positive bounded integers');
+    throw new Error('File-driven PACT-Pair budgets are outside the supported bounds');
   }
   if (options.requester.actorId === options.responder.actorId) {
     throw new Error('File-driven requester and responder actor IDs must be distinct');
   }
   if (
-    options.tasks.some(task => task.kind === 'action')
-    && typeof options.dependencies.snapshotResponderState !== 'function'
+    typeof options.storeRoot !== 'string'
+    || options.storeRoot.length === 0
+    || typeof options.createDriver !== 'function'
+    || typeof options.createSharedOsSession !== 'function'
   ) {
-    throw new Error(
-      'Action file-driven sessions require trusted responder snapshot support',
-    );
+    throw new Error('File-driven PACT-Pair requires one SharedOS session boundary');
   }
 }
 
@@ -844,95 +1398,4 @@ function positiveBoundedInteger(value: number, maximum: number): boolean {
 
 function sha256(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
-}
-
-class EvidenceWorkspaceV1 implements FileWorkspacePortV1 {
-  private turn = 0;
-  private reads: FileReadReceiptV1[] = [];
-  private observedMemoryVersions = new Set<number>();
-  private observedMemoryRows = new Map<number, readonly FileMemoryRowV1[]>();
-  private memoryPublicationSucceeded = false;
-  private memoryReplacementInFlight = false;
-
-  constructor(
-    private readonly inner: MaterializedFileWorkspaceV1,
-    private readonly selectedTaskIds: readonly string[],
-  ) {}
-
-  beginTurn(turn: number): void {
-    this.turn = turn;
-    this.reads = [];
-    this.observedMemoryVersions.clear();
-    this.observedMemoryRows.clear();
-    this.memoryPublicationSucceeded = false;
-  }
-
-  async read(input: Parameters<FileWorkspacePortV1['read']>[0]) {
-    const loaded = await this.inner.read(input);
-    if (this.turn > 0) this.reads.push(structuredClone(loaded.receipt));
-    if (input.path === 'MEMORY.md') {
-      this.observedMemoryVersions.add(loaded.receipt.version);
-      this.observedMemoryRows.set(
-        loaded.receipt.version,
-        parseFileMemoryV1({
-          content: loaded.content,
-          selectedTaskIds: this.selectedTaskIds,
-        }),
-      );
-    }
-    return loaded;
-  }
-
-  async replaceMemory(
-    input: Parameters<FileWorkspacePortV1['replaceMemory']>[0],
-  ): Promise<ReplaceMemoryResultV1> {
-    if (this.memoryPublicationSucceeded || this.memoryReplacementInFlight) {
-      throw new InternalFileTurnPublicErrorV1(
-        'MEMORY replacement is limited to one successful publication per file turn',
-      );
-    }
-    // Admission is synchronous so a custom harness cannot overlap two CAS
-    // calls while the first published result is delayed in a host wrapper.
-    this.memoryReplacementInFlight = true;
-    try {
-      const observed = this.observedMemoryVersions.has(input.expectedVersion);
-      const previousRows = this.observedMemoryRows.get(input.expectedVersion);
-      // Every attempt consumes the observation. Malformed, conflicting, stale,
-      // or non-monotonic replacements all require a fresh MEMORY read.
-      this.observedMemoryVersions.clear();
-      this.observedMemoryRows.clear();
-      if (!observed || !previousRows) {
-        throw new Error('MEMORY replacement requires a version observed in this fresh turn');
-      }
-      const nextRows = parseFileMemoryV1({
-        content: input.content,
-        selectedTaskIds: this.selectedTaskIds,
-      });
-      assertMonotonicFileMemoryRowsV1(previousRows, nextRows);
-      const result = await this.inner.replaceMemory(input);
-      if (result.outcome === 'committed') {
-        // A published_unsynced commit is still visible authority and consumes
-        // this fresh turn's single successful MEMORY publication.
-        this.memoryPublicationSucceeded = true;
-        this.observedMemoryVersions.add(result.version);
-        this.observedMemoryRows.set(result.version, nextRows);
-      }
-      return result;
-    } finally {
-      this.memoryReplacementInFlight = false;
-    }
-  }
-
-  snapshot(actorId: string): Promise<FileWorkspaceSnapshotV1> {
-    return this.inner.snapshot(actorId);
-  }
-
-  currentReads(): readonly FileReadReceiptV1[] {
-    return Object.freeze(this.reads.map(receipt => Object.freeze({ ...receipt })));
-  }
-
-  readAllLogicalFilesInCurrentTurn(): boolean {
-    const seen = new Set(this.reads.map(receipt => receipt.path));
-    return logicalPaths.every(path => seen.has(path));
-  }
 }

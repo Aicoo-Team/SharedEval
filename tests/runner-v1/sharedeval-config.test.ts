@@ -7,13 +7,13 @@ import {
 } from '../../src/runner/v1/sharedeval-config.js';
 import { resolveWorkflow } from '../../src/runner/v1/workflow.js';
 
-const config = `
+const validConfig = `
 apiVersion: sharedeval-run/v1
 kind: RunConfig
 model:
   provider: openai-compatible
   baseUrl: https://api.example.com/v1
-  apiKeyEnv: PACT_MODEL_API_KEY
+  apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
   model: example-model
 workflow:
   mode: multi
@@ -28,16 +28,9 @@ output:
   saveTraces: false
 `;
 
-test('resolves the exact file-driven and explicit legacy command matrix', () => {
-  assert.equal(resolveWorkflow([]).id, 'files-multi');
-  assert.equal(resolveWorkflow(['multi']).id, 'files-multi');
-  assert.equal(resolveWorkflow(['single']).id, 'files-single');
-  assert.equal(resolveWorkflow(['multi', '--legacy']).id, 'legacy-multi-transcript');
-  assert.equal(resolveWorkflow(['single', '--legacy']).id, 'legacy-single-prompt');
-});
+test('parses the one Sharedeval protocol with bounded SharedOS runtime defaults', () => {
+  const parsed = parseSharedevalRunConfigV1Yaml(validConfig);
 
-test('parses only the strict sharedeval-run protocol with safe output paths', () => {
-  const parsed = parseSharedevalRunConfigV1Yaml(config);
   assert.equal(parsed.apiVersion, 'sharedeval-run/v1');
   assert.deepEqual(parsed.workflow, {
     mode: 'multi',
@@ -45,21 +38,75 @@ test('parses only the strict sharedeval-run protocol with safe output paths', ()
     maxTicks: 240,
     stopWhen: 'all-terminal',
   });
+  assert.deepEqual(parsed.benchmark, {
+    dataset: 'pact-pair',
+    policy: 'D2',
+    requester: 'R1',
+    gradingMode: 'category',
+    tasks: { kind: 'all' },
+  });
+  assert.deepEqual(parsed.budget, {
+    maxToolCalls: 8,
+    maxRuntimeMs: 60_000,
+  });
+});
 
+test('cross-validates relationship policy, requester, and grading mode', () => {
+  const relationship = validConfig.replace(
+    'benchmark:\n  tasks:',
+    'benchmark:\n  policy: REL_R3\n  requester: R3\n  gradingMode: relationship\n  tasks:',
+  );
+  assert.deepEqual(parseSharedevalRunConfigV1Yaml(relationship).benchmark, {
+    dataset: 'pact-pair',
+    policy: 'REL_R3',
+    requester: 'R3',
+    gradingMode: 'relationship',
+    tasks: { kind: 'all' },
+  });
+
+  for (const source of [
+    relationship.replace('requester: R3', 'requester: R2'),
+    relationship.replace('gradingMode: relationship', 'gradingMode: category'),
+  ]) {
+    assert.throws(() => parseSharedevalRunConfigV1Yaml(source), ZodError);
+  }
+});
+
+test('rejects retired protocol, dataset, and backend selectors', () => {
+  for (const source of [
+    validConfig.replace('sharedeval-run/v1', 'pact-run/v1'),
+    validConfig.replace('protocol: files', 'protocol: legacy-prompt'),
+    validConfig.replace('  tasks:\n', '  dataset: pact-net\n  tasks:\n'),
+    validConfig.replace('model:\n', 'backend:\n  kind: local\nmodel:\n'),
+  ]) {
+    assert.throws(() => parseSharedevalRunConfigV1Yaml(source), ZodError);
+  }
+});
+
+test('enforces the minimum tool budget and ten-minute runtime ceiling', () => {
+  assert.doesNotThrow(() => parseSharedevalRunConfigV1Yaml(withBudget(6, 600_000)));
+
+  for (const source of [
+    withBudget(5, 60_000),
+    withBudget(8, 600_001),
+  ]) {
+    assert.throws(() => parseSharedevalRunConfigV1Yaml(source), ZodError);
+  }
+});
+
+test('parses strict YAML with a safe relative output path', () => {
   assert.throws(
-    () => parseSharedevalRunConfigV1Yaml(config.replace('sharedeval-run/v1', 'pact-run/v1')),
+    () => parseSharedevalRunConfigV1Yaml(validConfig.replace('directory: runs', 'directory: ../runs')),
     ZodError,
   );
   assert.throws(
-    () => parseSharedevalRunConfigV1Yaml(config.replace('directory: runs', 'directory: ../runs')),
+    () => parseSharedevalRunConfigV1Yaml(`${validConfig}unexpected: true\n`),
     ZodError,
   );
-  assert.throws(
-    () => parseSharedevalRunConfigV1Yaml(`${config}unexpected: true\n`), ZodError);
 });
 
 test('makes task and tick overrides part of the effective digest', () => {
-  const parsed = parseSharedevalRunConfigV1Yaml(config);
+  const parsed = parseSharedevalRunConfigV1Yaml(validConfig);
   const effective = applySharedevalOverridesV1(parsed, resolveWorkflow(['multi']), {
     taskIds: ['PAIR-Q-0101'],
     maxTicks: 12,
@@ -75,26 +122,42 @@ test('makes task and tick overrides part of the effective digest', () => {
       maxTicks: 12,
     }).configDigest,
   );
-  assert.throws(
-    () => applySharedevalOverridesV1(parsed, resolveWorkflow(['multi']), {
-      taskIds: ['../not-a-task'],
-    }),
-    ZodError,
-  );
 });
 
-test('validates direct max tick overrides against the workflow contract', () => {
-  const parsed = parseSharedevalRunConfigV1Yaml(config);
+test('treats CLI task IDs as an exact selection instead of inheriting a limit', () => {
+  const parsed = parseSharedevalRunConfigV1Yaml(validConfig.replace(
+    '    kind: all',
+    '    kind: all\n    limit: 1',
+  ));
+  const effective = applySharedevalOverridesV1(parsed, resolveWorkflow(['multi']), {
+    taskIds: ['PAIR-Q-0101', 'PAIR-Q-0102'],
+  });
+  assert.deepEqual(effective.benchmark.tasks, {
+    kind: 'all',
+    ids: ['PAIR-Q-0101', 'PAIR-Q-0102'],
+  });
+});
+
+test('rejects invalid overrides and command/config contradictions', () => {
+  const parsed = parseSharedevalRunConfigV1Yaml(validConfig);
   for (const maxTicks of [0, 1.5, Number.MAX_SAFE_INTEGER + 1, 10_001]) {
     assert.throws(
       () => applySharedevalOverridesV1(parsed, resolveWorkflow(['multi']), { maxTicks }),
       ZodError,
     );
   }
-});
+  assert.throws(
+    () => applySharedevalOverridesV1(parsed, resolveWorkflow(['multi']), {
+      taskIds: ['../not-a-task'],
+    }),
+    ZodError,
+  );
+  assert.throws(
+    () => applySharedevalOverridesV1(parsed, resolveWorkflow(['single'])),
+    /contradicts config workflow/,
+  );
 
-test('rejects contradictory command and config task selection without a legacy fallback', () => {
-  const selected = parseSharedevalRunConfigV1Yaml(config.replace(
+  const selected = parseSharedevalRunConfigV1Yaml(validConfig.replace(
     '    kind: all',
     '    kind: all\n    ids: [PAIR-Q-0101]',
   ));
@@ -104,8 +167,8 @@ test('rejects contradictory command and config task selection without a legacy f
     }),
     /contradicts config task selection/,
   );
-  assert.throws(
-    () => applySharedevalOverridesV1(parseSharedevalRunConfigV1Yaml(config), resolveWorkflow(['single'])),
-    /contradicts config workflow/,
-  );
 });
+
+function withBudget(maxToolCalls: number, maxRuntimeMs: number): string {
+  return `${validConfig}budget:\n  maxToolCalls: ${maxToolCalls}\n  maxRuntimeMs: ${maxRuntimeMs}\n`;
+}

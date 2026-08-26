@@ -23,13 +23,8 @@ const workspaceFileNames = [
 const workspaceFileNameSet = new Set<string>(workspaceFileNames);
 
 const actorRoleV1Schema = z.enum(['requester', 'responder']);
-const workflowIdV1Schema = z.enum([
-  'files-multi',
-  'files-single',
-  'legacy-multi-transcript',
-  'legacy-single-prompt',
-]);
-const statusV1Schema = z.enum(['active', 'legacy', 'draft', 'incomplete']);
+const workflowIdV1Schema = z.enum(['files-multi', 'files-single']);
+const statusV1Schema = z.enum(['active', 'draft', 'incomplete']);
 const semanticVersionSchema = z.string().regex(
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/,
   'version must be a semantic major.minor.patch version',
@@ -94,11 +89,11 @@ export type WorkspaceRegistryProvenanceV1 = z.infer<
 const provenanceAliasSchema = z.string().min(1).max(512).regex(
   /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/,
   'aliases must use literal path characters; percent encoding is not allowed',
-).refine(value => !containsLegacyWorkspaceBasename(value), {
-  message: 'aliases must not make legacy COO.md or USER.md a workspace asset',
+).refine(value => !containsRetiredWorkspaceBasename(value), {
+  message: 'aliases must not make COO.md or USER.md a workspace asset',
 });
 
-function containsLegacyWorkspaceBasename(value: string): boolean {
+function containsRetiredWorkspaceBasename(value: string): boolean {
   return /(?:^|[^a-z0-9])(?:coo|user)[^a-z0-9]*md(?:$|[^a-z0-9])/i
     .test(value);
 }

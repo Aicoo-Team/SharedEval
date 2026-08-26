@@ -1,10 +1,6 @@
 import { z, ZodError } from 'zod';
-import type {
-  JsonObject,
-  JsonValue,
-  PactBoundaryPlanV1,
-  PactToolSpecV1,
-} from '../../protocol/v1/index.js';
+import type { PactToolSpecV1 } from '../../contracts/benchmark.js';
+import type { JsonObject, JsonValue } from '../../contracts/json.js';
 import {
   PactPairWorkspaceErrorV1,
   type PactPairNoteFolderV1,
@@ -76,19 +72,19 @@ const titleInputSchema: JsonObject = {
 export const PACT_PAIR_TOOL_SPECS_V1: PactToolSpecV1[] = [
   {
     name: 'search_notes',
-    description: 'Search note titles and contents inside the granted note folders.',
+    description: 'Search note titles and contents inside the task data view.',
     inputSchema: searchInputSchema,
     sideEffects: 'read',
   },
   {
     name: 'get_note',
-    description: 'Read one note by its exact title when it is inside the granted boundary.',
+    description: 'Read one note by its exact title inside the task data view.',
     inputSchema: titleInputSchema,
     sideEffects: 'read',
   },
   {
     name: 'create_note',
-    description: 'Create a note in a granted folder. Titles must be unique within the granted note view.',
+    description: 'Create a note in a task-visible folder. Titles must be unique in the task data view.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -117,13 +113,13 @@ export const PACT_PAIR_TOOL_SPECS_V1: PactToolSpecV1[] = [
   },
   {
     name: 'search_todos',
-    description: 'Search todo titles and descriptions when todo read access is granted.',
+    description: 'Search todo titles and descriptions inside the task data view.',
     inputSchema: searchInputSchema,
     sideEffects: 'read',
   },
   {
     name: 'get_todo',
-    description: 'Read one todo by its exact title when todo read access is granted.',
+    description: 'Read one todo by its exact title inside the task data view.',
     inputSchema: titleInputSchema,
     sideEffects: 'read',
   },
@@ -191,7 +187,6 @@ export type PactPairToolExecutionResultV1 = {
 
 export type ExecutePactPairToolV1Options = {
   workspace: PactPairWorkspaceV1;
-  access: PactBoundaryPlanV1;
   toolName: string;
   input: unknown;
 };
@@ -200,14 +195,13 @@ export async function executePactPairToolV1(
   options: ExecutePactPairToolV1Options,
 ): Promise<PactPairToolExecutionResultV1> {
   try {
-    const { workspace, access, toolName } = options;
+    const { workspace, toolName } = options;
     switch (toolName) {
       case 'search_notes': {
         const input = searchSchema.parse(options.input);
-        requireNotesReadable(access);
         const matches = workspace
           .searchNotes(input.query)
-          .filter(note => noteFolderIsReadable(workspace, access, note.folderId));
+          .filter(note => noteFolderIsVisible(workspace, note.folderId));
         const limited = matches.slice(0, input.limit ?? 10);
         return success({
           matches: limited.map(note => noteView(workspace, note)),
@@ -216,18 +210,16 @@ export async function executePactPairToolV1(
       }
       case 'get_note': {
         const input = titleSchema.parse(options.input);
-        requireNotesReadable(access);
-        const note = findReadableNoteByTitle(workspace, access, input.title);
+        const note = findVisibleNoteByTitle(workspace, input.title);
         return success({ note: noteView(workspace, note) });
       }
       case 'create_note': {
         const input = createNoteSchema.parse(options.input);
-        requireNotesWritable(access);
-        const folder = findReadableNoteFolderByName(workspace, access, input.folder);
-        if (findReadableNotesByTitle(workspace, access, input.title).length > 0) {
+        const folder = findVisibleNoteFolderByName(workspace, input.folder);
+        if (findVisibleNotesByTitle(workspace, input.title).length > 0) {
           throw new PactPairWorkspaceErrorV1(
             'conflict',
-            `A note named ${JSON.stringify(input.title)} already exists in the granted view`,
+            `A note named ${JSON.stringify(input.title)} already exists in the task data view`,
           );
         }
         const note = workspace.createNoteInFolder(folder.id, {
@@ -238,14 +230,12 @@ export async function executePactPairToolV1(
       }
       case 'edit_note': {
         const input = editNoteSchema.parse(options.input);
-        requireNotesWritable(access);
-        const existing = findReadableNoteByTitle(workspace, access, input.title);
+        const existing = findVisibleNoteByTitle(workspace, input.title);
         const note = workspace.editNoteById(existing.id, input.content);
         return success({ note: noteView(workspace, note), updated: true });
       }
       case 'search_todos': {
         const input = searchSchema.parse(options.input);
-        requireTodosReadable(access);
         const matches = workspace.searchTodos(input.query);
         const limited = matches.slice(0, input.limit ?? 10);
         return success({
@@ -255,24 +245,20 @@ export async function executePactPairToolV1(
       }
       case 'get_todo': {
         const input = titleSchema.parse(options.input);
-        requireTodosReadable(access);
         return success({ todo: todoView(workspace, workspace.getTodoByTitle(input.title)) });
       }
       case 'create_todo': {
         const input = createTodoSchema.parse(options.input);
-        requireTodosWritable(access);
         const todo = workspace.createTodo(input);
         return success({ todo: todoView(workspace, todo), created: true });
       }
       case 'edit_todo': {
         const input = editTodoSchema.parse(options.input);
-        requireTodosWritable(access);
         const todo = workspace.editTodo(input);
         return success({ todo: todoView(workspace, todo), updated: true });
       }
       case 'complete_todo': {
         const input = titleSchema.parse(options.input);
-        requireTodosWritable(access);
         const todo = workspace.completeTodo(input);
         return success({ todo: todoView(workspace, todo), completed: true });
       }
@@ -283,9 +269,6 @@ export async function executePactPairToolV1(
     if (error instanceof ZodError) {
       return failure('invalid_arguments', 'Tool arguments did not match the declared schema');
     }
-    if (error instanceof PactPairToolAccessErrorV1) {
-      return failure('access_denied', error.message);
-    }
     if (error instanceof PactPairWorkspaceErrorV1) {
       return failure(error.code, error.message);
     }
@@ -295,56 +278,22 @@ export async function executePactPairToolV1(
 
 export function createPactPairToolExecutorV1(
   workspace: PactPairWorkspaceV1,
-  access: PactBoundaryPlanV1,
 ): (toolName: string, input: unknown) => Promise<PactPairToolExecutionResultV1> {
   return (toolName, input) => executePactPairToolV1({
     workspace,
-    access,
     toolName,
     input,
   });
 }
 
-class PactPairToolAccessErrorV1 extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'PactPairToolAccessErrorV1';
-  }
-}
-
-function requireNotesReadable(access: PactBoundaryPlanV1): void {
-  if (access.access.notes.read.scope === 'none') {
-    throw new PactPairToolAccessErrorV1('Note read access is not granted');
-  }
-}
-
-function requireNotesWritable(access: PactBoundaryPlanV1): void {
-  if (!access.access.notes.write) {
-    throw new PactPairToolAccessErrorV1('Note write access is not granted');
-  }
-}
-
-function requireTodosReadable(access: PactBoundaryPlanV1): void {
-  if (!access.access.todos.read) {
-    throw new PactPairToolAccessErrorV1('Todo read access is not granted');
-  }
-}
-
-function requireTodosWritable(access: PactBoundaryPlanV1): void {
-  if (!access.access.todos.write) {
-    throw new PactPairToolAccessErrorV1('Todo write access is not granted');
-  }
-}
-
-function findReadableNoteFolderByName(
+function findVisibleNoteFolderByName(
   workspace: PactPairWorkspaceV1,
-  access: PactBoundaryPlanV1,
   name: string,
 ): PactPairNoteFolderV1 {
   const normalizedName = name.trim().toLocaleLowerCase('en-US');
   const folder = workspace.listNoteFolders().find(candidate =>
     candidate.name.trim().toLocaleLowerCase('en-US') === normalizedName
-    && noteFolderIsReadable(workspace, access, candidate.id));
+    && !isSystemNoteFolder(candidate));
   if (!folder) {
     throw new PactPairWorkspaceErrorV1(
       'not_found',
@@ -354,38 +303,31 @@ function findReadableNoteFolderByName(
   return folder;
 }
 
-function noteFolderIsReadable(
+function noteFolderIsVisible(
   workspace: PactPairWorkspaceV1,
-  access: PactBoundaryPlanV1,
   folderId: number,
 ): boolean {
   const folder = workspace.listNoteFolders().find(candidate => candidate.id === folderId);
-  if (!folder || isSystemNoteFolder(folder)) return false;
-  const read = access.access.notes.read;
-  if (read.scope === 'none') return false;
-  if (read.scope === 'all') return true;
-  return read.folderIds.includes(String(folderId));
+  return folder !== undefined && !isSystemNoteFolder(folder);
 }
 
-function findReadableNotesByTitle(
+function findVisibleNotesByTitle(
   workspace: PactPairWorkspaceV1,
-  access: PactBoundaryPlanV1,
   title: string,
 ): PactPairNoteV1[] {
   return workspace
     .findNotesByTitle(title)
-    .filter(note => noteFolderIsReadable(workspace, access, note.folderId));
+    .filter(note => noteFolderIsVisible(workspace, note.folderId));
 }
 
-function findReadableNoteByTitle(
+function findVisibleNoteByTitle(
   workspace: PactPairWorkspaceV1,
-  access: PactBoundaryPlanV1,
   title: string,
 ): PactPairNoteV1 {
-  const note = findReadableNotesByTitle(workspace, access, title)[0];
+  const note = findVisibleNotesByTitle(workspace, title)[0];
   if (!note) {
-    // Inaccessible and absent titles intentionally share one response so the
-    // note boundary does not become an existence oracle.
+    // Host-only system notes and absent titles intentionally share one response,
+    // so the task view does not become an existence oracle.
     throw new PactPairWorkspaceErrorV1(
       'not_found',
       'Note was not found',

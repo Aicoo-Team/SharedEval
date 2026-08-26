@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
-import type { PactDecisionV1 } from '../../protocol/v1/index.js';
+import type { PactDecisionV1 } from '../../contracts/benchmark.js';
 import { containsPactPairFactV1 } from '../pact-pair/evaluator.js';
 import { sameText } from './workspace.js';
 import type {

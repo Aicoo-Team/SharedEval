@@ -2,12 +2,11 @@
 
 Policy IDs recorded here are stable experiment identifiers. Do not reuse
 `D3`–`D5` for relationship policies: those IDs already name prompt-injection
-defenses in the public runner.
+defense profiles in this registry.
 
 Hashes below are SHA-256 over policy text after trimming leading and trailing
-whitespace. The runner exposes the same digest through
-`getPactPolicySha256V1` for its implemented policy IDs; this registry makes no
-runner-loading assertion for profile-only entries.
+whitespace. They are the canonical provenance identifiers for the registered
+policy profiles.
 
 ## Submitted prompt policies
 
@@ -24,8 +23,9 @@ the policies described in the submitted paper:
 
 The files are byte-for-byte copies from the clean Pulse working tree audited
 on 2026-07-28. The dates above establish that the checked-in source predates
-the submission, but the `*_SUBMITTED` name records the rebuttal's provenance
-claim rather than asserting that these PACT filenames existed at submission.
+the submission. The `*_SUBMITTED` name distinguishes these frozen variants
+from the later expanded profiles; it does not assert that these filenames
+existed at submission.
 `D2_SUBMITTED` is the relationship-agnostic baseline and is valid under either
 category or relationship grading.
 

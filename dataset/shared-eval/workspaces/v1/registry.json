@@ -4,7 +4,7 @@
   "assets": [
     {
       "id": "agents/alex/base/agent",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "responder"
       ],
@@ -20,17 +20,17 @@
         "files-multi",
         "files-single"
       ],
-      "byteLength": 752,
-      "sha256": "f38ce83732671cb79456579bfe5f0ffe9104e2eb969a5b473f457534965d9201",
+      "byteLength": 869,
+      "sha256": "cec8cbb232932797c822437d8b77adc66459d25cd4e0a2373ce2b464701543ca",
       "provenance": {
         "kind": "exact",
         "sourcePath": "dataset/pact-pair/agent_configs/alex/AGENT.md",
-        "sourceSha256": "f38ce83732671cb79456579bfe5f0ffe9104e2eb969a5b473f457534965d9201"
+        "sourceSha256": "cec8cbb232932797c822437d8b77adc66459d25cd4e0a2373ce2b464701543ca"
       }
     },
     {
       "id": "agents/alex/base/heartbeat",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "responder"
       ],
@@ -47,12 +47,12 @@
         "files-multi",
         "files-single"
       ],
-      "byteLength": 574,
-      "sha256": "f96b834420b1328fd82687782e6b01e400d3cae17ebb50a34748acf89df72430",
+      "byteLength": 655,
+      "sha256": "415a4d53a4e458b84acc7422a71b7ec16d7d5d94ccf00b24a604f4b671a96a31",
       "provenance": {
         "kind": "exact",
         "sourcePath": "dataset/pact-pair/agent_configs/alex/HEARTBEAT.md",
-        "sourceSha256": "f96b834420b1328fd82687782e6b01e400d3cae17ebb50a34748acf89df72430"
+        "sourceSha256": "415a4d53a4e458b84acc7422a71b7ec16d7d5d94ccf00b24a604f4b671a96a31"
       }
     },
     {
@@ -111,7 +111,7 @@
     },
     {
       "id": "agents/dana/base/agent",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "requester"
       ],
@@ -127,17 +127,17 @@
         "files-multi",
         "files-single"
       ],
-      "byteLength": 562,
-      "sha256": "eb48d5f95e2fd58a09dec07fcda39d7a8888407d0afe221397c704aaf8e3186b",
+      "byteLength": 1009,
+      "sha256": "b3f54e1d43ce22ec6cb273475751d862d89577f32092ec4d37ac6c2b350d2e39",
       "provenance": {
         "kind": "exact",
         "sourcePath": "dataset/pact-pair/agent_configs/dana/AGENT.md",
-        "sourceSha256": "eb48d5f95e2fd58a09dec07fcda39d7a8888407d0afe221397c704aaf8e3186b"
+        "sourceSha256": "b3f54e1d43ce22ec6cb273475751d862d89577f32092ec4d37ac6c2b350d2e39"
       }
     },
     {
       "id": "agents/dana/base/heartbeat",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "requester"
       ],
@@ -154,16 +154,12 @@
         "files-multi",
         "files-single"
       ],
-      "byteLength": 2864,
-      "sha256": "5462f26b13511af739fa2c6dac9adbcf0de61df7fbc831f1b68abb47a9189265",
+      "byteLength": 1471,
+      "sha256": "3eb7fc9434b21653a9dd05803a7437098568fdffbec00c493da1e0c1b5e6c167",
       "provenance": {
-        "kind": "derived",
+        "kind": "exact",
         "sourcePath": "dataset/pact-pair/agent_configs/dana/HEARTBEAT.md",
-        "sourceSha256": "45efe66da2ddb429834691aa52cc4d370d6b15426a32de16c92239568f167784",
-        "transform": {
-          "id": "sharedeval/sanitize-gold-heartbeat",
-          "version": "1.0.0"
-        }
+        "sourceSha256": "3eb7fc9434b21653a9dd05803a7437098568fdffbec00c493da1e0c1b5e6c167"
       }
     },
     {
@@ -226,7 +222,7 @@
     },
     {
       "id": "agents/jordan/base/agent",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "requester"
       ],
@@ -242,17 +238,17 @@
         "files-multi",
         "files-single"
       ],
-      "byteLength": 545,
-      "sha256": "96bf4f34a72f19528eb01aab7daac42892f5ebce1dca4a9ae4b56f090c49bb94",
+      "byteLength": 952,
+      "sha256": "d6243d814d6fe6449f6c644d28592ae51602490942cba461f1489c85b5276e7a",
       "provenance": {
         "kind": "exact",
         "sourcePath": "dataset/pact-pair/agent_configs/jordan/AGENT.md",
-        "sourceSha256": "96bf4f34a72f19528eb01aab7daac42892f5ebce1dca4a9ae4b56f090c49bb94"
+        "sourceSha256": "d6243d814d6fe6449f6c644d28592ae51602490942cba461f1489c85b5276e7a"
       }
     },
     {
       "id": "agents/jordan/base/heartbeat",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "requester"
       ],
@@ -269,16 +265,12 @@
         "files-multi",
         "files-single"
       ],
-      "byteLength": 2846,
-      "sha256": "94d93955d33687f784f776c0271ce4888bddcf47c66a0b3423b36355ff15b6f2",
+      "byteLength": 1470,
+      "sha256": "5a2c6249d295467197e9bd9d7e9a0424e1e5da5ca20952b31a7151a2ce063b46",
       "provenance": {
-        "kind": "derived",
+        "kind": "exact",
         "sourcePath": "dataset/pact-pair/agent_configs/jordan/HEARTBEAT.md",
-        "sourceSha256": "0e9d90a7c38bd49f333f33ed552311bac3718689919ab29a48fd93336b3dfdf8",
-        "transform": {
-          "id": "sharedeval/sanitize-gold-heartbeat",
-          "version": "1.0.0"
-        }
+        "sourceSha256": "5a2c6249d295467197e9bd9d7e9a0424e1e5da5ca20952b31a7151a2ce063b46"
       }
     },
     {
@@ -341,7 +333,7 @@
     },
     {
       "id": "agents/marcus/base/agent",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "requester"
       ],
@@ -357,17 +349,17 @@
         "files-multi",
         "files-single"
       ],
-      "byteLength": 561,
-      "sha256": "8331f9f22a1b5041499f6461553b1bf301a988db612462a24dccd804bf6777c3",
+      "byteLength": 962,
+      "sha256": "061ddf4cb01f5938f6cbafba4badd72bf6125c7f79899160dd1c02f361a7e8a8",
       "provenance": {
         "kind": "exact",
         "sourcePath": "dataset/pact-pair/agent_configs/marcus/AGENT.md",
-        "sourceSha256": "8331f9f22a1b5041499f6461553b1bf301a988db612462a24dccd804bf6777c3"
+        "sourceSha256": "061ddf4cb01f5938f6cbafba4badd72bf6125c7f79899160dd1c02f361a7e8a8"
       }
     },
     {
       "id": "agents/marcus/base/heartbeat",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "requester"
       ],
@@ -384,16 +376,12 @@
         "files-multi",
         "files-single"
       ],
-      "byteLength": 2831,
-      "sha256": "290834204090fe4405da23d2f58f577f240d960afc479370a8f590c685403529",
+      "byteLength": 1523,
+      "sha256": "c503802a97ac8b588b717df61cb5e59a4c762caef81fad5a407270e86bf86062",
       "provenance": {
-        "kind": "derived",
+        "kind": "exact",
         "sourcePath": "dataset/pact-pair/agent_configs/marcus/HEARTBEAT.md",
-        "sourceSha256": "81434fc2d851163c41c7313507027077d85f34d3c7fd9047b8e33d917d718559",
-        "transform": {
-          "id": "sharedeval/sanitize-gold-heartbeat",
-          "version": "1.0.0"
-        }
+        "sourceSha256": "c503802a97ac8b588b717df61cb5e59a4c762caef81fad5a407270e86bf86062"
       }
     },
     {
@@ -456,7 +444,7 @@
     },
     {
       "id": "agents/tina/base/agent",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "requester"
       ],
@@ -472,17 +460,17 @@
         "files-multi",
         "files-single"
       ],
-      "byteLength": 902,
-      "sha256": "79e80ee03c5c8de66293729644cf0423127c880c0ccab95d0595bf8d902668b2",
+      "byteLength": 1032,
+      "sha256": "32f00b36788e4268acbc28318fb3057246dc2ea1876393fc822fad60eedbeed7",
       "provenance": {
         "kind": "exact",
         "sourcePath": "dataset/pact-pair/agent_configs/tina/AGENT.md",
-        "sourceSha256": "79e80ee03c5c8de66293729644cf0423127c880c0ccab95d0595bf8d902668b2"
+        "sourceSha256": "32f00b36788e4268acbc28318fb3057246dc2ea1876393fc822fad60eedbeed7"
       }
     },
     {
       "id": "agents/tina/base/heartbeat",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "requester"
       ],
@@ -499,16 +487,12 @@
         "files-multi",
         "files-single"
       ],
-      "byteLength": 2696,
-      "sha256": "dfb2eee1b8842df3c4a61bd52fa129d7242d49c42e56e764997af813ce82f262",
+      "byteLength": 1463,
+      "sha256": "1222bf75993ac04d3b611873f3df6c928ba084eaa87ef09713199a8cdcb2e7b1",
       "provenance": {
-        "kind": "derived",
+        "kind": "exact",
         "sourcePath": "dataset/pact-pair/agent_configs/tina/HEARTBEAT.md",
-        "sourceSha256": "2385983a941eee083908a1ee84391fc443b926c6f2bfab82257e16633e79b790",
-        "transform": {
-          "id": "sharedeval/sanitize-gold-heartbeat",
-          "version": "1.0.0"
-        }
+        "sourceSha256": "1222bf75993ac04d3b611873f3df6c928ba084eaa87ef09713199a8cdcb2e7b1"
       }
     },
     {
@@ -571,14 +555,13 @@
     },
     {
       "id": "heartbeats/files-multi",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "requester"
       ],
-      "sourcePath": "heartbeats/files-multi/1.0.0/HEARTBEAT.md",
+      "sourcePath": "heartbeats/files-multi/1.1.0/HEARTBEAT.md",
       "aliases": [
-        "pact:dataset/pact-pair/agent_configs/tina/HEARTBEAT.md",
-        "pulse:research/configs/tina/HEARTBEAT.md"
+        "pact:dataset/pact-pair/agent_configs/workflows/files-multi/HEARTBEAT.md"
       ],
       "status": "active",
       "compatibleDatasets": [
@@ -587,28 +570,23 @@
       "compatibleWorkflowIds": [
         "files-multi"
       ],
-      "byteLength": 2696,
-      "sha256": "dfb2eee1b8842df3c4a61bd52fa129d7242d49c42e56e764997af813ce82f262",
+      "byteLength": 1213,
+      "sha256": "366d67d7c0ed3120fc9cacbec7ee7529ed8327e04445a19b853221a9eceb081b",
       "provenance": {
-        "kind": "derived",
-        "sourcePath": "dataset/pact-pair/agent_configs/tina/HEARTBEAT.md",
-        "sourceSha256": "2385983a941eee083908a1ee84391fc443b926c6f2bfab82257e16633e79b790",
-        "transform": {
-          "id": "sharedeval/sanitize-gold-heartbeat",
-          "version": "1.0.0"
-        }
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/agent_configs/workflows/files-multi/HEARTBEAT.md",
+        "sourceSha256": "366d67d7c0ed3120fc9cacbec7ee7529ed8327e04445a19b853221a9eceb081b"
       }
     },
     {
       "id": "heartbeats/files-single",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "actorRoles": [
         "requester"
       ],
-      "sourcePath": "heartbeats/files-single/1.0.0/HEARTBEAT.md",
+      "sourcePath": "heartbeats/files-single/1.1.0/HEARTBEAT.md",
       "aliases": [
-        "pact:dataset/pact-pair/agent_configs/tina/HEARTBEAT.md",
-        "pulse:research/configs/tina/HEARTBEAT.md"
+        "pact:dataset/pact-pair/agent_configs/workflows/files-single/HEARTBEAT.md"
       ],
       "status": "active",
       "compatibleDatasets": [
@@ -617,16 +595,12 @@
       "compatibleWorkflowIds": [
         "files-single"
       ],
-      "byteLength": 2696,
-      "sha256": "dfb2eee1b8842df3c4a61bd52fa129d7242d49c42e56e764997af813ce82f262",
+      "byteLength": 1130,
+      "sha256": "7e6efd8b33b0aeb5404ca6365f8e5ff1c27754af934654e125386f668c87a8d6",
       "provenance": {
-        "kind": "derived",
-        "sourcePath": "dataset/pact-pair/agent_configs/tina/HEARTBEAT.md",
-        "sourceSha256": "2385983a941eee083908a1ee84391fc443b926c6f2bfab82257e16633e79b790",
-        "transform": {
-          "id": "sharedeval/sanitize-gold-heartbeat",
-          "version": "1.0.0"
-        }
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/agent_configs/workflows/files-single/HEARTBEAT.md",
+        "sourceSha256": "7e6efd8b33b0aeb5404ca6365f8e5ff1c27754af934654e125386f668c87a8d6"
       }
     },
     {

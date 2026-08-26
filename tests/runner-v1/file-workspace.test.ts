@@ -92,6 +92,146 @@ function fileMetadata(path: string, content: string) {
   return { path, sha256: sha256(content), byteLength: Buffer.byteLength(content, 'utf8') };
 }
 
+test('inspects absent workspace paths without creating any directories', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const { inspectFileWorkspacePresenceV1 } = await loadSubject();
+    const input = { rootDir, runId: 'run-1', actorId: 'actor-1' };
+
+    assert.equal(await inspectFileWorkspacePresenceV1(input), 'absent');
+    assert.deepEqual(await readdir(rootDir), []);
+
+    await mkdir(join(rootDir, 'runs'));
+    assert.equal(await inspectFileWorkspacePresenceV1(input), 'absent');
+    assert.deepEqual(await readdir(join(rootDir, 'runs')), []);
+
+    await mkdir(join(rootDir, 'runs', 'run-1'));
+    assert.equal(await inspectFileWorkspacePresenceV1(input), 'absent');
+    assert.deepEqual(await readdir(join(rootDir, 'runs', 'run-1')), []);
+
+    await mkdir(join(rootDir, 'runs', 'run-1', 'workspaces'));
+    assert.equal(await inspectFileWorkspacePresenceV1(input), 'absent');
+    assert.deepEqual(await readdir(join(rootDir, 'runs', 'run-1', 'workspaces')), []);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('does not classify a missing workspace root as an absent actor', async () => {
+  const parentDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-parent-'));
+  try {
+    const { inspectFileWorkspacePresenceV1 } = await loadSubject();
+    await assert.rejects(
+      () => inspectFileWorkspacePresenceV1({
+        rootDir: join(parentDir, 'missing-root'),
+        runId: 'run-1',
+        actorId: 'actor-1',
+      }),
+      /ENOENT|no such file|workspace root/i,
+    );
+  } finally {
+    await rm(parentDir, { recursive: true, force: true });
+  }
+});
+
+test('classifies a materialized actor workspace as present', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const { inspectFileWorkspacePresenceV1 } = await loadSubject();
+    await materialize(rootDir);
+    assert.equal(await inspectFileWorkspacePresenceV1({
+      rootDir,
+      runId: 'run-1',
+      actorId: 'actor-1',
+    }), 'present');
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
+test('workspace presence inspection rejects unsafe traversed components', async t => {
+  await t.test('symlink ancestor', async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    const targetDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-target-'));
+    try {
+      const { inspectFileWorkspacePresenceV1 } = await loadSubject();
+      await symlink(targetDir, join(rootDir, 'runs'));
+      await assert.rejects(
+        () => inspectFileWorkspacePresenceV1({ rootDir, runId: 'run-1', actorId: 'actor-1' }),
+        /real directory|runs/i,
+      );
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+      await rm(targetDir, { recursive: true, force: true });
+    }
+  });
+
+  await t.test('regular-file ancestor', async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    try {
+      const { inspectFileWorkspacePresenceV1 } = await loadSubject();
+      await mkdir(join(rootDir, 'runs'));
+      await writeFile(join(rootDir, 'runs', 'run-1'), 'not a directory\n');
+      await assert.rejects(
+        () => inspectFileWorkspacePresenceV1({ rootDir, runId: 'run-1', actorId: 'actor-1' }),
+        /real directory|run/i,
+      );
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  await t.test('special-file actor', { skip: process.platform === 'win32' }, async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    try {
+      const { inspectFileWorkspacePresenceV1 } = await loadSubject();
+      const workspacesDir = join(rootDir, 'runs', 'run-1', 'workspaces');
+      await mkdir(workspacesDir, { recursive: true });
+      execFileSync('mkfifo', [join(workspacesDir, 'actor-1')]);
+      await assert.rejects(
+        () => inspectFileWorkspacePresenceV1({ rootDir, runId: 'run-1', actorId: 'actor-1' }),
+        /real directory|actor/i,
+      );
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  await t.test('regular-file actor', async () => {
+    const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+    try {
+      const { inspectFileWorkspacePresenceV1 } = await loadSubject();
+      const workspacesDir = join(rootDir, 'runs', 'run-1', 'workspaces');
+      await mkdir(workspacesDir, { recursive: true });
+      await writeFile(join(workspacesDir, 'actor-1'), 'not a directory\n');
+      await assert.rejects(
+        () => inspectFileWorkspacePresenceV1({ rootDir, runId: 'run-1', actorId: 'actor-1' }),
+        /real directory|actor/i,
+      );
+    } finally {
+      await rm(rootDir, { recursive: true, force: true });
+    }
+  });
+});
+
+test('presence inspection leaves corrupt actor history for reopen validation', async () => {
+  const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
+  try {
+    const { inspectFileWorkspacePresenceV1 } = await loadSubject();
+    await materialize(rootDir);
+    await writeFile(join(actorDirectory(rootDir), 'commits', 'commit-0.json'), '{broken json}\n');
+
+    assert.equal(await inspectFileWorkspacePresenceV1({
+      rootDir,
+      runId: 'run-1',
+      actorId: 'actor-1',
+    }), 'present');
+    await assert.rejects(() => reopen(rootDir), /JSON|commit/i);
+  } finally {
+    await rm(rootDir, { recursive: true, force: true });
+  }
+});
+
 test('materializes four exact files, exposes logical receipts only, and makes MEMORY the sole write operation', async () => {
   const rootDir = await mkdtemp(join(tmpdir(), 'sharedeval-file-workspace-'));
   try {
