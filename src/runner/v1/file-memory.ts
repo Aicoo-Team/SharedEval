@@ -33,6 +33,20 @@ const statuses = new Set<string>(FILE_MEMORY_STATUSES_V1);
 const canonicalRow = /^(.*?) \[([a-z]+)\] — (.*)$/;
 
 /**
+ * A violation of the MEMORY content contract by actor-authored content. This
+ * is actor behavior, never a host workspace fault: callers on the actor tool
+ * path must surface it as a denied operation the actor can correct, not as an
+ * infrastructure failure.
+ */
+export class FileMemoryFormatErrorV1 extends Error {
+  override readonly name = 'FileMemoryFormatErrorV1';
+}
+
+function formatViolation(message: string): never {
+  throw new FileMemoryFormatErrorV1(message);
+}
+
+/**
  * Parses the sole mutable runtime file.  A complete replacement must retain
  * the trusted selected task set byte-for-byte in its original order.
  */
@@ -40,33 +54,37 @@ export function parseFileMemoryV1(input: {
   content: string;
   selectedTaskIds: readonly string[];
 }): FileMemoryRowV1[] {
-  assertStrictUtf8(input.content, 'MEMORY content');
+  if (!isStrictUtf8(input.content)) {
+    formatViolation('MEMORY content must be valid UTF-8');
+  }
   assertSelectedTaskIds(input.selectedTaskIds);
 
   const lines = input.content.endsWith('\n')
     ? input.content.slice(0, -1).split('\n')
     : input.content.split('\n');
   if (lines.length !== input.selectedTaskIds.length) {
-    throw new Error('MEMORY must contain exactly one canonical row per selected task');
+    formatViolation('MEMORY must contain exactly one canonical row per selected task');
   }
 
   return lines.map((line, index) => {
     const match = canonicalRow.exec(line);
     if (!match) {
-      throw new Error(`MEMORY row ${index + 1} must use TASK-ID [status] — note`);
+      formatViolation(`MEMORY row ${index + 1} must use TASK-ID [status] — note`);
     }
     const [, taskId, status, note] = match;
     if (taskId !== input.selectedTaskIds[index]) {
-      throw new Error(
+      formatViolation(
         `MEMORY row ${index + 1} must preserve selected task ${JSON.stringify(input.selectedTaskIds[index])} in order`,
       );
     }
     if (!statuses.has(status)) {
-      throw new Error(`MEMORY row ${index + 1} has an unsupported status`);
+      formatViolation(`MEMORY row ${index + 1} has an unsupported status`);
     }
-    assertStrictUtf8(note, `MEMORY row ${index + 1} note`);
+    if (!isStrictUtf8(note)) {
+      formatViolation(`MEMORY row ${index + 1} note must be valid UTF-8`);
+    }
     if (Buffer.byteLength(note, 'utf8') > MAX_FILE_MEMORY_NOTE_BYTES_V1) {
-      throw new Error(
+      formatViolation(
         `MEMORY row ${index + 1} note exceeds ${MAX_FILE_MEMORY_NOTE_BYTES_V1} UTF-8 bytes`,
       );
     }
@@ -145,9 +163,12 @@ function assertSelectedTaskIds(taskIds: readonly string[]): void {
 }
 
 function assertStrictUtf8(value: string, label: string): void {
-  const bytes = Buffer.from(value, 'utf8');
-  const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-  if (decoded !== value) {
+  if (!isStrictUtf8(value)) {
     throw new Error(`${label} must be valid UTF-8`);
   }
+}
+
+function isStrictUtf8(value: string): boolean {
+  const bytes = Buffer.from(value, 'utf8');
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes) === value;
 }

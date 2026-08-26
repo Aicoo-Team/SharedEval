@@ -8,6 +8,7 @@ import type {
 } from '../../execution/sharedos/v1/contracts.js';
 import type { JsonObject } from '../../contracts/json.js';
 import type { AgentWorkspaceFilePathV1 } from './agent-workspace.js';
+import { FileMemoryFormatErrorV1 } from './file-memory.js';
 import type {
   FileReadReceiptV1,
   FileWorkspacePortV1,
@@ -405,6 +406,17 @@ class ActorOwnedFileProvider implements SharedOsFileProviderV1 {
       });
     } catch (error) {
       if (signal.aborted) throw signal.reason ?? error;
+      // Actor-authored content that violates the MEMORY contract is actor
+      // behavior the actor can correct in this turn, never a workspace fault.
+      if (error instanceof FileMemoryFormatErrorV1) {
+        return deniedResult(
+          operation,
+          'file_memory_format_invalid',
+          `${error.message}. Every row must be "TASK-ID [status] — note" with `
+          + 'one row per selected task in the original order and a status of '
+          + 'pending, answered, refused, or error.',
+        );
+      }
       return failedResult(
         operation,
         'file_workspace_failed',
