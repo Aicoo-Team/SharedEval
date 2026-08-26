@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      SHAREDOS_PIN: e6d44cf513355c7dd7aab51ae83f7c85b6685f1c
+      SHAREDOS_PIN: a303d97fe974c149d4575b1f5d6426aee6f37367
 
     steps:
       - name: Require SharedOS checkout token
