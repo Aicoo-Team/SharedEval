@@ -6,6 +6,7 @@ import {
   SHAREDOS_RUNTIME_PACKAGES_V1,
   SHAREDOS_VERIFIED_REVISION_V1,
   SHAREDOS_VERIFIED_RUNTIME_DIGEST_V1,
+  defaultSharedOsDirV1,
   digestSharedOsRuntimeV1,
   loadSharedOsModulesV1,
   parseSharedOsModulesV1,
@@ -98,8 +99,7 @@ test('module parsing rejects the production testkit as a runtime dependency', ()
 
 test('the pinned real build has the expected package names, digest, and exports', async t => {
   const directory = resolve(
-    process.env.SHAREDEVAL_SHAREDOS_DIR
-      ?? '/private/tmp/sharedos-message-foundation.NkahQk/repo',
+    defaultSharedOsDirV1(),
   );
   if (!existsSync(join(directory, 'packages', 'core', 'dist', 'index.js'))) {
     if (process.env.SHAREDEVAL_REQUIRE_SHAREDOS) {
