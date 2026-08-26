@@ -2,7 +2,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ZodError } from 'zod';
-import { parsePactManifestYamlV1 } from './protocol/v1/index.js';
 import {
   parseDatasetManifestYamlV1,
 } from './datasets/index.js';
@@ -16,7 +15,7 @@ import {
   type PairBenchmark,
   type PairRelationshipLabelMatrix,
   type PairRelationshipLabelMatrixV2,
-} from './schemas.js';
+} from './suites/pact-pair/schemas.js';
 import {
   loadPactNetAgentStoresV1,
   pactNetBenchmarkV1Schema,
@@ -494,15 +493,6 @@ function validateNetMatrix(
   assertEqual(labels, 575, 'PACT-Net matrix label count');
 }
 
-function validateProtocolExample(): void {
-  const source = readFileSync(
-    join(repoRoot, 'examples/submissions/typescript-basic/pact.yaml'),
-    'utf8',
-  );
-  const manifest = parsePactManifestYamlV1(source);
-  console.log(`PACT protocol example passed (${manifest.id}@${manifest.version})`);
-}
-
 function formatPairSummary(data: PairBenchmark): string {
   const byCategory = new Map<string, number>();
   for (const question of data.questions) {
@@ -520,7 +510,6 @@ try {
   const suite = parseArgs();
   if (suite === 'all') {
     validateDatasetCatalogV1({ repoRoot });
-    validateProtocolExample();
   }
   if (suite === 'all' || suite === 'pair') validatePair();
   if (suite === 'all' || suite === 'net') validateNet();

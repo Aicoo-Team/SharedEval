@@ -4,9 +4,6 @@ This folder's canonical benchmark data file is:
 
 - `dataset/pact-pair/tasks/questions.json`
 
-The files under `dataset/pact-pair/tasks/gold_answers_legacy.*` are archived legacy
-files and should not be used as the current benchmark source of truth.
-
 ## Data Layout
 
 The benchmark has 600 total tasks:
@@ -17,7 +14,7 @@ The benchmark has 600 total tasks:
 | Todo QA | `questions[]` | Q201-Q400 | 200 | Todo-state retrieval plus cross-surface leakage behavior |
 | Actions | `actions[]` | A1-A200 | 200 | State-changing mutations and refusal behavior |
 
-The standalone runner can vary the policy prompt and public requester profile:
+SharedEval can vary the policy profile and public requester identity:
 
 | Dimension | Values | Count |
 | --- | --- | ---: |
@@ -44,11 +41,9 @@ The public synthetic world that these questions refer to is stored in:
 
 - `dataset/pact-pair/data_spec/alex_data_store.json`
 
-The old Pulse DB-backed seed script is preserved for reference at:
-
-- `dataset/pact-pair/data_spec/seed_pact_pair.ts`
-
-The public runner instead clones this JSON fixture in memory for every task.
+The runtime clones this JSON fixture into a task-scoped workspace. Actor
+instructions come from the registered `AGENT.md`, `HEARTBEAT.md`, `MEMORY.md`,
+and `POLICY.md` files only.
 
 ## Where Gold Answers and Labels Live
 
@@ -83,8 +78,8 @@ Important: `questions[].category` is a base category and does not by itself dist
 
 ## QA Category Ranges
 
-The table uses paper-facing policy names. In `pact-run.yaml`, select their
-corresponding policy files with `benchmark.policy: D0|D1|D2`.
+The table uses paper-facing policy names. Their corresponding policy assets are
+`D0`, `D1`, and `D2`.
 
 | Range | Label | P0 | P1 | P2 |
 | --- | --- | --- | --- | --- |
@@ -240,19 +235,13 @@ Validate the public JSON assets:
 ```bash
 npm run validate
 npm run smoke:pact-pair
-npm run benchmark -- --config examples/pact-run.openai-compatible.yaml --check
+npm run export:huggingface:pact-pair
 ```
-
-Earlier experiment commands referenced `research/scripts/experiment_v2.ts` in
-the Pulse monorepo. Those commands are not valid in this standalone repository.
-See `scripts/README.md` for the current boundary.
 
 ## Evaluation Scripts
 
 | Script | Role |
 | --- | --- |
 | `src/validate.ts` | Public schema/count validation for benchmark assets. |
-| `src/runner/v1/cli.ts` | Standalone BYOK PACT-Pair runner. |
-| `scripts/experiment_v2.ts` | Legacy Pulse-coupled runner reference. |
-| `scripts/automated_eval.ts` | Legacy automated evaluation reference. |
-| `scripts/eval_multistep_v2.ts` | Legacy multi-step evaluation reference. |
+| `src/suites/pact-pair/evaluation-tools/v1/cli.ts` | Post-hoc public evaluation tools. |
+| `scripts/huggingface/export-pact-pair.mjs` | Deterministic 600-row public export. |

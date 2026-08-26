@@ -1,14 +1,12 @@
 import { Buffer } from 'node:buffer';
-import { assertPactJsonComplexityV1 } from '../../protocol/v1/index.js';
+import { assertJsonComplexityV1 } from '../../contracts/json.js';
 import {
   pactModelIdentifierV1,
   type PactModelConfigV1,
-} from './config.js';
+} from './model-config.js';
 
 export const MAX_OPENAI_COMPATIBLE_PROVIDER_RESPONSE_BYTES_V1 =
   2 * 1_024 * 1_024;
-
-const MAX_OPENAI_COMPATIBLE_PROVIDER_RETRY_DELAY_MS_V1 = 30_000;
 
 /** @internal Fixed transport failures that contain no provider-controlled bytes. */
 export class OpenAICompatibleProviderTransportErrorV1 extends Error {
@@ -31,8 +29,8 @@ export type OpenAICompatibleProviderRequestTargetV1 = {
 };
 
 /**
- * Resolves only transport-facing provider configuration. Transcript and tool
- * semantics stay with the harness that owns the turn.
+ * Resolves only transport-facing provider configuration. Turn and tool
+ * semantics stay with the SharedOS-owned runtime path.
  */
 export function resolveOpenAICompatibleProviderRequestTargetV1(
   model: PactModelConfigV1,
@@ -51,7 +49,7 @@ export function resolveOpenAICompatibleProviderRequestTargetV1(
   };
 }
 
-/** Provider-specific request controls shared by both harness protocols. */
+/** Provider-specific request controls used by the pure SharedOS turn driver. */
 export function openAICompatibleProviderRequestExtrasV1(
   model: PactModelConfigV1,
 ): Record<string, unknown> {
@@ -136,66 +134,6 @@ export function isOpenAICompatibleProviderRedirectResponseV1(
 ): boolean {
   return (response.status >= 300 && response.status < 400)
     || response.type === 'opaqueredirect';
-}
-
-export function openAICompatibleProviderRetryDelayMsV1(
-  response: Response,
-  attempt: number,
-): number {
-  const retryAfter = response.headers.get('retry-after')?.trim();
-  if (retryAfter) {
-    const seconds = Number(retryAfter);
-    if (Number.isFinite(seconds) && seconds >= 0) {
-      return Math.min(
-        MAX_OPENAI_COMPATIBLE_PROVIDER_RETRY_DELAY_MS_V1,
-        Math.round(seconds * 1_000),
-      );
-    }
-    const date = Date.parse(retryAfter);
-    if (Number.isFinite(date)) {
-      return Math.min(
-        MAX_OPENAI_COMPATIBLE_PROVIDER_RETRY_DELAY_MS_V1,
-        Math.max(0, date - Date.now()),
-      );
-    }
-  }
-  return openAICompatibleProviderDefaultRetryDelayMsV1(attempt);
-}
-
-export function openAICompatibleProviderDefaultRetryDelayMsV1(
-  attempt: number,
-): number {
-  return Math.min(
-    MAX_OPENAI_COMPATIBLE_PROVIDER_RETRY_DELAY_MS_V1,
-    250 * 2 ** (attempt - 1),
-  );
-}
-
-export async function waitForOpenAICompatibleProviderRetryV1(
-  delayMs: number,
-  signal: AbortSignal,
-  timeoutMs: number,
-  errorPrefix: string,
-): Promise<void> {
-  if (signal.aborted) {
-    throw new OpenAICompatibleProviderTransportErrorV1(
-      `${errorPrefix} timed out after ${timeoutMs}ms`,
-    );
-  }
-  if (delayMs <= 0) return;
-  await new Promise<void>((resolve, reject) => {
-    const onAbort = () => {
-      clearTimeout(timer);
-      reject(new OpenAICompatibleProviderTransportErrorV1(
-        `${errorPrefix} timed out after ${timeoutMs}ms`,
-      ));
-    };
-    const timer = setTimeout(() => {
-      signal.removeEventListener('abort', onAbort);
-      resolve();
-    }, delayMs);
-    signal.addEventListener('abort', onAbort, { once: true });
-  });
 }
 
 /**
@@ -330,7 +268,7 @@ export async function readBoundedOpenAICompatibleProviderJsonV1(
       `${errorPrefix} returned invalid JSON`,
     );
   }
-  assertPactJsonComplexityV1(parsed, `${errorPrefix} response`);
+  assertJsonComplexityV1(parsed, `${errorPrefix} response`);
   return parsed;
 }
 

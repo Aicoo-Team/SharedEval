@@ -1,33 +1,25 @@
 {
-  "name": "pact-bench",
+  "name": "sharedeval",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "PACT-Bench: a multi-dataset engine for cross-boundary agent privacy and delegation evaluation.",
+  "description": "A SharedOS-based control plane for multi-agent benchmark evaluation.",
   "license": "MIT",
   "engines": {
     "node": ">=20.11"
   },
   "scripts": {
     "sharedeval": "tsx src/runner/v1/sharedeval-cli.ts",
-    "benchmark": "node -e \"console.error('Deprecated: npm run benchmark is a legacy PACT wrapper; use npm run sharedeval.')\" && tsx src/runner/v1/cli.ts",
-    "watch:runs": "tsx scripts/watch_runs.ts",
-    "rescore:pact-pair": "tsx scripts/rescore-requester-grid.ts",
-    "build:harbor": "tsc -p tsconfig.harbor.json",
-    "generate:golden": "tsx scripts/generate-golden.ts",
     "validate": "tsx src/validate.ts",
-    "validate:sample": "tsx src/submission/v1/validate-cli.ts --root . --manifest examples/submissions/typescript-basic/pact.yaml --official",
-    "smoke:sample": "tsx src/submission/v1/smoke-sample.ts",
     "smoke:pact-pair": "tsx src/validate.ts --suite pair",
-    "eval": "tsx src/suites/pact-pair/evaluation-tools/v1/cli.ts",
+    "smoke:pact-net": "tsx src/validate.ts --suite net",
     "eval:pact-pair": "tsx src/suites/pact-pair/evaluation-tools/v1/cli.ts",
     "test:evaluation": "tsx --test tests/suites/pact-pair/evaluation-tools/v1/*.test.ts",
     "export:huggingface:pact-pair": "node scripts/huggingface/export-pact-pair.mjs --check",
-    "test": "tsx --test tests/protocol-v1/*.test.ts tests/runner-v1/*.test.ts tests/datasets/*.test.ts tests/evaluation/*.test.ts tests/execution/*.test.ts tests/suites/pact-pair/*.test.ts tests/suites/pact-net/*.test.ts tests/suites/pact-pair/evaluation-tools/v1/*.test.ts",
+    "test": "tsx --test tests/contracts/*.test.ts tests/runner-v1/*.test.ts tests/datasets/*.test.ts tests/evaluation/*.test.ts tests/execution/*.test.ts tests/suites/pact-pair/*.test.ts tests/suites/pact-net/*.test.ts tests/suites/pact-pair/evaluation-tools/v1/*.test.ts",
     "test:execution": "tsx --test tests/execution/*.test.ts",
-    "test:sharedos": "PACT_REQUIRE_SHAREDOS=1 tsx --test tests/execution/sharedos-conformance.test.ts tests/execution/sharedos-contracts.test.ts tests/execution/sharedos-embedded.test.ts tests/execution/sharedos-runner-wiring.test.ts",
-    "type-check": "tsc --noEmit",
-    "smoke:pact-net": "tsx src/validate.ts --suite net"
+    "test:sharedos": "SHAREDEVAL_REQUIRE_SHAREDOS=1 tsx --test tests/execution/sharedos-loader.test.ts tests/execution/sharedos-runtime-conformance.test.ts",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "yaml": "^2.9.0",

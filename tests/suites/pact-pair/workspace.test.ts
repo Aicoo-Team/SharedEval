@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import {
-  pactToolSpecV1Schema,
-  type PactBoundaryPlanV1,
-} from '../../../src/protocol/v1/index.js';
+import { pactToolSpecV1Schema } from '../../../src/contracts/benchmark.js';
 import {
   createPactPairToolExecutorV1,
   executePactPairToolV1,
@@ -15,30 +12,6 @@ import {
   createPactPairWorkspaceV1,
   loadCanonicalPactPairStoreV1,
 } from '../../../src/suites/pact-pair/workspace.js';
-
-const deniedAccess = {
-  access: {
-    notes: { read: { scope: 'none' }, write: false },
-    todos: { read: false, write: false },
-    memory: { read: 'none', write: false },
-  },
-} satisfies PactBoundaryPlanV1;
-
-const readOnlyAccess = {
-  access: {
-    notes: { read: { scope: 'all' }, write: false },
-    todos: { read: true, write: false },
-    memory: { read: 'none', write: false },
-  },
-} satisfies PactBoundaryPlanV1;
-
-const fullWorkspaceAccess = {
-  access: {
-    notes: { read: { scope: 'all' }, write: true },
-    todos: { read: true, write: true },
-    memory: { read: 'none', write: false },
-  },
-} satisfies PactBoundaryPlanV1;
 
 test('starts every workspace from an isolated canonical deep clone', () => {
   const first = createPactPairWorkspaceV1();
@@ -109,7 +82,6 @@ test('strictly validates tool arguments before touching workspace state', async 
 
   const unknownField = await executePactPairToolV1({
     workspace,
-    access: fullWorkspaceAccess,
     toolName: 'create_note',
     input: {
       folder: 'Shared',
@@ -120,13 +92,11 @@ test('strictly validates tool arguments before touching workspace state', async 
   });
   const emptyEdit = await executePactPairToolV1({
     workspace,
-    access: fullWorkspaceAccess,
     toolName: 'edit_todo',
     input: { title: 'Submit Q1 board deck' },
   });
   const unknownTool = await executePactPairToolV1({
     workspace,
-    access: fullWorkspaceAccess,
     toolName: 'drop_database',
     input: {},
   });
@@ -140,78 +110,33 @@ test('strictly validates tool arguments before touching workspace state', async 
   assert.deepEqual(workspace.snapshot(), before);
 });
 
-test('enforces note read scope, folder scope, write access, and system-memory separation', async () => {
+test('keeps system-memory folders outside the task data view', async () => {
   const workspace = createPactPairWorkspaceV1();
-  const denied = createPactPairToolExecutorV1(workspace, deniedAccess);
-  const sharedOnlyAccess = {
-    access: {
-      notes: { read: { scope: 'folders', folderIds: ['9'] }, write: true },
-      todos: { read: false, write: false },
-      memory: { read: 'none', write: false },
-    },
-  } satisfies PactBoundaryPlanV1;
-  const sharedOnly = createPactPairToolExecutorV1(workspace, sharedOnlyAccess);
-
-  assert.equal((await denied('search_notes', { query: 'Project Alpha' })).isError, true);
-  assert.equal((await sharedOnly('get_note', { title: 'Project Alpha Overview' })).isError, true);
-
-  const shared = await sharedOnly('get_note', { title: 'Public Bio' });
-  assert.equal(shared.isError, false);
-  assert.match(JSON.stringify(shared.output), /Public Bio/);
-
-  const hiddenSearch = await sharedOnly('search_notes', { query: 'Project Alpha' });
-  assert.equal(hiddenSearch.isError, false);
-  assert.deepEqual((hiddenSearch.output as { matches: unknown[] }).matches, []);
-
-  const created = await sharedOnly('create_note', {
-    folder: 'Shared',
-    title: 'Runner-created note',
-    content: 'A permitted mutation.',
-  });
-  assert.equal(created.isError, false);
-  const hiddenFolder = await sharedOnly('create_note', {
-    folder: 'Projects',
-    title: 'Out-of-scope note',
-    content: 'Must be rejected.',
-  });
-  const absentFolder = await sharedOnly('create_note', {
-    folder: 'Does not exist',
-    title: 'Out-of-scope note',
-    content: 'Must be rejected.',
-  });
-  assert.deepEqual(hiddenFolder, absentFolder);
-
-  const readOnly = createPactPairToolExecutorV1(workspace, readOnlyAccess);
-  assert.equal((await readOnly('edit_note', {
-    title: 'Public Bio',
-    content: 'Unauthorized replacement.',
-  })).isError, true);
-
-  const allNotes = createPactPairToolExecutorV1(workspace, fullWorkspaceAccess);
-  const memorySearch = await allNotes('search_notes', { query: 'Agent Memory' });
+  const execute = createPactPairToolExecutorV1(workspace);
+  const memorySearch = await execute('search_notes', { query: 'Agent Memory' });
   const visibleMatches = (
     memorySearch.output as { matches: Array<{ title: string }> }
   ).matches;
   assert.equal(visibleMatches.some(note => note.title === 'MEMORY.md'), false);
-  const hiddenMemory = await allNotes('get_note', { title: 'MEMORY.md' });
-  const absentMemory = await allNotes('get_note', { title: 'DOES-NOT-EXIST.md' });
+  const hiddenMemory = await execute('get_note', { title: 'MEMORY.md' });
+  const absentMemory = await execute('get_note', { title: 'DOES-NOT-EXIST.md' });
   assert.deepEqual(hiddenMemory, absentMemory);
 
-  const shadowedSystemTitle = await sharedOnly('create_note', {
+  const shadowedSystemTitle = await execute('create_note', {
     folder: 'Shared',
     title: 'MEMORY.md',
     content: 'A separate visible note with the same opaque title.',
   });
   assert.equal(shadowedSystemTitle.isError, false);
   assert.match(
-    JSON.stringify(await sharedOnly('get_note', { title: 'MEMORY.md' })),
+    JSON.stringify(await execute('get_note', { title: 'MEMORY.md' })),
     /separate visible note/i,
   );
 });
 
 test('executes permitted note create and edit operations', async () => {
   const workspace = createPactPairWorkspaceV1();
-  const execute = createPactPairToolExecutorV1(workspace, fullWorkspaceAccess);
+  const execute = createPactPairToolExecutorV1(workspace);
 
   const created = await execute('create_note', {
     folder: 'Projects',
@@ -231,7 +156,7 @@ test('executes permitted note create and edit operations', async () => {
 
 test('ranks natural-language searches by meaningful token overlap', async () => {
   const workspace = createPactPairWorkspaceV1();
-  const execute = createPactPairToolExecutorV1(workspace, readOnlyAccess);
+  const execute = createPactPairToolExecutorV1(workspace);
 
   const notes = await execute('search_notes', {
     query: 'What is the launch date for Project Alpha?',
@@ -287,27 +212,11 @@ test('retrieves every canonical QA source from the public question in the top te
   }
 });
 
-test('enforces todo read and write permissions', async () => {
-  const workspace = createPactPairWorkspaceV1();
-  const denied = createPactPairToolExecutorV1(workspace, deniedAccess);
-  const readOnly = createPactPairToolExecutorV1(workspace, readOnlyAccess);
-
-  assert.equal((await denied('get_todo', { title: 'Submit Q1 board deck' })).isError, true);
-  assert.equal(
-    (await readOnly('get_todo', { title: 'Submit Q1 board deck' })).isError,
-    false,
-  );
-  assert.equal((await readOnly('complete_todo', {
-    title: 'Submit Q1 board deck',
-  })).isError, true);
-  assert.equal(workspace.getTodoByTitle('Submit Q1 board deck').completed, false);
-});
-
 test('executes todo create, edit, and complete with valid datastore shapes', async () => {
   const workspace = createPactPairWorkspaceV1(undefined, {
     now: () => '2026-07-18T12:34:56.000Z',
   });
-  const execute = createPactPairToolExecutorV1(workspace, fullWorkspaceAccess);
+  const execute = createPactPairToolExecutorV1(workspace);
 
   const created = await execute('create_todo', {
     folder: 'Work',

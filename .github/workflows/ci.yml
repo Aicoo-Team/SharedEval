@@ -29,17 +29,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate benchmark assets
+      - name: Validate benchmark catalog
         run: npm run validate
 
-      - name: Validate sample submission
-        run: npm run validate:sample
-
-      - name: Smoke-test sample adapter
-        run: npm run smoke:sample
-
-      - name: Smoke-test PACT-Pair
+      - name: Smoke-test PACT-Pair data and evaluation
         run: npm run smoke:pact-pair
+
+      - name: Smoke-test PACT-Net data and evaluation
+        run: npm run smoke:pact-net
 
       - name: Verify deterministic Hugging Face export
         run: |
@@ -50,40 +47,17 @@ jobs:
           diff -ru "$first" "$second"
           test "$(wc -l < "$first/data/pair/validation.jsonl")" -eq 600
 
-      - name: Check standalone runner configuration
-        run: npm run benchmark -- --config examples/pact-run.openai-compatible.yaml --check
-
       - name: Run tests
         run: npm test
 
       - name: Type-check
         run: npm run type-check
 
-      - name: Build Harbor container bundle
-        run: npm run build:harbor
-
-      - name: Build sample submission image
-        run: >-
-          docker build
-          --file examples/submissions/typescript-basic/Dockerfile
-          --tag pact-typescript-basic:ci
-          .
-
-  # Runs the execution test suite (including the differential schema
-  # conformance fixtures) against a REAL SharedOS build pinned to the
-  # commit the PACT-side mirrors were verified against. Semantics are
-  # fail-closed: a missing checkout token or a missing SharedOS build
-  # fails the job — "SharedOS unavailable" must never merge green.
-  # Requires the SHAREDOS_CHECKOUT_TOKEN secret (a PAT that can read
-  # Aicoo-Team/SharedOS) and this job marked as required in branch
-  # protection.
-  sharedos-conformance:
+  sharedos-loader:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     env:
-      # Pin: the SharedOS commit the v1 contracts were verified against.
-      SHAREDOS_PIN: 373b6347559e39e00b2a4f6bc934373833b40266
+      SHAREDOS_PIN: a303d97fe974c149d4575b1f5d6426aee6f37367
 
     steps:
       - name: Require SharedOS checkout token
@@ -91,7 +65,7 @@ jobs:
           SHAREDOS_CHECKOUT_TOKEN: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
         run: |
           if [ -z "$SHAREDOS_CHECKOUT_TOKEN" ]; then
-            echo "::error::SHAREDOS_CHECKOUT_TOKEN secret is not configured. This job must fail rather than skip: configure a PAT with read access to Aicoo-Team/SharedOS in the repository secrets."
+            echo "::error::SHAREDOS_CHECKOUT_TOKEN must read Aicoo-Team/SharedOS."
             exit 1
           fi
 
@@ -100,7 +74,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check out SharedOS (pinned)
+      - name: Check out pinned SharedOS
         uses: actions/checkout@v4
         with:
           repository: Aicoo-Team/SharedOS
@@ -120,7 +94,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install PACT dependencies
+      - name: Install SharedEval dependencies
         run: npm ci
 
       - name: Build SharedOS
@@ -129,79 +103,8 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
-      - name: Run execution tests against the pinned SharedOS build
+      - name: Verify the pinned SharedOS boundary
         env:
-          PACT_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
-          PACT_REQUIRE_SHAREDOS: '1'
+          SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
+          SHAREDEVAL_REQUIRE_SHAREDOS: '1'
         run: npm run test:sharedos
-
-  # The Harbor image now stages the pinned SharedOS build (Track B), so this
-  # job needs the same fail-closed SharedOS checkout as sharedos-conformance:
-  # a missing token or build must fail, never skip — "SharedOS unavailable"
-  # can never merge green.
-  harbor-smoke:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    env:
-      # Pin: the SharedOS commit the staged image provenance is verified
-      # against. Keep in lockstep with sharedos-conformance.
-      SHAREDOS_PIN: 373b6347559e39e00b2a4f6bc934373833b40266
-
-    steps:
-      - name: Require SharedOS checkout token
-        env:
-          SHAREDOS_CHECKOUT_TOKEN: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
-        run: |
-          if [ -z "$SHAREDOS_CHECKOUT_TOKEN" ]; then
-            echo "::error::SHAREDOS_CHECKOUT_TOKEN secret is not configured. The Harbor image stages the pinned SharedOS build, so this job must fail rather than skip: configure a PAT with read access to Aicoo-Team/SharedOS in the repository secrets."
-            exit 1
-          fi
-
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Check out SharedOS (pinned)
-        uses: actions/checkout@v4
-        with:
-          repository: Aicoo-Team/SharedOS
-          ref: ${{ env.SHAREDOS_PIN }}
-          token: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
-          path: sharedos-repo
-          persist-credentials: false
-
-      - name: Set up pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build SharedOS
-        working-directory: sharedos-repo
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm build
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Install Harbor 0.5.0
-        run: uv tool install harbor==0.5.0
-
-      # PACT_HARBOR_SMOKE_REQUIRE=1 turns missing prerequisites into hard
-      # failures: on CI the prerequisites are expected, so the smoke (parity
-      # golden + denied-egress probe) must fail loudly rather than skip.
-      - name: Harbor smoke (parity golden + denied-egress probe)
-        env:
-          PACT_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
-        run: PACT_HARBOR_SMOKE_REQUIRE=1 bash scripts/verify_harbor.sh

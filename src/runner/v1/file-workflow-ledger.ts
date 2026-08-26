@@ -15,7 +15,7 @@ import {
   PACT_PAIR_METRIC_NAMES_V1,
   pactPairMetricContributionsV1,
 } from '../../suites/pact-pair/evaluation.js';
-import { toPublicEvaluation } from '../../suites/pact-pair/environment.js';
+import { toPublicEvaluation } from '../../suites/pact-pair/public-evaluation.js';
 import { MAX_AGENT_WORKSPACE_FILE_BYTES_V1 } from './agent-workspace.js';
 import {
   assertMonotonicFileMemoryRowsV1,
@@ -26,10 +26,8 @@ import {
 import {
   assertFileWorkflowFinalCardinalityV1,
   fileWorkflowCheckpointV1Schema,
-  fileWorkflowContactAuthorityV1Schema,
   fileWorkflowFinalFilesV1Schema,
   fileWorkflowHeartbeatPayloadV1Schema,
-  fileWorkflowMemoryAuthorityV1Schema,
   fileWorkflowPublicEventV1Schema,
   fileWorkflowPublicEvaluationRecordV1Schema,
   fileWorkflowPublicResultV1Schema,
@@ -44,17 +42,34 @@ import {
   type FileWorkflowPublicResultV1,
   type FileWorkflowRunBindingV1,
 } from './file-workflow-artifacts.js';
+import {
+  projectFileWorkflowRetainedSharedOsEvidenceV1,
+  type FileWorkflowSharedOsProjectionV1,
+} from './file-workflow-sharedos-evidence.js';
+import {
+  FileWorkflowHeartbeatMarkerAuthorityErrorV1,
+  fileWorkflowHeartbeatStartMarkerV1Schema,
+  fileWorkflowHeartbeatStartV1Schema,
+  indeterminateFileWorkflowHeartbeatResultV1,
+  type FileWorkflowHeartbeatBeginResultV1,
+  type FileWorkflowHeartbeatStartMarkerV1,
+  type FileWorkflowHeartbeatStartV1,
+} from './file-workflow-recovery.js';
 
 export const FILE_WORKFLOW_INTERNAL_DIRECTORY_V1 = '.sharedeval-file-workflow' as const;
 const RECORD_DIRECTORY = 'records';
 const STAGING_DIRECTORY = 'staging';
 const WRITER_CLAIMS_DIRECTORY = 'writer-claims';
+const HEARTBEAT_STARTS_DIRECTORY = 'heartbeat-starts';
 const BINDING_FILE = 'binding.json';
 const FINAL_FILE = 'final.json';
-const MAX_LEDGER_RECORD_BYTES = 4 * 1024 * 1024;
+// Two actors may each retain a full 1 MiB before/after committed MEMORY receipt.
+const MAX_LEDGER_RECORD_BYTES = 16 * 1024 * 1024;
 const MAX_PUBLIC_ARTIFACT_BYTES = 32 * 1024 * 1024;
 const recordNamePattern = /^record-([0-9]{12})\.json$/;
 const writerClaimNamePattern = /^claim-([0-9]{12})\.json$/;
+const heartbeatStartNamePattern = /^start-([0-9]{12})\.json$/;
+const heartbeatStartStageNamePattern = /^start-stage-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json$/i;
 const stageNamePattern = /^stage-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json$/i;
 const immutableAuthorityStageNamePattern = /^immutable-authority-stage-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json$/i;
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -107,6 +122,10 @@ type PublicArtifactName =
   | 'checkpoint.json';
 
 export type FileWorkflowLedgerFaultInjectionV1 = Readonly<{
+  beforeHeartbeatStartLinkForTest?: (input: Readonly<{
+    stagePath: string;
+    destination: string;
+  }>) => void | Promise<void>;
   beforePublicArtifactForTest?: (name: PublicArtifactName) => void | Promise<void>;
   beforeWriterClaimPublicationForTest?: (
     kind: WriterClaim['kind'],
@@ -134,7 +153,13 @@ export type FileWorkflowCommitResultV1 = Readonly<{
   record: FileWorkflowLedgerRecordV1;
 }>;
 
+export type FileWorkflowLedgerRecoveryInspectionV1 =
+  | Readonly<{ kind: 'clear' }>
+  | ReturnType<typeof indeterminateFileWorkflowHeartbeatResultV1>;
+
 export interface FileWorkflowLedgerV1 {
+  inspectRecovery(): Promise<FileWorkflowLedgerRecoveryInspectionV1>;
+  beginHeartbeat(start: FileWorkflowHeartbeatStartV1): Promise<FileWorkflowHeartbeatBeginResultV1>;
   commitHeartbeat(payload: FileWorkflowHeartbeatPayloadV1): Promise<FileWorkflowCommitResultV1>;
   readRecords(): Promise<readonly FileWorkflowLedgerRecordV1[]>;
   repairPublicProjections(): Promise<void>;
@@ -161,6 +186,10 @@ export async function openFileWorkflowLedgerV1(
   const writerClaimsDirectory = await ensureChildDirectory(
     internalDirectory,
     WRITER_CLAIMS_DIRECTORY,
+  );
+  const heartbeatStartsDirectory = await ensureChildDirectory(
+    internalDirectory,
+    HEARTBEAT_STARTS_DIRECTORY,
   );
   const lock = await acquireWriterLock({
     internalDirectory,
@@ -192,6 +221,7 @@ export async function openFileWorkflowLedgerV1(
       internalDirectory,
       recordsDirectory,
       stagingDirectory,
+      heartbeatStartsDirectory,
       binding,
       bindingDigest,
       retainPrivate: options.retainPrivate,
@@ -200,8 +230,16 @@ export async function openFileWorkflowLedgerV1(
       releaseLock: lock.release,
     });
   } catch (error) {
-    await lock.release().catch(() => {});
-    throw error;
+    const failures: unknown[] = [error];
+    try {
+      await lock.release();
+    } catch (releaseError) {
+      failures.push(releaseError);
+    }
+    throw combinedFailure(
+      failures,
+      'File-workflow ledger open failed and writer cleanup also failed',
+    );
   }
 }
 
@@ -216,6 +254,7 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
     internalDirectory: string;
     recordsDirectory: string;
     stagingDirectory: string;
+    heartbeatStartsDirectory: string;
     binding: FileWorkflowRunBindingV1;
     bindingDigest: string;
     retainPrivate: boolean;
@@ -223,6 +262,16 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
     assertWriterOwned: () => Promise<void>;
     releaseLock: () => Promise<void>;
   }) {}
+
+  inspectRecovery(): Promise<FileWorkflowLedgerRecoveryInspectionV1> {
+    return this.enqueue(() => this.inspectRecoveryInternal());
+  }
+
+  beginHeartbeat(
+    start: FileWorkflowHeartbeatStartV1,
+  ): Promise<FileWorkflowHeartbeatBeginResultV1> {
+    return this.enqueue(() => this.beginHeartbeatInternal(start));
+  }
 
   commitHeartbeat(
     input: FileWorkflowHeartbeatPayloadV1,
@@ -265,6 +314,148 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
     return closing;
   }
 
+  private async beginHeartbeatInternal(
+    input: FileWorkflowHeartbeatStartV1,
+  ): Promise<FileWorkflowHeartbeatBeginResultV1> {
+    const start = fileWorkflowHeartbeatStartV1Schema.parse(input);
+    await this.options.assertWriterOwned();
+    const records = await scanRecords(this.options);
+    const final = await readFinalAuthority(
+      this.options.internalDirectory,
+      this.options.bindingDigest,
+    );
+    assertFinalMatchesRecords(final, records);
+    if (final) assertFinalFilesBinding(records, this.options.binding, final.finalFiles);
+
+    await cleanupHeartbeatStartStages(this.options.heartbeatStartsDirectory);
+    let markers: FileWorkflowHeartbeatStartMarkerV1[];
+    try {
+      markers = await scanHeartbeatStarts({
+        heartbeatStartsDirectory: this.options.heartbeatStartsDirectory,
+        binding: this.options.binding,
+        bindingDigest: this.options.bindingDigest,
+      });
+    } catch (error) {
+      if (error instanceof FileWorkflowHeartbeatMarkerAuthorityErrorV1) {
+        return indeterminateFileWorkflowHeartbeatResultV1();
+      }
+      throw error;
+    }
+    assertHeartbeatStartHistory(markers, records);
+
+    const marker = markers.find(value => value.event.tick === start.event.tick);
+    const committed = records.find(value => value.payload.event.tick === start.event.tick);
+    if (committed) {
+      if (!marker) {
+        throw new Error('Committed heartbeat is missing its required start marker');
+      }
+      assertExactHeartbeatIdentity({
+        expectedEvent: committed.payload.event,
+        expectedInputDigest: committed.payload.inputDigest,
+        actualEvent: start.event,
+        actualInputDigest: start.inputDigest,
+        label: 'Committed heartbeat replay',
+      });
+      assertExactHeartbeatIdentity({
+        expectedEvent: marker.event,
+        expectedInputDigest: marker.inputDigest,
+        actualEvent: start.event,
+        actualInputDigest: start.inputDigest,
+        label: 'Committed heartbeat marker',
+      });
+      await this.repairPublicProjectionsInternal();
+      return { kind: 'committed', record: structuredClone(committed) };
+    }
+
+    if (final) {
+      throw new Error('Completed file-workflow ledger cannot begin another heartbeat');
+    }
+    if (records.at(-1)?.payload.sessionStopReason) {
+      throw new Error('Stopped file-workflow ledger cannot begin another heartbeat');
+    }
+    if (marker) {
+      assertExactHeartbeatIdentity({
+        expectedEvent: marker.event,
+        expectedInputDigest: marker.inputDigest,
+        actualEvent: start.event,
+        actualInputDigest: start.inputDigest,
+        label: 'Started heartbeat replay',
+      });
+      return indeterminateFileWorkflowHeartbeatResultV1();
+    }
+    if (markers.length !== records.length) {
+      throw new Error('A prior started heartbeat remains unresolved');
+    }
+    if (records.some(record => (
+      record.payload.event.eventId === start.event.eventId
+      || record.payload.event.traceId === start.event.traceId
+    )) || markers.some(value => (
+      value.event.eventId === start.event.eventId
+      || value.event.traceId === start.event.traceId
+    ))) {
+      throw new Error('Heartbeat event and trace identities must be unique');
+    }
+
+    const expectedTick = records.length + 1;
+    if (
+      start.event.runId !== this.options.binding.runId
+      || start.event.actorId !== this.options.binding.actors.requester.actorId
+      || start.event.tick !== expectedTick
+      || start.event.tick > this.options.binding.scheduler.maxTicks
+      || start.event.sessionId !== this.options.binding.scheduler.sessionId
+    ) {
+      throw new Error('Heartbeat start identity conflicts with the bound run history');
+    }
+
+    const withoutDigest = {
+      apiVersion: 'sharedeval-file-heartbeat-start/v1' as const,
+      bindingDigest: this.options.bindingDigest,
+      event: start.event,
+      inputDigest: start.inputDigest,
+    };
+    const markerAuthority = fileWorkflowHeartbeatStartMarkerV1Schema.parse({
+      ...withoutDigest,
+      markerDigest: digestCanonical(withoutDigest),
+    });
+    await this.options.assertWriterOwned();
+    await publishHeartbeatStart({
+      heartbeatStartsDirectory: this.options.heartbeatStartsDirectory,
+      authority: markerAuthority,
+      assertWriterOwned: this.options.assertWriterOwned,
+      beforeLinkForTest: this.options.faults?.beforeHeartbeatStartLinkForTest,
+    });
+    return { kind: 'execute' };
+  }
+
+  private async inspectRecoveryInternal(): Promise<FileWorkflowLedgerRecoveryInspectionV1> {
+    await this.options.assertWriterOwned();
+    const records = await scanRecords(this.options);
+    const final = await readFinalAuthority(
+      this.options.internalDirectory,
+      this.options.bindingDigest,
+    );
+    assertFinalMatchesRecords(final, records);
+    if (final) assertFinalFilesBinding(records, this.options.binding, final.finalFiles);
+    await cleanupHeartbeatStartStages(this.options.heartbeatStartsDirectory);
+    let markers: FileWorkflowHeartbeatStartMarkerV1[];
+    try {
+      markers = await scanHeartbeatStarts({
+        heartbeatStartsDirectory: this.options.heartbeatStartsDirectory,
+        binding: this.options.binding,
+        bindingDigest: this.options.bindingDigest,
+      });
+    } catch (error) {
+      if (error instanceof FileWorkflowHeartbeatMarkerAuthorityErrorV1) {
+        return indeterminateFileWorkflowHeartbeatResultV1();
+      }
+      throw error;
+    }
+    assertHeartbeatStartHistory(markers, records);
+    return markers.length === records.length
+      ? { kind: 'clear' }
+      : indeterminateFileWorkflowHeartbeatResultV1();
+  }
+
   private async commitHeartbeatInternal(
     input: FileWorkflowHeartbeatPayloadV1,
   ): Promise<FileWorkflowCommitResultV1> {
@@ -283,47 +474,45 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
     ) {
       throw new Error('Caller private evidence digest conflicts with its source bytes');
     }
-    validatePrivateEvidenceBinding(parsed, this.options.binding, {
-      allowStrippedPrivateEvidence: false,
-    });
-    const contactAuthority = buildContactAuthority(parsed, this.options.binding);
-    const memoryAuthority = buildMemoryAuthority(parsed, this.options.binding);
-    if (
-      parsed.contactAuthority
-      && canonicalJson(parsed.contactAuthority) !== canonicalJson(contactAuthority)
-    ) {
-      throw new Error('Heartbeat contact authority conflicts with its private evidence');
+    if (!parsed.privateEvidence) {
+      throw new Error('A new heartbeat requires native SharedOS source evidence');
     }
-    if (
-      parsed.memoryAuthority
-      && canonicalJson(parsed.memoryAuthority) !== canonicalJson(memoryAuthority)
-    ) {
-      throw new Error('Heartbeat MEMORY authority conflicts with its private source bytes');
-    }
-    if (!memoryAuthority && parsed.memoryAuthority) {
-      throw new Error('Heartbeat cannot inject MEMORY authority without a committed CAS');
-    }
-    const withDerivedAuthority = {
-      ...parsed,
-      ...(contactAuthority ? { contactAuthority } : {}),
-      ...(memoryAuthority ? { memoryAuthority } : {}),
-    };
-    const privateEvidenceDigest = withDerivedAuthority.privateEvidence
-      ? digestCanonical(withDerivedAuthority.privateEvidence)
-      : withDerivedAuthority.privateEvidenceDigest;
+    const projection = projectPayloadSharedOsEvidence(parsed, this.options.binding);
+    const derived = projectionPayloadFields(projection);
+    assertCallerProjectionsMatchNativeEvidence(parsed, projection);
+    const withDerivedAuthority = { ...parsed, ...derived };
+    const privateEvidenceDigest = digestCanonical(parsed.privateEvidence);
     const normalized = fileWorkflowHeartbeatPayloadV1Schema.parse({
       ...withDerivedAuthority,
       ...(privateEvidenceDigest ? { privateEvidenceDigest } : {}),
     });
     validatePayloadBinding(normalized, this.options.binding, {
-      allowStrippedContactAuthority: false,
       allowStrippedPrivateEvidence: false,
+      projection,
     });
     const payload = this.options.retainPrivate
       ? structuredClone(normalized)
       : stripPrivateEvidence(normalized);
     assertRetentionConsistency(payload, this.options.retainPrivate);
+    await cleanupHeartbeatStartStages(this.options.heartbeatStartsDirectory);
+    const markers = await scanHeartbeatStarts({
+      heartbeatStartsDirectory: this.options.heartbeatStartsDirectory,
+      binding: this.options.binding,
+      bindingDigest: this.options.bindingDigest,
+    });
+    const marker = markers.find(value => value.event.tick === payload.event.tick);
+    if (!marker) {
+      throw new Error('Heartbeat commit requires an existing start marker');
+    }
+    assertExactHeartbeatIdentity({
+      expectedEvent: marker.event,
+      expectedInputDigest: marker.inputDigest,
+      actualEvent: payload.event,
+      actualInputDigest: payload.inputDigest,
+      label: 'Heartbeat commit',
+    });
     const records = await scanRecords(this.options);
+    assertHeartbeatStartHistory(markers, records);
     const eventRecord = records.find(record => record.payload.event.eventId === payload.event.eventId);
     if (eventRecord) {
       if (canonicalJson(eventRecord.payload) !== canonicalJson(payload)) {
@@ -349,6 +538,7 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
       this.options.binding,
     );
     assertNextHeartbeatLinearity(records, payload, this.options.binding);
+    assertStopBoundary([...records.map(record => record.payload), payload], this.options.binding);
 
     const sequence = records.length;
     const previousRecordDigest = records.at(-1)?.recordDigest ?? null;
@@ -402,13 +592,27 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
   }): Promise<void> {
     await this.options.assertWriterOwned();
     const records = await scanRecords(this.options);
+    await cleanupHeartbeatStartStages(this.options.heartbeatStartsDirectory);
+    const markers = await scanHeartbeatStarts({
+      heartbeatStartsDirectory: this.options.heartbeatStartsDirectory,
+      binding: this.options.binding,
+      bindingDigest: this.options.bindingDigest,
+    });
+    assertHeartbeatStartHistory(markers, records);
+    if (markers.length !== records.length) {
+      throw new Error('Cannot finalize with an unresolved heartbeat start marker');
+    }
     const { results, evaluations } = terminalProjections(this.options.binding, records);
     assertFileWorkflowFinalCardinalityV1({
       selectedTaskIds: this.options.binding.selectedTaskIds,
       results,
       evaluations,
     });
-    assertStopReasonMatchesResults(input.stopReason, results);
+    const committedStopReason = records.at(-1)?.payload.sessionStopReason;
+    if (!committedStopReason || committedStopReason !== input.stopReason) {
+      throw new Error('Finalization stop reason must exactly match the last committed payload');
+    }
+    assertStopReasonMatchesResults(committedStopReason, results);
     const finalFiles = fileWorkflowFinalFilesV1Schema.parse(input.finalFiles);
     assertFinalFilesBinding(records, this.options.binding, finalFiles);
     const authorityWithoutDigest = {
@@ -444,14 +648,163 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
   }
 }
 
+async function scanHeartbeatStarts(input: {
+  heartbeatStartsDirectory: string;
+  binding: FileWorkflowRunBindingV1;
+  bindingDigest: string;
+}): Promise<FileWorkflowHeartbeatStartMarkerV1[]> {
+  const names = await readdir(input.heartbeatStartsDirectory);
+  const indexed = names.map(name => {
+    const match = heartbeatStartNamePattern.exec(name);
+    if (!match) throw new Error(`Heartbeat starts contain unexpected entry ${name}`);
+    const tick = Number(match[1]);
+    if (name !== heartbeatStartName(tick)) {
+      throw new Error('Heartbeat start marker must be canonically named');
+    }
+    return { name, tick };
+  }).sort((left, right) => left.tick - right.tick);
+
+  const markers: FileWorkflowHeartbeatStartMarkerV1[] = [];
+  for (const entry of indexed) {
+    try {
+      const marker = await readBoundedJsonRegular(
+        join(input.heartbeatStartsDirectory, entry.name),
+        16 * 1024,
+        fileWorkflowHeartbeatStartMarkerV1Schema,
+        `heartbeat start ${entry.tick}`,
+      );
+      const { markerDigest, ...withoutDigest } = marker;
+      if (
+        marker.event.tick !== entry.tick
+        || marker.bindingDigest !== input.bindingDigest
+        || marker.event.runId !== input.binding.runId
+        || marker.event.actorId !== input.binding.actors.requester.actorId
+        || markerDigest !== digestCanonical(withoutDigest)
+      ) {
+        throw new Error('Heartbeat start marker has foreign or edited authority');
+      }
+      markers.push(marker);
+    } catch {
+      throw new FileWorkflowHeartbeatMarkerAuthorityErrorV1();
+    }
+  }
+  return markers;
+}
+
+function assertHeartbeatStartHistory(
+  markers: readonly FileWorkflowHeartbeatStartMarkerV1[],
+  records: readonly FileWorkflowLedgerRecordV1[],
+): void {
+  if (markers.length < records.length || markers.length > records.length + 1) {
+    throw new Error('Heartbeat start history does not match committed record authority');
+  }
+  const eventIds = new Set<string>();
+  const traceIds = new Set<string>();
+  for (const [index, marker] of markers.entries()) {
+    if (marker.event.tick !== index + 1) {
+      throw new Error('Heartbeat start history must be contiguous');
+    }
+    if (eventIds.has(marker.event.eventId) || traceIds.has(marker.event.traceId)) {
+      throw new Error('Heartbeat start event and trace identities must be unique');
+    }
+    eventIds.add(marker.event.eventId);
+    traceIds.add(marker.event.traceId);
+    const record = records[index];
+    if (!record) continue;
+    assertExactHeartbeatIdentity({
+      expectedEvent: marker.event,
+      expectedInputDigest: marker.inputDigest,
+      actualEvent: record.payload.event,
+      actualInputDigest: record.payload.inputDigest,
+      label: 'Committed heartbeat start authority',
+    });
+  }
+}
+
+function assertExactHeartbeatIdentity(input: {
+  expectedEvent: FileWorkflowHeartbeatStartV1['event'];
+  expectedInputDigest: string;
+  actualEvent: FileWorkflowHeartbeatStartV1['event'];
+  actualInputDigest: string;
+  label: string;
+}): void {
+  if (
+    !isDeepStrictEqual(input.expectedEvent, input.actualEvent)
+    || input.expectedInputDigest !== input.actualInputDigest
+  ) {
+    throw new Error(`${input.label} conflicts with immutable heartbeat identity`);
+  }
+}
+
+async function publishHeartbeatStart(input: {
+  heartbeatStartsDirectory: string;
+  authority: FileWorkflowHeartbeatStartMarkerV1;
+  assertWriterOwned: () => Promise<void>;
+  beforeLinkForTest?: (input: Readonly<{
+    stagePath: string;
+    destination: string;
+  }>) => void | Promise<void>;
+}): Promise<void> {
+  const stage = join(
+    input.heartbeatStartsDirectory,
+    `start-stage-${randomUUID()}.json`,
+  );
+  const destination = join(
+    input.heartbeatStartsDirectory,
+    heartbeatStartName(input.authority.event.tick),
+  );
+  const contents = `${canonicalJson(input.authority)}\n`;
+  await writeDurablyExclusive(stage, contents, 16 * 1024);
+  await syncDirectory(input.heartbeatStartsDirectory);
+  try {
+    await input.assertWriterOwned();
+    await input.beforeLinkForTest?.({ stagePath: stage, destination });
+    try {
+      linkSync(stage, destination);
+      await syncDirectory(input.heartbeatStartsDirectory);
+      await input.assertWriterOwned();
+      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+    let existing: string;
+    try {
+      existing = await readBoundedRegular(
+        destination,
+        16 * 1024,
+        'heartbeat start authority',
+      );
+    } catch {
+      throw new FileWorkflowHeartbeatMarkerAuthorityErrorV1();
+    }
+    if (existing !== contents) {
+      throw new Error('Heartbeat start authority conflicts with existing marker');
+    }
+    await input.assertWriterOwned();
+  } finally {
+    await durableUnlink(stage);
+  }
+}
+
+async function cleanupHeartbeatStartStages(directory: string): Promise<void> {
+  for (const name of await readdir(directory)) {
+    if (!heartbeatStartStageNamePattern.test(name)) continue;
+    const path = join(directory, name);
+    const stat = await lstat(path);
+    if (!stat.isFile() || stat.isSymbolicLink()) {
+      throw new Error('Heartbeat start stages must be regular non-symlink files');
+    }
+    await durableUnlink(path);
+  }
+}
+
 function validatePayloadBinding(
   payload: FileWorkflowHeartbeatPayloadV1,
   binding: FileWorkflowRunBindingV1,
   options: {
-    allowStrippedContactAuthority: boolean;
     allowStrippedPrivateEvidence: boolean;
+    projection?: FileWorkflowSharedOsProjectionV1;
   } = {
-    allowStrippedContactAuthority: false,
     allowStrippedPrivateEvidence: false,
   },
 ): void {
@@ -460,6 +813,22 @@ function validatePayloadBinding(
   }
   if (payload.event.actorId !== binding.actors.requester.actorId) {
     throw new Error('Heartbeat record carries a foreign actor binding');
+  }
+  if (
+    payload.event.sessionId !== binding.scheduler.sessionId
+    || payload.event.tick > binding.scheduler.maxTicks
+  ) {
+    throw new Error('Heartbeat record carries foreign scheduler authority');
+  }
+  const sharedOsRunAuthority = {
+    runStartedAt: payload.sharedOsAuthority.runStartedAt,
+    namespaceId: payload.sharedOsAuthority.namespaceId,
+    grantManifestDigest: payload.sharedOsAuthority.grantManifestDigest,
+    sharedOsRevision: payload.sharedOsAuthority.sharedOsRevision,
+    sharedOsRuntimeDigest: payload.sharedOsAuthority.sharedOsRuntimeDigest,
+  };
+  if (canonicalJson(sharedOsRunAuthority) !== canonicalJson(binding.sharedOs)) {
+    throw new Error('Heartbeat record carries foreign SharedOS run authority');
   }
   if (
     canonicalJson(payload.provider.requester)
@@ -472,41 +841,43 @@ function validatePayloadBinding(
   ) {
     throw new Error('Heartbeat record carries foreign provider/model provenance');
   }
-  const actorIds = new Set([
-    binding.actors.requester.actorId,
-    binding.actors.responder.actorId,
-  ]);
-  for (const receipt of payload.fileReads) {
-    if (!actorIds.has(receipt.actorId)) {
-      throw new Error('File-read receipt carries a foreign actor binding');
-    }
-    const actor = receipt.actorId === binding.actors.requester.actorId
-      ? binding.actors.requester
-      : binding.actors.responder;
-    if (receipt.path !== 'MEMORY.md') {
-      const expected = actor.initial[receipt.path];
-      if (
-        receipt.sha256 !== expected.sha256
-        || receipt.byteLength !== expected.byteLength
-      ) {
-        throw new Error(`File-read receipt for ${receipt.path} conflicts with its run binding`);
+  if (!payload.privateEvidence) {
+    const actorIds = new Set([
+      binding.actors.requester.actorId,
+      binding.actors.responder.actorId,
+    ]);
+    for (const receipt of payload.fileReads) {
+      if (!actorIds.has(receipt.actorId)) {
+        throw new Error('File-read receipt carries a foreign actor binding');
+      }
+      const actor = receipt.actorId === binding.actors.requester.actorId
+        ? binding.actors.requester
+        : binding.actors.responder;
+      if (receipt.path !== 'MEMORY.md') {
+        const expected = actor.initial[receipt.path];
+        if (
+          receipt.sha256 !== expected.sha256
+          || receipt.byteLength !== expected.byteLength
+        ) {
+          throw new Error(`File-read receipt for ${receipt.path} conflicts with its run binding`);
+        }
       }
     }
   }
-  if (
-    payload.memoryTransition
-    && payload.memoryTransition.actorId !== binding.actors.requester.actorId
-  ) {
-    throw new Error('MEMORY transition carries a foreign actor binding');
-  }
-  if ((payload.memoryTransition !== undefined) !== (payload.memoryAuthority !== undefined)) {
-    throw new Error('MEMORY transition requires one derived sanitized MEMORY authority');
-  }
-  if (payload.memoryTransition && payload.memoryAuthority) {
-    const transition = payload.memoryTransition;
-    const authority = payload.memoryAuthority;
+  const canonicalActors = [
+    binding.actors.requester.actorId,
+    binding.actors.responder.actorId,
+  ];
+  const actorOrder = new Map(canonicalActors.map((actorId, index) => [actorId, index]));
+  let previousActorIndex = -1;
+  for (const [index, transition] of payload.memoryTransitions.entries()) {
+    const authority = payload.memoryAuthorities[index];
+    const actorIndex = actorOrder.get(transition.actorId);
     if (
-      authority.actorId !== transition.actorId
+      actorIndex === undefined
+      || actorIndex <= previousActorIndex
+      || !authority
+      || authority.actorId !== transition.actorId
       || authority.previousVersion !== transition.previousVersion
       || authority.newVersion !== transition.newVersion
       || authority.previousSha256 !== transition.previousSha256
@@ -520,13 +891,11 @@ function validatePayloadBinding(
     ) {
       throw new Error('Sanitized MEMORY authority conflicts with its CAS or run task binding');
     }
+    previousActorIndex = actorIndex;
     assertMonotonicFileMemoryRowsV1(
       authority.previousRows.map(row => ({ ...row, note: '' })),
       authority.newRows.map(row => ({ ...row, note: '' })),
     );
-  }
-  if (payload.selectedTaskId && !binding.selectedTaskIds.includes(payload.selectedTaskId)) {
-    throw new Error('Heartbeat selected task is outside the bound task set');
   }
   const selectedTasks = new Map(binding.selectedTasks.map(task => [task.taskId, task.kind]));
   const contactAuthority = payload.contactAuthority;
@@ -536,26 +905,23 @@ function validatePayloadBinding(
       || contactAuthority.senderId !== binding.actors.requester.actorId
       || contactAuthority.recipientId !== binding.actors.responder.actorId
       || contactAuthority.eventId !== payload.event.eventId
-      || contactAuthority.taskId !== payload.selectedTaskId
-      || contactAuthority.contactId !== payload.correlatedContactId
     ) {
       throw new Error('Heartbeat contact authority carries foreign task/actor/event provenance');
     }
+    if (payload.usage.contactCalls < 1) {
+      throw new Error('Authoritative contact requires at least one requester contact call');
+    }
+    if (!payload.privateEvidence) {
+      assertCompleteContactReadCoverage(
+        payload.fileReads,
+        binding.actors.requester.actorId,
+        'requester',
+      );
+    }
     if (
-      !options.allowStrippedContactAuthority
-      && payload.privateEvidence?.contactRequests.length !== 1
+      !payload.privateEvidence
+      && (contactAuthority.status === 'completed' || contactAuthority.status === 'denied')
     ) {
-      throw new Error('New contact authority requires its private contact evidence');
-    }
-    if (payload.usage.contactCalls !== 1) {
-      throw new Error('One authoritative contact requires exactly one aggregate contact call');
-    }
-    assertCompleteContactReadCoverage(
-      payload.fileReads,
-      binding.actors.requester.actorId,
-      'requester',
-    );
-    if (contactAuthority.status === 'completed' || contactAuthority.status === 'denied') {
       if (!payload.provider.responder) {
         throw new Error('Completed or denied contact authority requires responder provider provenance');
       }
@@ -585,45 +951,70 @@ function validatePayloadBinding(
       throw new Error('Terminal transition carries foreign workflow/run/session provenance');
     }
   }
-  validatePrivateEvidenceBinding(payload, binding, {
-    allowStrippedPrivateEvidence: options.allowStrippedPrivateEvidence,
-  });
-  if (payload.privateEvidence?.memory) {
-    const expected = buildMemoryAuthority(payload, binding);
-    if (
-      !expected
-      || !payload.memoryAuthority
-      || canonicalJson(payload.memoryAuthority) !== canonicalJson(expected)
-    ) {
-      throw new Error('Heartbeat MEMORY authority does not derive from its private source bytes');
-    }
-  }
-  if (payload.privateEvidence?.contactRequests.length === 1) {
-    const expected = buildContactAuthority(payload, binding);
-    if (!contactAuthority || canonicalJson(contactAuthority) !== canonicalJson(expected)) {
-      throw new Error('Heartbeat contact authority does not match its private contact/snapshot');
-    }
+  if (payload.privateEvidence) {
+    const projection = options.projection ?? projectPayloadSharedOsEvidence(payload, binding);
+    assertCallerProjectionsMatchNativeEvidence(payload, projection);
+    validatePrivateEvaluationEvidence(payload, binding);
+  } else if (!options.allowStrippedPrivateEvidence) {
+    throw new Error('Heartbeat requires native SharedOS source evidence');
   }
 }
 
-function validatePrivateEvidenceBinding(
+function projectPayloadSharedOsEvidence(
   payload: FileWorkflowHeartbeatPayloadV1,
   binding: FileWorkflowRunBindingV1,
-  options: { allowStrippedPrivateEvidence: boolean },
+): FileWorkflowSharedOsProjectionV1 {
+  const evidence = payload.privateEvidence;
+  if (!evidence) throw new Error('Native SharedOS source evidence is required');
+  const { fullEvaluations: _fullEvaluations, ...retainedEvidence } = evidence;
+  return projectFileWorkflowRetainedSharedOsEvidenceV1({
+    binding,
+    event: payload.event,
+    retainedEvidence,
+    sharedOsAuthority: payload.sharedOsAuthority,
+    ...(payload.contactAuthority ? { contactAuthority: payload.contactAuthority } : {}),
+  });
+}
+
+function projectionPayloadFields(
+  projection: FileWorkflowSharedOsProjectionV1,
+) {
+  return {
+    fileReads: projection.fileReads.map(row => structuredClone(row)),
+    memoryTransitions: projection.memoryTransitions.map(row => structuredClone(row)),
+    memoryAuthorities: projection.memoryAuthorities.map(row => structuredClone(row)),
+    ...(projection.currentContact
+      ? { contactAuthority: structuredClone(projection.currentContact.authority) }
+      : {}),
+    provider: structuredClone(projection.provider),
+    usage: structuredClone(projection.usage),
+    sharedOsAuthority: structuredClone(projection.sharedOsAuthority),
+  };
+}
+
+function assertCallerProjectionsMatchNativeEvidence(
+  payload: FileWorkflowHeartbeatPayloadV1,
+  projection: FileWorkflowSharedOsProjectionV1,
+): void {
+  const derived = projectionPayloadFields(projection);
+  for (const field of [
+    'fileReads',
+    'memoryTransitions',
+    'memoryAuthorities',
+    'provider',
+    'usage',
+  ] as const) {
+    if (canonicalJson(payload[field]) !== canonicalJson(derived[field])) {
+      throw new Error(`Heartbeat ${field} conflicts with native SharedOS source evidence`);
+    }
+  }
+}
+function validatePrivateEvaluationEvidence(
+  payload: FileWorkflowHeartbeatPayloadV1,
+  binding: FileWorkflowRunBindingV1,
 ): void {
   const evidence = payload.privateEvidence;
-  if (!evidence) {
-    if (
-      !options.allowStrippedPrivateEvidence
-      && (
-        payload.memoryTransition
-        || payload.transitions.some(transition => transition.result.publicEvaluation !== null)
-      )
-    ) {
-      throw new Error('A MEMORY CAS or scored terminal transition requires private source evidence');
-    }
-    return;
-  }
+  if (!evidence) return;
   const selected = new Set(binding.selectedTaskIds);
   const assertUniqueSelectedTasks = (
     label: string,
@@ -637,57 +1028,12 @@ function validatePrivateEvidenceBinding(
       throw new Error(`Private ${label} evidence has duplicate or foreign task binding`);
     }
   };
-  assertUniqueSelectedTasks('contact', evidence.contactRequests);
   assertUniqueSelectedTasks('action snapshot', evidence.actionSnapshots);
   assertUniqueSelectedTasks('evaluation', evidence.fullEvaluations);
-  if (evidence.contactRequests.length > 1) {
-    throw new Error('Private heartbeat evidence may carry only one authoritative contact');
-  }
-  if (payload.memoryTransition && !evidence.memory) {
-    throw new Error('A committed MEMORY CAS requires its private before/after source bytes');
-  }
-  const selectedKinds = new Map(binding.selectedTasks.map(task => [task.taskId, task.kind]));
-  for (const contact of evidence.contactRequests) {
-    if (
-      contact.senderId !== binding.actors.requester.actorId
-      || contact.recipientId !== binding.actors.responder.actorId
-      || contact.purpose !== contact.taskId
-      || contact.taskId !== payload.selectedTaskId
-      || contact.recipientTraceId !== payload.correlatedContactId
-      || contact.requestTraceId !== payload.event.traceId
-    ) {
-      throw new Error('Private contact evidence carries foreign actor/task provenance');
-    }
-    const snapshots = evidence.actionSnapshots.filter(snapshot => (
-      snapshot.taskId === contact.taskId
-    ));
-    const kind = selectedKinds.get(contact.taskId);
-    if (kind === 'action' && snapshots.length !== 1) {
-      throw new Error('Private contacted action requires exactly one authoritative snapshot pair');
-    }
-    if (kind === 'qa' && snapshots.length !== 0) {
-      throw new Error('Private QA contact cannot carry an action snapshot');
-    }
-    const snapshot = snapshots[0];
-    if (snapshot && (
-      snapshot.contactId !== contact.recipientTraceId
-      || snapshot.actorId !== binding.actors.responder.actorId
-      || snapshot.eventId !== payload.event.eventId
-    )) {
-      throw new Error('Private action snapshot carries foreign contact/actor/event provenance');
-    }
-  }
-  const contacts = new Map(evidence.contactRequests.map(contact => [contact.taskId, contact]));
   const transitions = new Map(payload.transitions.map(transition => [
     transition.taskId,
     transition,
   ]));
-  for (const snapshot of evidence.actionSnapshots) {
-    const contact = contacts.get(snapshot.taskId);
-    if (!contact || selectedKinds.get(snapshot.taskId) !== 'action') {
-      throw new Error('Private action snapshot is not bound to its own action contact');
-    }
-  }
   for (const evaluation of evidence.fullEvaluations) {
     const transition = transitions.get(evaluation.taskId);
     if (!transition) {
@@ -721,115 +1067,6 @@ function validatePrivateEvidenceBinding(
       throw new Error('Scored terminal transitions require exactly one matching full evaluation');
     }
   }
-  if (
-    evidence.memory
-    && evidence.memory.actorId !== binding.actors.requester.actorId
-  ) {
-    throw new Error('Private MEMORY evidence carries a foreign actor binding');
-  }
-  if (evidence.memory) {
-    const transition = payload.memoryTransition;
-    if (!transition) {
-      throw new Error('Private MEMORY evidence requires a committed MEMORY transition');
-    }
-    const previous = decodeCanonicalBase64(
-      evidence.memory.previousBytesBase64,
-      'previous private MEMORY',
-    );
-    const next = decodeCanonicalBase64(
-      evidence.memory.newBytesBase64,
-      'new private MEMORY',
-    );
-    if (
-      previous.byteLength > MAX_AGENT_WORKSPACE_FILE_BYTES_V1
-      || next.byteLength > MAX_AGENT_WORKSPACE_FILE_BYTES_V1
-    ) {
-      throw new Error('Private MEMORY bytes exceed the workspace file limit');
-    }
-    const previousText = decodeStrictUtf8(previous, 'previous private MEMORY');
-    const nextText = decodeStrictUtf8(next, 'new private MEMORY');
-    const previousRows = parseFileMemoryV1({
-      content: previousText,
-      selectedTaskIds: binding.selectedTaskIds,
-    });
-    const nextRows = parseFileMemoryV1({
-      content: nextText,
-      selectedTaskIds: binding.selectedTaskIds,
-    });
-    assertMonotonicFileMemoryRowsV1(previousRows, nextRows);
-    if (
-      sha256Bytes(previous) !== transition.previousSha256
-      || sha256Bytes(next) !== transition.newSha256
-      || next.byteLength !== transition.byteLength
-    ) {
-      throw new Error('Private MEMORY bytes do not match the committed transition hashes');
-    }
-  }
-}
-
-function buildContactAuthority(
-  payload: FileWorkflowHeartbeatPayloadV1,
-  binding: FileWorkflowRunBindingV1,
-): FileWorkflowContactAuthorityV1 | undefined {
-  const contact = payload.privateEvidence?.contactRequests[0];
-  if (!contact || payload.privateEvidence?.contactRequests.length !== 1) return undefined;
-  const kind = binding.selectedTasks.find(task => task.taskId === contact.taskId)?.kind;
-  if (!kind) throw new Error('Private contact evidence is outside the selected task metadata');
-  const snapshot = payload.privateEvidence.actionSnapshots.find(value => (
-    value.taskId === contact.taskId
-  ));
-  return fileWorkflowContactAuthorityV1Schema.parse({
-    taskId: contact.taskId,
-    contactId: contact.recipientTraceId,
-    kind,
-    status: contact.status,
-    ...('errorCode' in contact ? { errorCode: contact.errorCode } : {}),
-    senderId: contact.senderId,
-    recipientId: contact.recipientId,
-    eventId: payload.event.eventId,
-    ...(snapshot ? {
-      actionSnapshotDigest: digestCanonical(snapshot),
-      stateChanged: !isDeepStrictEqual(snapshot.before, snapshot.after),
-    } : {}),
-  });
-}
-
-function buildMemoryAuthority(
-  payload: FileWorkflowHeartbeatPayloadV1,
-  binding: FileWorkflowRunBindingV1,
-): FileWorkflowMemoryAuthorityV1 | undefined {
-  const transition = payload.memoryTransition;
-  if (!transition) return undefined;
-  const memory = payload.privateEvidence?.memory;
-  if (!memory) {
-    throw new Error('A committed MEMORY CAS requires its private before/after source bytes');
-  }
-  const previousText = decodeStrictUtf8(
-    decodeCanonicalBase64(memory.previousBytesBase64, 'previous private MEMORY'),
-    'previous private MEMORY',
-  );
-  const nextText = decodeStrictUtf8(
-    decodeCanonicalBase64(memory.newBytesBase64, 'new private MEMORY'),
-    'new private MEMORY',
-  );
-  const previousRows = parseFileMemoryV1({
-    content: previousText,
-    selectedTaskIds: binding.selectedTaskIds,
-  });
-  const newRows = parseFileMemoryV1({
-    content: nextText,
-    selectedTaskIds: binding.selectedTaskIds,
-  });
-  assertMonotonicFileMemoryRowsV1(previousRows, newRows);
-  return fileWorkflowMemoryAuthorityV1Schema.parse({
-    actorId: transition.actorId,
-    previousVersion: transition.previousVersion,
-    newVersion: transition.newVersion,
-    previousSha256: transition.previousSha256,
-    newSha256: transition.newSha256,
-    previousRows: previousRows.map(({ taskId, status }) => ({ taskId, status })),
-    newRows: newRows.map(({ taskId, status }) => ({ taskId, status })),
-  });
 }
 
 function assertCompleteContactReadCoverage(
@@ -878,26 +1115,6 @@ function assertCompleteContactReadCoverage(
   }
 }
 
-function decodeCanonicalBase64(value: string, label: string): Buffer {
-  const bytes = Buffer.from(value, 'base64');
-  if (bytes.toString('base64') !== value) {
-    throw new Error(`${label} bytes must use canonical base64`);
-  }
-  return bytes;
-}
-
-function decodeStrictUtf8(value: Uint8Array, label: string): string {
-  try {
-    return new TextDecoder('utf-8', { fatal: true }).decode(value);
-  } catch {
-    throw new Error(`${label} bytes must be valid UTF-8`);
-  }
-}
-
-function sha256Bytes(value: Uint8Array): string {
-  return createHash('sha256').update(value).digest('hex');
-}
-
 function assertNextHeartbeatLinearity(
   records: readonly FileWorkflowLedgerRecordV1[],
   payload: FileWorkflowHeartbeatPayloadV1,
@@ -907,8 +1124,7 @@ function assertNextHeartbeatLinearity(
   if (payload.event.tick !== expectedTick) {
     throw new Error(`Heartbeat tick history must be contiguous; expected ${expectedTick}`);
   }
-  const firstSessionId = records[0]?.payload.event.sessionId;
-  if (firstSessionId && payload.event.sessionId !== firstSessionId) {
+  if (payload.event.sessionId !== binding.scheduler.sessionId) {
     throw new Error('Heartbeat record carries a foreign session identity');
   }
   if (records.some(record => (
@@ -918,50 +1134,72 @@ function assertNextHeartbeatLinearity(
     throw new Error('Heartbeat event and trace identities must be unique');
   }
 
-  const memory = memoryCursorAfter(records, binding);
-  assertMemoryTransitionFrom(payload, memory, binding.actors.requester.actorId);
+  const memory = memoryCursorsAfter(records, binding);
+  assertMemoryTransitionsFrom(payload, memory, binding);
 }
 
-function memoryCursorAfter(
+type FileWorkflowMemoryCursor = {
+  version: number;
+  sha256: string;
+  byteLength: number;
+};
+
+function memoryCursorsAfter(
   records: readonly FileWorkflowLedgerRecordV1[],
   binding: FileWorkflowRunBindingV1,
-): { version: number; sha256: string; byteLength: number } {
-  const cursor = {
-    version: 0,
-    sha256: binding.actors.requester.initial['MEMORY.md'].sha256,
-    byteLength: binding.actors.requester.initial['MEMORY.md'].byteLength,
-  };
-  for (const record of records) {
-    assertMemoryTransitionFrom(
-      record.payload,
-      cursor,
-      binding.actors.requester.actorId,
-    );
+): Map<string, FileWorkflowMemoryCursor> {
+  const cursors = new Map<string, FileWorkflowMemoryCursor>();
+  for (const role of ['requester', 'responder'] as const) {
+    const actor = binding.actors[role];
+    cursors.set(actor.actorId, {
+      version: 0,
+      sha256: actor.initial['MEMORY.md'].sha256,
+      byteLength: actor.initial['MEMORY.md'].byteLength,
+    });
   }
-  return cursor;
+  for (const record of records) {
+    assertMemoryTransitionsFrom(record.payload, cursors, binding);
+  }
+  return cursors;
 }
 
-function assertMemoryTransitionFrom(
+function assertMemoryTransitionsFrom(
   payload: FileWorkflowHeartbeatPayloadV1,
-  cursor: { version: number; sha256: string; byteLength: number },
-  requesterActorId: string,
+  cursors: Map<string, FileWorkflowMemoryCursor>,
+  binding: FileWorkflowRunBindingV1,
 ): void {
-  const transition = payload.memoryTransition;
+  for (const role of ['requester', 'responder'] as const) {
+    const actorId = binding.actors[role].actorId;
+    const cursor = cursors.get(actorId);
+    if (!cursor) throw new Error(`Missing ${role} MEMORY cursor`);
+    assertActorMemoryTransitionFrom(payload, cursor, actorId, role);
+  }
+}
+
+function assertActorMemoryTransitionFrom(
+  payload: FileWorkflowHeartbeatPayloadV1,
+  cursor: FileWorkflowMemoryCursor,
+  actorId: string,
+  role: 'requester' | 'responder',
+): void {
+  // The projector owns same-turn read/CAS ordering. The ledger only pins those
+  // projected versions and hashes to the durable cursor from earlier heartbeats.
+  const transition = payload.memoryTransitions.find(value => value.actorId === actorId);
   const permittedVersions = new Set([
     cursor.version,
     ...(transition ? [transition.newVersion] : []),
   ]);
   if (payload.fileReads.some(receipt => (
-    receipt.actorId === requesterActorId
+    receipt.actorId === actorId
     && receipt.path !== 'MEMORY.md'
     && !permittedVersions.has(receipt.version)
   ))) {
     throw new Error(
-      'Requester immutable-file reads must use the pre- or post-CAS workspace version cursor',
+      `${role} immutable-file reads must use the pre- or post-CAS workspace version cursor`,
     );
   }
   const reads = payload.fileReads.filter(receipt => (
-    receipt.actorId === requesterActorId && receipt.path === 'MEMORY.md'
+    receipt.actorId === actorId && receipt.path === 'MEMORY.md'
   ));
   if (!transition) {
     if (reads.some(receipt => (
@@ -969,13 +1207,12 @@ function assertMemoryTransitionFrom(
       || receipt.sha256 !== cursor.sha256
       || receipt.byteLength !== cursor.byteLength
     ))) {
-      throw new Error('Requester MEMORY read receipt breaks the committed chain');
+      throw new Error(`${role} MEMORY read receipt breaks the committed chain`);
     }
     return;
   }
   if (
-    transition.actorId !== requesterActorId
-    || transition.previousVersion !== cursor.version
+    transition.previousVersion !== cursor.version
     || transition.previousSha256 !== cursor.sha256
   ) {
     throw new Error('MEMORY CAS previous version/hash breaks the committed chain');
@@ -989,7 +1226,7 @@ function assertMemoryTransitionFrom(
     && receipt.byteLength === cursor.byteLength
   ));
   if (!observedPrevious) {
-    throw new Error('MEMORY CAS requires a matching requester read receipt');
+    throw new Error(`MEMORY CAS requires a matching ${role} read receipt`);
   }
   if (reads.some(receipt => !(
     (
@@ -1003,7 +1240,7 @@ function assertMemoryTransitionFrom(
       && receipt.byteLength === transition.byteLength
     )
   ))) {
-    throw new Error('Requester MEMORY read receipt is outside the committed CAS transition');
+    throw new Error(`${role} MEMORY read receipt is outside the committed CAS transition`);
   }
   cursor.version = transition.newVersion;
   cursor.sha256 = transition.newSha256;
@@ -1026,13 +1263,20 @@ function assertFinalFilesBinding(
       }
     }
   }
-  const committed = memoryCursorAfter(records, binding);
-  const declared = finalFiles.requester['MEMORY.md'];
-  if (
-    declared.sha256 !== committed.sha256
-    || declared.byteLength !== committed.byteLength
-  ) {
-    throw new Error('Declared final MEMORY hash/byte length does not match the ledger CAS chain');
+  const committed = memoryCursorsAfter(records, binding);
+  for (const role of ['requester', 'responder'] as const) {
+    const actorId = binding.actors[role].actorId;
+    const cursor = committed.get(actorId);
+    const declared = finalFiles[role]['MEMORY.md'];
+    if (
+      !cursor
+      || declared.sha256 !== cursor.sha256
+      || declared.byteLength !== cursor.byteLength
+    ) {
+      throw new Error(
+        `Declared final ${role} MEMORY hash/byte length does not match the ledger CAS chain`,
+      );
+    }
   }
 }
 
@@ -1111,7 +1355,6 @@ async function scanRecords(input: {
       throw new Error(`Ledger record ${index} has foreign binding or broken digest chain`);
     }
     validatePayloadBinding(record.payload, input.binding, {
-      allowStrippedContactAuthority: !input.retainPrivate,
       allowStrippedPrivateEvidence: !input.retainPrivate,
     });
     const { recordDigest: _digest, ...withoutDigest } = record;
@@ -1145,16 +1388,12 @@ function assertRetentionConsistency(
   }
   if (
     retainPrivate
-    && payload.privateEvidenceDigest
     && !payload.privateEvidence
   ) {
     throw new Error(`${prefix} discarded private evidence despite retention`);
   }
-  if (payload.contactAuthority && !payload.privateEvidenceDigest) {
-    throw new Error(`${prefix} contact authority is missing its private evidence digest`);
-  }
-  if (payload.memoryTransition && !payload.privateEvidenceDigest) {
-    throw new Error(`${prefix} MEMORY authority is missing its validated private evidence digest`);
+  if (!payload.privateEvidenceDigest) {
+    throw new Error(`${prefix} is missing its native SharedOS evidence digest`);
   }
 }
 
@@ -1164,13 +1403,16 @@ function assertLedgerLinearity(
 ): void {
   const eventIds = new Set<string>();
   const traceIds = new Set<string>();
-  const firstSessionId = records[0]?.payload.event.sessionId;
+  const executionIds = new Set<string>();
+  let expectedAuditSequence: number | undefined;
   for (const [index, record] of records.entries()) {
+    const payload = record.payload;
     if (record.payload.event.tick !== index + 1) {
       throw new Error('Heartbeat tick history must be contiguous');
     }
     if (
-      record.payload.event.sessionId !== firstSessionId
+      record.payload.event.sessionId !== binding.scheduler.sessionId
+      || record.payload.event.tick > binding.scheduler.maxTicks
       || eventIds.has(record.payload.event.eventId)
       || traceIds.has(record.payload.event.traceId)
     ) {
@@ -1178,8 +1420,38 @@ function assertLedgerLinearity(
     }
     eventIds.add(record.payload.event.eventId);
     traceIds.add(record.payload.event.traceId);
+    const audit = payload.sharedOsAuthority.audit;
+    if (expectedAuditSequence !== undefined && audit.firstSequence !== expectedAuditSequence) {
+      throw new Error('SharedOS audit windows must form one exact contiguous run history');
+    }
+    expectedAuditSequence = audit.lastSequence + 1;
+    for (const executionId of [
+      payload.sharedOsAuthority.requesterExecutionId,
+      payload.sharedOsAuthority.responderExecutionId,
+    ]) {
+      if (!executionId) continue;
+      if (executionIds.has(executionId)) {
+        throw new Error('SharedOS execution identities must be unique across heartbeat history');
+      }
+      executionIds.add(executionId);
+    }
+    if (
+      payload.transitions.some(transition => (
+        transition.result.status === 'answered' || transition.result.status === 'refused'
+      ))
+      && payload.sharedOsAuthority.requesterExecutionStatus !== 'succeeded'
+    ) {
+      throw new Error('Answered/refused authority requires a succeeded requester execution');
+    }
+    if (
+      payload.sharedOsAuthority.responderExecutionId
+      !== payload.contactAuthority?.responderExecutionId
+    ) {
+      throw new Error('Responder execution authority must resolve through the exact contact');
+    }
   }
-  memoryCursorAfter(records, binding);
+  memoryCursorsAfter(records, binding);
+  assertStopBoundary(records.map(record => record.payload), binding);
 }
 
 function assertContactAuthorityHistory(
@@ -1189,8 +1461,12 @@ function assertContactAuthorityHistory(
   const byTask = new Map<string, FileWorkflowContactAuthorityV1>();
   const byContact = new Map<string, FileWorkflowContactAuthorityV1>();
   const terminalTasks = new Set<string>();
-  let memoryRows: readonly Pick<FileMemoryRowV1, 'taskId' | 'status'>[] =
-    binding.selectedTaskIds.map(taskId => ({ taskId, status: 'pending' as const }));
+  const memoryRowsByActor = new Map<string, readonly Pick<FileMemoryRowV1, 'taskId' | 'status'>[]>([
+    [binding.actors.requester.actorId,
+      binding.selectedTaskIds.map(taskId => ({ taskId, status: 'pending' as const }))],
+    [binding.actors.responder.actorId,
+      binding.selectedTaskIds.map(taskId => ({ taskId, status: 'pending' as const }))],
+  ]);
   for (const payload of payloads) {
     const current = payload.contactAuthority;
     if (current) {
@@ -1203,21 +1479,29 @@ function assertContactAuthorityHistory(
       byTask.set(current.taskId, current);
       byContact.set(current.contactId, current);
     }
-    if (payload.memoryAuthority) {
-      if (canonicalJson(payload.memoryAuthority.previousRows) !== canonicalJson(memoryRows)) {
+    for (const memoryAuthority of payload.memoryAuthorities) {
+      const previousRows = memoryRowsByActor.get(memoryAuthority.actorId);
+      if (!previousRows) {
+        throw new Error('Sanitized MEMORY authority carries a foreign actor');
+      }
+      if (canonicalJson(memoryAuthority.previousRows) !== canonicalJson(previousRows)) {
         throw new Error('Sanitized MEMORY authority breaks the ordered task-status history');
       }
-      memoryRows = payload.memoryAuthority.newRows;
-    }
-    if (payload.correlatedContactId) {
-      const referenced = byContact.get(payload.correlatedContactId);
-      if (!referenced || referenced.taskId !== payload.selectedTaskId) {
-        throw new Error('Heartbeat correlated contact does not resolve to committed task authority');
-      }
+      memoryRowsByActor.set(memoryAuthority.actorId, memoryAuthority.newRows);
     }
     for (const transition of payload.transitions) {
+      if (transition.contactId) {
+        const referenced = byContact.get(transition.contactId);
+        if (!referenced || referenced.taskId !== transition.taskId) {
+          throw new Error(
+            'Terminal contact does not resolve to committed task authority',
+          );
+        }
+      }
       const authority = byTask.get(transition.taskId);
-      const memoryRow = memoryRows.find(row => row.taskId === transition.taskId);
+      const memoryRow = memoryRowsByActor
+        .get(binding.actors.requester.actorId)
+        ?.find(row => row.taskId === transition.taskId);
       const derivedStatus = authority && memoryRow
         ? deriveFileMemoryTerminalStatusV1({
           memoryStatus: memoryRow.status,
@@ -1300,6 +1584,31 @@ function assertContactAuthorityHistory(
   }
 }
 
+function assertStopBoundary(
+  payloads: readonly FileWorkflowHeartbeatPayloadV1[],
+  binding: FileWorkflowRunBindingV1,
+): void {
+  const terminalTasks = new Set<string>();
+  const results: FileWorkflowPublicResultV1[] = [];
+  for (const [index, payload] of payloads.entries()) {
+    for (const transition of payload.transitions) {
+      terminalTasks.add(transition.taskId);
+      results.push(transition.result);
+    }
+    const complete = terminalTasks.size === binding.selectedTaskIds.length;
+    if (payload.sessionStopReason !== undefined) {
+      if (index !== payloads.length - 1 || !complete) {
+        throw new Error(
+          'Session stop authority is allowed only on the final cardinality-complete record',
+        );
+      }
+      assertStopReasonMatchesResults(payload.sessionStopReason, results);
+    } else if (complete) {
+      throw new Error('The terminal cardinality-complete record requires a session stop reason');
+    }
+  }
+}
+
 async function publishPublicProjections(input: {
   runDirectory: string;
   internalDirectory: string;
@@ -1329,12 +1638,12 @@ async function publishPublicProjections(input: {
     tick: record.payload.event.tick,
     actorId: record.payload.event.actorId,
     traceId: record.payload.event.traceId,
-    ...(record.payload.selectedTaskId
-      ? { selectedTaskId: record.payload.selectedTaskId }
+    ...(record.payload.contactAuthority
+      ? { selectedTaskId: record.payload.contactAuthority.taskId }
       : {}),
     terminalTaskIds: record.payload.transitions.map(value => value.taskId),
     fileReadCount: record.payload.fileReads.length,
-    memoryCommitted: record.payload.memoryTransition !== undefined,
+    memoryCommitted: record.payload.memoryTransitions.length > 0,
     usage: record.payload.usage,
   }));
   const summary = buildSummary(input.binding, input.records, results, evaluations);
@@ -1444,9 +1753,14 @@ function assertStopReasonMatchesResults(
   }
   if (
     stopReason === 'tick_exhausted'
-    && !results.some(result => result.status === 'no_response')
+    && !results.some(result => (
+      result.status === 'no_response'
+      || result.status === 'side_effect_before_failure'
+    ))
   ) {
-    throw new Error('tick_exhausted requires at least one no_response task authority');
+    throw new Error(
+      'tick_exhausted requires at least one no_response or side-effect-before-failure authority',
+    );
   }
   if (
     stopReason === 'fatal_error'
@@ -2095,6 +2409,13 @@ function recordName(sequence: number): string {
   return `record-${String(sequence).padStart(12, '0')}.json`;
 }
 
+function heartbeatStartName(tick: number): string {
+  if (!Number.isSafeInteger(tick) || tick < 0 || tick > 999_999_999_999) {
+    throw new Error('Heartbeat start tick is outside the safe range');
+  }
+  return `start-${String(tick).padStart(12, '0')}.json`;
+}
+
 function writerClaimName(sequence: number): string {
   if (!Number.isSafeInteger(sequence) || sequence < 0 || sequence > 999_999_999_999) {
     throw new Error('Writer claim sequence is outside the safe range');
@@ -2108,6 +2429,11 @@ function jsonLines(values: readonly unknown[]): string {
 
 function digestCanonical(value: unknown): string {
   return createHash('sha256').update(canonicalJson(value)).digest('hex');
+}
+
+function combinedFailure(failures: readonly unknown[], message: string): unknown {
+  if (failures.length === 1) return failures[0];
+  return new AggregateError(failures, message);
 }
 
 function recordDigestMaterial(value: unknown): unknown {

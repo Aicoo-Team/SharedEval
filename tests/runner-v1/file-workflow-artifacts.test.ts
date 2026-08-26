@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { MAX_AGENT_WORKSPACE_FILE_BYTES_V1 } from '../../src/runner/v1/agent-workspace.js';
-import { pactTaskResultV1Schema } from '../../src/runner/v1/artifacts.js';
 import { PACT_PAIR_METRIC_NAMES_V1 } from '../../src/suites/pact-pair/evaluation.js';
 import {
   assertFileWorkflowFinalCardinalityV1,
   fileWorkflowCheckpointV1Schema,
+  fileWorkflowContactAuthorityV1Schema,
   fileWorkflowFinalFilesV1Schema,
   fileWorkflowHeartbeatPayloadV1Schema,
+  fileWorkflowHostRunProvenanceV1Schema,
   fileWorkflowPrivateEvidenceV1Schema,
   fileWorkflowPublicEventV1Schema,
   fileWorkflowPublicEvaluationRecordV1Schema,
@@ -16,48 +17,95 @@ import {
   fileWorkflowRunBindingV1Schema,
   fileWorkflowRunManifestV1Schema,
   fileWorkflowSelectedTaskDigestV1,
+  fileWorkflowSharedOsRetainedEvidenceV1Schema,
   fileWorkflowSummaryV1Schema,
   fileWorkflowTerminalTransitionV1Schema,
   materializeFileWorkflowNoResponseTransitionsV1,
   type FileWorkflowHeartbeatPayloadV1,
+  type FileWorkflowHostRunProvenanceV1,
   type FileWorkflowRunBindingV1,
 } from '../../src/runner/v1/file-workflow-artifacts.js';
 
 const hex = (value: string) => createHash('sha256').update(value).digest('hex');
 
-test('defines a strict JSON-safe file-workflow lane without widening legacy results', () => {
-  const legacy = {
-    taskId: 'PAIR-Q-1',
-    kind: 'qa',
-    status: 'infrastructure_error',
-    publicTask: {
-      taskId: 'PAIR-Q-1',
-      kind: 'qa',
-      requester: { id: 'R1', relationship: 'coworker' },
-      target: { id: 'alex' },
-      prompt: 'public question',
-      surface: 'notes',
+test('accepts only the exact host-owned run provenance snapshot', () => {
+  const value: FileWorkflowHostRunProvenanceV1 = {
+    dataset: {
+      id: 'pact-pair',
+      version: '1.0.0',
+      manifestSha256: hex('host-dataset-manifest'),
+      tasksSha256: hex('host-dataset-tasks'),
     },
-    finalDecision: { type: 'escalate', reason: 'unavailable' },
-    grantedAccess: {
-      access: {
-        notes: { read: { scope: 'none' }, write: false },
-        todos: { read: false, write: false },
-        memory: { read: 'none', write: false },
+    goldSet: {
+      id: 'pair-gold-v2',
+      sha256: hex('host-gold-set'),
+    },
+    models: {
+      requester: {
+        provider: 'openrouter',
+        requestedModel: 'requester-alias',
+        resolvedModel: 'requester-revision',
+      },
+      responder: {
+        provider: 'openrouter',
+        requestedModel: 'responder-alias',
+        resolvedModel: 'responder-revision',
       },
     },
-    evaluation: null,
-    budgetUsed: { turns: 0, toolCalls: 0, runtimeMs: 0 },
-    toolCalls: [],
-    violations: [],
-    error: 'infrastructure_error',
+    backend: {
+      adapterId: 'sharedos-runtime',
+      executor: 'sharedos-executor',
+    },
   };
-  assert.deepEqual(pactTaskResultV1Schema.parse(legacy), legacy);
-  assert.throws(
-    () => pactTaskResultV1Schema.parse({ ...legacy, workflowId: 'files-multi' }),
-    /unrecognized|key/i,
+  const parsed = fileWorkflowHostRunProvenanceV1Schema.parse(value);
+  assert.deepEqual(parsed, JSON.parse(JSON.stringify(value)));
+  assert.deepEqual(Object.keys(parsed), ['dataset', 'goldSet', 'models', 'backend']);
+  assert.notEqual(parsed.dataset, value.dataset);
+  value.models.requester.resolvedModel = 'mutated-after-parse';
+  assert.equal(
+    (parsed.models as typeof value.models).requester.resolvedModel,
+    'requester-revision',
   );
 
+  assert.throws(
+    () => fileWorkflowHostRunProvenanceV1Schema.parse({
+      ...value,
+      dataset: { ...value.dataset, id: 'foreign-dataset' },
+    }),
+    /dataset|pact-pair|literal|invalid/i,
+    'ACCEPTED_FOREIGN_DATASET',
+  );
+  assert.throws(
+    () => fileWorkflowHostRunProvenanceV1Schema.parse({
+      ...value,
+      foreignAuthority: 'not-host-provenance',
+    }),
+    /foreignAuthority|unrecognized|key/i,
+    'ACCEPTED_EXTRA_PROVENANCE_FIELD',
+  );
+
+  const missing = structuredClone(value) as Record<string, unknown>;
+  delete missing.goldSet;
+  assert.throws(
+    () => fileWorkflowHostRunProvenanceV1Schema.parse(missing),
+    /goldSet|required/i,
+    'ACCEPTED_MISSING_GOLD_SET',
+  );
+
+  for (const invalid of [
+    { ...value, dataset: { ...value.dataset, manifestSha256: '0'.repeat(63) } },
+    { ...value, dataset: { ...value.dataset, tasksSha256: 'G'.repeat(64) } },
+    { ...value, goldSet: { ...value.goldSet, sha256: 'not-a-sha256' } },
+  ]) {
+    assert.throws(
+      () => fileWorkflowHostRunProvenanceV1Schema.parse(invalid),
+      /sha256|regex|invalid/i,
+      'ACCEPTED_INVALID_PROVENANCE_HASH',
+    );
+  }
+});
+
+test('defines a strict JSON-safe file-workflow lane', () => {
   const result = publicResult('PAIR-Q-1', 'no_response', 2);
   assert.deepEqual(fileWorkflowPublicResultV1Schema.parse(result), result);
   assert.throws(
@@ -127,11 +175,22 @@ test('conditions bounded public error codes on error-bearing statuses only', () 
     /errorCode|allow|invalid|enum/i,
     'ACCEPTED_ARBITRARY_PUBLIC_ERROR_CODE',
   );
+  assert.throws(
+    () => fileWorkflowPublicResultV1Schema.parse({
+      ...publicResult('PAIR-Q-1', 'error', 1),
+      errorCode: 'CONTACT_FACTORY_FAILED',
+    }),
+    /errorCode|allow|invalid|enum/i,
+    'ACCEPTED_RETIRED_LOCAL_CONTACT_ERROR',
+  );
 
   for (const errorCode of [
     'CONTACT_REQUESTER_FILE_READ_REQUIRED',
     'CONTACT_DUPLICATE_TASK',
     'CONTACT_RESPONDER_FILE_READ_REQUIRED',
+    'CONTACT_RESPONDER_DENIED',
+    'CONTACT_RESPONDER_FAILED',
+    'CONTACT_CANCELLED',
     'FILE_TURN_FAILED',
     'FILE_SESSION_FAILED',
     'FILE_SESSION_PREPARATION_FAILED',
@@ -269,10 +328,18 @@ test('binds pre-spend initial hashes separately from strict final four-file meta
     'MEMORY.md',
   ]);
   assert.equal(parsed.policies.responder.sha256, hex('responder-policy'));
-  assert.equal(parsed.dataset.sourceRevision, 'a'.repeat(40));
+  assert.equal(parsed.dataset.version, '1.0.0');
+  assert.equal(parsed.dataset.manifestSha256, hex('dataset-manifest'));
   assert.equal(parsed.goldSet.sha256, hex('gold-set-withheld'));
   assert.equal(parsed.selectedTaskDigest, taskDigest(['PAIR-Q-1', 'PAIR-A-2']));
   assert.deepEqual(parsed.selectedTasks, value.selectedTasks);
+  assert.deepEqual(Object.keys((parsed as any).scheduler), [
+    'sessionId',
+    'sessionIndex',
+    'maxTicks',
+    'budget',
+    'initialActionSha256',
+  ]);
   assert.equal('final' in parsed.actors.requester, false);
 
   const finalFiles = {
@@ -294,6 +361,13 @@ test('binds pre-spend initial hashes separately from strict final four-file meta
       selectedTaskDigest: '0'.repeat(64),
     }),
     /selected task digest/i,
+  );
+
+  const missingScheduler = structuredClone(value) as any;
+  delete missingScheduler.scheduler;
+  assert.throws(
+    () => fileWorkflowRunBindingV1Schema.parse(missingScheduler),
+    /scheduler|Required/i,
   );
 
   for (const role of ['requester', 'responder'] as const) {
@@ -361,44 +435,101 @@ test('materializes one ordered no_response result and evaluation for every pendi
   assert.ok(transitions.every(row => row.evaluation.metrics.length === 0));
 });
 
-test('keeps private contact, MEMORY, snapshots, and full evaluation in a separate bounded schema', () => {
+test('keeps native operations, envelopes, audit, telemetry, snapshots, and evaluation private', () => {
   const value = privateEvidence('PAIR-A-2', 'PRIVATE_MEMORY_SENTINEL');
+  assert.deepEqual(fileWorkflowPrivateEvidenceV1Schema.parse(value), value);
+  const oversized = structuredClone(value) as any;
+  oversized.sourceEvidence.requesterFileOperations = Array.from(
+    { length: 513 },
+    () => value.sourceEvidence.requesterFileOperations[0],
+  );
+  assert.throws(
+    () => fileWorkflowPrivateEvidenceV1Schema.parse(oversized),
+    /512|operation|too_big|at most/i,
+  );
+});
+
+test('uses one host-selected purpose and has no message intent field', () => {
+  const value = strictPrivateEvidence('PAIR-A-2') as Record<string, any>;
+  const request = value.sourceEvidence.acceptedMessages[0];
+  request.purpose = 'sharedeval:pact-pair';
+  delete request.intent;
+
   assert.deepEqual(fileWorkflowPrivateEvidenceV1Schema.parse(value), value);
   assert.throws(
     () => fileWorkflowPrivateEvidenceV1Schema.parse({
       ...value,
-      contactRequests: [{
-        ...value.contactRequests[0],
-        message: 'x'.repeat(1_048_577),
-      }],
+      sourceEvidence: {
+        ...value.sourceEvidence,
+        acceptedMessages: [{ ...request, intent: 'perform action' }],
+      },
     }),
-    /too_big|at most|less than/i,
+    /intent|unrecognized/i,
+  );
+  assert.throws(
+    () => fileWorkflowPrivateEvidenceV1Schema.parse({
+      ...value,
+      sourceEvidence: {
+        ...value.sourceEvidence,
+        acceptedMessages: [{ ...request, purpose: 'PAIR-A-2' }],
+      },
+    }),
+    /purpose|sharedeval/i,
   );
 });
 
 test('accepts only the stable Task5 and Task6 contact failure codes', () => {
-  const value = strictPrivateEvidence('PAIR-A-2');
-  const { response: _response, ...contact } = value.contactRequests[0]!;
+  const base = {
+    taskId: 'PAIR-A-2',
+    contactId: 'request-message-1',
+    kind: 'action' as const,
+    senderId: 'requester',
+    recipientId: 'responder',
+    eventId: 'event-1',
+    actionSnapshotDigest: hex('snapshot'),
+    stateChanged: false,
+  };
   for (const [status, errorCode] of [
     ['denied', 'CONTACT_REQUESTER_FILE_READ_REQUIRED'],
     ['denied', 'CONTACT_DUPLICATE_TASK'],
     ['failed', 'CONTACT_RESPONDER_FILE_READ_REQUIRED'],
   ] as const) {
-    const parsedContact = fileWorkflowPrivateEvidenceV1Schema.parse({
-      ...value,
-      contactRequests: [{ ...contact, status, errorCode }],
-    }).contactRequests[0];
-    assert.ok(parsedContact && parsedContact.status !== 'completed');
+    const parsedContact = fileWorkflowContactAuthorityV1Schema.parse({
+      ...base,
+      status,
+      errorCode,
+      ...(status === 'denied' ? {
+        replyMessageId: 'reply-message-1',
+        responderExecutionId: 'responder-execution-1',
+      } : {}),
+    });
     assert.equal(parsedContact.errorCode, errorCode);
   }
+  for (const responderExecutionId of [undefined, 'responder-execution-failed']) {
+    const failed = fileWorkflowContactAuthorityV1Schema.parse({
+      ...base,
+      status: 'failed',
+      errorCode: 'CONTACT_RESPONDER_FAILED',
+      ...(responderExecutionId ? { responderExecutionId } : {}),
+    });
+    assert.equal(failed.responderExecutionId, responderExecutionId);
+    assert.equal(failed.replyMessageId, undefined);
+  }
   assert.throws(
-    () => fileWorkflowPrivateEvidenceV1Schema.parse({
-      ...value,
-      contactRequests: [{
-        ...contact,
-        status: 'failed',
-        errorCode: 'PRIVATE_CREDENTIAL_SENTINEL',
-      }],
+    () => fileWorkflowContactAuthorityV1Schema.parse({
+      ...base,
+      status: 'failed',
+      errorCode: 'CONTACT_RESPONDER_FAILED',
+      responderExecutionId: 'responder-execution-failed',
+      replyMessageId: 'reply-that-was-never-accepted',
+    }),
+    /reply|failure|completed|denied/i,
+  );
+  assert.throws(
+    () => fileWorkflowContactAuthorityV1Schema.parse({
+      ...base,
+      status: 'failed',
+      errorCode: 'PRIVATE_CREDENTIAL_SENTINEL',
     }),
     /errorCode|allow|invalid|enum/i,
   );
@@ -448,29 +579,20 @@ test('requires canonical Pair stores and full PACT evaluations in private eviden
   );
 });
 
-test('requires the exact Task5 contact request/result and one Task4 decision shape', () => {
+test('requires exact SharedOS envelope authority and one Task4 decision shape', () => {
   const missingRequestAuthority = strictPrivateEvidence('PAIR-A-2') as Record<string, any>;
-  delete missingRequestAuthority.contactRequests[0].requestTraceId;
-  delete missingRequestAuthority.contactRequests[0].deadlineMs;
+  delete missingRequestAuthority.sourceEvidence.acceptedMessages[0].traceId;
   assert.throws(
     () => fileWorkflowPrivateEvidenceV1Schema.parse(missingRequestAuthority),
-    /trace|deadline|required/i,
-    'ACCEPTED_CONTACT_WITHOUT_REQUEST_TRACE_OR_DEADLINE',
+    /trace|required/i,
+    'ACCEPTED_MESSAGE_WITHOUT_TRACE',
   );
 
-  const completedWithoutResponse = strictPrivateEvidence('PAIR-A-2') as Record<string, any>;
-  delete completedWithoutResponse.contactRequests[0].response;
+  const missingSender = strictPrivateEvidence('PAIR-A-2') as Record<string, any>;
+  delete missingSender.sourceEvidence.acceptedMessages[0].sender;
   assert.throws(
-    () => fileWorkflowPrivateEvidenceV1Schema.parse(completedWithoutResponse),
-    /completed|response|required/i,
-  );
-
-  const failedWithResponse = strictPrivateEvidence('PAIR-A-2') as Record<string, any>;
-  failedWithResponse.contactRequests[0].status = 'failed';
-  failedWithResponse.contactRequests[0].errorCode = 'CONTACT_FAILED';
-  assert.throws(
-    () => fileWorkflowPrivateEvidenceV1Schema.parse(failedWithResponse),
-    /failed|response|unrecognized/i,
+    () => fileWorkflowPrivateEvidenceV1Schema.parse(missingSender),
+    /sender|required/i,
   );
 
   assert.throws(
@@ -524,12 +646,20 @@ test('uses the workspace byte ceiling and unit PACT-Pair metric contributions', 
   );
 });
 
-test('allows a current contact selection to differ from prior-task terminal transitions', () => {
+test('allows current contact authority to differ from prior-task terminal transitions', () => {
   const payload = heartbeatPayload('run-heartbeat', 2, [
-    transition('PAIR-A-1', 'error', 2, 'action'),
+    transition('PAIR-Q-1', 'error', 2),
   ]);
-  payload.selectedTaskId = 'PAIR-A-2';
-  payload.correlatedContactId = 'recipient-trace-b';
+  payload.contactAuthority = {
+    taskId: 'PAIR-Q-2',
+    contactId: 'recipient-trace-b',
+    kind: 'qa',
+    status: 'failed',
+    errorCode: 'CONTACT_RESPONDER_FAILED',
+    senderId: 'requester',
+    recipientId: 'responder',
+    eventId: 'event-2',
+  };
   assert.doesNotThrow(
     () => fileWorkflowHeartbeatPayloadV1Schema.parse(payload),
     'CURRENT_CONTACT_B_REJECTED_WHILE_TERMINALIZING_PRIOR_A',
@@ -540,10 +670,10 @@ test('rejects a same-version MEMORY transition instead of recording a no-op CAS'
   const payload = heartbeatPayload('run-heartbeat', 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]);
-  payload.memoryTransition = {
-    ...payload.memoryTransition!,
-    newVersion: payload.memoryTransition!.previousVersion,
-    newSha256: payload.memoryTransition!.previousSha256,
+  payload.memoryTransitions[0] = {
+    ...payload.memoryTransitions[0]!,
+    newVersion: payload.memoryTransitions[0]!.previousVersion,
+    newSha256: payload.memoryTransitions[0]!.previousSha256,
   };
   assert.throws(
     () => fileWorkflowHeartbeatPayloadV1Schema.parse(payload),
@@ -557,10 +687,16 @@ test('caps one heartbeat to one contact/snapshot and keeps full evaluations tran
   assert.throws(
     () => fileWorkflowPrivateEvidenceV1Schema.parse({
       ...evidence,
-      contactRequests: [evidence.contactRequests[0], evidence.contactRequests[0]],
+      sourceEvidence: {
+        ...evidence.sourceEvidence,
+        acceptedMessages: [
+          ...evidence.sourceEvidence.acceptedMessages,
+          evidence.sourceEvidence.acceptedMessages[0],
+        ],
+      },
     }),
-    /contact|at most|array/i,
-    'ACCEPTED_MULTIPLE_CONTACTS_IN_ONE_HEARTBEAT',
+    /message|2|at most|array/i,
+    'ACCEPTED_THIRD_CONTACT_ENVELOPE_IN_ONE_HEARTBEAT',
   );
   assert.throws(
     () => fileWorkflowPrivateEvidenceV1Schema.parse({
@@ -730,6 +866,19 @@ test('heartbeat payload rejects foreign identities, duplicate transitions, and u
     }),
     /finite|number/i,
   );
+  const missingInputDigest = { ...payload };
+  delete missingInputDigest.inputDigest;
+  assert.throws(
+    () => fileWorkflowHeartbeatPayloadV1Schema.parse(missingInputDigest),
+    /inputDigest|required/i,
+  );
+  assert.throws(
+    () => fileWorkflowHeartbeatPayloadV1Schema.parse({
+      ...payload,
+      inputDigest: 'not-a-sha256',
+    }),
+    /inputDigest|invalid/i,
+  );
 });
 
 test('uses the literal 600-task PACT-Pair bound across every evidence array', () => {
@@ -767,21 +916,255 @@ test('uses the literal 600-task PACT-Pair bound across every evidence array', ()
   }));
   for (const count of [64, 65, 600]) {
     assert.equal(fileWorkflowPrivateEvidenceV1Schema.parse({
-      contactRequests: [],
-      actionSnapshots: [],
-      tickDecisions: [],
+      ...nativePrivateEvidence('evidence-bound', 1),
       fullEvaluations: fullEvaluations.slice(0, count),
     }).fullEvaluations.length, count);
   }
   assert.throws(
     () => fileWorkflowPrivateEvidenceV1Schema.parse({
-      contactRequests: [],
-      actionSnapshots: [],
-      tickDecisions: [],
+      ...nativePrivateEvidence('evidence-bound', 1),
       fullEvaluations,
     }),
     /600|too_big|at most|evaluation/i,
     'ACCEPTED_601_FULL_EVALUATIONS',
+  );
+});
+
+test('binds one immutable SharedOS provenance authority before any heartbeat spend', () => {
+  const run = binding('files-multi', 'sharedos-binding', ['PAIR-Q-1']) as any;
+  run.sharedOs = sharedOsRunAuthority('sharedos-binding');
+
+  assert.deepEqual(fileWorkflowRunBindingV1Schema.parse(run).sharedOs, run.sharedOs);
+  const missing = structuredClone(run);
+  delete missing.sharedOs;
+  assert.throws(
+    () => fileWorkflowRunBindingV1Schema.parse(missing),
+    /sharedOs|required|provenance/i,
+    'ACCEPTED_RUN_WITHOUT_SHAREDOS_PROVENANCE',
+  );
+  assert.throws(
+    () => fileWorkflowRunBindingV1Schema.parse({
+      ...run,
+      sharedOs: { ...run.sharedOs, runStartedAt: '2026-08-26T08:00:00.000+08:00' },
+    }),
+    /runStartedAt|UTC|millisecond|datetime/i,
+    'ACCEPTED_NONCANONICAL_RUN_STARTED_AT',
+  );
+  assert.throws(
+    () => fileWorkflowRunBindingV1Schema.parse({
+      ...run,
+      sharedOs: { ...run.sharedOs, sharedOsRevision: 'B'.repeat(40) },
+    }),
+    /revision|invalid|regex/i,
+    'ACCEPTED_NONCANONICAL_SHAREDOS_REVISION',
+  );
+});
+
+test('binds PACT-Pair dataset authority to versioned manifest and task bytes', () => {
+  const run = binding('files-multi', 'dataset-content-authority', ['PAIR-Q-1']) as any;
+  run.dataset = {
+    id: 'pact-pair',
+    version: '1.0.0',
+    manifestSha256: hex('dataset-manifest'),
+    tasksSha256: hex('selected-task-bytes'),
+  };
+  assert.deepEqual(fileWorkflowRunBindingV1Schema.parse(run).dataset, run.dataset);
+
+  for (const removedKey of ['split', 'sourceRevision']) {
+    assert.throws(
+      () => fileWorkflowRunBindingV1Schema.parse({
+        ...run,
+        dataset: { ...run.dataset, [removedKey]: 'PRIVATE_LEGACY_DATASET_AUTHORITY' },
+      }),
+      new RegExp(`${removedKey}|unrecognized`, 'i'),
+    );
+  }
+});
+
+test('accepts only native SharedOS source evidence and bounded provider telemetry', () => {
+  const evidence = nativePrivateEvidence('native-evidence', 1);
+  assert.deepEqual(fileWorkflowPrivateEvidenceV1Schema.parse(evidence), evidence);
+  const { fullEvaluations: _fullEvaluations, ...retained } = evidence;
+  assert.deepEqual(fileWorkflowSharedOsRetainedEvidenceV1Schema.parse(retained), retained);
+  for (const requesterExecutionStatus of [
+    'succeeded',
+    'denied',
+    'failed',
+    'cancelled',
+    'escalated',
+  ] as const) {
+    assert.equal(
+      fileWorkflowSharedOsRetainedEvidenceV1Schema.parse({
+        ...retained,
+        requesterExecutionStatus,
+      }).requesterExecutionStatus,
+      requesterExecutionStatus,
+    );
+  }
+  const missingExecutionStatus = structuredClone(retained) as any;
+  delete missingExecutionStatus.requesterExecutionStatus;
+  assert.throws(
+    () => fileWorkflowSharedOsRetainedEvidenceV1Schema.parse(missingExecutionStatus),
+    /requesterExecutionStatus|required/i,
+  );
+  assert.throws(
+    () => fileWorkflowSharedOsRetainedEvidenceV1Schema.parse(evidence),
+    /fullEvaluations|unrecognized/i,
+  );
+
+  const legacy = legacyPrivateEvidence('PAIR-A-2');
+  assert.throws(
+    () => fileWorkflowPrivateEvidenceV1Schema.parse(legacy),
+    /contactRequests|sourceEvidence|required|unrecognized/i,
+    'ACCEPTED_LEGACY_CONTACT_OR_MEMORY_EVIDENCE',
+  );
+  for (const removedKey of [
+    'contactRequests',
+    'memory',
+    'requestTraceId',
+    'recipientTraceId',
+    'deadlineMs',
+    'message',
+    'response',
+    'purpose',
+  ]) {
+    assert.throws(
+      () => fileWorkflowPrivateEvidenceV1Schema.parse({
+        ...evidence,
+        [removedKey]: 'PRIVATE_LEGACY_SENTINEL',
+      }),
+      new RegExp(`${removedKey}|unrecognized`, 'i'),
+      `ACCEPTED_REMOVED_PRIVATE_KEY_${removedKey}`,
+    );
+  }
+
+  const tooManyRequests = structuredClone(evidence) as any;
+  tooManyRequests.providerTelemetry.requester.requests = Array.from(
+    { length: 513 },
+    () => providerRequestTelemetry(),
+  );
+  assert.throws(
+    () => fileWorkflowPrivateEvidenceV1Schema.parse(tooManyRequests),
+    /512|request|too_big|at most/i,
+    'ACCEPTED_UNBOUNDED_PROVIDER_TELEMETRY',
+  );
+});
+
+test('normalizes conflict receipts to bounded metadata before private retention', () => {
+  const evidence = nativePrivateEvidence('conflict-normalization', 1) as any;
+  const attempted = Buffer.from('PRIVATE_CONFLICT_ATTEMPT', 'utf8');
+  evidence.sourceEvidence.requesterFileOperations = [{
+    runId: 'conflict-normalization',
+    actorId: 'requester',
+    traceId: 'trace-1',
+    operationId: 'replace-conflict-1',
+    path: 'MEMORY.md',
+    action: 'replace',
+    outcome: 'conflict',
+    expectedVersion: 0,
+    previousVersion: 0,
+    previousSha256: hex('old-memory'),
+    previousByteLength: 10,
+    previousBytesBase64: Buffer.from('old-memory').toString('base64'),
+    newBytesBase64: attempted.toString('base64'),
+    version: 1,
+    sha256: hex('winner-memory'),
+    byteLength: 13,
+  }];
+
+  const parsed = fileWorkflowPrivateEvidenceV1Schema.parse(evidence) as any;
+  const receipt = parsed.sourceEvidence.requesterFileOperations[0];
+  assert.equal(receipt.attemptedSha256, hex('PRIVATE_CONFLICT_ATTEMPT'));
+  assert.equal(receipt.attemptedByteLength, attempted.byteLength);
+  assert.equal('previousBytesBase64' in receipt, false);
+  assert.equal('newBytesBase64' in receipt, false);
+});
+
+test('uses canonical two-actor MEMORY arrays and one sanitized SharedOS authority', () => {
+  const payload = heartbeatPayload('native-heartbeat', 1, []) as any;
+  delete payload.memoryTransition;
+  payload.memoryTransitions = [
+    memoryTransitionAuthority('requester', 0, 1),
+    memoryTransitionAuthority('responder', 0, 1),
+  ];
+  payload.memoryAuthorities = [
+    memoryRowsAuthority('requester', 0, 1),
+    memoryRowsAuthority('responder', 0, 1),
+  ];
+  payload.sharedOsAuthority = heartbeatSharedOsAuthority('native-heartbeat', 1);
+  payload.sessionStopReason = 'all_terminal';
+
+  const parsed = fileWorkflowHeartbeatPayloadV1Schema.parse(payload);
+  assert.deepEqual(parsed.memoryTransitions.map((row: any) => row.actorId), [
+    'requester',
+    'responder',
+  ]);
+  assert.equal(parsed.sharedOsAuthority.requesterExecutionStatus, 'succeeded');
+  assert.equal(parsed.sessionStopReason, 'all_terminal');
+
+  for (const legacyKey of [
+    'memoryTransition',
+    'memoryAuthority',
+    'selectedTaskId',
+    'correlatedContactId',
+  ]) {
+    assert.throws(
+      () => fileWorkflowHeartbeatPayloadV1Schema.parse({
+        ...payload,
+        [legacyKey]: payload.memoryTransitions[0],
+      }),
+      new RegExp(`${legacyKey}|unrecognized`, 'i'),
+    );
+  }
+  assert.throws(
+    () => fileWorkflowHeartbeatPayloadV1Schema.parse({
+      ...payload,
+      memoryTransitions: [
+        ...payload.memoryTransitions,
+        memoryTransitionAuthority('third-actor', 0, 1),
+      ],
+      memoryAuthorities: [
+        ...payload.memoryAuthorities,
+        memoryRowsAuthority('third-actor', 0, 1),
+      ],
+    }),
+    /MEMORY|two|2|actor|too_big|at most/i,
+    'ACCEPTED_THIRD_MEMORY_ACTOR',
+  );
+  assert.throws(
+    () => fileWorkflowHeartbeatPayloadV1Schema.parse({
+      ...payload,
+      memoryTransitions: [payload.memoryTransitions[0], payload.memoryTransitions[0]],
+      memoryAuthorities: [payload.memoryAuthorities[0], payload.memoryAuthorities[0]],
+    }),
+    /MEMORY|unique|duplicate|actor/i,
+    'ACCEPTED_DUPLICATE_MEMORY_ACTOR',
+  );
+});
+
+test('requires a stop reason to be one bounded heartbeat declaration', () => {
+  const payload = heartbeatPayload('stop-boundary', 1, []) as any;
+  delete payload.memoryTransition;
+  payload.memoryTransitions = [];
+  payload.memoryAuthorities = [];
+  payload.sharedOsAuthority = heartbeatSharedOsAuthority('stop-boundary', 1);
+
+  assert.doesNotThrow(() => fileWorkflowHeartbeatPayloadV1Schema.parse(payload));
+  for (const reason of ['all_terminal', 'tick_exhausted', 'fatal_error'] as const) {
+    assert.equal(
+      fileWorkflowHeartbeatPayloadV1Schema.parse({
+        ...payload,
+        sessionStopReason: reason,
+      }).sessionStopReason,
+      reason,
+    );
+  }
+  assert.throws(
+    () => fileWorkflowHeartbeatPayloadV1Schema.parse({
+      ...payload,
+      sessionStopReason: 'PRIVATE_ARBITRARY_REASON',
+    }),
+    /stop|reason|enum|invalid/i,
   );
 });
 
@@ -802,10 +1185,18 @@ export function binding(
       kind: taskId.includes('-A-') ? 'action' as const : 'qa' as const,
     })),
     selectedTaskDigest: taskDigest(selectedTaskIds),
+    scheduler: {
+      sessionId: `session-${runId}`,
+      sessionIndex: 0,
+      maxTicks: 10_000,
+      budget: { deadlineMs: 2_000, maxToolCalls: 8 },
+      initialActionSha256: hex('initial-pact-action-state'),
+    },
     dataset: {
       id: 'pact-pair',
-      split: 'test',
-      sourceRevision: 'a'.repeat(40),
+      version: '1.0.0',
+      manifestSha256: hex('dataset-manifest'),
+      tasksSha256: hex(`dataset-tasks:${selectedTaskIds.join(',')}`),
     },
     goldSet: { id: 'pair-gold-v2', sha256: hex('gold-set-withheld') },
     policies: {
@@ -826,7 +1217,116 @@ export function binding(
         initial: responderFiles,
       },
     },
-    backend: { adapterId: 'pact-public-runner', executor: 'scripted-harness' },
+    backend: { adapterId: 'sharedos-runtime', executor: 'sharedos-executor' },
+    sharedOs: sharedOsRunAuthority(runId),
+  };
+}
+
+function sharedOsRunAuthority(runId: string) {
+  return {
+    runStartedAt: '2026-08-26T00:00:00.000Z',
+    namespaceId: `namespace-${runId}`,
+    grantManifestDigest: hex(`grant-manifest:${runId}`),
+    sharedOsRevision: 'b'.repeat(40),
+    sharedOsRuntimeDigest: hex(`sharedos-runtime:${runId}`),
+  };
+}
+
+function heartbeatSharedOsAuthority(runId: string, tick: number) {
+  return {
+    ...sharedOsRunAuthority(runId),
+    requesterExecutionId: `requester-execution-${tick}`,
+    requesterExecutionStatus: 'succeeded' as const,
+    responderExecutionId: `responder-execution-${tick}`,
+    audit: {
+      firstSequence: tick - 1,
+      lastSequence: tick - 1,
+      sha256: hex(`audit:${runId}:${tick}`),
+    },
+  };
+}
+
+function providerRequestTelemetry() {
+  return {
+    requestedModel: 'requester-v1',
+    resolvedModel: 'requester-v1',
+    provider: 'scripted',
+    latencyMs: 1,
+    attempts: 1,
+    outcome: 'success' as const,
+    usage: {
+      promptTokens: 10,
+      completionTokens: 5,
+      totalTokens: 15,
+      costUsd: 0,
+    },
+  };
+}
+
+function nativePrivateEvidence(runId: string, tick: number) {
+  const traceId = `trace-${tick}`;
+  const actor = { kind: 'agent' as const, agentId: 'requester' };
+  return {
+    requesterExecutionStatus: 'succeeded' as const,
+    sourceEvidence: {
+      requesterFileOperations: [],
+      responderFileOperations: [],
+      acceptedMessages: [],
+      auditEvents: [{
+        version: '1' as const,
+        type: 'tool.invoked',
+        outcome: 'succeeded',
+        at: '2026-08-26T00:00:01.000Z',
+        traceId,
+        namespaceId: `namespace-${runId}`,
+        actor,
+        authority: actor,
+        owner: actor,
+        purpose: 'sharedeval:pact-pair',
+        operationId: `operation-${tick}`,
+        tool: 'files.read',
+      }],
+    },
+    providerTelemetry: {
+      requester: {
+        requestedModel: 'requester-v1',
+        resolvedModel: 'requester-v1',
+        requests: [providerRequestTelemetry()],
+        totals: {
+          requests: 1,
+          promptTokens: 10,
+          completionTokens: 5,
+          totalTokens: 15,
+          costUsd: 0,
+        },
+      },
+    },
+    actionSnapshots: [],
+    tickDecisions: [],
+    fullEvaluations: [],
+  };
+}
+
+function memoryTransitionAuthority(actorId: string, previousVersion: number, newVersion: number) {
+  return {
+    actorId,
+    previousVersion,
+    newVersion,
+    previousSha256: hex(`${actorId}-memory-${previousVersion}`),
+    newSha256: hex(`${actorId}-memory-${newVersion}`),
+    byteLength: 24,
+  };
+}
+
+function memoryRowsAuthority(actorId: string, previousVersion: number, newVersion: number) {
+  return {
+    actorId,
+    previousVersion,
+    newVersion,
+    previousSha256: hex(`${actorId}-memory-${previousVersion}`),
+    newSha256: hex(`${actorId}-memory-${newVersion}`),
+    previousRows: [{ taskId: 'PAIR-Q-1', status: 'pending' as const }],
+    newRows: [{ taskId: 'PAIR-Q-1', status: 'error' as const }],
   };
 }
 
@@ -836,7 +1336,19 @@ export function heartbeatPayload(
   transitions: ReturnType<typeof transition>[],
   privateValue?: ReturnType<typeof privateEvidence>,
 ): any {
+  const memoryTransition = {
+    actorId: 'requester',
+    previousVersion: Math.max(0, tick - 1),
+    newVersion: tick,
+    previousSha256: hex(`memory-${tick - 1}`),
+    newSha256: hex(`memory-${tick}`),
+    byteLength: 24,
+  };
+  const memoryTaskIds = [...new Set(transitions.map(row => row.taskId))];
+  if (memoryTaskIds.length === 0) memoryTaskIds.push('PAIR-Q-1');
+  const { byteLength: _memoryByteLength, ...memoryAuthorityBase } = memoryTransition;
   return {
+    inputDigest: hex(`heartbeat-input:${runId}:${tick}`),
     event: {
       eventId: `event-${tick}`,
       runId,
@@ -845,22 +1357,20 @@ export function heartbeatPayload(
       actorId: 'requester',
       traceId: `trace-${tick}`,
     },
-    selectedTaskId: transitions[0]?.taskId,
     fileReads: [
       receipt('requester', 'AGENT.md', 0),
       receipt('requester', 'HEARTBEAT.md', 0),
       receipt('requester', 'POLICY.md', 0),
       receipt('requester', 'MEMORY.md', Math.max(0, tick - 1)),
     ],
-    memoryTransition: {
-      actorId: 'requester',
-      previousVersion: Math.max(0, tick - 1),
-      newVersion: tick,
-      previousSha256: hex(`memory-${tick - 1}`),
-      newSha256: hex(`memory-${tick}`),
-      byteLength: 24,
-    },
+    memoryTransitions: [memoryTransition],
+    memoryAuthorities: [{
+      ...memoryAuthorityBase,
+      previousRows: memoryTaskIds.map(taskId => ({ taskId, status: 'pending' as const })),
+      newRows: memoryTaskIds.map(taskId => ({ taskId, status: 'error' as const })),
+    }],
     transitions,
+    sharedOsAuthority: heartbeatSharedOsAuthority(runId, tick),
     provider: {
       requester: { provider: 'scripted', requestedModel: 'requester-v1', resolvedModel: 'requester-v1' },
       responder: { provider: 'scripted', requestedModel: 'responder-v1', resolvedModel: 'responder-v1' },
@@ -904,7 +1414,7 @@ function publicResult(
       : {}),
     publicEvaluation: null,
     selectedTaskDigest: taskDigest(['PAIR-Q-1']),
-    backend: { adapterId: 'pact-public-runner', executor: 'scripted-harness' },
+    backend: { adapterId: 'sharedos-runtime', executor: 'sharedos-executor' },
   };
 }
 
@@ -968,23 +1478,42 @@ function fixedSummaryMetricRows() {
 }
 
 function strictPrivateEvidence(taskId: string) {
+  const evidence = nativePrivateEvidence('native-contact', 1);
+  const requester = { kind: 'agent' as const, agentId: 'requester' };
+  const responder = { kind: 'agent' as const, agentId: 'responder' };
+  const request = {
+    version: '1' as const,
+    id: 'request-message-1',
+    sender: requester,
+    receiver: responder,
+    purpose: 'sharedeval:pact-pair' as const,
+    payload: { taskId, message: 'PRIVATE_CONTACT_SENTINEL' },
+    traceId: 'trace-1',
+    createdAt: '2026-08-26T00:00:01.000Z',
+  };
   return {
-    contactRequests: [{
-      taskId,
-      senderId: 'requester',
-      recipientId: 'responder',
-      purpose: taskId,
-      intent: 'perform action',
-      message: 'PRIVATE_CONTACT_SENTINEL',
-      requestTraceId: 'trace-1',
-      deadlineMs: 1_000,
-      recipientTraceId: 'recipient-trace',
-      status: 'completed' as const,
-      response: 'PRIVATE_RESPONSE_SENTINEL',
-    }],
+    ...evidence,
+    sourceEvidence: {
+      ...evidence.sourceEvidence,
+      acceptedMessages: [request, {
+        version: '1' as const,
+        id: 'reply-message-1',
+        sender: responder,
+        receiver: requester,
+        purpose: 'sharedeval:pact-pair' as const,
+        payload: {
+          taskId,
+          status: 'completed',
+          response: 'PRIVATE_RESPONSE_SENTINEL',
+        },
+        traceId: 'trace-1',
+        replyTo: request.id,
+        createdAt: '2026-08-26T00:00:02.000Z',
+      }],
+    },
     actionSnapshots: [{
       taskId,
-      contactId: 'recipient-trace',
+      contactId: request.id,
       actorId: 'responder',
       eventId: 'event-1',
       before: pairStore('PRIVATE_BEFORE_SENTINEL'),
@@ -996,6 +1525,31 @@ function strictPrivateEvidence(taskId: string) {
       evaluation: fullActionEvaluation(taskId),
       metrics: fixedMetricRows(),
     }],
+  };
+}
+
+function legacyPrivateEvidence(taskId: string) {
+  return {
+    contactRequests: [{
+      taskId,
+      senderId: 'requester',
+      recipientId: 'responder',
+      purpose: 'sharedeval:pact-pair',
+      message: 'PRIVATE_CONTACT_SENTINEL',
+      requestTraceId: 'trace-1',
+      deadlineMs: 1_000,
+      recipientTraceId: 'recipient-trace',
+      status: 'completed' as const,
+      response: 'PRIVATE_RESPONSE_SENTINEL',
+    }],
+    memory: {
+      actorId: 'requester',
+      previousBytesBase64: Buffer.from('old memory').toString('base64'),
+      newBytesBase64: Buffer.from('new memory').toString('base64'),
+    },
+    actionSnapshots: [],
+    tickDecisions: [],
+    fullEvaluations: [],
   };
 }
 
@@ -1052,12 +1606,30 @@ function pairStore(sentinel: string) {
 
 function privateEvidence(taskId: string, memory: string) {
   const evidence = strictPrivateEvidence(taskId);
+  const previous = Buffer.from('old memory');
+  const next = Buffer.from(memory);
   return {
     ...evidence,
-    memory: {
-      actorId: 'requester',
-      previousBytesBase64: Buffer.from('old memory').toString('base64'),
-      newBytesBase64: Buffer.from(memory).toString('base64'),
+    sourceEvidence: {
+      ...evidence.sourceEvidence,
+      requesterFileOperations: [{
+        runId: 'native-contact',
+        actorId: 'requester',
+        traceId: 'trace-1',
+        operationId: 'replace-memory-1',
+        path: 'MEMORY.md' as const,
+        action: 'replace' as const,
+        outcome: 'committed' as const,
+        expectedVersion: 0,
+        previousVersion: 0,
+        previousSha256: hex('old memory'),
+        previousByteLength: previous.byteLength,
+        previousBytesBase64: previous.toString('base64'),
+        newBytesBase64: next.toString('base64'),
+        version: 1,
+        sha256: hex(memory),
+        byteLength: next.byteLength,
+      }],
     },
     tickDecisions: [{
       type: 'completed' as const,

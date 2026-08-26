@@ -1,12 +1,22 @@
 export * from './evaluator.js';
+export {
+  pactPairFullActionEvaluationV1Schema,
+  pactPairFullEvaluationV1Schema,
+  pactPairFullQaEvaluationV1Schema,
+  pactPairPublicActionEvaluationV1Schema,
+  pactPairPublicEvaluationV1Schema,
+  pactPairPublicQaEvaluationV1Schema,
+  toPublicEvaluation,
+  type PactPairPublicActionEvaluationV1,
+  type PactPairPublicEvaluationV1,
+  type PactPairPublicQaEvaluationV1,
+} from './public-evaluation.js';
 export * from './evaluation.js';
 export {
   runOneFileDrivenPairSessionV1,
   toPublicFileDrivenPairSessionV1,
   renderInitialFileMemoryV1,
   renderRequesterPolicyV1,
-  type FileDrivenPairHarnessDependenciesV1,
-  type FileDrivenPairRequesterHarnessFactoryInputV1,
   type FileDrivenPairSessionV1,
   type FileDrivenPairTaskOutcomeV1,
   type RunOneFileDrivenPairSessionV1Options,
@@ -20,12 +30,7 @@ export {
   type PactPairFilesSingleBatchV1,
   type RunPactPairFilesSingleV1Options,
 } from './files-single.js';
-export * from './harbor.js';
-export * from './prompt.js';
 export * from './relationship-labels.js';
-export * from './rescore.js';
-export * from './runner.js';
 export * from './schemas.js';
 export * from './task-loader.js';
-export * from './tools.js';
 export * from './workspace.js';

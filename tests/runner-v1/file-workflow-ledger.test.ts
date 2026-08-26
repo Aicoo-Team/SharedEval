@@ -26,6 +26,7 @@ import {
   binding,
   finalFilesFor,
   heartbeatPayloadFor,
+  memoryContent,
   transition,
 } from './file-workflow-test-fixtures.js';
 import {
@@ -37,7 +38,7 @@ import type {
   PactPairEvaluationV1,
   PactPairQaEvaluationV1,
 } from '../../src/suites/pact-pair/evaluator.js';
-import { toPublicEvaluation } from '../../src/suites/pact-pair/environment.js';
+import { toPublicEvaluation } from '../../src/suites/pact-pair/public-evaluation.js';
 
 const publicNames = [
   'run.json',
@@ -58,12 +59,12 @@ test('publishes a normal two-tick multi run in selected order with exact cardina
     retainPrivate: true,
   });
 
-  await store.commitHeartbeat(heartbeatPayloadFor(
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(
     runBinding,
     1,
     [transition('PAIR-Q-1', 'error', 1)],
   ));
-  await store.commitHeartbeat(heartbeatPayloadFor(
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(
     runBinding,
     2,
     [transition('PAIR-A-2', 'no_response', 2, 'action')],
@@ -92,6 +93,277 @@ test('publishes a normal two-tick multi run in selected order with exact cardina
   await store.close();
 });
 
+test('rejects one caller projection that conflicts with retained SharedOS evidence', async t => {
+  const root = await temporaryRoot(t, 'native-projection-smoke');
+  const runBinding = binding('files-multi', 'native-projection-smoke', ['PAIR-Q-1']);
+  const store = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'run'),
+    binding: runBinding,
+    retainPrivate: true,
+  });
+  const payload = heartbeatPayloadFor(runBinding, 1, [
+    transition('PAIR-Q-1', 'error', 1),
+  ]);
+  payload.usage.promptTokens += 1;
+  payload.usage.totalTokens += 1;
+
+  await assert.rejects(
+    () => commitStartedHeartbeat(store, payload),
+    /usage|telemetry|SharedOS|source evidence/i,
+  );
+  await store.close();
+});
+
+test('round-trips retained evidence and rejects a schema-valid retained tamper on reopen', async t => {
+  const root = await temporaryRoot(t, 'retained-evidence-roundtrip');
+  const runDirectory = join(root, 'run');
+  const runBinding = binding('files-multi', 'retained-evidence-roundtrip', ['PAIR-Q-1']);
+  const options = { runDirectory, binding: runBinding, retainPrivate: true } as const;
+  const store = await openFileWorkflowLedgerV1(options);
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
+    transition('PAIR-Q-1', 'error', 1),
+  ]));
+  await store.close();
+
+  const reopened = await openFileWorkflowLedgerV1(options);
+  const [record] = await reopened.readRecords();
+  assert.equal(record?.payload.privateEvidence?.requesterExecutionStatus, 'succeeded');
+  await reopened.close();
+
+  const recordPath = join(
+    runDirectory,
+    FILE_WORKFLOW_INTERNAL_DIRECTORY_V1,
+    'records',
+    'record-000000000000.json',
+  );
+  const edited = await json(recordPath);
+  edited.payload.privateEvidence.requesterExecutionStatus = 'failed';
+  edited.payload.privateEvidence.tickDecisions = [];
+  edited.payload.privateEvidenceDigest = digestTestCanonical(edited.payload.privateEvidence);
+  edited.recordDigest = digestRecordMaterial(edited);
+  await writeFile(recordPath, `${JSON.stringify(edited)}\n`);
+
+  await assert.rejects(
+    () => openFileWorkflowLedgerV1(options),
+    /execution status|SharedOS authority|canonical projection/i,
+  );
+});
+
+test('enforces contiguous audit windows and both actor MEMORY chains across records', async t => {
+  const root = await temporaryRoot(t, 'native-cross-record');
+  const runBinding = binding('files-multi', 'native-cross-record', [
+    'PAIR-Q-1',
+    'PAIR-Q-2',
+  ]);
+  const store = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'valid'),
+    binding: runBinding,
+    retainPrivate: true,
+  });
+  const responder0 = memoryContent(runBinding.selectedTaskIds, 0);
+  const responder1 = memoryContent(runBinding.selectedTaskIds, 1);
+  const responder2 = memoryContent(runBinding.selectedTaskIds, 2);
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [], {
+    contact: {
+      taskId: 'PAIR-Q-1', message: 'one', requestMessageId: 'request-one',
+      status: 'completed', response: 'one',
+    },
+    responderMemory: {
+      previousVersion: 0,
+      previousBytesBase64: Buffer.from(responder0).toString('base64'),
+      newBytesBase64: Buffer.from(responder1).toString('base64'),
+    },
+  }));
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 2, [], {
+    contact: {
+      taskId: 'PAIR-Q-2', message: 'two', requestMessageId: 'request-two',
+      status: 'completed', response: 'two',
+    },
+    responderMemory: {
+      previousVersion: 1,
+      previousBytesBase64: Buffer.from(responder1).toString('base64'),
+      newBytesBase64: Buffer.from(responder2).toString('base64'),
+    },
+  }));
+  assert.equal((await store.readRecords()).length, 2);
+  await store.close();
+
+  const gapBinding = binding('files-multi', 'native-audit-gap', [
+    'PAIR-Q-1',
+    'PAIR-Q-2',
+  ]);
+  const gapStore = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'gap'),
+    binding: gapBinding,
+    retainPrivate: true,
+  });
+  await commitStartedHeartbeat(gapStore, heartbeatPayloadFor(gapBinding, 1, [
+    transition('PAIR-Q-1', 'error', 1),
+  ]));
+  const gap = heartbeatPayloadFor(gapBinding, 2, [
+    transition('PAIR-Q-2', 'error', 2),
+  ]);
+  gap.sharedOsAuthority.audit.firstSequence += 1;
+  gap.sharedOsAuthority.audit.lastSequence += 1;
+  await assert.rejects(
+    () => commitStartedHeartbeat(gapStore, gap),
+    /audit windows.*contiguous|audit.*history/i,
+  );
+  await gapStore.close();
+});
+
+test('retains two near-limit actor MEMORY receipts below the bounded record ceiling', async t => {
+  const root = await temporaryRoot(t, 'large-native-record');
+  const selectedTaskIds = Array.from({ length: 600 }, (_, index) => `PAIR-Q-${index + 1}`);
+  const runBinding = binding('files-multi', 'large-native-record', selectedTaskIds);
+  const previous = nearLimitMemory(selectedTaskIds, 'before');
+  const next = nearLimitMemory(selectedTaskIds, 'after');
+  for (const role of ['requester', 'responder'] as const) {
+    runBinding.actors[role].initial['MEMORY.md'] = {
+      path: 'MEMORY.md',
+      sha256: createHash('sha256').update(previous).digest('hex'),
+      byteLength: Buffer.byteLength(previous),
+    };
+  }
+  const evidence = qaContactEvidence('completed') as any;
+  evidence.fullEvaluations = [];
+  evidence.requesterMemory = {
+    previousBytesBase64: Buffer.from(previous).toString('base64'),
+    newBytesBase64: Buffer.from(next).toString('base64'),
+  };
+  evidence.responderMemory = {
+    previousVersion: 0,
+    previousBytesBase64: Buffer.from(previous).toString('base64'),
+    newBytesBase64: Buffer.from(next).toString('base64'),
+  };
+  const payload = heartbeatPayloadFor(runBinding, 1, [], evidence);
+  const store = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'run'),
+    binding: runBinding,
+    retainPrivate: true,
+  });
+  const committed = await commitStartedHeartbeat(store, payload);
+  const recordBytes = Buffer.byteLength(JSON.stringify(committed.record));
+  assert.ok(recordBytes > 4 * 1024 * 1024);
+  assert.ok(recordBytes < 16 * 1024 * 1024);
+  await store.close();
+});
+
+test('chains requester and responder MEMORY through one canonical two-actor authority', async t => {
+  const root = await temporaryRoot(t, 'two-actor-memory');
+  const runBinding = binding('files-multi', 'two-actor-memory', ['PAIR-Q-1']);
+  const responderPrevious = memoryContent(['PAIR-Q-1'], 0);
+  const responderNext = memoryContent(['PAIR-Q-1'], 1, {
+    'PAIR-Q-1': 'error',
+  });
+  const evidence = qaContactEvidence('completed') as any;
+  evidence.responderMemory = {
+    previousBytesBase64: Buffer.from(responderPrevious).toString('base64'),
+    newBytesBase64: Buffer.from(responderNext).toString('base64'),
+  };
+  evidence.sessionStopReason = 'all_terminal';
+  const row = evaluatedQaTransition('PAIR-Q-1', 1, 'answered');
+  row.result.contactStatus = 'completed';
+  const payload = heartbeatPayloadFor(runBinding, 1, [row], evidence);
+  payload.transitions[0]!.contactId = payload.contactAuthority!.contactId;
+  const store = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'run'),
+    binding: runBinding,
+    retainPrivate: true,
+  });
+  const committed = await commitStartedHeartbeat(store, payload);
+  assert.deepEqual(committed.record.payload.memoryTransitions.map(value => value.actorId), [
+    runBinding.actors.requester.actorId,
+    runBinding.actors.responder.actorId,
+  ]);
+  assert.deepEqual(committed.record.payload.memoryAuthorities.map(value => value.actorId), [
+    runBinding.actors.requester.actorId,
+    runBinding.actors.responder.actorId,
+  ]);
+  const finalFiles = finalFilesFor(runBinding, 1, { 'PAIR-Q-1': 'answered' });
+  finalFiles.responder['MEMORY.md'] = {
+    path: 'MEMORY.md',
+    sha256: createHash('sha256').update(responderNext).digest('hex'),
+    byteLength: Buffer.byteLength(responderNext),
+  };
+  await store.finalize({ stopReason: 'all_terminal', finalFiles });
+  await store.close();
+});
+
+test('makes the last committed stop reason the sole finalization boundary', async t => {
+  const root = await temporaryRoot(t, 'stop-record-boundary');
+  const runBinding = binding('files-multi', 'stop-record-boundary', ['PAIR-Q-1']);
+  const options = {
+    runDirectory: join(root, 'stopped'),
+    binding: runBinding,
+    retainPrivate: false,
+  } as const;
+  const store = await openFileWorkflowLedgerV1(options);
+  const payload = heartbeatPayloadFor(runBinding, 1, [
+    transition('PAIR-Q-1', 'error', 1),
+  ]);
+  assert.equal(payload.sessionStopReason, 'all_terminal');
+  await commitStartedHeartbeat(store, payload);
+  await assert.rejects(
+    () => store.beginHeartbeat({
+      event: {
+        ...payload.event,
+        eventId: 'event-2',
+        traceId: 'trace-2',
+        tick: 2,
+      },
+      inputDigest: 'f'.repeat(64),
+    }),
+    /stop|completed|another heartbeat/i,
+  );
+  await assert.rejects(
+    () => store.finalize({
+      stopReason: 'fatal_error',
+      finalFiles: finalFilesFor(runBinding, 1),
+    }),
+    /stop reason|last payload|exact|conflict/i,
+  );
+  await store.finalize({
+    stopReason: 'all_terminal',
+    finalFiles: finalFilesFor(runBinding, 1),
+  });
+  await store.close();
+
+  const noStopBinding = binding('files-multi', 'missing-stop-boundary', ['PAIR-Q-1']);
+  const noStop = heartbeatPayloadFor(noStopBinding, 1, [
+    transition('PAIR-Q-1', 'error', 1),
+  ]);
+  delete noStop.sessionStopReason;
+  const noStopStore = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'missing'),
+    binding: noStopBinding,
+    retainPrivate: false,
+  });
+  await assert.rejects(
+    () => commitStartedHeartbeat(noStopStore, noStop),
+    /stop reason|terminal|cardinality|required/i,
+  );
+  await noStopStore.close();
+
+  const earlyBinding = binding('files-multi', 'early-stop-boundary', [
+    'PAIR-Q-1',
+    'PAIR-Q-2',
+  ]);
+  const early = heartbeatPayloadFor(earlyBinding, 1, [
+    transition('PAIR-Q-1', 'error', 1),
+  ], { sessionStopReason: 'all_terminal' });
+  const earlyStore = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'early'),
+    binding: earlyBinding,
+    retainPrivate: false,
+  });
+  await assert.rejects(
+    () => commitStartedHeartbeat(earlyStore, early),
+    /stop|terminal|cardinality|last/i,
+  );
+  await earlyStore.close();
+});
+
 test('keeps two files-single sessions physically and metrically independent', async t => {
   const root = await temporaryRoot(t, 'independent-single');
   for (const [index, taskId] of ['PAIR-Q-1', 'PAIR-Q-2'].entries()) {
@@ -103,7 +375,7 @@ test('keeps two files-single sessions physically and metrically independent', as
       binding: runBinding,
       retainPrivate: false,
     });
-    await store.commitHeartbeat(heartbeatPayloadFor(
+    await commitStartedHeartbeat(store, heartbeatPayloadFor(
       runBinding,
       1,
       [transition(taskId, 'no_response', 1)],
@@ -134,15 +406,18 @@ test('identical replay repairs projections while a distinct task authority fails
     binding: runBinding,
     retainPrivate: false,
   });
-  assert.equal((await store.commitHeartbeat(payload)).outcome, 'committed');
+  assert.equal((await commitStartedHeartbeat(store, payload)).outcome, 'committed');
   await rm(join(runDirectory, 'results.jsonl'));
-  assert.equal((await store.commitHeartbeat(payload)).outcome, 'replayed');
+  assert.equal((await commitStartedHeartbeat(store, payload)).outcome, 'replayed');
   assert.equal((await jsonLines(join(runDirectory, 'results.jsonl'))).length, 1);
 
   const conflict = heartbeatPayloadFor(runBinding, 2, [
     transition('PAIR-Q-1', 'no_response', 2),
   ]);
-  await assert.rejects(() => store.commitHeartbeat(conflict), /terminal authority|conflict/i);
+  await assert.rejects(
+    () => commitStartedHeartbeat(store, conflict),
+    /terminal authority|conflict|stop/i,
+  );
   const rows = await jsonLines(join(runDirectory, 'results.jsonl'));
   assert.equal(rows.length, 1);
   assert.equal(rows[0]?.status, 'error');
@@ -161,12 +436,12 @@ test('rejects a same-result duplicate published under a different heartbeat iden
     binding: runBinding,
     retainPrivate: false,
   });
-  await store.commitHeartbeat(payload);
+  await commitStartedHeartbeat(store, payload);
   const foreignDuplicate = structuredClone(payload);
   foreignDuplicate.event.eventId = 'event-distinct';
   foreignDuplicate.event.traceId = 'trace-distinct';
   await assert.rejects(
-    () => store.commitHeartbeat(foreignDuplicate),
+    () => commitStartedHeartbeat(store, foreignDuplicate),
     /terminal authority|heartbeat|duplicate|conflict/i,
   );
   assert.equal((await store.readRecords()).length, 1);
@@ -197,7 +472,7 @@ test('repairs every crash boundary after private commit before public projection
       1,
       [transition('PAIR-Q-1', 'error', 1)],
     );
-    await assert.rejects(() => first.commitHeartbeat(payload), new RegExp(`crash-before-${artifact}`));
+    await assert.rejects(() => commitStartedHeartbeat(first, payload), new RegExp(`crash-before-${artifact}`));
     assert.equal((await first.readRecords()).length, 1, 'private ledger authority must commit first');
     await first.close();
 
@@ -258,6 +533,31 @@ test('publishes the immutable run binding only after a durable stage is complete
   await resumed.close();
 });
 
+test('ledger open preserves both its primary failure and writer-release cleanup failure', async t => {
+  const root = await temporaryRoot(t, 'open-cleanup-aggregate');
+  const runBinding = binding('files-multi', 'open-cleanup-aggregate', ['PAIR-Q-1']);
+
+  await assert.rejects(
+    () => openFileWorkflowLedgerV1({
+      runDirectory: join(root, 'run'),
+      binding: runBinding,
+      retainPrivate: true,
+      faults: {
+        beforeImmutableAuthorityPublicationForTest(name) {
+          if (name === 'binding.json') throw new Error('PRIMARY_BINDING_PUBLICATION_FAILURE');
+        },
+        beforeWriterClaimPublicationForTest(kind) {
+          if (kind === 'release') throw new Error('CLEANUP_WRITER_RELEASE_FAILURE');
+        },
+      },
+    }),
+    error => error instanceof AggregateError
+      && error.errors.length === 2
+      && String(error.errors[0]).includes('PRIMARY_BINDING_PUBLICATION_FAILURE')
+      && String(error.errors[1]).includes('CLEANUP_WRITER_RELEASE_FAILURE'),
+  );
+});
+
 test('publishes final authority only after a durable stage is complete', async t => {
   const root = await temporaryRoot(t, 'final-stage-crash');
   const runDirectory = join(root, 'run');
@@ -277,7 +577,7 @@ test('publishes final authority only after a durable stage is complete', async t
     retainPrivate: false,
     faults,
   });
-  await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'no_response', 1),
   ]));
   await assert.rejects(
@@ -319,16 +619,20 @@ test('rejects a non-linear MEMORY CAS chain before committing another heartbeat'
     binding: runBinding,
     retainPrivate: false,
   });
-  await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
 
   const stale = heartbeatPayloadFor(runBinding, 2, [
     transition('PAIR-Q-2', 'error', 2),
   ]);
-  stale.memoryTransition!.previousSha256 = 'f'.repeat(64);
+  setRequesterMemoryEvidence(
+    stale,
+    'PAIR-Q-1 [pending] — stale\nPAIR-Q-2 [pending] — stale\n',
+    'PAIR-Q-1 [pending] — stale\nPAIR-Q-2 [pending] — next\n',
+  );
   await assert.rejects(
-    () => store.commitHeartbeat(stale),
+    () => commitStartedHeartbeat(store, stale),
     /MEMORY.*(chain|previous|hash|CAS)/i,
   );
   assert.equal((await store.readRecords()).length, 1);
@@ -355,7 +659,7 @@ test('binds monotonic MEMORY rows to contact-derived terminal transitions', asyn
       'PAIR-Q-1 [pending] — memory 0\n',
       'PAIR-Q-1 [answered] — terminal\n',
     );
-    await regressionStore.commitHeartbeat(first);
+    await commitStartedHeartbeat(regressionStore, first);
     const second = heartbeatPayloadFor(regressionBinding, 2, []);
     setRequesterMemoryEvidence(
       second,
@@ -363,7 +667,7 @@ test('binds monotonic MEMORY rows to contact-derived terminal transitions', asyn
       'PAIR-Q-1 [pending] — regressed\n',
     );
     await assert.rejects(
-      () => regressionStore.commitHeartbeat(second),
+      () => commitStartedHeartbeat(regressionStore, second),
       /MEMORY|terminal|regress|monotonic/i,
       'ACCEPTED_TERMINAL_MEMORY_REGRESSION',
     );
@@ -377,9 +681,8 @@ test('binds monotonic MEMORY rows to contact-derived terminal transitions', asyn
     const pending = heartbeatPayloadFor(pendingBinding, 1, [
       evaluatedQaTransition('PAIR-Q-1', 1),
     ], qaContactEvidence('completed'));
-    pending.transitions[0]!.contactId = 'recipient-trace';
+    pending.transitions[0]!.contactId = pending.contactAuthority!.contactId;
     pending.transitions[0]!.result.contactStatus = 'completed';
-    addResponderFileReads(pending, pendingBinding);
     setRequesterMemoryEvidence(
       pending,
       'PAIR-Q-1 [pending] — before\n',
@@ -391,7 +694,7 @@ test('binds monotonic MEMORY rows to contact-derived terminal transitions', asyn
       retainPrivate,
     });
     await assert.rejects(
-      () => pendingStore.commitHeartbeat(pending),
+      () => commitStartedHeartbeat(pendingStore, pending),
       /MEMORY|pending|answered|transition|contact/i,
       'ACCEPTED_ANSWERED_TRANSITION_WITH_PENDING_MEMORY',
     );
@@ -405,9 +708,8 @@ test('binds monotonic MEMORY rows to contact-derived terminal transitions', asyn
     const mismatch = heartbeatPayloadFor(mismatchBinding, 1, [
       evaluatedQaTransition('PAIR-Q-1', 1, 'refused'),
     ], qaContactEvidence('denied'));
-    mismatch.transitions[0]!.contactId = 'recipient-trace';
+    mismatch.transitions[0]!.contactId = mismatch.contactAuthority!.contactId;
     mismatch.transitions[0]!.result.contactStatus = 'denied';
-    addResponderFileReads(mismatch, mismatchBinding);
     setRequesterMemoryEvidence(
       mismatch,
       'PAIR-Q-1 [pending] — before\n',
@@ -419,7 +721,7 @@ test('binds monotonic MEMORY rows to contact-derived terminal transitions', asyn
       retainPrivate,
     });
     await assert.rejects(
-      () => mismatchStore.commitHeartbeat(mismatch),
+      () => commitStartedHeartbeat(mismatchStore, mismatch),
       /MEMORY|contact|refused|answered|transition/i,
       'ACCEPTED_MEMORY_STATUS_MISMATCH_WITH_DENIED_CONTACT',
     );
@@ -438,7 +740,7 @@ test('accepts later-tick immutable reads at the current workspace version', asyn
     binding: runBinding,
     retainPrivate: false,
   });
-  await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
   const second = heartbeatPayloadFor(runBinding, 2, [
@@ -446,7 +748,7 @@ test('accepts later-tick immutable reads at the current workspace version', asyn
   ]);
   for (const receipt of second.fileReads) receipt.version = 1;
   await assert.doesNotReject(
-    () => store.commitHeartbeat(second),
+    () => commitStartedHeartbeat(store, second),
     'REJECTED_CURRENT_VERSION_IMMUTABLE_FILE_READS',
   );
   await store.close();
@@ -461,30 +763,20 @@ test('accepts valid requester and responder reads after a same-turn CAS', async 
     ['PAIR-Q-1'],
   );
   const requesterPayload = heartbeatPayloadFor(requesterBinding, 1, []);
-  requesterPayload.fileReads = requesterPayload.fileReads.filter(
-    (receipt: { actorId: string; path: string }) => (
-      receipt.actorId !== requesterBinding.actors.requester.actorId
-      || receipt.path === 'MEMORY.md'
-    ),
-  );
-  for (const path of ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md'] as const) {
-    const metadata = requesterBinding.actors.requester.initial[path];
-    requesterPayload.fileReads.push({
-      actorId: requesterBinding.actors.requester.actorId,
-      path,
-      action: 'read',
-      version: 1,
-      sha256: metadata.sha256,
-      byteLength: metadata.byteLength,
-    });
+  for (const operation of requesterPayload.privateEvidence.sourceEvidence
+    .requesterFileOperations) {
+    if (operation.action === 'read' && operation.path !== 'MEMORY.md') operation.version = 1;
   }
+  moveImmutableReadsAfterMemoryCas(requesterPayload, requesterBinding.actors.requester.actorId);
+  refreshFileReadProjections(requesterPayload);
+  refreshAuditProjections(requesterPayload);
   const requesterStore = await openFileWorkflowLedgerV1({
     runDirectory: join(root, 'requester'),
     binding: requesterBinding,
     retainPrivate: false,
   });
   await assert.doesNotReject(
-    () => requesterStore.commitHeartbeat(requesterPayload),
+    () => commitStartedHeartbeat(requesterStore, requesterPayload),
     'REJECTED_VALID_REQUESTER_POST_CAS_READ',
   );
   await requesterStore.close();
@@ -498,34 +790,29 @@ test('accepts valid requester and responder reads after a same-turn CAS', async 
     responderBinding,
     1,
     [],
-    qaContactEvidence('completed'),
+    {
+      ...qaContactEvidence('completed'),
+      responderMemory: {
+        previousBytesBase64: Buffer.from(memoryContent(['PAIR-Q-1'], 0)).toString('base64'),
+        newBytesBase64: Buffer.from(memoryContent(['PAIR-Q-1'], 1)).toString('base64'),
+      },
+    },
   );
   responderPayload.privateEvidence.fullEvaluations = [];
-  addResponderFileReads(responderPayload, responderBinding);
-  responderPayload.fileReads = responderPayload.fileReads.filter(
-    (receipt: { actorId: string; path: string }) => (
-      receipt.actorId !== responderBinding.actors.responder.actorId
-      || receipt.path === 'MEMORY.md'
-    ),
-  );
-  for (const path of ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md'] as const) {
-    const metadata = responderBinding.actors.responder.initial[path];
-    responderPayload.fileReads.push({
-      actorId: responderBinding.actors.responder.actorId,
-      path,
-      action: 'read',
-      version: 1,
-      sha256: metadata.sha256,
-      byteLength: metadata.byteLength,
-    });
+  for (const operation of responderPayload.privateEvidence.sourceEvidence
+    .responderFileOperations) {
+    if (operation.action === 'read' && operation.path !== 'MEMORY.md') operation.version = 1;
   }
+  moveImmutableReadsAfterMemoryCas(responderPayload, responderBinding.actors.responder.actorId);
+  refreshFileReadProjections(responderPayload);
+  refreshAuditProjections(responderPayload);
   const responderStore = await openFileWorkflowLedgerV1({
     runDirectory: join(root, 'responder'),
     binding: responderBinding,
     retainPrivate: false,
   });
   await assert.doesNotReject(
-    () => responderStore.commitHeartbeat(responderPayload),
+    () => commitStartedHeartbeat(responderStore, responderPayload),
     'REJECTED_VALID_RESPONDER_POST_CAS_READ',
   );
   await responderStore.close();
@@ -542,20 +829,17 @@ test('rejects incomplete contact read coverage and responder version gaps', asyn
     qaContactEvidence('completed'),
   );
   requesterPayload.privateEvidence.fullEvaluations = [];
-  addResponderFileReads(requesterPayload, runBinding);
-  requesterPayload.fileReads = requesterPayload.fileReads.filter(
-    (receipt: { actorId: string; path: string }) => !(
-      receipt.actorId === runBinding.actors.requester.actorId
-      && receipt.path === 'POLICY.md'
-    ),
-  );
+  removeFileReadEvidence(requesterPayload, (operation: any) => (
+    operation.actorId === runBinding.actors.requester.actorId
+    && operation.path === 'POLICY.md'
+  ));
   const requesterStore = await openFileWorkflowLedgerV1({
     runDirectory: join(root, 'requester'),
     binding: runBinding,
     retainPrivate: false,
   });
   await assert.rejects(
-    () => requesterStore.commitHeartbeat(requesterPayload),
+    () => commitStartedHeartbeat(requesterStore, requesterPayload),
     /complete|coverage|four-file|path/i,
     'ACCEPTED_REQUESTER_CONTACT_WITHOUT_POLICY_READ',
   );
@@ -568,23 +852,20 @@ test('rejects incomplete contact read coverage and responder version gaps', asyn
     qaContactEvidence('completed'),
   );
   responderPayload.privateEvidence.fullEvaluations = [];
-  addResponderFileReads(responderPayload, runBinding);
-  const responderAgent = runBinding.actors.responder.initial['AGENT.md'];
-  responderPayload.fileReads.push({
-    actorId: runBinding.actors.responder.actorId,
-    path: 'AGENT.md',
-    action: 'read',
-    version: 2,
-    sha256: responderAgent.sha256,
-    byteLength: responderAgent.byteLength,
-  });
+  const responderAgent = responderPayload.privateEvidence.sourceEvidence
+    .responderFileOperations.find((operation: any) => (
+      operation.action === 'read' && operation.path === 'AGENT.md'
+    ));
+  assert.ok(responderAgent);
+  responderAgent.version = 2;
+  refreshFileReadProjections(responderPayload);
   const responderStore = await openFileWorkflowLedgerV1({
     runDirectory: join(root, 'responder'),
     binding: runBinding,
     retainPrivate: false,
   });
   await assert.rejects(
-    () => responderStore.commitHeartbeat(responderPayload),
+    () => commitStartedHeartbeat(responderStore, responderPayload),
     /responder|version|gap|coherent/i,
     'ACCEPTED_RESPONDER_CONTACT_READ_VERSION_GAP',
   );
@@ -597,19 +878,16 @@ test('rejects a same-version requester MEMORY transition before publication', as
   const payload = heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]);
-  payload.memoryTransition = {
-    ...payload.memoryTransition!,
-    newVersion: 0,
-    newSha256: payload.memoryTransition!.previousSha256,
-    byteLength: runBinding.actors.requester.initial['MEMORY.md'].byteLength,
-  };
+  payload.memoryTransitions[0]!.newVersion = 0;
+  payload.memoryAuthorities[0]!.newVersion = 0;
+  requesterMemoryOperation(payload).version = 0;
   const store = await openFileWorkflowLedgerV1({
     runDirectory: join(root, 'run'),
     binding: runBinding,
     retainPrivate: false,
   });
   await assert.rejects(
-    () => store.commitHeartbeat(payload),
+    () => commitStartedHeartbeat(store, payload),
     /MEMORY|version|advance|exact/i,
     'ACCEPTED_SAME_VERSION_MEMORY_TRANSITION',
   );
@@ -629,30 +907,27 @@ test('allows a new contact for task B while terminalizing prior contacted task A
     retainPrivate: true,
   });
   const evidenceA = strictActionEvidence('PAIR-A-1', 'event-1');
-  evidenceA.contactRequests[0]!.recipientTraceId = 'contact-a';
+  evidenceA.contact.requestMessageId = 'contact-a';
   evidenceA.actionSnapshots[0]!.contactId = 'contact-a';
   evidenceA.fullEvaluations = [];
   const contactA = heartbeatPayloadFor(runBinding, 1, [], evidenceA);
-  contactA.selectedTaskId = 'PAIR-A-1';
-  addResponderFileReads(contactA, runBinding);
-  await store.commitHeartbeat(contactA);
+  await commitStartedHeartbeat(store, contactA);
 
   const evidenceB = strictActionEvidence('PAIR-A-2', 'event-2');
-  evidenceB.contactRequests[0]!.recipientTraceId = 'contact-b';
+  evidenceB.contact.requestMessageId = 'contact-b';
   evidenceB.actionSnapshots[0]!.contactId = 'contact-b';
   evidenceB.fullEvaluations = strictActionEvidence(
     'PAIR-A-1',
     'event-2',
   ).fullEvaluations;
+  (evidenceB as any).omitSessionStopReason = true;
   const reconcile = heartbeatPayloadFor(runBinding, 2, [
     evaluatedActionTransition('PAIR-A-1', 2),
   ], evidenceB);
-  reconcile.selectedTaskId = 'PAIR-A-2';
-  reconcile.transitions[0]!.contactId = 'contact-a';
+  reconcile.transitions[0]!.contactId = contactA.contactAuthority!.contactId;
   reconcile.transitions[0]!.result.contactStatus = 'completed';
-  addResponderFileReads(reconcile, runBinding);
   await assert.doesNotReject(
-    () => store.commitHeartbeat(reconcile),
+    () => commitStartedHeartbeat(store, reconcile),
     'REJECTED_CONTACT_B_WHILE_TERMINALIZING_PRIOR_A',
   );
   assert.equal((await store.readRecords()).length, 2);
@@ -666,9 +941,8 @@ test('requires responder provenance and contact usage for completed contact auth
     const payload = heartbeatPayloadFor(runBinding, 1, [
       evaluatedQaTransition('PAIR-Q-1', 1),
     ], qaContactEvidence('completed'));
-    payload.transitions[0]!.contactId = 'recipient-trace';
+    payload.transitions[0]!.contactId = payload.contactAuthority!.contactId;
     payload.transitions[0]!.result.contactStatus = 'completed';
-    addResponderFileReads(payload, runBinding);
     if (violation === 'provider') delete payload.provider.responder;
     else payload.usage.contactCalls = 0;
     const store = await openFileWorkflowLedgerV1({
@@ -677,8 +951,8 @@ test('requires responder provenance and contact usage for completed contact auth
       retainPrivate: false,
     });
     await assert.rejects(
-      () => store.commitHeartbeat(payload),
-      /responder|provider|contact.*usage|contact.*call/i,
+      () => commitStartedHeartbeat(store, payload),
+      /responder|provider|usage|contact.*call|source evidence/i,
       `ACCEPTED_CONTACT_WITHOUT_${violation.toUpperCase()}`,
     );
     await store.close();
@@ -695,19 +969,13 @@ test('binds contact request traces and retains the Task6 responder-read failure 
       ['PAIR-Q-1'],
     );
     const evidence = {
-      contactRequests: [{
+      contact: {
         taskId: 'PAIR-Q-1',
-        senderId: 'requester',
-        recipientId: 'responder',
-        purpose: 'PAIR-Q-1',
-        intent: 'answer',
         message: 'contact',
-        requestTraceId: 'trace-1',
-        deadlineMs: 1_000,
-        recipientTraceId: 'recipient-trace',
+        requestMessageId: 'recipient-trace',
         status: 'failed' as const,
         errorCode: 'CONTACT_RESPONDER_FILE_READ_REQUIRED',
-      }],
+      },
       actionSnapshots: [],
       tickDecisions: [],
       fullEvaluations: [],
@@ -718,7 +986,7 @@ test('binds contact request traces and retains the Task6 responder-read failure 
       binding: runBinding,
       retainPrivate,
     });
-    await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [], evidence));
+    await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [], evidence));
     await store.close();
     const reopened = await openFileWorkflowLedgerV1({
       runDirectory,
@@ -733,29 +1001,24 @@ test('binds contact request traces and retains the Task6 responder-read failure 
       'retention-safe contact authority must preserve the stable failure code',
     );
     if (retainPrivate) {
-      const retainedContact = record?.payload.privateEvidence?.contactRequests[0];
-      assert.equal(retainedContact?.status, 'failed');
-      assert.equal(
-        retainedContact?.status === 'failed' ? retainedContact.errorCode : undefined,
-        'CONTACT_RESPONDER_FILE_READ_REQUIRED',
-      );
+      const retainedRequest = record?.payload.privateEvidence
+        ?.sourceEvidence.acceptedMessages[0];
+      assert.equal(retainedRequest?.id, record?.payload.contactAuthority?.contactId);
     }
     await reopened.close();
 
     const forged = heartbeatPayloadFor(runBinding, 1, [], {
       ...evidence,
-      contactRequests: [{
-        ...evidence.contactRequests[0]!,
-        requestTraceId: 'foreign-trace',
-      }],
+      contact: { ...evidence.contact },
     });
+    forged.privateEvidence.sourceEvidence.acceptedMessages[0]!.traceId = 'foreign-trace';
     const invalidStore = await openFileWorkflowLedgerV1({
       runDirectory: join(root, `forged-${mode}`),
       binding: runBinding,
       retainPrivate,
     });
     await assert.rejects(
-      () => invalidStore.commitHeartbeat(forged),
+      () => commitStartedHeartbeat(invalidStore, forged),
       /contact|trace|provenance/i,
       'ACCEPTED_CONTACT_WITH_FOREIGN_REQUEST_TRACE',
     );
@@ -771,7 +1034,10 @@ test('requires source MEMORY bytes for each caller CAS and rejects digest-only e
       transition('PAIR-Q-1', 'error', 1),
     ]);
     if (violation === 'missing-memory-member') {
-      delete payload.privateEvidence.memory;
+      payload.privateEvidence.sourceEvidence.requesterFileOperations =
+        payload.privateEvidence.sourceEvidence.requesterFileOperations.filter(
+          (operation: any) => operation.action !== 'replace',
+        );
     } else {
       delete payload.privateEvidence;
       if (violation === 'digest-only') payload.privateEvidenceDigest = 'f'.repeat(64);
@@ -782,8 +1048,8 @@ test('requires source MEMORY bytes for each caller CAS and rejects digest-only e
       retainPrivate: false,
     });
     await assert.rejects(
-      () => store.commitHeartbeat(payload),
-      /MEMORY|private|source|digest.*bytes|evidence/i,
+      () => commitStartedHeartbeat(store, payload),
+      /MEMORY|private|source|digest.*bytes|evidence|audit|unretained/i,
       `ACCEPTED_${violation.toUpperCase().replace('-', '_')}_MEMORY_EVIDENCE`,
     );
     await store.close();
@@ -799,7 +1065,7 @@ test('requires the validated private evidence digest after retention-off strippi
     binding: runBinding,
     retainPrivate: false,
   });
-  await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
   await store.close();
@@ -831,7 +1097,7 @@ test('re-derives sanitized MEMORY authority from retained source bytes on reopen
   const runBinding = binding('files-multi', 'retained-memory-authority', ['PAIR-Q-1']);
   const options = { runDirectory, binding: runBinding, retainPrivate: true } as const;
   const store = await openFileWorkflowLedgerV1(options);
-  await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
   await store.close();
@@ -843,7 +1109,7 @@ test('re-derives sanitized MEMORY authority from retained source bytes on reopen
     'record-000000000000.json',
   );
   const edited = await json(recordPath);
-  edited.payload.memoryAuthority.newRows[0].status = 'answered';
+  edited.payload.memoryAuthorities[0].newRows[0].status = 'answered';
   edited.recordDigest = digestRecordMaterial(edited);
   await writeFile(recordPath, `${JSON.stringify(edited)}\n`);
   await assert.rejects(
@@ -863,23 +1129,20 @@ test('parses private MEMORY bytes as bounded strict UTF-8 canonical selected row
     const payload = heartbeatPayloadFor(runBinding, 1, [
       transition('PAIR-Q-1', 'error', 1),
     ]);
-    const previousBytesBase64 = payload.privateEvidence?.memory?.previousBytesBase64
-      ?? Buffer.from('requester-memory').toString('base64');
-    payload.privateEvidence = payload.privateEvidence ?? emptyPrivateEvidence();
-    payload.privateEvidence.memory = {
-      actorId: 'requester',
-      previousBytesBase64,
-      newBytesBase64: nextBytes.toString('base64'),
-    };
-    payload.memoryTransition!.newSha256 = createHash('sha256').update(nextBytes).digest('hex');
-    payload.memoryTransition!.byteLength = nextBytes.byteLength;
+    const operation = requesterMemoryOperation(payload);
+    operation.newBytesBase64 = nextBytes.toString('base64');
+    operation.sha256 = createHash('sha256').update(nextBytes).digest('hex');
+    operation.byteLength = nextBytes.byteLength;
+    payload.memoryTransitions[0]!.newSha256 = operation.sha256;
+    payload.memoryTransitions[0]!.byteLength = operation.byteLength;
+    payload.memoryAuthorities[0]!.newSha256 = operation.sha256;
     const store = await openFileWorkflowLedgerV1({
       runDirectory: join(root, name),
       binding: runBinding,
       retainPrivate: false,
     });
     await assert.rejects(
-      () => store.commitHeartbeat(payload),
+      () => commitStartedHeartbeat(store, payload),
       /MEMORY|UTF-8|canonical|row/i,
       `ACCEPTED_${name.toUpperCase().replace('-', '_')}_MEMORY`,
     );
@@ -900,7 +1163,7 @@ test('finalize binds stop reason to the committed terminal status set', async t 
       binding: runBinding,
       retainPrivate: false,
     });
-    await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+    await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
       transition('PAIR-Q-1', status, 1),
     ]));
     await assert.rejects(
@@ -923,14 +1186,13 @@ test('finalize binds stop reason to the committed terminal status set', async t 
     transition('PAIR-Q-1', 'error', 1),
     transition('PAIR-Q-2', 'no_response', 1),
   ]);
-  delete mixed.memoryTransition;
-  delete mixed.privateEvidence.memory;
+  removeRequesterMemoryCommit(mixed);
   const mixedStore = await openFileWorkflowLedgerV1({
     runDirectory: join(root, 'fatal-mixed-no-response'),
     binding: mixedBinding,
     retainPrivate: false,
   });
-  await mixedStore.commitHeartbeat(mixed);
+  await commitStartedHeartbeat(mixedStore, mixed);
   await assert.rejects(
     () => mixedStore.finalize({
       stopReason: 'fatal_error',
@@ -956,8 +1218,8 @@ test('binds immutable file-read receipts and private evidence to the run actors 
   ]);
   foreignRead.fileReads[0]!.sha256 = 'f'.repeat(64);
   await assert.rejects(
-    () => readStore.commitHeartbeat(foreignRead),
-    /file-read|AGENT|hash|binding/i,
+    () => commitStartedHeartbeat(readStore, foreignRead),
+    /file-read|fileReads|AGENT|hash|binding|source evidence/i,
   );
   assert.equal((await readStore.readRecords()).length, 0);
   await readStore.close();
@@ -971,23 +1233,19 @@ test('binds immutable file-read receipts and private evidence to the run actors 
   const foreignPrivate = heartbeatPayloadFor(privateBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ], {
-    contactRequests: [{
+    contact: {
       taskId: 'PAIR-Q-FOREIGN',
-      senderId: 'requester',
-      recipientId: 'responder',
-      purpose: 'PAIR-Q-FOREIGN',
-      intent: 'inspect',
       message: 'private',
-      recipientTraceId: 'recipient-trace',
+      requestMessageId: 'recipient-trace',
       status: 'completed',
       response: 'private',
-    }],
+    },
     actionSnapshots: [],
     tickDecisions: [],
     fullEvaluations: [],
   });
   await assert.rejects(
-    () => privateStore.commitHeartbeat(foreignPrivate),
+    () => commitStartedHeartbeat(privateStore, foreignPrivate),
     /private|contact|task|binding/i,
   );
   assert.equal((await privateStore.readRecords()).length, 0);
@@ -1002,18 +1260,20 @@ test('binds immutable file-read receipts and private evidence to the run actors 
   const foreignMemory = heartbeatPayloadFor(memoryBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ], {
-    contactRequests: [],
-    memory: {
-      actorId: 'requester',
-      previousBytesBase64: Buffer.from('FORGED_PREVIOUS').toString('base64'),
-      newBytesBase64: Buffer.from('FORGED_NEW').toString('base64'),
+    requesterMemory: {
+      previousBytesBase64: Buffer.from(
+        'PAIR-Q-1 [pending] — FORGED_PREVIOUS\n',
+      ).toString('base64'),
+      newBytesBase64: Buffer.from(
+        'PAIR-Q-1 [error] — FORGED_NEW\n',
+      ).toString('base64'),
     },
     actionSnapshots: [],
     tickDecisions: [],
     fullEvaluations: [],
   });
   await assert.rejects(
-    () => memoryStore.commitHeartbeat(foreignMemory),
+    () => commitStartedHeartbeat(memoryStore, foreignMemory),
     /private MEMORY|hash|byte|canonical|row/i,
   );
   assert.equal((await memoryStore.readRecords()).length, 0);
@@ -1028,14 +1288,14 @@ test('binds an action result to its own private before/after snapshots', async t
   const payload = heartbeatPayloadFor(runBinding, 1, [
     evaluatedActionTransition('PAIR-A-1', 1),
   ], privateValue);
-  payload.transitions[0]!.contactId = 'recipient-trace';
+  payload.transitions[0]!.contactId = payload.contactAuthority!.contactId;
   payload.transitions[0]!.result.contactStatus = 'completed';
   const store = await openFileWorkflowLedgerV1({
     runDirectory,
     binding: runBinding,
     retainPrivate: true,
   });
-  await store.commitHeartbeat(payload);
+  await commitStartedHeartbeat(store, payload);
   privateValue.actionSnapshots[0]!.after.description = 'tampered after caller commit';
   const records = await store.readRecords();
   const storedAfter = records[0]?.payload.privateEvidence?.actionSnapshots[0]?.after;
@@ -1056,7 +1316,7 @@ test('rejects a retained contacted action without its authoritative snapshot pai
   const payload = heartbeatPayloadFor(runBinding, 1, [
     evaluatedActionTransition('PAIR-A-1', 1),
   ], missingSnapshot);
-  payload.transitions[0]!.contactId = 'recipient-trace';
+  payload.transitions[0]!.contactId = payload.contactAuthority!.contactId;
   payload.transitions[0]!.result.contactStatus = 'completed';
   const store = await openFileWorkflowLedgerV1({
     runDirectory: join(root, 'run'),
@@ -1064,7 +1324,7 @@ test('rejects a retained contacted action without its authoritative snapshot pai
     retainPrivate: true,
   });
   await assert.rejects(
-    () => store.commitHeartbeat(payload),
+    () => commitStartedHeartbeat(store, payload),
     /action.*snapshot|snapshot.*action/i,
     'ACCEPTED_ACTION_WITHOUT_SNAPSHOT',
   );
@@ -1079,11 +1339,10 @@ test('commits a nonterminal action contact snapshot and resolves its later termi
     const runDirectory = join(root, retainPrivate ? 'on' : 'off');
     const runBinding = binding('files-multi', runId, ['PAIR-A-1']);
     const contact = heartbeatPayloadFor(runBinding, 1, [], {
-      contactRequests: [{
-        taskId: 'PAIR-A-1', senderId: 'requester', recipientId: 'responder',
-        purpose: 'PAIR-A-1', intent: 'act', message: 'contact',
-        recipientTraceId: 'recipient-trace', status: 'completed', response: 'pending',
-      }],
+      contact: {
+        taskId: 'PAIR-A-1', message: 'contact',
+        requestMessageId: 'recipient-trace', status: 'completed', response: 'pending',
+      },
       actionSnapshots: [{
         taskId: 'PAIR-A-1',
         contactId: 'recipient-trace',
@@ -1095,13 +1354,12 @@ test('commits a nonterminal action contact snapshot and resolves its later termi
       tickDecisions: [],
       fullEvaluations: [],
     });
-    contact.selectedTaskId = 'PAIR-A-1';
     const first = await openFileWorkflowLedgerV1({
       runDirectory,
       binding: runBinding,
       retainPrivate,
     });
-    const committed = await first.commitHeartbeat(contact);
+    const committed = await commitStartedHeartbeat(first, contact);
     assert.equal(committed.record.payload.contactAuthority?.status, 'completed');
     assert.equal(
       committed.record.payload.privateEvidence !== undefined,
@@ -1115,15 +1373,14 @@ test('commits a nonterminal action contact snapshot and resolves its later termi
       retainPrivate,
     });
     const terminalEvidence = strictActionEvidence('PAIR-A-1', 'event-2');
-    terminalEvidence.contactRequests = [];
+    delete (terminalEvidence as any).contact;
     terminalEvidence.actionSnapshots = [];
     const terminal = heartbeatPayloadFor(runBinding, 2, [
       evaluatedActionTransition('PAIR-A-1', 2),
     ], terminalEvidence);
-    terminal.correlatedContactId = 'recipient-trace';
-    terminal.transitions[0]!.contactId = 'recipient-trace';
+    terminal.transitions[0]!.contactId = contact.contactAuthority!.contactId;
     terminal.transitions[0]!.result.contactStatus = 'completed';
-    await resumed.commitHeartbeat(terminal);
+    await commitStartedHeartbeat(resumed, terminal);
     await resumed.finalize({
       stopReason: 'all_terminal',
       finalFiles: finalFilesFor(runBinding, 2, { 'PAIR-A-1': 'answered' }),
@@ -1153,7 +1410,7 @@ test('derives action stateChanged from snapshots and rejects forged evaluation p
           stateChanged: evaluationChanged,
         }),
       ], evidence);
-      payload.transitions[0]!.contactId = 'recipient-trace';
+      payload.transitions[0]!.contactId = payload.contactAuthority!.contactId;
       payload.transitions[0]!.result.contactStatus = 'completed';
       const store = await openFileWorkflowLedgerV1({
         runDirectory: join(root, mode),
@@ -1161,7 +1418,7 @@ test('derives action stateChanged from snapshots and rejects forged evaluation p
         retainPrivate,
       });
       await assert.rejects(
-        () => store.commitHeartbeat(payload),
+        () => commitStartedHeartbeat(store, payload),
         /state change|snapshot authority|stateChanged/i,
         'ACCEPTED_FORGED_ACTION_STATE_CHANGE',
       );
@@ -1184,7 +1441,7 @@ test('enforces side-effect fallback semantics across retained and stripped conta
     const changedError = heartbeatPayloadFor(currentBinding, 1, [
       transition('PAIR-A-1', 'error', 1, 'action'),
     ], changedEvidence);
-    changedError.transitions[0]!.contactId = 'recipient-trace';
+    changedError.transitions[0]!.contactId = changedError.contactAuthority!.contactId;
     changedError.transitions[0]!.result.contactStatus = 'completed';
     const changedStore = await openFileWorkflowLedgerV1({
       runDirectory: join(root, `changed-error-${mode}`),
@@ -1192,7 +1449,7 @@ test('enforces side-effect fallback semantics across retained and stripped conta
       retainPrivate,
     });
     await assert.rejects(
-      () => changedStore.commitHeartbeat(changedError),
+      () => commitStartedHeartbeat(changedStore, changedError),
       /changed action|side_effect_before_failure|fallback/i,
       'ACCEPTED_CHANGED_ACTION_AS_ORDINARY_ERROR',
     );
@@ -1222,7 +1479,7 @@ test('enforces side-effect fallback semantics across retained and stripped conta
       [unchangedTransition],
       unchangedEvidence,
     );
-    unchangedSideEffect.transitions[0]!.contactId = 'recipient-trace';
+    unchangedSideEffect.transitions[0]!.contactId = unchangedSideEffect.contactAuthority!.contactId;
     unchangedSideEffect.transitions[0]!.result.contactStatus = 'completed';
     const unchangedStore = await openFileWorkflowLedgerV1({
       runDirectory: join(root, `unchanged-side-effect-${mode}`),
@@ -1230,7 +1487,7 @@ test('enforces side-effect fallback semantics across retained and stripped conta
       retainPrivate,
     });
     await assert.rejects(
-      () => unchangedStore.commitHeartbeat(unchangedSideEffect),
+      () => commitStartedHeartbeat(unchangedStore, unchangedSideEffect),
       /side-effect|changed action snapshot|state change/i,
       'ACCEPTED_UNCHANGED_ACTION_AS_SIDE_EFFECT',
     );
@@ -1251,7 +1508,7 @@ test('enforces side-effect fallback semantics across retained and stripped conta
     binding: priorBinding,
     retainPrivate: false,
   });
-  await first.commitHeartbeat(priorContact);
+  await commitStartedHeartbeat(first, priorContact);
   await first.close();
 
   const resumed = await openFileWorkflowLedgerV1({
@@ -1262,11 +1519,10 @@ test('enforces side-effect fallback semantics across retained and stripped conta
   const ordinaryError = heartbeatPayloadFor(priorBinding, 2, [
     transition('PAIR-A-1', 'error', 2, 'action'),
   ]);
-  ordinaryError.correlatedContactId = 'recipient-trace';
-  ordinaryError.transitions[0]!.contactId = 'recipient-trace';
+  ordinaryError.transitions[0]!.contactId = priorContact.contactAuthority!.contactId;
   ordinaryError.transitions[0]!.result.contactStatus = 'completed';
   await assert.rejects(
-    () => resumed.commitHeartbeat(ordinaryError),
+    () => commitStartedHeartbeat(resumed, ordinaryError),
     /changed action|side_effect_before_failure|fallback/i,
     'LOST_CHANGED_STATE_AUTHORITY_AFTER_RETENTION_OFF_REOPEN',
   );
@@ -1281,21 +1537,21 @@ test('enforces side-effect fallback semantics across retained and stripped conta
     true,
     'none',
   );
-  terminalEvidence.contactRequests = [];
+  delete (terminalEvidence as any).contact;
   terminalEvidence.actionSnapshots = [];
   terminalEvidence.fullEvaluations[0]!.metrics = structuredClone(
     terminalTransition.evaluation.metrics,
   );
+  (terminalEvidence as any).sessionStopReason = 'fatal_error';
   const sideEffect = heartbeatPayloadFor(
     priorBinding,
     2,
     [terminalTransition],
     terminalEvidence,
   );
-  sideEffect.correlatedContactId = 'recipient-trace';
-  sideEffect.transitions[0]!.contactId = 'recipient-trace';
+  sideEffect.transitions[0]!.contactId = priorContact.contactAuthority!.contactId;
   sideEffect.transitions[0]!.result.contactStatus = 'completed';
-  await resumed.commitHeartbeat(sideEffect);
+  await commitStartedHeartbeat(resumed, sideEffect);
   await resumed.finalize({
     stopReason: 'fatal_error',
     finalFiles: finalFilesFor(priorBinding, 2),
@@ -1307,23 +1563,21 @@ test('rejects a nonterminal action contact that omits its snapshot immediately',
   const root = await temporaryRoot(t, 'cross-record-missing-snapshot');
   const runBinding = binding('files-multi', 'cross-record-missing-snapshot', ['PAIR-A-1']);
   const contact = heartbeatPayloadFor(runBinding, 1, [], {
-    contactRequests: [{
-      taskId: 'PAIR-A-1', senderId: 'requester', recipientId: 'responder',
-      purpose: 'PAIR-A-1', intent: 'act', message: 'contact',
-      recipientTraceId: 'recipient-trace', status: 'completed', response: 'pending',
-    }],
+    contact: {
+      taskId: 'PAIR-A-1', message: 'contact',
+      requestMessageId: 'recipient-trace', status: 'completed', response: 'pending',
+    },
     actionSnapshots: [],
     tickDecisions: [],
     fullEvaluations: [],
   });
-  contact.selectedTaskId = 'PAIR-A-1';
   const store = await openFileWorkflowLedgerV1({
     runDirectory: join(root, 'run'),
     binding: runBinding,
     retainPrivate: true,
   });
   await assert.rejects(
-    () => store.commitHeartbeat(contact),
+    () => commitStartedHeartbeat(store, contact),
     /action.*snapshot|snapshot.*action/i,
     'ACCEPTED_NONTERMINAL_ACTION_WITHOUT_SNAPSHOT',
   );
@@ -1334,7 +1588,6 @@ test('rejects orphan/conflicting contact evidence and finalizes a contacted no_r
   const root = await temporaryRoot(t, 'cross-record-contact-conflicts');
   const orphanBinding = binding('files-multi', 'orphan-contact-snapshot', ['PAIR-A-1']);
   const orphan = heartbeatPayloadFor(orphanBinding, 1, [], {
-    contactRequests: [],
     actionSnapshots: [{
       taskId: 'PAIR-A-1',
       contactId: 'orphan-contact',
@@ -1346,15 +1599,14 @@ test('rejects orphan/conflicting contact evidence and finalizes a contacted no_r
     tickDecisions: [],
     fullEvaluations: [],
   });
-  orphan.selectedTaskId = 'PAIR-A-1';
   const orphanStore = await openFileWorkflowLedgerV1({
     runDirectory: join(root, 'orphan'),
     binding: orphanBinding,
     retainPrivate: true,
   });
   await assert.rejects(
-    () => orphanStore.commitHeartbeat(orphan),
-    /snapshot.*contact|orphan|action contact/i,
+    () => commitStartedHeartbeat(orphanStore, orphan),
+    /snapshot.*contact|orphan|action contact|message.*action evidence/i,
   );
   await orphanStore.close();
 
@@ -1369,38 +1621,34 @@ test('rejects orphan/conflicting contact evidence and finalizes a contacted no_r
     eventId: 'event-1',
     status: 'failed',
   }));
-  first.selectedTaskId = 'PAIR-A-1';
-  await store.commitHeartbeat(first);
+  await commitStartedHeartbeat(store, first);
 
   const conflicting = heartbeatPayloadFor(runBinding, 2, [], actionContactEvidence({
     contactId: 'contact-2',
     eventId: 'event-2',
     status: 'failed',
   }));
-  conflicting.selectedTaskId = 'PAIR-A-1';
   await assert.rejects(
-    () => store.commitHeartbeat(conflicting),
+    () => commitStartedHeartbeat(store, conflicting),
     /duplicate|conflict|contact.*authority/i,
   );
 
   const statusMismatch = heartbeatPayloadFor(runBinding, 2, [
     transition('PAIR-A-1', 'error', 2, 'action'),
   ]);
-  statusMismatch.correlatedContactId = 'contact-1';
-  statusMismatch.transitions[0]!.contactId = 'contact-1';
+  statusMismatch.transitions[0]!.contactId = first.contactAuthority!.contactId;
   statusMismatch.transitions[0]!.result.contactStatus = 'completed';
   await assert.rejects(
-    () => store.commitHeartbeat(statusMismatch),
+    () => commitStartedHeartbeat(store, statusMismatch),
     /exact|status|contact.*authority/i,
   );
 
   const noResponse = heartbeatPayloadFor(runBinding, 2, [
     transition('PAIR-A-1', 'no_response', 2, 'action'),
   ]);
-  noResponse.correlatedContactId = 'contact-1';
-  noResponse.transitions[0]!.contactId = 'contact-1';
+  noResponse.transitions[0]!.contactId = first.contactAuthority!.contactId;
   noResponse.transitions[0]!.result.contactStatus = 'failed';
-  await store.commitHeartbeat(noResponse);
+  await commitStartedHeartbeat(store, noResponse);
   await store.finalize({
     stopReason: 'tick_exhausted',
     finalFiles: finalFilesFor(runBinding, 2),
@@ -1421,7 +1669,7 @@ test('rejects contact status without a correlated ledger contact and snapshot au
     retainPrivate: true,
   });
   await assert.rejects(
-    () => store.commitHeartbeat(terminal),
+    () => commitStartedHeartbeat(store, terminal),
     /contact|correlat|snapshot|authority/i,
     'ACCEPTED_CONTACTED_ACTION_WITHOUT_CORRELATION_OR_SNAPSHOT',
   );
@@ -1446,7 +1694,7 @@ test('rejects terminal statuses that imply contact when all contact authority is
       retainPrivate: false,
     });
     await assert.rejects(
-      () => store.commitHeartbeat(terminal),
+      () => commitStartedHeartbeat(store, terminal),
       /contact|correlat|authority/i,
       `ACCEPTED_${status.toUpperCase()}_WITHOUT_CONTACT`,
     );
@@ -1463,10 +1711,9 @@ test('requires complete requester/responder file-read evidence for authoritative
     const missingReads = heartbeatPayloadFor(runBinding, 1, [
       evaluatedQaTransition('PAIR-Q-1', 1),
     ], evidence);
-    missingReads.fileReads = [];
-    delete missingReads.memoryTransition;
-    delete missingReads.privateEvidence.memory;
-    missingReads.transitions[0]!.contactId = 'recipient-trace';
+    removeRequesterMemoryCommit(missingReads);
+    removeFileReadEvidence(missingReads, () => true);
+    missingReads.transitions[0]!.contactId = missingReads.contactAuthority!.contactId;
     missingReads.transitions[0]!.result.contactStatus = 'completed';
     const invalidStore = await openFileWorkflowLedgerV1({
       runDirectory: join(root, `commit-${mode}`),
@@ -1474,8 +1721,8 @@ test('requires complete requester/responder file-read evidence for authoritative
       retainPrivate,
     });
     await assert.rejects(
-      () => invalidStore.commitHeartbeat(missingReads),
-      /file.*read|read.*coverage|four.*file/i,
+      () => commitStartedHeartbeat(invalidStore, missingReads),
+      /file.*read|read.*coverage|four.*file|source evidence/i,
       'ACCEPTED_CONTACT_WITHOUT_FILE_READS',
     );
     await invalidStore.close();
@@ -1484,15 +1731,14 @@ test('requires complete requester/responder file-read evidence for authoritative
     const validPayload = heartbeatPayloadFor(runBinding, 1, [
       evaluatedQaTransition('PAIR-Q-1', 1),
     ], evidence);
-    validPayload.transitions[0]!.contactId = 'recipient-trace';
+    validPayload.transitions[0]!.contactId = validPayload.contactAuthority!.contactId;
     validPayload.transitions[0]!.result.contactStatus = 'completed';
-    addResponderFileReads(validPayload, runBinding);
     const validStore = await openFileWorkflowLedgerV1({
       runDirectory: validDirectory,
       binding: runBinding,
       retainPrivate,
     });
-    await validStore.commitHeartbeat(validPayload);
+    await commitStartedHeartbeat(validStore, validPayload);
     await validStore.close();
 
     const recordPath = join(
@@ -1513,7 +1759,7 @@ test('requires complete requester/responder file-read evidence for authoritative
         binding: runBinding,
         retainPrivate,
       }),
-      /file.*read|read.*coverage|four.*file/i,
+      /file.*read|read.*coverage|four.*file|source evidence/i,
       'REOPENED_CONTACT_WITHOUT_FILE_READS',
     );
   }
@@ -1528,16 +1774,15 @@ test('rejects unevaluated or fake-metric terminal authorities on commit and reop
     const unevaluated = heartbeatPayloadFor(runBinding, 1, [
       transition('PAIR-Q-1', 'answered', 1, 'qa'),
     ], evidence);
-    unevaluated.transitions[0]!.contactId = 'recipient-trace';
+    unevaluated.transitions[0]!.contactId = unevaluated.contactAuthority!.contactId;
     unevaluated.transitions[0]!.result.contactStatus = 'completed';
-    addResponderFileReads(unevaluated, runBinding);
     const invalidStore = await openFileWorkflowLedgerV1({
       runDirectory: join(root, `commit-${mode}`),
       binding: runBinding,
       retainPrivate,
     });
     await assert.rejects(
-      () => invalidStore.commitHeartbeat(unevaluated),
+      () => commitStartedHeartbeat(invalidStore, unevaluated),
       /evaluation|metric|answered|scor/i,
       'ACCEPTED_ANSWERED_WITHOUT_EVALUATION',
     );
@@ -1547,15 +1792,14 @@ test('rejects unevaluated or fake-metric terminal authorities on commit and reop
     const evaluated = heartbeatPayloadFor(runBinding, 1, [
       evaluatedQaTransition('PAIR-Q-1', 1),
     ], evidence);
-    evaluated.transitions[0]!.contactId = 'recipient-trace';
+    evaluated.transitions[0]!.contactId = evaluated.contactAuthority!.contactId;
     evaluated.transitions[0]!.result.contactStatus = 'completed';
-    addResponderFileReads(evaluated, runBinding);
     const validStore = await openFileWorkflowLedgerV1({
       runDirectory: validDirectory,
       binding: runBinding,
       retainPrivate,
     });
-    await validStore.commitHeartbeat(evaluated);
+    await commitStartedHeartbeat(validStore, evaluated);
     await validStore.finalize({
       stopReason: 'all_terminal',
       finalFiles: finalFilesFor(runBinding, 1, { 'PAIR-Q-1': 'answered' }),
@@ -1575,7 +1819,7 @@ test('rejects unevaluated or fake-metric terminal authorities on commit and reop
       binding: runBinding,
       retainPrivate,
     });
-    await tamperedStore.commitHeartbeat(evaluated);
+    await commitStartedHeartbeat(tamperedStore, evaluated);
     await tamperedStore.close();
     const recordPath = join(
       tamperedDirectory,
@@ -1610,16 +1854,15 @@ test('validates canonical action snapshots and full evaluations before commit an
     const invalidPayload = heartbeatPayloadFor(runBinding, 1, [
       evaluatedActionTransition('PAIR-A-1', 1),
     ], invalidEvidence);
-    invalidPayload.transitions[0]!.contactId = 'recipient-trace';
+    invalidPayload.transitions[0]!.contactId = invalidPayload.contactAuthority!.contactId;
     invalidPayload.transitions[0]!.result.contactStatus = 'completed';
-    addResponderFileReads(invalidPayload, runBinding);
     const invalidStore = await openFileWorkflowLedgerV1({
       runDirectory: join(root, `commit-${mode}`),
       binding: runBinding,
       retainPrivate,
     });
     await assert.rejects(
-      () => invalidStore.commitHeartbeat(invalidPayload),
+      () => commitStartedHeartbeat(invalidStore, invalidPayload),
       /snapshot|store|object|required/i,
       'ACCEPTED_NULL_ACTION_SNAPSHOT',
     );
@@ -1629,15 +1872,14 @@ test('validates canonical action snapshots and full evaluations before commit an
     const validPayload = heartbeatPayloadFor(runBinding, 1, [
       evaluatedActionTransition('PAIR-A-1', 1),
     ], strictActionEvidence('PAIR-A-1', 'event-1'));
-    validPayload.transitions[0]!.contactId = 'recipient-trace';
+    validPayload.transitions[0]!.contactId = validPayload.contactAuthority!.contactId;
     validPayload.transitions[0]!.result.contactStatus = 'completed';
-    addResponderFileReads(validPayload, runBinding);
     const validStore = await openFileWorkflowLedgerV1({
       runDirectory: validDirectory,
       binding: runBinding,
       retainPrivate,
     });
-    await validStore.commitHeartbeat(validPayload);
+    await commitStartedHeartbeat(validStore, validPayload);
     await validStore.close();
     const reopened = await openFileWorkflowLedgerV1({
       runDirectory: validDirectory,
@@ -1684,16 +1926,15 @@ test('binds retained full evaluation projections and registered metrics to the t
     const payload = heartbeatPayloadFor(runBinding, 1, [
       evaluatedActionTransition('PAIR-A-1', 1),
     ], evidence);
-    payload.transitions[0]!.contactId = 'recipient-trace';
+    payload.transitions[0]!.contactId = payload.contactAuthority!.contactId;
     payload.transitions[0]!.result.contactStatus = 'completed';
-    addResponderFileReads(payload, runBinding);
     const store = await openFileWorkflowLedgerV1({
       runDirectory: join(root, mode),
       binding: runBinding,
       retainPrivate,
     });
     await assert.rejects(
-      () => store.commitHeartbeat(payload),
+      () => commitStartedHeartbeat(store, payload),
       /full evaluation|public evaluation|projection|metric/i,
       'ACCEPTED_MISMATCHED_FULL_EVALUATION_PROJECTION',
     );
@@ -1707,7 +1948,6 @@ test('uses a host-neutral Unicode key order for private evidence digests', async
   const payload = heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ], {
-    contactRequests: [],
     actionSnapshots: [],
     tickDecisions: [{
       type: 'completed',
@@ -1722,10 +1962,10 @@ test('uses a host-neutral Unicode key order for private evidence digests', async
     binding: runBinding,
     retainPrivate: true,
   });
-  const committed = await store.commitHeartbeat(payload);
+  const committed = await commitStartedHeartbeat(store, payload);
   assert.equal(
     committed.record.payload.privateEvidenceDigest,
-    '02c6573f00c6751c70173c3c2e0cd4731a9f668dbcc10d97c07ad2bd162fc32a',
+    '9acf3310b8f867a9a22e13cd113053c2541f5e903e51fd86b1248ad9744a67d8',
   );
   await store.close();
 });
@@ -1737,7 +1977,6 @@ test('retention on/off has equal public metrics and hashes and leaks no private 
     'PRIVATE_CONTACT_SENTINEL',
     'PRIVATE_GOLD_SENTINEL',
     'sk-secret-credential',
-    '/Users/private/host/path',
   ];
   const publicByMode: string[][] = [];
   for (const retainPrivate of [true, false]) {
@@ -1757,13 +1996,11 @@ test('retention on/off has equal public metrics and hashes and leaks no private 
       retainPrivate,
     });
     const privateEvidence = {
-      contactRequests: [{
-        taskId: 'PAIR-Q-1', senderId: 'requester', recipientId: 'responder',
-        purpose: 'PAIR-Q-1', intent: sentinels[4]!, message: sentinels[1]!,
-        recipientTraceId: 'recipient', status: 'completed' as const, response: 'sk-secret-credential',
-      }],
-      memory: {
-        actorId: 'requester',
+      contact: {
+        taskId: 'PAIR-Q-1', message: sentinels[1]!,
+        requestMessageId: 'recipient', status: 'completed' as const, response: 'sk-secret-credential',
+      },
+      requesterMemory: {
         previousBytesBase64: Buffer.from('PAIR-Q-1 [pending] — memory 0\n').toString('base64'),
         newBytesBase64: finalMemory.toString('base64'),
       },
@@ -1779,11 +2016,9 @@ test('retention on/off has equal public metrics and hashes and leaks no private 
     const payload = heartbeatPayloadFor(runBinding, 1, [
       transition('PAIR-Q-1', 'error', 1),
     ], privateEvidence);
-    payload.transitions[0]!.contactId = 'recipient';
+    payload.transitions[0]!.contactId = payload.contactAuthority!.contactId;
     payload.transitions[0]!.result.contactStatus = 'completed';
-    payload.memoryTransition!.newSha256 = finalFiles.requester['MEMORY.md'].sha256;
-    payload.memoryTransition!.byteLength = finalMemory.byteLength;
-    await store.commitHeartbeat(payload);
+    await commitStartedHeartbeat(store, payload);
     await store.finalize({ stopReason: 'all_terminal', finalFiles });
     const bytes = await Promise.all(publicNames.map(name => readFile(join(runDirectory, name), 'utf8')));
     for (const source of bytes) for (const sentinel of sentinels) {
@@ -1796,7 +2031,7 @@ test('retention on/off has equal public metrics and hashes and leaks no private 
       retainPrivate,
     );
     assert.ok(
-      internalRecords[0]?.payload.memoryAuthority,
+      internalRecords[0]?.payload.memoryAuthorities[0],
       'sanitized MEMORY authority must survive both retention modes',
     );
     await store.close();
@@ -1812,7 +2047,7 @@ test('retention on/off has equal public metrics and hashes and leaks no private 
       reopenedRecords[0]?.payload.privateEvidence !== undefined,
       retainPrivate,
     );
-    assert.ok(reopenedRecords[0]?.payload.memoryAuthority);
+    assert.ok(reopenedRecords[0]?.payload.memoryAuthorities[0]);
     await reopened.close();
   }
   assert.deepEqual(publicByMode[0], publicByMode[1]);
@@ -1843,7 +2078,7 @@ test('rejects committed truncation, gaps, digest edits, foreign binding, and unk
       retainPrivate: false,
     } as const;
     const store = await openFileWorkflowLedgerV1(options);
-    await store.commitHeartbeat(heartbeatPayloadFor(options.binding, 1, [
+    await commitStartedHeartbeat(store, heartbeatPayloadFor(options.binding, 1, [
       transition('PAIR-Q-1', 'error', 1),
     ]));
     await store.close();
@@ -1863,24 +2098,20 @@ test('rejects an edit to retained private bytes even when the public record dige
   const payload = heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ], {
-    contactRequests: [{
+    contact: {
       taskId: 'PAIR-Q-1',
-      senderId: 'requester',
-      recipientId: 'responder',
-      purpose: 'PAIR-Q-1',
-      intent: 'inspect',
       message: 'ORIGINAL_PRIVATE_MESSAGE',
-      recipientTraceId: 'recipient-trace',
+      requestMessageId: 'recipient-trace',
       status: 'completed',
       response: 'private',
-    }],
+    },
     actionSnapshots: [],
     tickDecisions: [],
     fullEvaluations: [],
   });
-  payload.transitions[0]!.contactId = 'recipient-trace';
+  payload.transitions[0]!.contactId = payload.contactAuthority!.contactId;
   payload.transitions[0]!.result.contactStatus = 'completed';
-  await store.commitHeartbeat(payload);
+  await commitStartedHeartbeat(store, payload);
   await store.close();
 
   const recordPath = join(
@@ -1890,7 +2121,8 @@ test('rejects an edit to retained private bytes even when the public record dige
     'record-000000000000.json',
   );
   const edited = await json(recordPath);
-  edited.payload.privateEvidence.contactRequests[0].message = 'TAMPERED_PRIVATE_MESSAGE';
+  edited.payload.privateEvidence.sourceEvidence.acceptedMessages[0].payload.message =
+    'TAMPERED_PRIVATE_MESSAGE';
   await writeFile(recordPath, `${JSON.stringify(edited)}\n`);
   await assert.rejects(
     () => openFileWorkflowLedgerV1(options),
@@ -1903,7 +2135,6 @@ test('rejects private bytes injected into a retention-off committed row', async 
   const runDirectory = join(root, 'run');
   const runBinding = binding('files-multi', 'retention-off-injection', ['PAIR-Q-1']);
   const privateEvidence = {
-    contactRequests: [],
     actionSnapshots: [],
     tickDecisions: [{
       type: 'completed' as const,
@@ -1919,7 +2150,7 @@ test('rejects private bytes injected into a retention-off committed row', async 
     transition('PAIR-Q-1', 'error', 1),
   ], privateEvidence);
   const injectedPrivateEvidence = structuredClone(payload.privateEvidence);
-  await store.commitHeartbeat(payload);
+  await commitStartedHeartbeat(store, payload);
   await store.close();
 
   const recordPath = join(
@@ -1943,7 +2174,7 @@ test('rejects a schema-valid public run manifest with foreign workflow identity'
   const runBinding = binding('files-multi', 'foreign-public-run', ['PAIR-Q-1']);
   const options = { runDirectory, binding: runBinding, retainPrivate: false } as const;
   const store = await openFileWorkflowLedgerV1(options);
-  await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
   await store.close();
@@ -2032,7 +2263,7 @@ test('rejects an oversized record, hostile IDs, legacy artifacts, and a second w
   await store.close();
   await writeFile(
     join(oversizedDirectory, FILE_WORKFLOW_INTERNAL_DIRECTORY_V1, 'records', 'record-000000000000.json'),
-    'x'.repeat(4 * 1024 * 1024 + 1),
+    'x'.repeat(16 * 1024 * 1024 + 1),
   );
   await assert.rejects(() => openFileWorkflowLedgerV1(oversizedOptions), /exceeds|oversized|bytes/i);
 });
@@ -2171,7 +2402,7 @@ test('close fences an in-flight staged projection before a new writer can publis
       },
     },
   });
-  const oldCommit = old.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  const oldCommit = commitStartedHeartbeat(old, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
   await staged;
@@ -2185,7 +2416,7 @@ test('close fences an in-flight staged projection before a new writer can publis
       binding: runBinding,
       retainPrivate: false,
     });
-    await newer.commitHeartbeat(heartbeatPayloadFor(runBinding, 2, [
+    await commitStartedHeartbeat(newer, heartbeatPayloadFor(runBinding, 2, [
       transition('PAIR-Q-2', 'error', 2),
     ]));
   } else {
@@ -2208,7 +2439,7 @@ test('close fences an in-flight staged projection before a new writer can publis
       binding: runBinding,
       retainPrivate: false,
     });
-    await newer.commitHeartbeat(heartbeatPayloadFor(runBinding, 2, [
+    await commitStartedHeartbeat(newer, heartbeatPayloadFor(runBinding, 2, [
       transition('PAIR-Q-2', 'error', 2),
     ]));
   }
@@ -2246,7 +2477,7 @@ test('serializes commit, repair, read, finalize, and close as one writer operati
       },
     },
   });
-  const commit = store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  const commit = commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
   await staged;
@@ -2260,7 +2491,7 @@ test('serializes commit, repair, read, finalize, and close as one writer operati
   assert.equal(await settlesWithin(close, 100), 'pending');
   await Promise.all([
     assert.rejects(
-      () => store.commitHeartbeat(heartbeatPayloadFor(runBinding, 2, [])),
+      () => commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 2, [])),
       /closed/i,
     ),
     assert.rejects(() => store.repairPublicProjections(), /closed/i),
@@ -2353,7 +2584,7 @@ test('rejects invalid UTF-8 in a committed record before JSON decoding', async t
     retainPrivate: false,
   } as const;
   const store = await openFileWorkflowLedgerV1(options);
-  await store.commitHeartbeat(heartbeatPayloadFor(options.binding, 1, [
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(options.binding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
   await store.close();
@@ -2378,7 +2609,7 @@ test('fails finalization before a completed checkpoint when a selected task is m
     retainPrivate: false,
   });
   const runBinding = binding('files-multi', 'cardinality-final', ['PAIR-Q-1', 'PAIR-Q-2']);
-  await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
   await assert.rejects(() => store.finalize({
@@ -2399,7 +2630,7 @@ test('fails finalization when the declared final MEMORY hash is not ledger-deriv
     binding: runBinding,
     retainPrivate: false,
   });
-  await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
   const declaredFinal = finalFilesFor(runBinding, 1);
@@ -2433,14 +2664,14 @@ test('makes final authority immutable and rejects an edited completion marker', 
   const runBinding = binding('files-multi', 'final-authority', ['PAIR-Q-1']);
   const options = { runDirectory, binding: runBinding, retainPrivate: false } as const;
   const store = await openFileWorkflowLedgerV1(options);
-  await store.commitHeartbeat(heartbeatPayloadFor(runBinding, 1, [
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [
     transition('PAIR-Q-1', 'error', 1),
   ]));
   const finalFiles = finalFilesFor(runBinding, 1);
   await store.finalize({ stopReason: 'all_terminal', finalFiles });
   await assert.rejects(
     () => store.finalize({ stopReason: 'fatal_error', finalFiles }),
-    /final authority|immutable|conflict/i,
+    /final authority|immutable|conflict|stop reason|last committed/i,
   );
   await store.close();
 
@@ -2510,16 +2741,10 @@ function actionContactEvidence(input: {
   status: 'completed' | 'denied' | 'failed' | 'cancelled';
 }) {
   return {
-    contactRequests: [{
+    contact: {
       taskId: 'PAIR-A-1',
-      senderId: 'requester',
-      recipientId: 'responder',
-      purpose: 'PAIR-A-1',
-      intent: 'act',
       message: 'contact',
-      requestTraceId: input.eventId.replace('event-', 'trace-'),
-      deadlineMs: 1_000,
-      recipientTraceId: input.contactId,
+      requestMessageId: input.contactId,
       status: input.status,
       ...(input.status === 'completed'
         ? { response: 'completed' }
@@ -2528,7 +2753,7 @@ function actionContactEvidence(input: {
             : input.status === 'failed'
               ? 'CONTACT_RESPONDER_FAILED'
               : 'CONTACT_CANCELLED' }),
-    }],
+    },
     actionSnapshots: [{
       taskId: 'PAIR-A-1',
       contactId: input.contactId,
@@ -2548,16 +2773,10 @@ function qaContactEvidence(status: 'completed' | 'denied' | 'failed' | 'cancelle
     status === 'denied' ? 'refuse' : 'answer',
   );
   return {
-    contactRequests: [{
+    contact: {
       taskId: 'PAIR-Q-1',
-      senderId: 'requester',
-      recipientId: 'responder',
-      purpose: 'PAIR-Q-1',
-      intent: 'answer',
       message: 'contact',
-      requestTraceId: 'trace-1',
-      deadlineMs: 1_000,
-      recipientTraceId: 'recipient-trace',
+      requestMessageId: 'recipient-trace',
       status,
       ...(status === 'completed'
         ? { response: 'completed' }
@@ -2566,7 +2785,7 @@ function qaContactEvidence(status: 'completed' | 'denied' | 'failed' | 'cancelle
             : status === 'failed'
               ? 'CONTACT_RESPONDER_FAILED'
               : 'CONTACT_CANCELLED' }),
-    }],
+    },
     actionSnapshots: [],
     tickDecisions: [],
     fullEvaluations: [{
@@ -2579,7 +2798,6 @@ function qaContactEvidence(status: 'completed' | 'denied' | 'failed' | 'cancelle
 
 function emptyPrivateEvidence() {
   return {
-    contactRequests: [],
     actionSnapshots: [],
     tickDecisions: [],
     fullEvaluations: [],
@@ -2646,19 +2864,13 @@ function strictActionEvidence(
   const evaluation = fullActionEvaluation(taskId, stateChanged, actualDecision);
   const before = pairStore('PRIVATE_ACTION_BEFORE_SENTINEL');
   return {
-    contactRequests: [{
+    contact: {
       taskId,
-      senderId: 'requester',
-      recipientId: 'responder',
-      purpose: taskId,
-      intent: 'act',
       message: 'PRIVATE_CONTACT_SENTINEL',
-      requestTraceId: eventId.replace('event-', 'trace-'),
-      deadlineMs: 1_000,
-      recipientTraceId: 'recipient-trace',
+      requestMessageId: 'recipient-trace',
       status: 'completed' as const,
       response: 'done',
-    }],
+    },
     actionSnapshots: [{
       taskId,
       contactId: 'recipient-trace',
@@ -2779,21 +2991,15 @@ function pairStore(sentinel: string) {
   };
 }
 
-function addResponderFileReads(
+async function commitStartedHeartbeat(
+  store: Awaited<ReturnType<typeof openFileWorkflowLedgerV1>>,
   payload: ReturnType<typeof heartbeatPayloadFor>,
-  runBinding: ReturnType<typeof binding>,
-): void {
-  for (const path of ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'] as const) {
-    const metadata = runBinding.actors.responder.initial[path];
-    payload.fileReads.push({
-      actorId: runBinding.actors.responder.actorId,
-      path,
-      action: 'read',
-      version: 0,
-      sha256: metadata.sha256,
-      byteLength: metadata.byteLength,
-    });
-  }
+) {
+  await store.beginHeartbeat({
+    event: structuredClone(payload.event),
+    inputDigest: payload.inputDigest,
+  });
+  return store.commitHeartbeat(payload);
 }
 
 function setRequesterMemoryEvidence(
@@ -2801,24 +3007,199 @@ function setRequesterMemoryEvidence(
   previousContent: string,
   newContent: string,
 ): void {
-  const transition = payload.memoryTransition;
-  assert.ok(transition);
-  payload.privateEvidence.memory = {
-    actorId: transition.actorId,
+  const operation = requesterMemoryOperation(payload);
+  const previousSha256 = createHash('sha256').update(previousContent).digest('hex');
+  const newSha256 = createHash('sha256').update(newContent).digest('hex');
+  Object.assign(operation, {
+    previousSha256,
+    previousByteLength: Buffer.byteLength(previousContent),
     previousBytesBase64: Buffer.from(previousContent).toString('base64'),
     newBytesBase64: Buffer.from(newContent).toString('base64'),
-  };
-  transition.previousSha256 = createHash('sha256').update(previousContent).digest('hex');
-  transition.newSha256 = createHash('sha256').update(newContent).digest('hex');
-  transition.byteLength = Buffer.byteLength(newContent);
-  for (const receipt of payload.fileReads) {
-    if (receipt.actorId !== transition.actorId || receipt.path !== 'MEMORY.md') continue;
-    const content = receipt.version === transition.newVersion
-      ? newContent
-      : previousContent;
-    receipt.sha256 = createHash('sha256').update(content).digest('hex');
-    receipt.byteLength = Buffer.byteLength(content);
+    sha256: newSha256,
+    byteLength: Buffer.byteLength(newContent),
+  });
+  const memoryRead = payload.privateEvidence.sourceEvidence.requesterFileOperations.find(
+    (candidate: any) => candidate.action === 'read' && candidate.path === 'MEMORY.md',
+  );
+  assert.ok(memoryRead);
+  memoryRead.sha256 = previousSha256;
+  memoryRead.byteLength = Buffer.byteLength(previousContent);
+  const transition = payload.memoryTransitions.find(
+    (candidate: any) => candidate.actorId === operation.actorId,
+  );
+  const authority = payload.memoryAuthorities.find(
+    (candidate: any) => candidate.actorId === operation.actorId,
+  );
+  assert.ok(transition && authority);
+  Object.assign(transition, {
+    previousSha256,
+    newSha256,
+    byteLength: Buffer.byteLength(newContent),
+  });
+  Object.assign(authority, {
+    previousSha256,
+    newSha256,
+    previousRows: memoryRowsForTest(previousContent),
+    newRows: memoryRowsForTest(newContent),
+  });
+  refreshFileReadProjections(payload);
+}
+
+function requesterMemoryOperation(payload: ReturnType<typeof heartbeatPayloadFor>): any {
+  const operation = payload.privateEvidence.sourceEvidence.requesterFileOperations.find(
+    (candidate: any) => candidate.action === 'replace' && candidate.outcome === 'committed',
+  );
+  assert.ok(operation);
+  return operation;
+}
+
+function removeRequesterMemoryCommit(payload: ReturnType<typeof heartbeatPayloadFor>): void {
+  const operation = requesterMemoryOperation(payload);
+  payload.privateEvidence.sourceEvidence.requesterFileOperations =
+    payload.privateEvidence.sourceEvidence.requesterFileOperations.filter(
+      (candidate: any) => candidate.operationId !== operation.operationId,
+    );
+  payload.privateEvidence.sourceEvidence.auditEvents =
+    payload.privateEvidence.sourceEvidence.auditEvents.filter(
+      (event: any) => event.operationId !== operation.operationId,
+    );
+  payload.memoryTransitions = payload.memoryTransitions.filter(
+    (candidate: any) => candidate.actorId !== operation.actorId,
+  );
+  payload.memoryAuthorities = payload.memoryAuthorities.filter(
+    (candidate: any) => candidate.actorId !== operation.actorId,
+  );
+  refreshFileReadProjections(payload);
+  refreshAuditProjections(payload);
+}
+
+function removeFileReadEvidence(
+  payload: ReturnType<typeof heartbeatPayloadFor>,
+  shouldRemove: (operation: any) => boolean,
+): void {
+  const source = payload.privateEvidence.sourceEvidence;
+  const removedIds = new Set([
+    ...source.requesterFileOperations,
+    ...source.responderFileOperations,
+  ].filter((operation: any) => (
+    operation.action === 'read' && shouldRemove(operation)
+  )).map((operation: any) => operation.operationId));
+  source.requesterFileOperations = source.requesterFileOperations.filter(
+    (operation: any) => !removedIds.has(operation.operationId),
+  );
+  source.responderFileOperations = source.responderFileOperations.filter(
+    (operation: any) => !removedIds.has(operation.operationId),
+  );
+  source.auditEvents = source.auditEvents.filter(
+    (event: any) => !event.operationId || !removedIds.has(event.operationId),
+  );
+  refreshFileReadProjections(payload);
+  refreshAuditProjections(payload);
+}
+
+function refreshFileReadProjections(payload: ReturnType<typeof heartbeatPayloadFor>): void {
+  payload.fileReads = [
+    ...payload.privateEvidence.sourceEvidence.requesterFileOperations,
+    ...payload.privateEvidence.sourceEvidence.responderFileOperations,
+  ].filter((operation: any) => operation.action === 'read').map((operation: any) => ({
+    actorId: operation.actorId,
+    path: operation.path,
+    action: 'read',
+    version: operation.version,
+    sha256: operation.sha256,
+    byteLength: operation.byteLength,
+  }));
+}
+
+function moveImmutableReadsAfterMemoryCas(
+  payload: ReturnType<typeof heartbeatPayloadFor>,
+  actorId: string,
+): void {
+  const source = payload.privateEvidence.sourceEvidence;
+  const operations = actorId === payload.event.actorId
+    ? source.requesterFileOperations
+    : source.responderFileOperations;
+  const moved = operations.filter((operation: any) => (
+    operation.action === 'read' && operation.path !== 'MEMORY.md'
+  ));
+  const movedIds = new Set(moved.map((operation: any) => operation.operationId));
+  const retained = operations.filter((operation: any) => !movedIds.has(operation.operationId));
+  if (actorId === payload.event.actorId) {
+    source.requesterFileOperations = [...retained, ...moved];
+  } else {
+    source.responderFileOperations = [...retained, ...moved];
   }
+  const movedEvents = source.auditEvents.filter((event: any) => (
+    movedIds.has(event.operationId)
+  ));
+  source.auditEvents = source.auditEvents.filter((event: any) => (
+    !movedIds.has(event.operationId)
+  ));
+  const replaceToolIndex = source.auditEvents.findIndex((event: any) => (
+    event.type === 'tool.invoked'
+    && event.tool === 'files.replace'
+    && event.actor?.kind === 'agent'
+    && event.actor.agentId === actorId
+  ));
+  assert.notEqual(replaceToolIndex, -1);
+  source.auditEvents.splice(replaceToolIndex + 1, 0, ...movedEvents);
+}
+
+function refreshAuditProjections(payload: ReturnType<typeof heartbeatPayloadFor>): void {
+  const events = payload.privateEvidence.sourceEvidence.auditEvents;
+  payload.sharedOsAuthority.audit.lastSequence =
+    payload.sharedOsAuthority.audit.firstSequence + events.length - 1;
+  payload.sharedOsAuthority.audit.sha256 = digestTestCanonical(events);
+  payload.usage.toolSteps = events.filter((event: any) => event.type === 'tool.invoked').length;
+  payload.usage.contactCalls = events.filter((event: any) => (
+    event.type === 'tool.invoked'
+    && event.tool === 'messages.request'
+    && event.actor?.kind === 'agent'
+    && event.actor.agentId === payload.event.actorId
+  )).length;
+  const decision = payload.privateEvidence.tickDecisions[0];
+  if (decision) {
+    decision.toolSteps = events.filter((event: any) => (
+      event.type === 'tool.invoked'
+      && event.actor?.kind === 'agent'
+      && event.actor.agentId === payload.event.actorId
+    )).length;
+    decision.contactCalls = payload.usage.contactCalls;
+  }
+}
+
+function memoryRowsForTest(content: string): Array<{
+  taskId: string;
+  status: 'pending' | 'answered' | 'refused' | 'error';
+}> {
+  return content.trimEnd().split('\n').map(line => {
+    const match = /^(\S+) \[(pending|answered|refused|error)\]/.exec(line);
+    assert.ok(match);
+    return {
+      taskId: match[1]!,
+      status: match[2] as 'pending' | 'answered' | 'refused' | 'error',
+    };
+  });
+}
+
+function nearLimitMemory(
+  taskIds: readonly string[],
+  label: string,
+): string {
+  const targetBytes = 1_048_000;
+  const prefixes = taskIds.map(taskId => `${taskId} [pending] — ${label} `);
+  const structuralBytes = prefixes.reduce(
+    (total, prefix) => total + Buffer.byteLength(prefix) + 1,
+    0,
+  );
+  const noteBytes = targetBytes - structuralBytes;
+  const basePerRow = Math.floor(noteBytes / taskIds.length);
+  let remainder = noteBytes % taskIds.length;
+  return prefixes.map(prefix => {
+    const extra = remainder > 0 ? 1 : 0;
+    remainder -= extra;
+    return `${prefix}${'x'.repeat(basePerRow + extra)}\n`;
+  }).join('');
 }
 
 function digestRecordMaterial(record: Record<string, any>): string {

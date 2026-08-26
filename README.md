@@ -1,197 +1,80 @@
-# Permissioned Agent Coordination Testbed
+# SharedEval
 
-PACT-Bench is a benchmark suite for evaluating whether agent systems can
-coordinate across ownership boundaries while preserving privacy, relationship
-constraints, and task utility.
+SharedEval is a benchmark control plane for evaluating collaboration between
+agents. SharedOS is its execution plane.
 
-The repository is maintained as the public, multi-dataset benchmark contract.
-It separates versioned assets under `dataset/`, executable benchmark code under
-`src/`, and dataset-neutral evaluation infrastructure. Private leaderboard
-labels, unreleased run artifacts, and product-coupled Aicoo adapters live
-outside this repository.
+The boundary is strict:
 
-## Suites
+- every requester and responder turn runs through SharedOS;
+- every model-visible file or benchmark tool is discovered and authorized by
+  SharedOS;
+- every agent request and reply is authorized by SharedOS;
+- SharedEval schedules runs, stores durable state, selects benchmark tasks,
+  scores outcomes, and writes artifacts.
 
-### PACT-Pair
+## Supported surface
 
-PACT-Pair is the dyadic unit test: one requester agent asks one target agent for
-information or actions across a single privacy boundary.
+SharedEval exposes two workflows:
 
-| Component | Path | Description |
-| --- | --- | --- |
-| Manifest | `dataset/pact-pair/manifest.yaml` | Dataset identity, assets, evaluator, and metrics |
-| Tasks | `dataset/pact-pair/tasks/questions.json` | 400 QA tasks plus 200 action tasks |
-| Data store | `dataset/pact-pair/data_spec/alex_data_store.json` | Synthetic notes and todos for the target user |
-| Runtime | `src/suites/pact-pair/` | Pair-specific loading, tools, workspace, and scoring |
+- `multi`: one run-scoped session processes an ordered task set;
+- `single`: every task receives an isolated session.
 
-### PACT-Net
+PACT-Pair is the executable benchmark suite. PACT-Net remains available for
+data and evaluator validation, but is not an execution target in this release.
 
-- [ ] PACT-Net — to be released
-
-## Quick Start
+## Quick start
 
 ```bash
-npm install
+npm ci
 npm run validate
-npm run validate:sample
-npm run smoke:sample
 npm run smoke:pact-pair
+npm run smoke:pact-net
 npm run export:huggingface:pact-pair
 npm test
 npm run type-check
 ```
 
-`npm run validate` checks the public benchmark assets against the TypeScript/Zod
-schemas in `src/` and parses the canonical protocol manifest. The dedicated
-sample commands validate its bundle and exercise the adapter lifecycle.
-
-### Optional SharedOS-backed checks
-
-The standard validation and smoke commands do not require SharedOS. The
-SharedOS conformance/integration tests and Harbor backend do require a locally
-built SharedOS checkout. PACT looks for it at `../sharedos-repo` by default,
-which matches CI. A normal clone is usually named `../SharedOS`, so point PACT
-at that directory explicitly:
+Validate a run configuration without calling a model or SharedOS:
 
 ```bash
-PACT_CHECKOUT="$(pwd)"
-git clone https://github.com/Aicoo-Team/SharedOS.git ../SharedOS
-cd ../SharedOS
-corepack enable
-corepack prepare pnpm@9.15.0 --activate
-corepack pnpm --version  # must report 9.15.0
-corepack pnpm install --frozen-lockfile
-corepack pnpm build
-cd "$PACT_CHECKOUT"
-PACT_SHAREDOS_DIR=../SharedOS npm test
+npm run sharedeval -- --config sharedeval-run.yaml --check
+npm run sharedeval -- multi --config sharedeval-run.yaml --check
+npm run sharedeval -- single --config sharedeval-run.yaml --check
 ```
 
-Without a reachable build, `npm test` logs that the SharedOS-dependent cases
-were skipped and may still exit successfully. Supplying `PACT_SHAREDOS_DIR`
-ensures those cases run against the checkout you built.
+Omitting the command mode selects `multi`. Explicit command mode and
+`workflow.mode` in the configuration must agree. See
+[the running guide](docs/running.md) for the configuration shape and execution
+commands.
 
-SharedOS declares pnpm 9.15.0 in its `packageManager` field. Activate that
-version and invoke it through Corepack instead of relying on whichever global
-pnpm version happens to be available.
+## Repository map
 
-The Harbor verification is optional for local development. By design,
-`scripts/verify_harbor.sh` prints `SKIP` and exits successfully when Docker,
-Harbor, or the SharedOS build is unavailable; a skip does not mean the Harbor
-benchmark ran. Use the strict form when all prerequisites are expected, as CI
-does. The Harbor image also requires the SharedOS checkout at the pinned
-revision documented in the detailed running guide:
-
-```bash
-PACT_HARBOR_SMOKE_REQUIRE=1 \
-  PACT_SHAREDOS_DIR=../SharedOS \
-  bash scripts/verify_harbor.sh
-```
-
-See [Running PACT locally](docs/running.md#optional-harbor-execution-backend)
-for the Harbor 0.5.0 requirement and full backend contract.
-
-To run PACT-Pair against your own OpenAI-compatible model API:
-
-```bash
-export PACT_MODEL_API_KEY="your-provider-key"
-npm run benchmark -- --config examples/pact-run.openai-compatible.yaml
-```
-
-The YAML contains the model name, base URL, task selection, and the dedicated
-`PACT_MODEL_API_KEY` credential alias. It never contains the key itself.
-See [Running PACT locally](docs/running.md) for the complete configuration and
-output contract.
-
-## Current Status
-
-This repository currently provides:
-
-- a strict dataset manifest and approved-runtime registry for multiple dataset families;
-- generic evaluator registration, metric validation, and aggregation;
-- public synthetic task files and the first built-in suite, PACT-Pair;
-- deterministic Hugging Face staging for PACT-Pair (`pair` / `validation`);
-- a strict PACT-Pair Adapter Protocol v1 contract and manifest parser;
-- a JSON-RPC adapter host, secure bundle validator, and executable TypeScript starter;
-- a dataset-dispatching runner with a PACT-Pair OpenAI-compatible BYOK adapter;
-- an opt-in Harbor/Docker execution backend running the deterministic
-  no-network parity harness (local remains the default);
-- an isolated in-memory notes/todos world, deterministic evaluator, and run reports;
-- benchmark design documentation;
-- submission, metrics, and leaderboard documentation.
-
-The local runner is self-contained and does not import Pulse or require an
-Aicoo account. The older experiment scripts directly under `scripts/` are
-legacy/internal Pulse references; `scripts/huggingface/` is a standalone public
-exporter.
-
-## Submissions
-
-There are two separate workflows:
-
-- `pact-run.yaml` configures a local BYOK benchmark run against a model API.
-- `pact.yaml` describes a runnable agent artifact that implements the Adapter
-  Protocol for reproducible evaluation.
-
-This repository defines both local contracts, but it does not deploy a hosted
-submission API. Aicoo is the intended product surface for authenticated dataset
-and result intake; PACT remains the versioned data, execution, and evaluation
-contract. See the
-[submission format](docs/submission_format.md) for the artifact contract.
-
-## Evaluation Dimensions
-
-| Dimension | PACT-Pair measurement |
+| Path | Responsibility |
 | --- | --- |
-| Information utility | Legitimate QA is answered correctly |
-| Information security | Sensitive QA does not leak protected gold facts |
-| Action utility | Authorized mutations execute correctly |
-| Action safety | Unauthorized mutations are refused or produce no state change |
+| `src/execution/sharedos/` | Verified dynamic boundary to the pinned SharedOS build |
+| `src/runner/` | Scheduling, durable host state, model driver, and artifacts |
+| `src/suites/` | Benchmark-specific loading, tools, workspaces, and scoring |
+| `src/datasets/` | Dataset manifest and catalog validation |
+| `dataset/` | Canonical public benchmark and workspace assets |
+| `scripts/huggingface/` | Deterministic public dataset export |
 
-See [docs/metrics.md](docs/metrics.md) for the metric definitions.
+## SharedOS pin
 
-## Repository Boundary
-
-Public benchmark repository:
-
-- schemas and task formats;
-- public smoke tasks and synthetic worlds;
-- baseline interfaces;
-- sanitized result summaries;
-- documentation for submissions and metrics.
-
-Private research or product repositories:
-
-- hidden evaluation sets;
-- private gold labels for official leaderboard runs;
-- raw traces from unreleased experiments;
-- product adapters that require Aicoo/Pulse secrets or production databases.
+The production boundary is verified against SharedOS revision
+`a303d97fe974c149d4575b1f5d6426aee6f37367` and the four-package runtime digest
+`faefbf2ae61ffdcaf57f76e0c5b9b3f1438790213c0f16b3e02905bdbcba37cb`.
+SharedEval loads only SharedOS contracts, core, OS tools, and runtime packages;
+an unavailable or mismatched build fails before model spend.
 
 ## Documentation
 
-- [Running PACT locally](docs/running.md)
-- [Multi-dataset architecture](docs/architecture.md)
-- [Dataset manifests and extensions](docs/datasets.md)
-- [Hugging Face export](docs/huggingface.md)
-- [PACT-Pair post-hoc evaluation tools](docs/pact-pair-evaluation-tools.md)
-- [SharedOS runner follow-ups](docs/sharedos-runner-follow-ups.md)
-- [Submission format](docs/submission_format.md)
-- [Metrics](docs/metrics.md)
-- [Leaderboard policy](docs/leaderboard.md)
+- [Running SharedEval](docs/running.md)
+- [Architecture](docs/architecture.md)
+- [Datasets](docs/datasets.md)
 - [PACT-Pair data](dataset/pact-pair/BENCHMARK_DATA.md)
-
-## Citation
-
-Formal citation metadata will be added with the first public technical report.
-For now, cite the repository directly:
-
-```bibtex
-@misc{pactbench2026,
-  title = {PACT-Bench: Cross-Boundary Agent Privacy and Delegation Benchmark},
-  author = {Wang, Xisen},
-  year = {2026},
-  howpublished = {\url{https://github.com/xisen-w/PACT}}
-}
-```
+- [PACT-Pair evaluation tools](docs/pact-pair-evaluation-tools.md)
+- [Hugging Face export](docs/huggingface.md)
+- [Metrics](docs/metrics.md)
 
 ## License
 

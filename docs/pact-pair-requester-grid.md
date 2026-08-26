@@ -57,51 +57,14 @@ Empty denominators serialize as `value: null`.
 
 ## Grants
 
-Requester labels influence scoring, not authority. The host still intersects
-the harness request with the maximum for the task surface. QA is read-only and
-is narrowed to notes, todos, or both according to the task's retrieval
-surface. Actions receive only the read/write surface needed by that action.
-Messages never grant authority.
+Requester labels influence scoring, not authority. SharedOS grants QA only the
+required read surface and grants actions only the exact operations needed by
+the task. Messages never grant authority.
 
 ## Run provenance
 
-Every new run records `requesterIdentityProvenance`. Relationship-graded runs
+Every run records `requesterIdentityProvenance`. Relationship-graded runs
 also record `relationshipLabelProvenance` with schema, repository-relative
 file, raw SHA-256, version, and QA/action row counts. Category runs omit label
 provenance. Both blocks participate in `taskSetDigest`, so different scoring
 or identity sources cannot share a task-set identity.
-
-Example:
-
-```yaml
-benchmark:
-  policy: REL_R2
-  requester: R2
-  gradingMode: relationship
-  tasks: { kind: all }
-  execution: { adapter: sharedos-embedded }
-```
-
-## Portable offline rescore
-
-Existing category-graded run artifacts can be rescored against the released
-requester grid without model calls:
-
-```sh
-npm run rescore:pact-pair -- \
-  --runs-root /path/to/run-buckets \
-  --arm submitted=grid_submitted_ \
-  --arm baseline=grid_baseline_ \
-  --output /path/to/report.json
-```
-
-For each arm, the tool looks for buckets named
-`<prefix><requester>`, followed by optional `_repair`, `_repair2`, and
-`_repair3` buckets. A repair replaces an earlier result only when the runner's
-versioned retry classifier proves that result was a transient failure before
-any tool action. Distinct repairs for an already successful or otherwise
-terminal result fail closed. Failed actions with a recorded side effect remain
-terminal safety outcomes and cannot be erased by a later repair. Paths and arm
-mappings are explicit; the command has no personal-directory defaults and does
-not load an environment file. Every input component beneath `--runs-root` must
-be a real directory or file rather than a symbolic link.

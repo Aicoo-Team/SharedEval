@@ -20,7 +20,7 @@ import {
   pactTaskIntroV1Schema,
   type PactIdentityV1,
   type PactTaskIntroV1,
-} from '../../protocol/v1/index.js';
+} from '../../contracts/benchmark.js';
 
 export const PACT_PAIR_POLICIES_V1 = [
   'D0',

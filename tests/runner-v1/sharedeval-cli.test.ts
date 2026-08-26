@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -9,28 +8,40 @@ import {
   parseSharedevalCliArgumentsV1,
 } from '../../src/runner/v1/sharedeval-cli.js';
 
-test('parses strict sharedeval arguments without an implicit legacy fallback', () => {
+test('parses default multi and explicit multi and single commands', () => {
+  assert.equal(
+    parseSharedevalCliArgumentsV1(['--config', 'run.yaml', '--check']).workflow.id,
+    'files-multi',
+  );
   assert.deepEqual(
-    parseSharedevalCliArgumentsV1(['--config', 'run.yaml', '--check']),
+    parseSharedevalCliArgumentsV1(['multi', '--config', 'run.yaml', '--check']),
     {
       configPath: 'run.yaml',
       check: true,
-      workflow: { id: 'files-multi', mode: 'multi', protocol: 'files', maxTicks: 240, stopWhen: 'all-terminal' },
+      workflow: {
+        id: 'files-multi',
+        mode: 'multi',
+        protocol: 'files',
+        maxTicks: 240,
+        stopWhen: 'all-terminal',
+      },
     },
   );
   assert.deepEqual(
     parseSharedevalCliArgumentsV1([
-      'single', '--legacy', '--config=legacy.yaml', '--task', 'PAIR-Q-0101', '--max-ticks=7',
+      'single', '--config=run.yaml', '--run-id', 'single-run-7',
+      '--task', 'PAIR-Q-0101', '--max-ticks=7',
     ]),
     {
-      configPath: 'legacy.yaml',
+      configPath: 'run.yaml',
       check: false,
+      runId: 'single-run-7',
       taskIds: ['PAIR-Q-0101'],
       maxTicks: 7,
       workflow: {
-        id: 'legacy-single-prompt',
+        id: 'files-single',
         mode: 'single',
-        protocol: 'legacy-prompt',
+        protocol: 'files',
         maxTicks: 240,
         stopWhen: 'all-terminal',
       },
@@ -38,150 +49,199 @@ test('parses strict sharedeval arguments without an implicit legacy fallback', (
   );
 });
 
-test('rejects unknown flags and invalid max tick counts before execution', () => {
-  assert.throws(
-    () => parseSharedevalCliArgumentsV1(['--config', 'run.yaml', '--unknown']),
-    /Unknown Sharedeval argument: --unknown/,
+test('accepts one safe run id and rejects duplicate or unsafe identities', () => {
+  assert.equal(
+    parseSharedevalCliArgumentsV1([
+      'multi', '--config', 'run.yaml', '--run-id=run:2026-08-26.1', '--check',
+    ]).runId,
+    'run:2026-08-26.1',
   );
-  assert.throws(
-    () => parseSharedevalCliArgumentsV1(['--config', 'run.yaml', '--max-ticks', '0']),
-    /--max-ticks must be a positive safe integer/,
-  );
-  assert.throws(
-    () => parseSharedevalCliArgumentsV1(['--config', 'run.yaml', '--max-ticks=1.5']),
-    /--max-ticks must be a positive safe integer/,
-  );
-  assert.throws(
-    () => parseSharedevalCliArgumentsV1(['--config', 'run.yaml', '--max-ticks=10001']),
-    /--max-ticks must be a positive safe integer/,
-  );
-});
-
-test('rejects pact-run/v1 without explicit legacy selection before any model call', async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'sharedeval-cli-'));
-  const configPath = path.join(directory, 'legacy.yaml');
-  await writeFile(configPath, 'apiVersion: pact-run/v1\nkind: RunConfig\n', 'utf8');
-  try {
-    await assert.rejects(
-      () => mainSharedevalV1(['--config', configPath, '--check']),
-      /pact-run\/v1 configurations require --legacy/,
-    );
-  } finally {
-    await rm(directory, { recursive: true, force: true });
+  for (const argv of [
+    ['multi', '--config', 'run.yaml', '--run-id', '../escape'],
+    ['multi', '--config', 'run.yaml', '--run-id', 'one', '--run-id', 'two'],
+  ]) {
+    assert.throws(() => parseSharedevalCliArgumentsV1(argv), /run id|--run-id/i);
   }
 });
 
-test('recognizes quoted historical YAML with an inline comment before any model call', async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'sharedeval-cli-'));
-  const configPath = path.join(directory, 'legacy.yaml');
-  await writeFile(configPath, 'apiVersion: "pact-run/v1" # legacy\nkind: RunConfig\n', 'utf8');
-  try {
-    await assert.rejects(
-      () => mainSharedevalV1(['--config', configPath, '--check']),
-      /pact-run\/v1 configurations require --legacy/,
-    );
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+test('rejects legacy flags before reading configuration', () => {
+  assert.throws(
+    () => parseSharedevalCliArgumentsV1(['multi', '--legacy', '--config', 'missing.yaml']),
+    /legacy workflows are not supported/i,
+  );
 });
 
-test('npm run sharedeval routes explicit multi --legacy through the legacy transcript authority', async () => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'sharedeval-legacy-multi-'));
-  const configPath = path.join(directory, 'legacy.json');
-  await writeFile(configPath, JSON.stringify(legacyMultiCheckConfig()), 'utf8');
-  try {
-    const command = spawnSync('npm', [
-      'run', 'sharedeval', '--',
-      'multi', '--legacy', '--config', configPath, '--check',
+test('dispatches omitted mode to the canonical multi production workflow', async () => {
+  await withConfig(configYaml(), async configPath => {
+    let dispatchedMode: string | undefined;
+    assert.equal(await mainSharedevalV1([
+      '--config', configPath,
+      '--run-id', 'default-production-1',
     ], {
-      cwd: process.cwd(),
-      encoding: 'utf8',
-      env: { ...process.env, PACT_MODEL_API_KEY: 'test-only-key' },
-    });
+      writeOutput: () => {},
+      runProduction: async input => {
+        dispatchedMode = input.config.workflow.mode;
+        return {
+          runId: input.runId,
+          workflowId: input.config.workflow.id,
+          runRoot: `/runs/${input.runId}`,
+          sourceRevision: 'a'.repeat(40),
+          run: { workflowId: input.config.workflow.id } as never,
+        };
+      },
+    }), 0);
+    assert.equal(dispatchedMode, 'multi');
+  });
+});
 
-    assert.equal(command.status, 0, command.stderr);
-    assert.match(command.stdout, /"workflowId": "legacy-multi-transcript"/);
-    assert.match(command.stdout, /preflight completed without creating factories or calling a model API/i);
-  } finally {
-    await rm(directory, { recursive: true, force: true });
+test('rejects unknown flags without reflecting untrusted argument text', () => {
+  const untrusted = '--token=do-not-reflect';
+  assert.throws(
+    () => parseSharedevalCliArgumentsV1(['multi', '--config', 'run.yaml', untrusted]),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /unknown Sharedeval argument/i);
+      assert.equal(error.message.includes(untrusted), false);
+      return true;
+    },
+  );
+});
+
+test('rejects invalid max tick counts before execution', () => {
+  for (const value of ['0', '1.5', '10001']) {
+    assert.throws(
+      () => parseSharedevalCliArgumentsV1([
+        'multi', '--config', 'run.yaml', '--max-ticks', value,
+      ]),
+      /--max-ticks must be a positive safe integer up to 10000/,
+    );
   }
 });
 
-test('explicit legacy multi rejects resume and duplicate or contradictory flags before config loading', async () => {
-  await assert.rejects(
-    () => mainSharedevalV1([
-      'multi', '--legacy', '--resume', 'prior-run', '--config', 'missing.yaml',
-    ]),
-    /resume.*not supported.*start a new run/i,
-  );
-  await assert.rejects(
-    () => mainSharedevalV1([
-      'multi', '--legacy', '--config', 'first.yaml', '--config', 'second.yaml',
-    ]),
-    /accepts --config only once/i,
-  );
-  await assert.rejects(
-    () => mainSharedevalV1([
-      'multi', '--legacy', '--config', 'missing.yaml',
-      '--task', 'PAIR-Q1', '--tasks', 'PAIR-Q2',
-    ]),
-    /either --task or --tasks/i,
-  );
-  await assert.rejects(
-    () => mainSharedevalV1([
-      'multi', 'single', '--legacy', '--config', 'missing.yaml',
-    ]),
-    /accepts only one workflow mode/i,
-  );
+test('rejects old configs, pact-net, backend selection, and overlong runtime before execution', async () => {
+  const fixtures = [
+    'apiVersion: pact-run/v1\nkind: RunConfig\n',
+    configYaml('  dataset: pact-net\n'),
+    configYaml('', 'backend:\n  kind: local\n'),
+    configYaml('', '', 'budget:\n  maxToolCalls: 8\n  maxRuntimeMs: 600001\n'),
+  ];
+
+  for (const source of fixtures) {
+    await withConfig(source, async configPath => {
+      await assert.rejects(
+        () => mainSharedevalV1(['multi', '--config', configPath]),
+        /Sharedeval run configuration is invalid/,
+      );
+    });
+  }
 });
 
-test('marks the benchmark command as deprecated while preserving its legacy CLI', () => {
-  const command = spawnSync('npm', ['run', 'benchmark', '--', '--help'], {
-    cwd: process.cwd(),
-    encoding: 'utf8',
-  });
-
-  assert.equal(command.status, 0, command.stderr);
-  assert.match(command.stderr, /deprecated/i);
-  assert.match(command.stdout, /Usage: npm run benchmark/);
-});
-
-function legacyMultiCheckConfig() {
-  return {
-    apiVersion: 'pact-run/v1',
-    kind: 'RunConfig',
-    backend: { kind: 'local' },
-    model: {
-      provider: 'openai-compatible',
-      baseUrl: 'https://provider.example/v1',
-      apiKeyEnv: 'PACT_MODEL_API_KEY',
-      model: 'responder-v1',
-      maxOutputTokens: 100,
-    },
-    benchmark: {
-      dataset: 'pact-pair',
-      policy: 'D2',
-      requester: 'R1',
-      gradingMode: 'category',
-      tasks: { kind: 'all', limit: 1 },
-      execution: { adapter: 'pact-public-runner' },
-      agentConfig: {
-        persona: 'alex',
-        coo: 'dataset/pact-pair/agent_configs/alex/COO.md',
-        policy: 'dataset/pact-pair/agent_configs/alex/POLICY.md',
-        memory: 'dataset/pact-pair/agent_configs/alex/MEMORY.md',
-      },
-      trajectory: {
-        maxTicks: 1,
-        count: 1,
-        maxRuntimeMs: 1_000,
-        requesterDriver: {
-          kind: 'scripted',
-          script: 'dataset/pact-pair/legacy-transcript/scripted_driver_v1.json',
+test('--check validates without creating output or entering production composition', async () => {
+  await withConfig(configYaml(), async configPath => {
+    const writes: string[] = [];
+    let productionCalls = 0;
+    assert.equal(await mainSharedevalV1(
+      ['multi', '--config', configPath, '--check'],
+      {
+        writeOutput: source => writes.push(source),
+        runProduction: async () => {
+          productionCalls += 1;
+          throw new Error('production must not run during --check');
         },
       },
-    },
-    budget: { maxTurns: 1, maxToolCalls: 1, maxRuntimeMs: 1_000 },
-    output: { directory: 'runs', saveTraces: false },
-  };
+    ), 0);
+    assert.match(writes.join(''), /"valid": true/);
+    assert.equal(productionCalls, 0);
+    await assert.rejects(() => access(path.join(path.dirname(configPath), 'runs')));
+  });
+});
+
+test('dispatches explicit multi and single commands to production with exact run identity', async () => {
+  const dispatched: Array<{ runId: string; mode: string; rootDir: string }> = [];
+  for (const mode of ['multi', 'single'] as const) {
+    await withConfig(configYaml('', '', '', mode), async configPath => {
+      const exitCode = await mainSharedevalV1([
+        mode,
+        '--config', configPath,
+        '--run-id', `${mode}-production-1`,
+      ], {
+        writeOutput: () => {},
+        runProduction: async input => {
+          dispatched.push({
+            runId: input.runId,
+            mode: input.config.workflow.mode,
+            rootDir: input.configRootDir,
+          });
+          return {
+            runId: input.runId,
+            workflowId: input.config.workflow.id,
+            runRoot: `/runs/${input.runId}`,
+            sourceRevision: 'a'.repeat(40),
+            run: { workflowId: input.config.workflow.id } as never,
+          };
+        },
+      });
+      assert.equal(exitCode, 0);
+    });
+  }
+  assert.deepEqual(dispatched.map(({ runId, mode }) => ({ runId, mode })), [
+    { runId: 'multi-production-1', mode: 'multi' },
+    { runId: 'single-production-1', mode: 'single' },
+  ]);
+  assert.ok(dispatched.every(entry => path.isAbsolute(entry.rootDir)));
+});
+
+test('requires --run-id only when execution is requested', async () => {
+  await withConfig(configYaml(), async configPath => {
+    assert.equal(await mainSharedevalV1(
+      ['multi', '--config', configPath, '--check'],
+      { writeOutput: () => {} },
+    ), 0);
+    await assert.rejects(
+      () => mainSharedevalV1(['multi', '--config', configPath], { writeOutput: () => {} }),
+      /--run-id.*required/i,
+    );
+  });
+});
+
+async function withConfig(
+  source: string,
+  run: (configPath: string) => Promise<void>,
+): Promise<void> {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'sharedeval-cli-'));
+  const configPath = path.join(directory, 'run.yaml');
+  await writeFile(configPath, source, 'utf8');
+  try {
+    await run(configPath);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+function configYaml(
+  benchmarkExtra = '',
+  rootExtra = '',
+  budget = '',
+  mode: 'multi' | 'single' = 'multi',
+): string {
+  return `
+apiVersion: sharedeval-run/v1
+kind: RunConfig
+${rootExtra}model:
+  provider: openai-compatible
+  baseUrl: https://api.example.com/v1
+  apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
+  model: example-model
+workflow:
+  mode: ${mode}
+  protocol: files
+  maxTicks: 2
+  stopWhen: all-terminal
+benchmark:
+${benchmarkExtra}  tasks:
+    kind: all
+${budget}output:
+  directory: runs
+  saveTraces: false
+`;
 }

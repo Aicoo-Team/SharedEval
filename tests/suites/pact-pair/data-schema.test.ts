@@ -64,12 +64,6 @@ test('requires exact mutation targets for edit and completion actions', () => {
   assert.ok(pairCompletion);
   assert.throws(() => pairActionSchema.parse({ ...pairEdit, target_item: null }));
   assert.equal(pairActionSchema.parse(pairCompletion).gold_check.type, 'todo_completed');
-
-  const evaluatorSource = readFileSync(join(repoRoot, 'scripts/experiment_v2.ts'), 'utf8');
-  assert.match(
-    evaluatorSource,
-    /goldCheck\?\.target \|\| goldCheck\?\.title \|\| action\?\.target_item/,
-  );
 });
 
 test('validates a concrete Pair datastore record', () => {

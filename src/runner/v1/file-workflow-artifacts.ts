@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { PACT_PAIR_METRIC_NAMES_V1 } from '../../suites/pact-pair/evaluation.js';
@@ -6,13 +7,15 @@ import { MAX_AGENT_WORKSPACE_FILE_BYTES_V1 } from './agent-workspace.js';
 import {
   pactPairFullEvaluationV1Schema,
   pactPairPublicEvaluationV1Schema,
-} from './artifacts.js';
-import { CONTACT_AGENT_ERROR_CODES_V1 } from './contact-agent.js';
-import { fileTurnDecisionV1Schema } from './file-harness.js';
+} from '../../suites/pact-pair/public-evaluation.js';
+import { fileTurnDecisionV1Schema } from './file-turn-contracts.js';
+import {
+  FILE_SESSION_CONTACT_ERROR_CODES_V1,
+  SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
+} from './sharedos-file-session-contracts.js';
 import { agentWorkspaceRegistryReferencesV1Schema } from './workspace-registry.js';
 
 export const MAX_FILE_WORKFLOW_SELECTED_TASKS_V1 = 600;
-const MAX_PRIVATE_RESPONSE_BYTES_V1 = 1_048_576;
 const MAX_PRIVATE_MEMORY_BASE64_LENGTH_V1 =
   Math.ceil(MAX_AGENT_WORKSPACE_FILE_BYTES_V1 / 3) * 4;
 const opaqueIdSchema = z.string().min(1).max(128).regex(
@@ -26,6 +29,7 @@ const registryIdSchema = z.string().min(1).max(256).regex(
 const semverSchema = z.string().regex(/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/);
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 const nonNegativeSafeIntegerSchema = z.number().int().safe().nonnegative();
+const positiveSafeIntegerSchema = z.number().int().safe().positive();
 const nonNegativeFiniteSchema = z.number().finite().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const fileWorkflowIdSchema = z.enum(['files-multi', 'files-single']);
 const taskKindSchema = z.enum(['qa', 'action']);
@@ -39,22 +43,22 @@ const terminalStatusSchema = z.enum([
 const contactStatusSchema = z.enum(['completed', 'denied', 'failed', 'cancelled']);
 const fileMemoryStatusSchema = z.enum(['pending', 'answered', 'refused', 'error']);
 const pactPairMetricNameSchema = z.enum(PACT_PAIR_METRIC_NAMES_V1);
-const task5ContactErrorCodeSchema = z.enum(
-  Object.values(CONTACT_AGENT_ERROR_CODES_V1) as [string, ...string[]],
-);
-const TASK6_CONTACT_ERROR_CODES_V1 = Object.freeze([
-  'CONTACT_REQUESTER_FILE_READ_REQUIRED',
-  'CONTACT_DUPLICATE_TASK',
-  'CONTACT_RESPONDER_FILE_READ_REQUIRED',
-] as const);
-const contactErrorCodeSchema = z.union([
-  task5ContactErrorCodeSchema,
-  z.enum(TASK6_CONTACT_ERROR_CODES_V1),
+const contactErrorCodeSchema = z.enum(FILE_SESSION_CONTACT_ERROR_CODES_V1);
+const executionStatusSchema = z.enum([
+  'succeeded',
+  'denied',
+  'failed',
+  'cancelled',
+  'escalated',
+]);
+const sessionStopReasonSchema = z.enum([
+  'all_terminal',
+  'tick_exhausted',
+  'fatal_error',
 ]);
 
 export const FILE_WORKFLOW_PUBLIC_ERROR_CODES_V1 = Object.freeze([
-  ...Object.values(CONTACT_AGENT_ERROR_CODES_V1),
-  ...TASK6_CONTACT_ERROR_CODES_V1,
+  ...FILE_SESSION_CONTACT_ERROR_CODES_V1,
   'FILE_TURN_FAILED',
   'FILE_SESSION_FAILED',
   'FILE_SESSION_PREPARATION_FAILED',
@@ -143,8 +147,9 @@ export type FileWorkflowSelectedTaskV1 = z.infer<typeof fileWorkflowSelectedTask
 
 const datasetProvenanceSchema = z.object({
   id: z.literal('pact-pair'),
-  split: opaqueIdSchema,
-  sourceRevision: z.string().regex(/^[a-f0-9]{40}$/i),
+  version: semverSchema,
+  manifestSha256: sha256Schema,
+  tasksSha256: sha256Schema,
 }).strict();
 
 const goldSetProvenanceSchema = z.object({
@@ -152,9 +157,33 @@ const goldSetProvenanceSchema = z.object({
   sha256: sha256Schema,
 }).strict();
 
+export const fileWorkflowHostRunProvenanceV1Schema = z.object({
+  dataset: datasetProvenanceSchema,
+  goldSet: goldSetProvenanceSchema,
+  models: z.object({
+    requester: fileWorkflowModelProvenanceV1Schema,
+    responder: fileWorkflowModelProvenanceV1Schema,
+  }).strict(),
+  backend: fileWorkflowBackendProvenanceV1Schema,
+}).strict();
+
+export type FileWorkflowHostRunProvenanceV1 = z.infer<
+  typeof fileWorkflowHostRunProvenanceV1Schema
+>;
+
 const policyProvenancePairSchema = z.object({
   requester: assetProvenanceSchema,
   responder: assetProvenanceSchema,
+}).strict();
+
+const fileWorkflowSharedOsRunAuthorityV1Schema = z.object({
+  runStartedAt: z.string()
+    .datetime({ offset: false, precision: 3 })
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+  namespaceId: registryIdSchema,
+  grantManifestDigest: sha256Schema,
+  sharedOsRevision: z.string().regex(/^[a-f0-9]{40}$/),
+  sharedOsRuntimeDigest: sha256Schema,
 }).strict();
 
 export const fileWorkflowRunBindingV1Schema = z.object({
@@ -164,6 +193,16 @@ export const fileWorkflowRunBindingV1Schema = z.object({
   selectedTaskIds: z.array(opaqueIdSchema).min(1).max(MAX_FILE_WORKFLOW_SELECTED_TASKS_V1),
   selectedTasks: z.array(fileWorkflowSelectedTaskV1Schema).min(1).max(MAX_FILE_WORKFLOW_SELECTED_TASKS_V1),
   selectedTaskDigest: sha256Schema,
+  scheduler: z.object({
+    sessionId: opaqueIdSchema,
+    sessionIndex: nonNegativeSafeIntegerSchema,
+    maxTicks: positiveSafeIntegerSchema,
+    budget: z.object({
+      deadlineMs: positiveSafeIntegerSchema,
+      maxToolCalls: positiveSafeIntegerSchema,
+    }).strict(),
+    initialActionSha256: sha256Schema,
+  }).strict(),
   dataset: datasetProvenanceSchema,
   goldSet: goldSetProvenanceSchema,
   policies: policyProvenancePairSchema,
@@ -172,6 +211,7 @@ export const fileWorkflowRunBindingV1Schema = z.object({
     responder: actorBindingSchema,
   }).strict(),
   backend: fileWorkflowBackendProvenanceV1Schema,
+  sharedOs: fileWorkflowSharedOsRunAuthorityV1Schema,
 }).strict().superRefine((binding, context) => {
   if (new Set(binding.selectedTaskIds).size !== binding.selectedTaskIds.length) {
     context.addIssue({
@@ -451,43 +491,207 @@ const fileReadReceiptSchema = z.object({
   byteLength: nonNegativeSafeIntegerSchema.max(MAX_AGENT_WORKSPACE_FILE_BYTES_V1),
 }).strict();
 
-const contactPrivateBaseShape = {
-  taskId: opaqueIdSchema,
-  senderId: opaqueIdSchema,
-  recipientId: opaqueIdSchema,
-  purpose: z.string().min(1).max(256),
-  intent: z.string().min(1).max(256),
-  message: z.string().min(1).max(65_536),
-  requestTraceId: opaqueIdSchema,
-  deadlineMs: z.number().int().safe().positive().max(3_600_000),
-  recipientTraceId: opaqueIdSchema,
-} as const;
-const contactPrivateSchema = z.discriminatedUnion('status', [
-  z.object({
-    ...contactPrivateBaseShape,
-    status: z.literal('completed'),
-    response: z.string().min(1).max(MAX_PRIVATE_RESPONSE_BYTES_V1),
-  }).strict(),
-  z.object({
-    ...contactPrivateBaseShape,
-    status: z.literal('denied'),
-    errorCode: contactErrorCodeSchema,
-  }).strict(),
-  z.object({
-    ...contactPrivateBaseShape,
-    status: z.literal('failed'),
-    errorCode: contactErrorCodeSchema,
-  }).strict(),
-  z.object({
-    ...contactPrivateBaseShape,
-    status: z.literal('cancelled'),
-    errorCode: contactErrorCodeSchema,
-  }).strict(),
-]);
-
 const strictJsonInputSchema = z.unknown().superRefine((value, context) => {
   validatePlainJsonInput(value, context, [], new WeakSet<object>());
 });
+const strictJsonObjectInputSchema = strictJsonInputSchema.pipe(
+  z.record(z.string(), z.unknown()),
+);
+const canonicalBase64Schema = z.string()
+  .max(MAX_PRIVATE_MEMORY_BASE64_LENGTH_V1)
+  .refine(value => Buffer.from(value, 'base64').toString('base64') === value, {
+    message: 'must use canonical base64',
+  });
+
+const sharedOsAddressSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('human'), userId: z.string().min(1).max(256) }).strict(),
+  z.object({ kind: z.literal('agent'), agentId: z.string().min(1).max(256) }).strict(),
+  z.object({ kind: z.literal('group'), conversationId: z.string().min(1).max(256) }).strict(),
+  z.object({ kind: z.literal('service'), serviceId: z.string().min(1).max(256) }).strict(),
+]);
+const sharedOsResourceRefSchema = z.object({
+  namespace: z.string().min(1).max(256),
+  path: z.array(z.string().min(1).max(256)).max(16),
+  owner: sharedOsAddressSchema.optional(),
+}).strict();
+const sharedOsMessageEnvelopeSchema = z.object({
+  version: z.literal('1'),
+  id: opaqueIdSchema,
+  sender: sharedOsAddressSchema,
+  receiver: sharedOsAddressSchema,
+  purpose: z.literal(SHAREDEVAL_PACT_PAIR_PURPOSE_V1),
+  payload: strictJsonInputSchema,
+  traceId: opaqueIdSchema,
+  replyTo: opaqueIdSchema.optional(),
+  createdAt: z.string().datetime({ offset: true }),
+  provenance: z.object({
+    source: z.string().min(1).max(256),
+    parentIds: z.array(opaqueIdSchema).max(32),
+    metadata: strictJsonObjectInputSchema.optional(),
+  }).strict().optional(),
+}).strict();
+const sharedOsAuditEventSchema = z.object({
+  version: z.literal('1'),
+  type: z.enum([
+    'authority.resolved',
+    'authorization.checked',
+    'escalation.requested',
+    'resource.invoked',
+    'tool.catalog.listed',
+    'tool.namespace.catalog.listed',
+    'tool.namespace.selection.updated',
+    'tool.invoked',
+    'message.sent',
+  ]),
+  outcome: z.enum(['allowed', 'denied', 'succeeded', 'failed', 'escalated']),
+  at: z.string().datetime({ offset: true }),
+  traceId: opaqueIdSchema,
+  namespaceId: registryIdSchema,
+  actor: sharedOsAddressSchema,
+  authority: sharedOsAddressSchema,
+  owner: sharedOsAddressSchema,
+  purpose: z.literal(SHAREDEVAL_PACT_PAIR_PURPOSE_V1),
+  resource: sharedOsResourceRefSchema.optional(),
+  action: z.string().min(1).max(128).optional(),
+  grantId: opaqueIdSchema.optional(),
+  authorityHash: sha256Schema.optional(),
+  operationId: opaqueIdSchema.optional(),
+  tool: z.string().min(1).max(256).optional(),
+  messageId: opaqueIdSchema.optional(),
+  receiver: sharedOsAddressSchema.optional(),
+  reason: z.string().min(1).max(2048).optional(),
+  metadata: strictJsonObjectInputSchema.optional(),
+}).strict();
+
+const sharedOsFileOperationBaseShape = {
+  runId: opaqueIdSchema,
+  actorId: opaqueIdSchema,
+  traceId: opaqueIdSchema,
+  operationId: opaqueIdSchema,
+} as const;
+const sharedOsFileReadOperationSchema = z.object({
+  ...sharedOsFileOperationBaseShape,
+  path: z.enum(['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md']),
+  action: z.literal('read'),
+  outcome: z.literal('succeeded'),
+  version: nonNegativeSafeIntegerSchema,
+  sha256: sha256Schema,
+  byteLength: nonNegativeSafeIntegerSchema.max(MAX_AGENT_WORKSPACE_FILE_BYTES_V1),
+}).strict();
+const sharedOsFileReplaceBaseShape = {
+  ...sharedOsFileOperationBaseShape,
+  path: z.literal('MEMORY.md'),
+  action: z.literal('replace'),
+  expectedVersion: nonNegativeSafeIntegerSchema,
+  previousVersion: nonNegativeSafeIntegerSchema,
+  previousSha256: sha256Schema,
+  previousByteLength: nonNegativeSafeIntegerSchema.max(MAX_AGENT_WORKSPACE_FILE_BYTES_V1),
+  version: nonNegativeSafeIntegerSchema,
+  sha256: sha256Schema,
+  byteLength: nonNegativeSafeIntegerSchema.max(MAX_AGENT_WORKSPACE_FILE_BYTES_V1),
+} as const;
+const rawSharedOsFileReplaceConflictSchema = z.object({
+  ...sharedOsFileReplaceBaseShape,
+  outcome: z.literal('conflict'),
+  previousBytesBase64: canonicalBase64Schema,
+  newBytesBase64: canonicalBase64Schema,
+}).strict().superRefine((receipt, context) => {
+  const previous = Buffer.from(receipt.previousBytesBase64, 'base64');
+  if (
+    previous.byteLength !== receipt.previousByteLength
+    || createHash('sha256').update(previous).digest('hex') !== receipt.previousSha256
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['previousBytesBase64'],
+      message: 'conflict receipt previous bytes must match their metadata',
+    });
+  }
+}).transform(receipt => {
+  const { previousBytesBase64: _previous, newBytesBase64, ...bounded } = receipt;
+  const attempted = Buffer.from(newBytesBase64, 'base64');
+  return {
+    ...bounded,
+    attemptedSha256: createHash('sha256').update(attempted).digest('hex'),
+    attemptedByteLength: attempted.byteLength,
+  };
+});
+const normalizedSharedOsFileReplaceConflictSchema = z.object({
+  ...sharedOsFileReplaceBaseShape,
+  outcome: z.literal('conflict'),
+  attemptedSha256: sha256Schema,
+  attemptedByteLength: nonNegativeSafeIntegerSchema.max(MAX_AGENT_WORKSPACE_FILE_BYTES_V1),
+}).strict();
+const sharedOsFileReplaceCommittedSchema = z.object({
+  ...sharedOsFileReplaceBaseShape,
+  outcome: z.literal('committed'),
+  previousBytesBase64: canonicalBase64Schema,
+  newBytesBase64: canonicalBase64Schema,
+  durability: z.literal('published_unsynced').optional(),
+}).strict().superRefine((receipt, context) => {
+  const previous = Buffer.from(receipt.previousBytesBase64, 'base64');
+  const next = Buffer.from(receipt.newBytesBase64, 'base64');
+  if (
+    receipt.expectedVersion !== receipt.previousVersion
+    || receipt.version !== receipt.previousVersion + 1
+    || previous.byteLength !== receipt.previousByteLength
+    || createHash('sha256').update(previous).digest('hex') !== receipt.previousSha256
+    || next.byteLength !== receipt.byteLength
+    || createHash('sha256').update(next).digest('hex') !== receipt.sha256
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'committed MEMORY receipt bytes and CAS metadata must match exactly',
+    });
+  }
+});
+const sharedOsFileOperationSchema = z.union([
+  sharedOsFileReadOperationSchema,
+  sharedOsFileReplaceCommittedSchema,
+  normalizedSharedOsFileReplaceConflictSchema,
+  rawSharedOsFileReplaceConflictSchema,
+]);
+
+const providerUsageTelemetrySchema = z.object({
+  promptTokens: nonNegativeFiniteSchema.optional(),
+  completionTokens: nonNegativeFiniteSchema.optional(),
+  totalTokens: nonNegativeFiniteSchema.optional(),
+  reasoningTokens: nonNegativeFiniteSchema.optional(),
+  cachedTokens: nonNegativeFiniteSchema.optional(),
+  costUsd: nonNegativeFiniteSchema.optional(),
+}).strict();
+const providerRequestTelemetrySchema = z.object({
+  requestedModel: z.string().min(1).max(512),
+  resolvedModel: z.string().min(1).max(512),
+  servedModel: z.string().min(1).max(512).optional(),
+  provider: z.string().min(1).max(512).optional(),
+  responseId: z.string().min(1).max(512).optional(),
+  requestId: z.string().min(1).max(512).optional(),
+  generationId: z.string().min(1).max(512).optional(),
+  httpStatus: z.number().int().safe().min(100).max(599).optional(),
+  lastResponseAttempt: nonNegativeSafeIntegerSchema.optional(),
+  retryable: z.boolean().optional(),
+  latencyMs: nonNegativeFiniteSchema,
+  attempts: nonNegativeSafeIntegerSchema,
+  choiceCount: nonNegativeSafeIntegerSchema.optional(),
+  outcome: z.enum(['success', 'invalid_response', 'provider_error']),
+  usage: providerUsageTelemetrySchema.optional(),
+}).strict();
+const providerTelemetrySchema = z.object({
+  requestedModel: z.string().min(1).max(512),
+  resolvedModel: z.string().min(1).max(512),
+  requests: z.array(providerRequestTelemetrySchema).max(512),
+  totals: z.object({
+    requests: nonNegativeSafeIntegerSchema.max(512),
+    promptTokens: nonNegativeFiniteSchema.optional(),
+    completionTokens: nonNegativeFiniteSchema.optional(),
+    totalTokens: nonNegativeFiniteSchema.optional(),
+    reasoningTokens: nonNegativeFiniteSchema.optional(),
+    cachedTokens: nonNegativeFiniteSchema.optional(),
+    costUsd: nonNegativeFiniteSchema.optional(),
+  }).strict(),
+}).strict();
+
 const strictPairDataStoreSchema = strictJsonInputSchema.pipe(dataStoreSchema);
 const strictFullEvaluationSchema = strictJsonInputSchema.pipe(
   pactPairFullEvaluationV1Schema,
@@ -518,13 +722,18 @@ const fullEvaluationEvidenceSchema = z.object({
   }
 });
 
-export const fileWorkflowPrivateEvidenceV1Schema = z.object({
-  contactRequests: z.array(contactPrivateSchema).max(1),
-  memory: z.object({
-    actorId: opaqueIdSchema,
-    previousBytesBase64: z.string().max(MAX_PRIVATE_MEMORY_BASE64_LENGTH_V1),
-    newBytesBase64: z.string().max(MAX_PRIVATE_MEMORY_BASE64_LENGTH_V1),
-  }).strict().optional(),
+export const fileWorkflowSharedOsRetainedEvidenceV1Schema = z.object({
+  requesterExecutionStatus: executionStatusSchema,
+  sourceEvidence: z.object({
+    requesterFileOperations: z.array(sharedOsFileOperationSchema).max(512),
+    responderFileOperations: z.array(sharedOsFileOperationSchema).max(512),
+    acceptedMessages: z.array(sharedOsMessageEnvelopeSchema).max(2),
+    auditEvents: z.array(sharedOsAuditEventSchema).min(1).max(4096),
+  }).strict(),
+  providerTelemetry: z.object({
+    requester: providerTelemetrySchema,
+    responder: providerTelemetrySchema.optional(),
+  }).strict(),
   actionSnapshots: z.array(z.object({
     taskId: opaqueIdSchema,
     contactId: opaqueIdSchema,
@@ -534,6 +743,14 @@ export const fileWorkflowPrivateEvidenceV1Schema = z.object({
     after: strictPairDataStoreSchema,
   }).strict()).max(1),
   tickDecisions: z.array(fileTurnDecisionV1Schema).max(1),
+}).strict();
+
+export type FileWorkflowSharedOsRetainedEvidenceV1 = z.infer<
+  typeof fileWorkflowSharedOsRetainedEvidenceV1Schema
+>;
+
+export const fileWorkflowPrivateEvidenceV1Schema =
+  fileWorkflowSharedOsRetainedEvidenceV1Schema.extend({
   fullEvaluations: z.array(fullEvaluationEvidenceSchema)
     .max(MAX_FILE_WORKFLOW_SELECTED_TASKS_V1),
 }).strict();
@@ -545,6 +762,8 @@ export type FileWorkflowPrivateEvidenceV1 = z.infer<
 export const fileWorkflowContactAuthorityV1Schema = z.object({
   taskId: opaqueIdSchema,
   contactId: opaqueIdSchema,
+  replyMessageId: opaqueIdSchema.optional(),
+  responderExecutionId: opaqueIdSchema.optional(),
   kind: taskKindSchema,
   status: contactStatusSchema,
   errorCode: contactErrorCodeSchema.optional(),
@@ -585,6 +804,20 @@ export const fileWorkflowContactAuthorityV1Schema = z.object({
       code: z.ZodIssueCode.custom,
       path: ['actionSnapshotDigest'],
       message: 'QA contact authority cannot carry action snapshot state',
+    });
+  }
+  const hasResponderOutcome = authority.status === 'completed' || authority.status === 'denied';
+  if (
+    (hasResponderOutcome && (
+      authority.replyMessageId === undefined
+      || authority.responderExecutionId === undefined
+    ))
+    || (!hasResponderOutcome && authority.replyMessageId !== undefined)
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['replyMessageId'],
+      message: 'completed or denied contacts require reply and execution IDs; failures cannot claim a reply',
     });
   }
 });
@@ -637,7 +870,45 @@ export type FileWorkflowMemoryAuthorityV1 = z.infer<
   typeof fileWorkflowMemoryAuthorityV1Schema
 >;
 
+const fileWorkflowMemoryTransitionV1Schema = z.object({
+  actorId: opaqueIdSchema,
+  previousVersion: nonNegativeSafeIntegerSchema,
+  newVersion: nonNegativeSafeIntegerSchema,
+  previousSha256: sha256Schema,
+  newSha256: sha256Schema,
+  byteLength: nonNegativeSafeIntegerSchema.max(MAX_AGENT_WORKSPACE_FILE_BYTES_V1),
+}).strict().superRefine((transition, context) => {
+  if (transition.newVersion !== transition.previousVersion + 1) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['newVersion'],
+      message: 'new MEMORY version must advance by exactly one',
+    });
+  }
+});
+
+const fileWorkflowSharedOsHeartbeatAuthorityV1Schema =
+  fileWorkflowSharedOsRunAuthorityV1Schema.extend({
+    requesterExecutionId: opaqueIdSchema,
+    requesterExecutionStatus: executionStatusSchema,
+    responderExecutionId: opaqueIdSchema.optional(),
+    audit: z.object({
+      firstSequence: nonNegativeSafeIntegerSchema,
+      lastSequence: nonNegativeSafeIntegerSchema,
+      sha256: sha256Schema,
+    }).strict(),
+  }).strict().superRefine((authority, context) => {
+    if (authority.audit.lastSequence < authority.audit.firstSequence) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['audit', 'lastSequence'],
+        message: 'SharedOS audit window must be a nonempty inclusive range',
+      });
+    }
+  });
+
 export const fileWorkflowHeartbeatPayloadV1Schema = z.object({
+  inputDigest: sha256Schema,
   event: z.object({
     eventId: opaqueIdSchema,
     runId: opaqueIdSchema,
@@ -646,29 +917,14 @@ export const fileWorkflowHeartbeatPayloadV1Schema = z.object({
     actorId: opaqueIdSchema,
     traceId: opaqueIdSchema,
   }).strict(),
-  selectedTaskId: opaqueIdSchema.optional(),
-  correlatedContactId: opaqueIdSchema.optional(),
   contactAuthority: fileWorkflowContactAuthorityV1Schema.optional(),
   fileReads: z.array(fileReadReceiptSchema).max(512),
-  memoryTransition: z.object({
-    actorId: opaqueIdSchema,
-    previousVersion: nonNegativeSafeIntegerSchema,
-    newVersion: nonNegativeSafeIntegerSchema,
-    previousSha256: sha256Schema,
-    newSha256: sha256Schema,
-    byteLength: nonNegativeSafeIntegerSchema.max(MAX_AGENT_WORKSPACE_FILE_BYTES_V1),
-  }).strict().superRefine((transition, context) => {
-    if (transition.newVersion !== transition.previousVersion + 1) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['newVersion'],
-        message: 'new MEMORY version must advance by exactly one',
-      });
-    }
-  }).optional(),
-  memoryAuthority: fileWorkflowMemoryAuthorityV1Schema.optional(),
+  memoryTransitions: z.array(fileWorkflowMemoryTransitionV1Schema).max(2),
+  memoryAuthorities: z.array(fileWorkflowMemoryAuthorityV1Schema).max(2),
   transitions: z.array(fileWorkflowTerminalTransitionV1Schema)
     .max(MAX_FILE_WORKFLOW_SELECTED_TASKS_V1),
+  sharedOsAuthority: fileWorkflowSharedOsHeartbeatAuthorityV1Schema,
+  sessionStopReason: sessionStopReasonSchema.optional(),
   provider: z.object({
     requester: fileWorkflowModelProvenanceV1Schema,
     responder: fileWorkflowModelProvenanceV1Schema.optional(),
@@ -685,35 +941,48 @@ export const fileWorkflowHeartbeatPayloadV1Schema = z.object({
       message: 'terminal transitions must contain unique task IDs',
     });
   }
-  if (payload.correlatedContactId !== undefined && payload.selectedTaskId === undefined) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['selectedTaskId'],
-      message: 'a correlated contact requires its selected task identity',
-    });
-  }
   if (payload.contactAuthority && (
-    payload.contactAuthority.taskId !== payload.selectedTaskId
-    || payload.contactAuthority.contactId !== payload.correlatedContactId
-    || payload.contactAuthority.eventId !== payload.event.eventId
+    payload.contactAuthority.eventId !== payload.event.eventId
   )) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['contactAuthority'],
-      message: 'contact authority must match its task, contact, and heartbeat event',
+      message: 'contact authority must match its heartbeat event',
     });
   }
-  const selectedTransition = payload.transitions.find(transition => (
-    transition.taskId === payload.selectedTaskId
-  ));
+  const selectedTransition = payload.contactAuthority
+    ? payload.transitions.find(transition => (
+      transition.taskId === payload.contactAuthority?.taskId
+    ))
+    : undefined;
   if (
     selectedTransition?.contactId !== undefined
-    && selectedTransition.contactId !== payload.correlatedContactId
+    && selectedTransition.contactId !== payload.contactAuthority?.contactId
   ) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ['correlatedContactId'],
-      message: 'selected terminal contact must match the heartbeat correlation',
+      path: ['contactAuthority'],
+      message: 'current terminal contact must match the heartbeat contact authority',
+    });
+  }
+  const memoryActorIds = payload.memoryTransitions.map(transition => transition.actorId);
+  if (
+    payload.memoryTransitions.length !== payload.memoryAuthorities.length
+    || new Set(memoryActorIds).size !== memoryActorIds.length
+    || payload.memoryAuthorities.some((authority, index) => {
+      const transition = payload.memoryTransitions[index];
+      return !transition
+        || authority.actorId !== transition.actorId
+        || authority.previousVersion !== transition.previousVersion
+        || authority.newVersion !== transition.newVersion
+        || authority.previousSha256 !== transition.previousSha256
+        || authority.newSha256 !== transition.newSha256;
+    })
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['memoryAuthorities'],
+      message: 'MEMORY transitions and authorities require one unique exact actor-ordered pair',
     });
   }
 });

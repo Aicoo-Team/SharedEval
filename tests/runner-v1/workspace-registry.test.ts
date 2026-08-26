@@ -16,6 +16,30 @@ const canonicalRoot = join(
   'v1',
 );
 
+const requesterInstructionAssetIds = [
+  'agents/dana/base/agent',
+  'agents/dana/base/heartbeat',
+  'agents/jordan/base/agent',
+  'agents/jordan/base/heartbeat',
+  'agents/marcus/base/agent',
+  'agents/marcus/base/heartbeat',
+  'agents/tina/base/agent',
+  'agents/tina/base/heartbeat',
+  'heartbeats/files-multi',
+  'heartbeats/files-single',
+] as const;
+
+const sharedOsTurnInstructionAssetIds = [
+  'agents/alex/base/agent',
+  'agents/alex/base/heartbeat',
+  ...requesterInstructionAssetIds,
+] as const;
+
+const expectedMessageRequestArguments = {
+  recipient: { kind: 'agent', agentId: 'responder' },
+  payload: { taskId: '<selected task ID>', message: '<your question>' },
+};
+
 type RegistryModule = typeof import('../../src/runner/v1/workspace-registry.js');
 
 function loadSubject(): Promise<RegistryModule> {
@@ -137,6 +161,87 @@ test('loads the canonical registry in stable lexical order with exactly four bas
   }
 });
 
+test('publishes SharedOS turn instructions as new exact 1.1.0 assets', async () => {
+  const { loadWorkspaceRegistryV1 } = await loadSubject();
+  const registry = await loadWorkspaceRegistryV1({ rootDir: canonicalRoot });
+
+  for (const id of sharedOsTurnInstructionAssetIds) {
+    const asset = registry.assets.find(candidate => candidate.id === id);
+    assert.ok(asset, `${id} must be registered`);
+    assert.equal(asset.version, '1.1.0', `${id} version`);
+    assert.equal(asset.provenance.kind, 'exact', `${id} provenance`);
+
+    const operational = await readFile(join(canonicalRoot, asset.sourcePath));
+    const source = await readFile(join(repoRoot, asset.provenance.sourcePath));
+    assert.deepEqual(operational, source, `${id} exact source bytes`);
+    assert.equal(operational.byteLength, asset.byteLength, `${id} byteLength`);
+    assert.equal(sha256(operational), asset.sha256, `${id} sha256`);
+    assert.equal(asset.provenance.sourceSha256, asset.sha256, `${id} sourceSha256`);
+  }
+});
+
+test('gives every active requester instruction the canonical model-visible messages.request contract', async () => {
+  const { loadWorkspaceRegistryV1 } = await loadSubject();
+  const registry = await loadWorkspaceRegistryV1({ rootDir: canonicalRoot });
+
+  for (const id of requesterInstructionAssetIds) {
+    const asset = registry.assets.find(candidate => candidate.id === id);
+    assert.ok(asset, `${id} must be registered`);
+    assert.equal(asset.status, 'active');
+    assert.ok(asset.actorRoles.includes('requester'));
+
+    const content = (await readFile(join(canonicalRoot, asset.sourcePath), 'utf8'));
+    assert.match(content, /messages\.request/);
+    assert.doesNotMatch(content, /contact_agent/);
+    assert.doesNotMatch(
+      content,
+      /["'](?:actor|purpose|trace|messageId|replyTo|intent)["']\s*:/,
+      `${id} must not present trusted fields as model arguments`,
+    );
+    assert.doesNotMatch(content, /\bintent\s*=/);
+
+    const block = /```json\n([\s\S]*?)\n```/.exec(content);
+    if (asset.sourcePath.endsWith('/AGENT.md') || id.startsWith('heartbeats/')) {
+      assert.ok(block, `${id} must show the complete JSON-safe request arguments`);
+      assert.deepEqual(JSON.parse(block[1]!), expectedMessageRequestArguments);
+    }
+
+    for (const field of ['actor', 'purpose', 'trace', 'messageId', 'replyTo', 'intent']) {
+      assert.match(
+        content,
+        new RegExp(`\\b${field}\\b`),
+        `${id} must explain trusted ${field} handling`,
+      );
+    }
+  }
+});
+
+test('separates all-selected multi work from the one-selected single workflow', async () => {
+  const { loadWorkspaceRegistryV1 } = await loadSubject();
+  const registry = await loadWorkspaceRegistryV1({ rootDir: canonicalRoot });
+  const content = async (id: string) => {
+    const asset = registry.assets.find(candidate => candidate.id === id);
+    assert.ok(asset);
+    return readFile(join(canonicalRoot, asset.sourcePath), 'utf8');
+  };
+
+  assert.match(await content('heartbeats/files-multi'), /all selected tasks/i);
+  assert.match(await content('heartbeats/files-single'), /one selected task/i);
+});
+
+test('keeps executable legacy messaging syntax out of canonical requester sources', async () => {
+  for (const agent of ['dana', 'jordan', 'marcus', 'tina']) {
+    for (const fileName of ['AGENT.md', 'HEARTBEAT.md']) {
+      const content = await readFile(
+        join(repoRoot, 'dataset', 'pact-pair', 'agent_configs', agent, fileName),
+        'utf8',
+      );
+      assert.doesNotMatch(content, /contact_agent/);
+      assert.doesNotMatch(content, /["']intent["']\s*:|\bintent\s*=/);
+    }
+  }
+});
+
 test('resolves every executable canonical asset with exact UTF-8 bytes, byte count, and SHA-256', async () => {
   const { loadWorkspaceRegistryV1, resolveWorkspaceRegistryAssetV1 } =
     await loadSubject();
@@ -169,14 +274,14 @@ test('keeps task gold and derived high-entropy answer sentinels out of every act
   const { loadWorkspaceRegistryV1, resolveWorkspaceRegistryAssetV1 } =
     await loadSubject();
   const registry = await loadWorkspaceRegistryV1({ rootDir: canonicalRoot });
-  const gold = JSON.parse(await readFile(
-    join(repoRoot, 'dataset', 'pact-pair', 'tasks', 'gold_answers_legacy.json'),
+  const gold = (JSON.parse(await readFile(
+    join(repoRoot, 'dataset', 'pact-pair', 'tasks', 'questions.json'),
     'utf8',
-  )) as Array<{
-    id: number;
-    gold_key_facts: string[];
-    minimum_correct: string;
-  }>;
+  )) as { questions: Array<{
+      id: number;
+      gold_key_facts: string[];
+      minimum_correct: string;
+    }> }).questions;
   const highEntropyFacts = [...new Set(gold.flatMap(record =>
     record.gold_key_facts.filter(fact => fact.length >= 10 && /[0-9$]/.test(fact))
   ))];
@@ -276,7 +381,7 @@ test('independently verifies exact and derived provenance against operational by
   const tinaHeartbeat = registry.assets.find(asset =>
     asset.id === 'agents/tina/base/heartbeat'
   );
-  assert.equal(Reflect.get(tinaHeartbeat!, 'provenance')?.kind, 'derived');
+  assert.equal(Reflect.get(tinaHeartbeat!, 'provenance')?.kind, 'exact');
   const alexAgent = registry.assets.find(asset => asset.id === 'agents/alex/base/agent');
   assert.equal(Reflect.get(alexAgent!, 'provenance')?.kind, 'exact');
 });
@@ -490,6 +595,18 @@ test('strict registry parsing rejects unsafe, ambiguous, unordered, or incomplet
       'invalid role',
       fixtureRegistry([fixtureAsset({ actorRoles: ['owner'] })]),
       /actorRoles|requester|responder/i,
+    ],
+    [
+      'retired workflow',
+      fixtureRegistry([fixtureAsset({
+        compatibleWorkflowIds: ['legacy-multi-transcript'],
+      })]),
+      /compatibleWorkflowIds|files-multi|files-single/i,
+    ],
+    [
+      'retired status',
+      fixtureRegistry([fixtureAsset({ status: 'legacy' })]),
+      /status|active|draft|incomplete/i,
     ],
     [
       'missing explicit status',

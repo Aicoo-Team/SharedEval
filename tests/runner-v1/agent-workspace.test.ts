@@ -277,7 +277,7 @@ test('does not substitute legacy COO.md when AGENT.md is missing', async () => {
   }
 });
 
-test('keeps the Tina heartbeat question count aligned with policy and memory', async () => {
+test('drives Tina from selected tasks while keeping policy and memory aligned', async () => {
   const runner = await import('../../src/runner/v1/index.js');
   const loader = Reflect.get(runner, 'loadAgentWorkspaceTemplateV1');
   assert.equal(typeof loader, 'function');
@@ -292,8 +292,8 @@ test('keeps the Tina heartbeat question count aligned with policy and memory', a
     loader as AgentWorkspaceTemplateLoader
   )({ rootDir }) as LoadedAgentWorkspaceTemplate;
 
-  const declared = /ALL (\d+) questions/.exec(template.files.heartbeat.content);
-  assert.equal(declared?.[1], '200');
+  assert.match(template.files.heartbeat.content, /all selected tasks/i);
+  assert.doesNotMatch(template.files.heartbeat.content, /ALL \d+ questions/);
 
   const expectedNumbers = Array.from({ length: 200 }, (_, index) => index + 1);
   const policyNumbers = Array.from(
@@ -304,6 +304,7 @@ test('keeps the Tina heartbeat question count aligned with policy and memory', a
     template.files.memory.content.matchAll(/^(\d+)\.\s/gm),
     match => Number(match[1]),
   );
+  assert.equal(policyNumbers.length, 200);
   assert.deepEqual(policyNumbers, expectedNumbers);
-  assert.deepEqual(memoryNumbers, expectedNumbers);
+  assert.deepEqual(memoryNumbers, policyNumbers);
 });

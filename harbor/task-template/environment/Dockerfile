@@ -1,1 +1,0 @@
-FROM {{IMAGE_NAME}}

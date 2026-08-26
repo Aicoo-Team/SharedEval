@@ -1,20 +1,10 @@
 node_modules/
 dist/
-# SharedOS build artifacts staged into the Harbor Docker build context by the
-# Harbor backend (regenerated on every run; provenance lives in the packages).
-harbor/environment/sharedos-stage/
 coverage/
 .DS_Store
 .env
 .env.*
 !.env.example
 runs/
-!rebuttal/runs/
-rebuttal/runs/*
-!rebuttal/runs/run_experiments.py
-!rebuttal/runs/validate_setup.py
-!rebuttal/runs/run_policy_lane.py
-!rebuttal/runs/run_relationship_lane.py
-!rebuttal/runs/run_surface_lane.py
 results/raw/
 *.log

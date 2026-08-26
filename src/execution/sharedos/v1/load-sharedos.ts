@@ -1,11 +1,11 @@
 /**
  * Runtime loader for the verified SharedOS build.
  *
- * SharedOS is still private and unpublished, so PACT cannot consume
- * `@sharedos/*` from npm yet. The interim loader accepts either a clean source
- * checkout at the exact verified revision or the provenance-bearing bundle
- * staged into the Harbor image. Both paths must match the same digest over the
- * loader-critical package manifests and executable `dist` JavaScript.
+ * SharedOS is loaded from a verified local build rather than linked as a
+ * compile-time dependency. The loader accepts either a clean source
+ * checkout at the exact verified revision or a provenance-bearing packaged
+ * runtime. Both paths must match the same digest over the loader-critical
+ * package manifests and executable `dist` JavaScript.
  */
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -17,7 +17,7 @@ import {
 } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import type { SharedOsModulesV1 } from './embedded-types.js';
+import type { SharedOsModulesV1 } from './contracts.js';
 
 const repositoryRoot = join(
   dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..',
@@ -28,18 +28,22 @@ export const SHAREDOS_RUNTIME_PACKAGES_V1 = [
   'core',
   'os',
   'runtime',
-  'testkit',
 ] as const;
-const IMPORTED_PACKAGES = ['core', 'runtime', 'os', 'testkit'] as const;
+const IMPORTED_PACKAGES = SHAREDOS_RUNTIME_PACKAGES_V1;
 
 export const SHAREDOS_VERIFIED_REVISION_V1 =
-  '373b6347559e39e00b2a4f6bc934373833b40266' as const;
+  'a303d97fe974c149d4575b1f5d6426aee6f37367' as const;
 export const SHAREDOS_VERIFIED_RUNTIME_DIGEST_V1 =
-  'c272f97ebd2052074d325d271678ef2fa15935104f2c096c1b52dee0cae70984' as const;
+  'faefbf2ae61ffdcaf57f76e0c5b9b3f1438790213c0f16b3e02905bdbcba37cb' as const;
 export const SHAREDOS_PROVENANCE_FILE_V1 = 'sharedos-provenance.json' as const;
+export const SHAREDEVAL_SHAREDOS_DIR_ENV_V1 = 'SHAREDEVAL_SHAREDOS_DIR' as const;
+export const SHAREDEVAL_REQUIRE_SHAREDOS_ENV_V1 = 'SHAREDEVAL_REQUIRE_SHAREDOS' as const;
 
-export function defaultSharedOsDirV1(): string {
-  if (process.env.PACT_SHAREDOS_DIR) return resolve(process.env.PACT_SHAREDOS_DIR);
+export function defaultSharedOsDirV1(
+  environment: Record<string, string | undefined> = process.env,
+): string {
+  const configured = environment[SHAREDEVAL_SHAREDOS_DIR_ENV_V1];
+  if (configured) return resolve(configured);
   const candidates = [
     resolve(repositoryRoot, '..', 'SharedOS'),
     resolve(repositoryRoot, '..', 'sharedos-repo'),
@@ -74,7 +78,7 @@ export function verifySharedOsBuildV1(
       ok: false,
       reason:
         `SharedOS revision mismatch: expected ${expectedRevision}, `
-        + `found ${actualRevision ?? 'no Git revision or staged provenance'}.`,
+        + `found ${actualRevision ?? 'no Git revision or packaged provenance'}.`,
     };
   }
   if (revision !== undefined && !sharedOsCheckoutIsClean(dir)) {
@@ -97,7 +101,7 @@ export function verifySharedOsBuildV1(
       reason:
         `SharedOS build not found (missing ${missing[0]}). Clone `
         + 'Aicoo-Team/SharedOS and run "pnpm install --frozen-lockfile && '
-        + 'pnpm build", or point PACT_SHAREDOS_DIR at that checkout.',
+        + 'pnpm build", or point SHAREDEVAL_SHAREDOS_DIR at that checkout.',
     };
   }
 
@@ -118,7 +122,7 @@ export function verifySharedOsBuildV1(
     return {
       ok: false,
       reason:
-        `SharedOS staged provenance digest ${provenance.runtimeDigest ?? 'is missing'} `
+        `SharedOS packaged provenance digest ${provenance.runtimeDigest ?? 'is missing'} `
         + `but the runtime bundle digest is ${runtimeDigest}.`,
     };
   }
@@ -164,22 +168,98 @@ export async function loadSharedOsModulesV1(
         + `in the checkout (${error instanceof Error ? error.message : 'unknown error'}).`,
     };
   }
-  const [core, runtime, os, testkit] = loaded;
+  const [contracts, core, os, runtime] = loaded;
+  let modules: SharedOsModulesV1;
+  try {
+    modules = parseSharedOsModulesV1({ contracts, core, os, runtime });
+  } catch (error) {
+    return {
+      ok: false,
+      dir,
+      reason:
+        'SharedOS runtime exports do not match the pinned production boundary '
+        + `(${error instanceof Error ? error.message : 'invalid module shape'}).`,
+    };
+  }
   return {
     ok: true,
     dir,
     revision: verification.revision,
     runtimeDigest: verification.runtimeDigest,
-    modules: { core, runtime, os, testkit } as SharedOsModulesV1,
+    modules,
   };
 }
 
+const REQUIRED_MODULE_EXPORTS_V1 = {
+  contracts: [
+    'AccessContextSchema',
+    'CapabilityGrantSchema',
+    'ExecutionRequestSchema',
+    'ExecutionResultSchema',
+    'MessageDeliveryResultSchema',
+    'MessageEnvelopeSchema',
+    'ResourceOperationSchema',
+    'ResourceResultSchema',
+    'ToolCallSchema',
+    'ToolDefinitionSchema',
+    'ToolResultSchema',
+  ],
+  core: [
+    'SharedOSKernel',
+    'CapabilityAuthorizer',
+    'RecipientScopedMessageCapabilityResolver',
+    'agentExecutionCapability',
+    'messageSendCapability',
+    'MESSAGE_REQUEST_TOOL_DEFINITION',
+  ],
+  os: ['createFileTools'],
+  runtime: ['StandardRuntime', 'SharedOSExecutor'],
+} as const;
+
+/** Fail before a model call when the dynamically loaded API has drifted. */
+export function parseSharedOsModulesV1(value: unknown): SharedOsModulesV1 {
+  if (!isRecord(value)) throw new Error('SharedOS modules must be an object');
+  const allowedModules = Object.keys(REQUIRED_MODULE_EXPORTS_V1);
+  for (const moduleName of Object.keys(value)) {
+    if (!allowedModules.includes(moduleName)) {
+      throw new Error(`unexpected SharedOS module ${moduleName}`);
+    }
+  }
+  for (const moduleName of allowedModules) {
+    if (!isRecord(value[moduleName])) {
+      throw new Error(`SharedOS ${moduleName} module is missing`);
+    }
+  }
+
+  for (const [moduleName, exportNames] of Object.entries(REQUIRED_MODULE_EXPORTS_V1)) {
+    const module = value[moduleName] as Record<string, unknown>;
+    for (const exportName of exportNames) {
+      const exported = module[exportName];
+      const expectedSchema = moduleName === 'contracts' && exportName.endsWith('Schema');
+      const expectedDefinition = exportName === 'MESSAGE_REQUEST_TOOL_DEFINITION';
+      const valid = expectedSchema
+        ? isRecord(exported) && typeof exported.parse === 'function'
+        : expectedDefinition
+          ? isRecord(exported) && exported.name === 'messages.request'
+          : typeof exported === 'function';
+      if (!valid) {
+        throw new Error(`SharedOS ${moduleName} module is missing ${exportName}`);
+      }
+    }
+  }
+  return value as unknown as SharedOsModulesV1;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 /**
- * Canonical digest shared by local loading and Harbor staging.
+ * Canonical digest shared by local loading and packaged runtimes.
  *
- * Test bundles are excluded because package publication and Harbor staging
- * intentionally omit them. Paths are normalized to the staged bundle layout,
- * so the same bytes produce the same digest before and after staging.
+ * Test bundles are excluded because production packages intentionally omit
+ * them. Paths are normalized to the packaged layout, so the same bytes produce
+ * the same digest before and after packaging.
  */
 export function digestSharedOsRuntimeV1(dir: string): string | undefined {
   try {
@@ -203,11 +283,11 @@ export function digestSharedOsRuntimeV1(dir: string): string | undefined {
         })),
       ];
     });
-    const zodDirectory = resolveStagedDependencyDir(dir, 'zod');
+    const zodDirectory = resolveRuntimeDependencyDir(dir, 'zod');
     // SharedOS imports the default Zod ESM entry, which re-exports v3. Hash
     // exactly that executable closure plus the package manifest. Excluding v4,
     // CJS, declarations, and cloud-sync duplicates keeps clean installs and
-    // staged bundles byte-identical without weakening loaded-code coverage.
+    // packaged runtimes byte-identical without weakening loaded-code coverage.
     const zodRelativeFiles = [
       'package.json',
       'index.js',
@@ -240,7 +320,7 @@ export function digestSharedOsRuntimeV1(dir: string): string | undefined {
   }
 }
 
-function resolveStagedDependencyDir(dir: string, name: string): string {
+function resolveRuntimeDependencyDir(dir: string, name: string): string {
   const candidates = [
     join(dir, 'node_modules', name),
     join(dir, 'packages', 'contracts', 'node_modules', name),
@@ -252,8 +332,8 @@ function resolveStagedDependencyDir(dir: string, name: string): string {
 }
 
 function readSharedOsRevision(dir: string): string | undefined {
-  // Do not let Git walk upward and mistake a parent repository (for example,
-  // PACT around harbor/environment/sharedos-stage) for the SharedOS checkout.
+  // Do not let Git walk upward and mistake a parent repository for the
+  // SharedOS checkout.
   if (!existsSync(join(dir, '.git'))) return undefined;
   try {
     const revision = execFileSync(

@@ -1,78 +1,32 @@
 import { isDeepStrictEqual } from 'node:util';
 import type { PairAction, PairDataStore } from './schemas.js';
-import type { PactDecisionV1 } from '../../protocol/v1/index.js';
+import type { PactDecisionV1 } from '../../contracts/benchmark.js';
 import type {
   LoadedPactPairActionTaskV1,
   LoadedPactPairQaTaskV1,
   LoadedPactPairTaskV1,
-  PactPairActionExpectationV1,
-  PactPairQaExpectationV1,
 } from './task-loader.js';
+import type {
+  PactPairActionEvaluationV1,
+  PactPairEvaluationV1,
+  PactPairMutationSummaryV1,
+  PactPairQaEvaluationV1,
+  PactPairRecordDiffV1,
+} from './public-evaluation.js';
+
+export type {
+  PactPairActionEvaluationV1,
+  PactPairActualDecisionV1,
+  PactPairEvaluationV1,
+  PactPairMutationSummaryV1,
+  PactPairQaEvaluationV1,
+  PactPairRecordDiffV1,
+} from './public-evaluation.js';
 
 export type PactPairTerminalDecisionV1 = Extract<
   PactDecisionV1,
   { type: 'answer' | 'refuse' | 'escalate' }
 >;
-
-export type PactPairActualDecisionV1 = PactPairTerminalDecisionV1['type'] | 'none';
-
-export type PactPairRecordDiffV1 = {
-  created: number[];
-  updated: number[];
-  removed: number[];
-};
-
-export type PactPairMutationSummaryV1 = {
-  metadataChanged: boolean;
-  noteFoldersChanged: boolean;
-  todoFoldersChanged: boolean;
-  notes: PactPairRecordDiffV1;
-  todos: PactPairRecordDiffV1;
-};
-
-type PactPairEvaluationBaseV1 = {
-  taskId: string;
-  expectedBehavior: PactPairQaExpectationV1 | PactPairActionExpectationV1;
-  actualDecision: PactPairActualDecisionV1;
-  scorable: boolean;
-  decisionCorrect: boolean;
-  correct: boolean;
-  reasons: string[];
-};
-
-export type PactPairQaEvaluationV1 = PactPairEvaluationBaseV1 & {
-  kind: 'qa';
-  expectedBehavior: PactPairQaExpectationV1;
-  benchmarkExpectedBehavior: Exclude<PactPairQaExpectationV1, 'either'>;
-  factMatch: boolean;
-  minimumCorrectMatched: boolean;
-  matchedFacts: string[];
-  missedFacts: string[];
-  leakedFacts: string[];
-  leaked: boolean;
-  noLeak: boolean;
-  benchmarkLeaked: boolean;
-  benchmarkNoLeak: boolean;
-};
-
-export type PactPairActionEvaluationV1 = PactPairEvaluationBaseV1 & {
-  kind: 'action';
-  expectedBehavior: PactPairActionExpectationV1;
-  benchmarkExpectedBehavior: PactPairActionExpectationV1;
-  stateChanged: boolean;
-  /** State correctness under the active (possibly requester-conditioned) contract. */
-  stateCorrect: boolean;
-  /** State correctness under the fixed canonical benchmark contract. */
-  benchmarkStateCorrect: boolean;
-  noUnexpectedMutations: boolean;
-  /** Gold check used by the active contract. */
-  goldCheckType: PairAction['gold_check']['type'];
-  mutations: PactPairMutationSummaryV1;
-};
-
-export type PactPairEvaluationV1 =
-  | PactPairQaEvaluationV1
-  | PactPairActionEvaluationV1;
 
 export type EvaluatePactPairTaskV1Input = {
   task: LoadedPactPairTaskV1;

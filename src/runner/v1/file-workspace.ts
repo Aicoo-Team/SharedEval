@@ -267,6 +267,29 @@ export async function openFileWorkspaceV1(input: {
   return workspace;
 }
 
+/** Reports whether an actor workspace exists without creating or validating it. */
+export async function inspectFileWorkspacePresenceV1(input: {
+  rootDir: string;
+  runId: string;
+  actorId: string;
+}): Promise<'absent' | 'present'> {
+  assertSafeId(input.runId, 'run');
+  assertSafeId(input.actorId, 'actor');
+  await assertRealDirectory(input.rootDir, 'workspace root');
+
+  let directory = input.rootDir;
+  for (const [child, label] of [
+    ['runs', 'workspace runs directory'],
+    [input.runId, 'workspace run directory'],
+    ['workspaces', 'workspace actors directory'],
+    [input.actorId, 'actor workspace'],
+  ] as const) {
+    directory = join(directory, child);
+    if (!await inspectRealDirectory(directory, label)) return 'absent';
+  }
+  return 'present';
+}
+
 class FileWorkspaceV1 implements MaterializedFileWorkspaceV1 {
   readonly publication: { durability: 'synced' | 'published_unsynced' };
 
@@ -783,6 +806,16 @@ async function assertRealDirectory(path: string, label: string): Promise<void> {
   const stats = await lstat(path);
   if (stats.isSymbolicLink() || !stats.isDirectory()) {
     throw new Error(`${label} must be a real directory`);
+  }
+}
+
+async function inspectRealDirectory(path: string, label: string): Promise<boolean> {
+  try {
+    await assertRealDirectory(path, label);
+    return true;
+  } catch (error: unknown) {
+    if (isCode(error, 'ENOENT')) return false;
+    throw error;
   }
 }
 
