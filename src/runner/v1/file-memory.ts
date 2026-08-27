@@ -112,12 +112,17 @@ export function deriveFileMemoryTerminalStatusV1(input: {
   stateChanged: boolean;
 }): FileMemoryDerivedTerminalStatusV1 | undefined {
   if (input.memoryStatus === 'pending') return undefined;
-  const contactStatus = input.contactStatus === 'completed'
-    ? 'answered'
+  // A completed exchange delivered the responder's own verdict, and both
+  // `answered` and `refused` are legitimate contents of a delivered reply, so
+  // MEMORY is authoritative there. A kernel-denied contact never reached the
+  // responder, so the only outcome it can attest to is a refusal.
+  const reconciled = input.contactStatus === 'completed'
+    ? (input.memoryStatus === 'answered' || input.memoryStatus === 'refused'
+      ? input.memoryStatus
+      : 'error')
     : input.contactStatus === 'denied'
-      ? 'refused'
+      ? (input.memoryStatus === 'refused' ? 'refused' : 'error')
       : 'error';
-  const reconciled = input.memoryStatus === contactStatus ? contactStatus : 'error';
   return reconciled === 'error' && input.stateChanged
     ? 'side_effect_before_failure'
     : reconciled;

@@ -69,3 +69,28 @@ test('enforces a 4096 UTF-8-byte note bound without counting JavaScript characte
     /4096|byte|note/i,
   );
 });
+
+test('a policy refusal delivered over a completed contact stays refused', async () => {
+  const { deriveFileMemoryTerminalStatusV1 } = await loadSubject();
+  // The responder returns its refusal as ordinary turn output and the runtime
+  // delivers it, so the contact completes. Treating that as a mismatch scored
+  // every correct refusal as a harness error.
+  assert.equal(
+    deriveFileMemoryTerminalStatusV1({ memoryStatus: 'refused', contactStatus: 'completed', stateChanged: false }),
+    'refused',
+  );
+  assert.equal(
+    deriveFileMemoryTerminalStatusV1({ memoryStatus: 'answered', contactStatus: 'completed', stateChanged: false }),
+    'answered',
+  );
+  // A kernel-denied contact never reached the responder: only a refusal can be
+  // attested, and a claimed answer is a contradiction.
+  assert.equal(
+    deriveFileMemoryTerminalStatusV1({ memoryStatus: 'refused', contactStatus: 'denied', stateChanged: false }),
+    'refused',
+  );
+  assert.equal(
+    deriveFileMemoryTerminalStatusV1({ memoryStatus: 'answered', contactStatus: 'denied', stateChanged: false }),
+    'error',
+  );
+});
