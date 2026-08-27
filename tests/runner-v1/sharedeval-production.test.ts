@@ -136,7 +136,10 @@ test('composes explicit multi and single runs through one preloaded SharedOS fac
   }
 });
 
-test('rejects requester R0 before source, SharedOS, model, directories, or execution', async () => {
+test('resolves requester R0 to its workspace persona and proceeds', async () => {
+  // R0 (Riley Novak, the stranger identity) has a registered requester
+  // workspace, so identity resolution no longer rejects it: the run advances
+  // to source inspection like any other requester.
   const calls: string[] = [];
   await assert.rejects(
     () => runSharedevalProductionV1({
@@ -152,9 +155,8 @@ test('rejects requester R0 before source, SharedOS, model, directories, or execu
       prepareRunDirectories: async () => { calls.push('directories'); throw new Error('unreachable'); },
       runFiles: async () => { calls.push('run'); throw new Error('unreachable'); },
     }),
-    /R0.*workspace asset|workspace asset.*R0/i,
   );
-  assert.deepEqual(calls, []);
+  assert.ok(calls.includes('source'), 'R0 must reach source inspection');
 });
 
 function effectiveConfig(mode: 'multi' | 'single', requester: 'R0' | 'R1' = 'R1') {

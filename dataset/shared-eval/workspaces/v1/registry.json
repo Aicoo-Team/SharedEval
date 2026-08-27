@@ -443,6 +443,58 @@
       }
     },
     {
+      "id": "agents/riley/base/agent",
+      "version": "1.1.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/riley/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/riley/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 1115,
+      "sha256": "db3a8ceff3dc7dc18c63ad1f216914a9b12334a108e274c25c8c8a9b5c46415e",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/agent_configs/riley/AGENT.md",
+        "sourceSha256": "db3a8ceff3dc7dc18c63ad1f216914a9b12334a108e274c25c8c8a9b5c46415e"
+      }
+    },
+    {
+      "id": "agents/riley/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "agents/riley/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/riley/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 9462,
+      "sha256": "420895ed34eca0b8b84d3ab1fffab59f5e4a4d22db136864dd5317315123f6f4",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/agent_configs/riley/POLICY.md",
+        "sourceSha256": "420895ed34eca0b8b84d3ab1fffab59f5e4a4d22db136864dd5317315123f6f4"
+      }
+    },
+    {
       "id": "agents/tina/base/agent",
       "version": "1.1.0",
       "actorRoles": [
