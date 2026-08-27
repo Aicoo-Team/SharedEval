@@ -47,6 +47,12 @@ const MAX_FILE_TOOL_RESULT_BYTES_V1 = 2 * 1_024 * 1_024;
 const DEFAULT_PROVIDER_TIMEOUT_MS_V1 = 3_600_000;
 const MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1 = 3;
 const DEFAULT_PROVIDER_RATE_LIMIT_DELAY_MS_V1 = 15_000;
+// The caller's signal only carries the whole-task budget (budget.maxRuntimeMs).
+// A silently stalled connection never settles, so without a per-attempt bound it
+// consumes that budget in full: the rate-limit loop below never gets a second
+// attempt and the turn dies at the task deadline. Bound each attempt separately
+// so a stall costs one attempt rather than the entire run.
+const DEFAULT_PROVIDER_ATTEMPT_TIMEOUT_MS_V1 = 90_000;
 const MAX_PROVIDER_RATE_LIMIT_DELAY_MS_V1 = 60_000;
 const RECIPIENT_TURN_BOOTSTRAP_V1 =
   [
@@ -550,6 +556,10 @@ class OpenAICompatibleFileTurnSessionV1 {
 
   async #fetchCompletion(signal: AbortSignal): Promise<FetchedCompletion> {
     const timeoutMs = this.#request.options?.timeoutMs ?? DEFAULT_PROVIDER_TIMEOUT_MS_V1;
+    const attemptTimeoutMs = Math.min(
+      DEFAULT_PROVIDER_ATTEMPT_TIMEOUT_MS_V1,
+      timeoutMs,
+    );
     const startedAt = Date.now();
     let failureHeaders: ProviderHeaders = {};
     let failureStatus: number | undefined;
@@ -561,6 +571,13 @@ class OpenAICompatibleFileTurnSessionV1 {
         failureHeaders = {};
         failureStatus = undefined;
         failureRetryable = undefined;
+        // AbortSignal.timeout's timer is unref'd and collected with the signal,
+        // so each attempt carries its own deadline with no timer left to clear
+        // on the success, redirect, 429 and error paths below.
+        const attemptSignal = AbortSignal.any([
+          signal,
+          AbortSignal.timeout(attemptTimeoutMs),
+        ]);
         let response: Response;
         try {
           response = await this.#fetchImplementation(this.#completionUrl, {
@@ -568,10 +585,18 @@ class OpenAICompatibleFileTurnSessionV1 {
             headers: { ...this.#authHeaders, 'content-type': 'application/json' },
             body: JSON.stringify(this.#requestBody()),
             redirect: 'manual',
-            signal,
+            signal: attemptSignal,
           });
         } catch {
+          // A task-level abort is terminal; only this attempt's own timeout
+          // earns another try.
           throwIfAborted(signal);
+          if (
+            attemptSignal.aborted
+            && attempts < MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1
+          ) {
+            continue;
+          }
           failureRetryable = true;
           throw new ProviderRequestErrorV1(
             'File model provider request failed',
@@ -613,7 +638,7 @@ class OpenAICompatibleFileTurnSessionV1 {
         }
         const responseBody = await readBoundedOpenAICompatibleProviderJsonV1(
           response,
-          signal,
+          attemptSignal,
           timeoutMs,
           'File model provider',
         );

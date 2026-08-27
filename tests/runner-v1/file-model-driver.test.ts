@@ -498,7 +498,55 @@ test('uses the SharedOS timeout or cancellation signal for in-flight provider wo
   abort.abort(new Error('sharedos cancelled the turn'));
 
   await assert.rejects(pending, /sharedos cancelled the turn/);
-  assert.equal(observedSignal, abort.signal);
+  // The driver hands fetch a derived signal (the caller's, combined with this
+  // attempt's own deadline), so assert that cancellation still propagates
+  // rather than that the very same object was forwarded.
+  assert.equal(observedSignal?.aborted, true);
+});
+
+test('bounds each provider attempt so one stalled request cannot drain the task budget', async () => {
+  const outer = new AbortController();
+  let calls = 0;
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: async (_input, init) => {
+      calls += 1;
+      const signal = init?.signal as AbortSignal;
+      if (calls === 1) {
+        // Stall the way a silently wedged provider connection does: never
+        // respond, and settle only once some deadline aborts this request.
+        return await new Promise<Response>((_resolve, reject) => {
+          signal.addEventListener('abort', () => {
+            reject(signal.reason ?? new Error('aborted'));
+          }, { once: true });
+        });
+      }
+      return completion({
+        content: null,
+        tool_calls: [{
+          id: 'provider-call-1',
+          type: 'function',
+          function: {
+            name: 'files.read',
+            arguments: JSON.stringify({ path: ['MEMORY.md'] }),
+          },
+        }],
+      });
+    },
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(
+    turnRequest({ options: { maxSteps: 4, maxToolCalls: 3, timeoutMs: 50 } }),
+    outer.signal,
+  );
+
+  const decision = await session.next({ type: 'start' }, outer.signal);
+
+  // The stalled attempt was abandoned on its own deadline and the next attempt
+  // ran, instead of the whole task budget draining into the first request.
+  assert.equal(calls, 2);
+  assert.equal(decision.type, 'tool_call');
+  assert.equal(outer.signal.aborted, false);
 });
 
 type ProviderMessage = {
