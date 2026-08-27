@@ -16,10 +16,11 @@
     "eval:pact-pair": "tsx src/suites/pact-pair/evaluation-tools/v1/cli.ts",
     "test:evaluation": "tsx --test tests/suites/pact-pair/evaluation-tools/v1/*.test.ts",
     "export:huggingface:pact-pair": "node scripts/huggingface/export-pact-pair.mjs --check",
-    "test": "tsx --test tests/contracts/*.test.ts tests/runner-v1/*.test.ts tests/datasets/*.test.ts tests/evaluation/*.test.ts tests/execution/*.test.ts tests/suites/pact-pair/*.test.ts tests/suites/pact-net/*.test.ts tests/suites/pact-pair/evaluation-tools/v1/*.test.ts",
+    "test": "tsx --test tests/contracts/*.test.ts tests/runner-v1/*.test.ts tests/experiments/*.test.ts tests/datasets/*.test.ts tests/evaluation/*.test.ts tests/execution/*.test.ts tests/suites/pact-pair/*.test.ts tests/suites/pact-net/*.test.ts tests/suites/pact-pair/evaluation-tools/v1/*.test.ts",
     "test:execution": "tsx --test tests/execution/*.test.ts",
     "test:sharedos": "SHAREDEVAL_REQUIRE_SHAREDOS=1 tsx --test tests/execution/sharedos-loader.test.ts tests/execution/sharedos-runtime-conformance.test.ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test:experiments": "tsx --test tests/experiments/*.test.ts"
   },
   "dependencies": {
     "yaml": "^2.9.0",
