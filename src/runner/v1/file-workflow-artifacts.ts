@@ -284,11 +284,21 @@ export const fileWorkflowPublicResultV1Schema = z.object({
       message: 'answered results require a completed contact',
     });
   }
-  if (result.status === 'refused' && result.contactStatus !== 'denied') {
+  // A refusal reaches the requester on either channel: the responder can deny
+  // the request outright (denied), or answer the envelope with a reply whose
+  // content declines (completed). Only the first is representable as a turn
+  // decision -- the model driver derives `denied` from the provider's
+  // API-level refusal field -- so requiring `denied` here scored every
+  // policy-based refusal as a harness error.
+  if (
+    result.status === 'refused'
+    && result.contactStatus !== 'denied'
+    && result.contactStatus !== 'completed'
+  ) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['contactStatus'],
-      message: 'refused results require a denied contact',
+      message: 'refused results require a delivered or denied contact',
     });
   }
   if (
