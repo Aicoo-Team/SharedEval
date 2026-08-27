@@ -1,0 +1,78 @@
+# Run-level isolation for one SharedEval experiment cell.
+#
+# Launched exclusively by scripts/experiments/run-cell.sh, which exports:
+#   SHAREDEVAL_EXPERIMENT_IMAGE      experiment image ref (build-image.sh)
+#   SHAREDEVAL_EXPERIMENT_CELL_DIR   host cell directory under $HOME (rw run volume)
+#   SHAREDEVAL_EXPERIMENT_PROXY_DIR  host directory with the generated
+#                                    tinyproxy.conf + allowlist (ro)
+#
+# Topology: the runner joins ONLY the internal network (no egress, no host
+# route); the proxy joins internal + egress and forwards CONNECT requests to
+# exactly one allowlisted host:443. SHAREDEVAL_MODEL_API_KEY is injected only
+# via `docker compose run -e` — it never appears in this file.
+
+networks:
+  internal:
+    internal: true
+  egress: {}
+
+services:
+  runner:
+    image: "${SHAREDEVAL_EXPERIMENT_IMAGE:?run-cell.sh must export SHAREDEVAL_EXPERIMENT_IMAGE}"
+    networks:
+      - internal
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    init: true
+    mem_limit: 4g
+    memswap_limit: 4g
+    pids_limit: 512
+    cpus: 2
+    environment:
+      NODE_USE_ENV_PROXY: "1"
+      HTTPS_PROXY: "http://proxy:8888"
+      NO_PROXY: "localhost,127.0.0.1,::1"
+    volumes:
+      # The run volume: the only writable persistent path in the container.
+      - type: bind
+        source: "${SHAREDEVAL_EXPERIMENT_CELL_DIR:?run-cell.sh must export SHAREDEVAL_EXPERIMENT_CELL_DIR}"
+        target: /sharedeval-cell
+        read_only: false
+      # Writable scratch on a read-only rootfs (also HOME and all caches).
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 268435456
+    depends_on:
+      proxy:
+        condition: service_started
+
+  proxy:
+    # CONNECT-only forward proxy; config + single-host allowlist are generated
+    # per cell by run-cell.sh from the config's model.baseUrl host. tinyproxy
+    # is baked at build time (proxy.Dockerfile) so startup needs no network.
+    image: "${SHAREDEVAL_EXPERIMENT_PROXY_IMAGE:?run-cell.sh must export SHAREDEVAL_EXPERIMENT_PROXY_IMAGE}"
+    networks:
+      - internal
+      - egress
+    # Multi-homed (internal + egress) containers lose external resolution via
+    # Docker's embedded DNS on some engines (observed on colima): name lookups
+    # for the allowlisted endpoint return EAI_AGAIN. Explicit upstream servers
+    # restore forwarding; the proxy never needs service-name DNS.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    security_opt:
+      - no-new-privileges:true
+    init: true
+    mem_limit: 256m
+    pids_limit: 64
+    cpus: 0.5
+    volumes:
+      - type: bind
+        source: "${SHAREDEVAL_EXPERIMENT_PROXY_DIR:?run-cell.sh must export SHAREDEVAL_EXPERIMENT_PROXY_DIR}"
+        target: /etc/sharedeval-proxy
+        read_only: true
