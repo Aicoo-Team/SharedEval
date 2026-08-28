@@ -6,6 +6,7 @@ import type {
 } from '../../src/execution/sharedos/v1/contracts.js';
 import {
   createOpenAICompatibleFileTurnDriverV1,
+  createServedModelConsistencyLedgerV1,
 } from '../../src/runner/v1/file-model-driver.js';
 import {
   SHAREDEVAL_MODEL_API_KEY_ENV_V1,
@@ -515,8 +516,13 @@ test('bounds each provider attempt so one stalled request cannot drain the task 
       if (calls === 1) {
         // Stall the way a silently wedged provider connection does: never
         // respond, and settle only once some deadline aborts this request.
+        // A real stall holds a live socket; this fake one must hold the event
+        // loop itself, because the attempt deadline's AbortSignal.timeout
+        // timer is unref'd and cannot keep the process alive on its own.
         return await new Promise<Response>((_resolve, reject) => {
+          const keepAlive = setTimeout(() => {}, 10_000);
           signal.addEventListener('abort', () => {
+            clearTimeout(keepAlive);
             reject(signal.reason ?? new Error('aborted'));
           }, { once: true });
         });
@@ -547,6 +553,90 @@ test('bounds each provider attempt so one stalled request cannot drain the task 
   assert.equal(calls, 2);
   assert.equal(decision.type, 'tool_call');
   assert.equal(outer.signal.aborted, false);
+});
+
+test('accepts any provider while one run-shared ledger holds the served model fixed', async () => {
+  const ledger = createServedModelConsistencyLedgerV1();
+  const first = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: 'from provider a' }, { provider: 'provider-a' }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+  const second = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: 'from provider b' }, { provider: 'provider-b' }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+
+  const firstSession = await first.open(turnRequest(), neverAbort());
+  const secondSession = await second.open(turnRequest(), neverAbort());
+
+  assert.equal((await firstSession.next({ type: 'start' }, neverAbort())).type, 'complete');
+  assert.equal((await secondSession.next({ type: 'start' }, neverAbort())).type, 'complete');
+  assert.equal(second.getFileProviderTelemetryV1().requests[0]?.provider, 'provider-b');
+});
+
+test('fails the turn when a response reports a different served model than the run', async () => {
+  const ledger = createServedModelConsistencyLedgerV1();
+  const establishing = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([completion({ content: 'establishes identity' })], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+  const diverging = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: 'wrong model' }, { model: 'some-other-model' }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+
+  const establishingSession = await establishing.open(turnRequest(), neverAbort());
+  const divergingSession = await diverging.open(turnRequest(), neverAbort());
+  assert.equal(
+    (await establishingSession.next({ type: 'start' }, neverAbort())).type,
+    'complete',
+  );
+
+  // The fixture's served model embeds the API key, so the mismatch message
+  // must pass through credential redaction like every other provider string.
+  assert.deepEqual(await divergingSession.next({ type: 'start' }, neverAbort()), {
+    type: 'fail',
+    error: {
+      code: 'model_identity_mismatch',
+      message: 'File model provider served "some-other-model" in a run that '
+        + 'established "served-[REDACTED]-model"',
+    },
+  });
+  // The divergent response is still fully recorded before the turn fails.
+  assert.equal(
+    diverging.getFileProviderTelemetryV1().requests[0]?.servedModel,
+    'some-other-model',
+  );
+});
+
+test('skips served-model enforcement when the provider omits the model field', async () => {
+  const ledger = createServedModelConsistencyLedgerV1();
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: 'anonymous response' }, { model: undefined }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+
+  assert.equal((await session.next({ type: 'start' }, neverAbort())).type, 'complete');
+  assert.deepEqual(ledger.observe('later-model'), { consistent: true });
 });
 
 type ProviderMessage = {

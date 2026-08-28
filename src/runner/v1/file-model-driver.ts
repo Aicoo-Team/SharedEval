@@ -166,11 +166,37 @@ export interface FileProviderTelemetrySourceV1 {
   getFileProviderTelemetryV1(): FileProviderTelemetryV1;
 }
 
+export type ServedModelObservationV1 =
+  | Readonly<{ consistent: true }>
+  | Readonly<{ consistent: false; expected: string }>;
+
+export interface ServedModelConsistencyLedgerV1 {
+  observe(servedModel: string): ServedModelObservationV1;
+}
+
+/**
+ * A run does not pin providers; its invariant is that every response reports
+ * the same served model. The first observed identity becomes the run's
+ * expectation and every later response must match it exactly.
+ */
+export function createServedModelConsistencyLedgerV1(): ServedModelConsistencyLedgerV1 {
+  let expected: string | undefined;
+  return {
+    observe(servedModel: string): ServedModelObservationV1 {
+      expected ??= servedModel;
+      return expected === servedModel
+        ? { consistent: true }
+        : { consistent: false, expected };
+    },
+  };
+}
+
 export type OpenAICompatibleFileTurnDriverV1Options = Readonly<{
   model: PactModelConfigV1;
   requestedModel?: string;
   fetch?: FetchImplementation;
   environment?: Record<string, string | undefined>;
+  servedModelLedger?: ServedModelConsistencyLedgerV1;
 }>;
 
 class FileModelDriverErrorV1 extends Error {
@@ -246,9 +272,11 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
   readonly #requestedModel: string;
   readonly #model: PactModelConfigV1;
   readonly #providerRequests: FileProviderRequestTelemetryV1[] = [];
+  readonly #servedModelLedger: ServedModelConsistencyLedgerV1 | undefined;
 
   constructor(options: OpenAICompatibleFileTurnDriverV1Options) {
     this.#model = options.model;
+    this.#servedModelLedger = options.servedModelLedger;
     this.#fetchImplementation = options.fetch ?? globalThis.fetch;
     if (typeof this.#fetchImplementation !== 'function') {
       throw new Error('A fetch implementation is required for the file model driver');
@@ -286,6 +314,9 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
       apiKey: this.#apiKey,
       fetchImplementation: this.#fetchImplementation,
       recordTelemetry: telemetry => this.#providerRequests.push(telemetry),
+      ...(this.#servedModelLedger
+        ? { servedModelLedger: this.#servedModelLedger }
+        : {}),
     });
   }
 
@@ -319,6 +350,7 @@ type SessionOptions = Readonly<{
   apiKey: string;
   fetchImplementation: FetchImplementation;
   recordTelemetry: (telemetry: FileProviderRequestTelemetryV1) => void;
+  servedModelLedger?: ServedModelConsistencyLedgerV1;
 }>;
 
 class OpenAICompatibleFileTurnSessionV1 {
@@ -332,6 +364,7 @@ class OpenAICompatibleFileTurnSessionV1 {
   readonly #apiKey: string;
   readonly #fetchImplementation: FetchImplementation;
   readonly #recordTelemetry: SessionOptions['recordTelemetry'];
+  readonly #servedModelLedger: ServedModelConsistencyLedgerV1 | undefined;
   readonly #messages: ProviderMessage[];
   readonly #seenProviderCallIds = new Set<string>();
   #started = false;
@@ -351,6 +384,7 @@ class OpenAICompatibleFileTurnSessionV1 {
     this.#apiKey = options.apiKey;
     this.#fetchImplementation = options.fetchImplementation;
     this.#recordTelemetry = options.recordTelemetry;
+    this.#servedModelLedger = options.servedModelLedger;
     this.#messages = [{ role: 'user', content: promptFromMessage(options.request.message) }];
   }
 
@@ -443,6 +477,19 @@ class OpenAICompatibleFileTurnSessionV1 {
       outcome: 'invalid_response',
     });
     this.#recordTelemetry(telemetry);
+    // Providers are not pinned, so the run's identity rests on every response
+    // reporting one served model; a divergent identity poisons the whole run's
+    // comparability and must surface as this task's infrastructure error.
+    if (this.#servedModelLedger && envelope.model) {
+      const observation = this.#servedModelLedger.observe(envelope.model);
+      if (!observation.consistent) {
+        throw new FileModelDriverErrorV1(
+          'model_identity_mismatch',
+          `File model provider served "${envelope.model}" in a run that `
+          + `established "${observation.expected}"`,
+        );
+      }
+    }
     const choiceResult = providerChoiceSchema.safeParse(envelope.choices[0]);
     if (!choiceResult.success) {
       throw new FileModelDriverErrorV1(

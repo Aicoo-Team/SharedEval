@@ -18,6 +18,7 @@ import {
 import { createPactPairWorkspaceV1 } from '../../suites/pact-pair/workspace.js';
 import {
   createOpenAICompatibleFileTurnDriverV1,
+  createServedModelConsistencyLedgerV1,
   type OpenAICompatibleFileTurnDriverV1Options,
 } from './file-model-driver.js';
 import {
@@ -146,6 +147,8 @@ export async function runSharedevalProductionV1(
     backend: { adapterId: 'sharedos-runtime', executor: 'sharedos-executor' },
   });
   const createDriver = dependencies.createDriver ?? createOpenAICompatibleFileTurnDriverV1;
+  // One ledger per run: providers may vary freely, the served model may not.
+  const servedModelLedger = createServedModelConsistencyLedgerV1();
   const run = await (dependencies.runFiles ?? runSharedevalPactPairFilesV1)({
     config: options.config,
     runProvenance,
@@ -168,6 +171,7 @@ export async function runSharedevalProductionV1(
       model: options.config.model,
       requestedModel: modelId,
       environment: driverEnvironment,
+      servedModelLedger,
     } satisfies OpenAICompatibleFileTurnDriverV1Options),
     createSharedOsSession,
     createSessionResources: input => ({

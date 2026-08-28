@@ -242,8 +242,13 @@ for missing cost telemetry appears there too, with its reservation intact.
 | Policy hashes, dataset/gold-set digests, backend provenance | n/a (run level) | Runner | `run.json` |
 | `lastRecordDigest`, `recordCount` | n/a (run level) | Runner checkpoint | `checkpoint.json`; binds rescore artifacts |
 
-`providerRouting` is deliberately part of the identity: the same model slug
-routed to a different upstream is a different experiment condition.
+`providerRouting`, when present, is part of the identity because it changes
+the request body. Runs do not need it and should normally omit it: the
+experiment condition is the model, not the upstream serving it. The runner
+holds that invariant directly — every response in a run must report the same
+served model (the first response fixes the expectation; a divergent
+`model_identity_mismatch` fails that task loudly), while the serving
+provider may vary freely and is recorded per request in telemetry.
 
 ## 8. Runbook
 
@@ -288,7 +293,6 @@ value):
         "model": "deepseek/deepseek-v3.2",
         "temperature": 0,
         "seed": 7,
-        "providerRouting": { "requireParameters": true },
         "maxOutputTokens": 4096
       },
       "benchmark": {
@@ -427,7 +431,8 @@ endpoint:
   deterministic identity; a 429 after a durable commit causes no repeated
   model call.
 - `providerRouting` identity: changing only the routing block changes the
-  `cellId`.
+  `cellId` (the block is normally omitted; see section 7 on the served-model
+  invariant).
 - Score/finalize cardinality: exact row counts, unique task ids, fixed
   denominators, and rejection of mixed batches.
 
