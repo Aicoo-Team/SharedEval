@@ -37,14 +37,23 @@ test('retired execution surfaces and historical artifacts are absent', () => {
   }
 });
 
-test('scripts contain only the supported Hugging Face exporter', () => {
+test('scripts contain only the supported exporter and experiment launchers', () => {
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts')).sort(), [
     'README.md',
+    'experiments',
     'huggingface',
   ]);
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts', 'huggingface')).sort(), [
     'README.md',
     'export-pact-pair.mjs',
+  ]);
+  assert.deepEqual(readdirSync(join(repoRoot, 'scripts', 'experiments')).sort(), [
+    'build-image.sh',
+    'egress-probe.mjs',
+    'egress-probe.sh',
+    'run-cell-lib.mjs',
+    'run-cell.sh',
+    'stage-sharedos-provenance.ts',
   ]);
 });
 
@@ -61,6 +70,7 @@ test('package and public docs expose only the retained product surface', () => {
     'test',
     'test:evaluation',
     'test:execution',
+    'test:experiments',
     'test:sharedos',
     'type-check',
     'validate',
