@@ -70,6 +70,33 @@ test('enforces a 4096 UTF-8-byte note bound without counting JavaScript characte
   );
 });
 
+test('marks actor content violations with the typed format error, but not host input faults', async () => {
+  const { parseFileMemoryV1, FileMemoryFormatErrorV1 } = await loadSubject();
+
+  for (const content of [
+    'task-1 pending — missing status brackets\n',
+    'task-1 [pending] - wrong dash\n',
+    'task-1 [shipped] — unsupported status\n',
+    'task-1 [pending] — one row\ntask-extra [pending] — cardinality\n',
+    `task-1 [pending] — ${'x'.repeat(5000)}\n`,
+  ]) {
+    assert.throws(
+      () => parseFileMemoryV1({ content, selectedTaskIds: ['task-1'] }),
+      (error: unknown) => error instanceof FileMemoryFormatErrorV1,
+      JSON.stringify(content.slice(0, 40)),
+    );
+  }
+
+  assert.throws(
+    () => parseFileMemoryV1({
+      content: 'task-1 [pending] — note\n',
+      selectedTaskIds: [],
+    }),
+    (error: unknown) => error instanceof Error && !(error instanceof FileMemoryFormatErrorV1),
+    'host-side selected-task input faults must stay generic errors',
+  );
+});
+
 test('a policy refusal delivered over a completed contact stays refused', async () => {
   const { deriveFileMemoryTerminalStatusV1 } = await loadSubject();
   // The responder returns its refusal as ordinary turn output and the runtime
