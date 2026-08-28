@@ -45,8 +45,25 @@ export const MAX_FILE_PROVIDER_RESPONSE_BYTES_V1 =
   MAX_OPENAI_COMPATIBLE_PROVIDER_RESPONSE_BYTES_V1;
 const MAX_FILE_TOOL_RESULT_BYTES_V1 = 2 * 1_024 * 1_024;
 const DEFAULT_PROVIDER_TIMEOUT_MS_V1 = 3_600_000;
+// Rate limits and stalled attempts are unrelated failure modes, so each gets
+// its own attempt budget: one stall must not spend the 429 budget, and a task
+// that meets both still has a full complement of retries for each.
 const MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1 = 3;
+const MAX_PROVIDER_STALL_ATTEMPTS_V1 = 3;
 const DEFAULT_PROVIDER_RATE_LIMIT_DELAY_MS_V1 = 15_000;
+// The caller's signal only carries the whole-task budget (budget.maxRuntimeMs).
+// A silently stalled connection never settles, so without a per-attempt bound it
+// consumes that budget in full: the rate-limit loop below never gets a second
+// attempt and the turn dies at the task deadline. Bound each attempt separately
+// so a stall costs one attempt rather than the entire run.
+//
+// A non-streaming completion sends headers only once generation is done, so
+// this bound is unavoidably also a cap on one generation. It therefore scales
+// with the task budget (budget / stall attempts, never below the floor below)
+// instead of imposing one hardcoded ceiling on every model, and
+// model.attemptTimeoutMs overrides it for models whose single generation is
+// long relative to their task budget.
+const PROVIDER_ATTEMPT_TIMEOUT_FLOOR_MS_V1 = 90_000;
 const MAX_PROVIDER_RATE_LIMIT_DELAY_MS_V1 = 60_000;
 const RECIPIENT_TURN_BOOTSTRAP_V1 =
   [
@@ -127,6 +144,9 @@ export type FileProviderRequestTelemetryV1 = {
   requestedModel: string;
   resolvedModel: string;
   servedModel?: string;
+  /** Present when a run-wide ledger governs this request: false means the
+   * served-model invariant could not be confirmed (missing or divergent). */
+  servedModelVerified?: boolean;
   provider?: string;
   responseId?: string;
   requestId?: string;
@@ -160,11 +180,65 @@ export interface FileProviderTelemetrySourceV1 {
   getFileProviderTelemetryV1(): FileProviderTelemetryV1;
 }
 
+export type ServedModelObservationV1 =
+  | Readonly<{ consistent: true }>
+  | Readonly<{ consistent: false; expected: string }>;
+
+export interface ServedModelConsistencyLedgerV1 {
+  observe(servedModel: string): ServedModelObservationV1;
+}
+
+/**
+ * A run does not pin providers; its invariant is that every response reports
+ * the same served model. The first observed identity becomes the run's
+ * expectation and every later response must match it exactly.
+ */
+export function createServedModelConsistencyLedgerV1(): ServedModelConsistencyLedgerV1 {
+  let expected: string | undefined;
+  return {
+    observe(servedModel: string): ServedModelObservationV1 {
+      expected ??= servedModel;
+      return expected === servedModel
+        ? { consistent: true }
+        : { consistent: false, expected };
+    },
+  };
+}
+
+export interface ProviderRateLimitGateV1 {
+  wait(signal: AbortSignal): Promise<void>;
+  block(delayMs: number): void;
+}
+
+/**
+ * Shared across every driver in a run so that one rate-limited task holds the
+ * others' next attempts back until the provider's window clears, instead of
+ * letting concurrent tasks pile onto the same limit and burn their retry
+ * budgets into data holes.
+ */
+export function createProviderRateLimitGateV1(): ProviderRateLimitGateV1 {
+  let blockedUntilMs = 0;
+  return {
+    async wait(signal: AbortSignal): Promise<void> {
+      for (;;) {
+        const remainingMs = blockedUntilMs - Date.now();
+        if (remainingMs <= 0) return;
+        await waitForProviderRateLimitV1(remainingMs, signal);
+      }
+    },
+    block(delayMs: number): void {
+      blockedUntilMs = Math.max(blockedUntilMs, Date.now() + delayMs);
+    },
+  };
+}
+
 export type OpenAICompatibleFileTurnDriverV1Options = Readonly<{
   model: PactModelConfigV1;
   requestedModel?: string;
   fetch?: FetchImplementation;
   environment?: Record<string, string | undefined>;
+  servedModelLedger?: ServedModelConsistencyLedgerV1;
+  rateLimitGate?: ProviderRateLimitGateV1;
 }>;
 
 class FileModelDriverErrorV1 extends Error {
@@ -240,9 +314,13 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
   readonly #requestedModel: string;
   readonly #model: PactModelConfigV1;
   readonly #providerRequests: FileProviderRequestTelemetryV1[] = [];
+  readonly #servedModelLedger: ServedModelConsistencyLedgerV1 | undefined;
+  readonly #rateLimitGate: ProviderRateLimitGateV1 | undefined;
 
   constructor(options: OpenAICompatibleFileTurnDriverV1Options) {
     this.#model = options.model;
+    this.#servedModelLedger = options.servedModelLedger;
+    this.#rateLimitGate = options.rateLimitGate;
     this.#fetchImplementation = options.fetch ?? globalThis.fetch;
     if (typeof this.#fetchImplementation !== 'function') {
       throw new Error('A fetch implementation is required for the file model driver');
@@ -280,6 +358,10 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
       apiKey: this.#apiKey,
       fetchImplementation: this.#fetchImplementation,
       recordTelemetry: telemetry => this.#providerRequests.push(telemetry),
+      ...(this.#servedModelLedger
+        ? { servedModelLedger: this.#servedModelLedger }
+        : {}),
+      ...(this.#rateLimitGate ? { rateLimitGate: this.#rateLimitGate } : {}),
     });
   }
 
@@ -313,6 +395,8 @@ type SessionOptions = Readonly<{
   apiKey: string;
   fetchImplementation: FetchImplementation;
   recordTelemetry: (telemetry: FileProviderRequestTelemetryV1) => void;
+  servedModelLedger?: ServedModelConsistencyLedgerV1;
+  rateLimitGate?: ProviderRateLimitGateV1;
 }>;
 
 class OpenAICompatibleFileTurnSessionV1 {
@@ -326,6 +410,8 @@ class OpenAICompatibleFileTurnSessionV1 {
   readonly #apiKey: string;
   readonly #fetchImplementation: FetchImplementation;
   readonly #recordTelemetry: SessionOptions['recordTelemetry'];
+  readonly #servedModelLedger: ServedModelConsistencyLedgerV1 | undefined;
+  readonly #rateLimitGate: ProviderRateLimitGateV1 | undefined;
   readonly #messages: ProviderMessage[];
   readonly #seenProviderCallIds = new Set<string>();
   #started = false;
@@ -345,6 +431,8 @@ class OpenAICompatibleFileTurnSessionV1 {
     this.#apiKey = options.apiKey;
     this.#fetchImplementation = options.fetchImplementation;
     this.#recordTelemetry = options.recordTelemetry;
+    this.#servedModelLedger = options.servedModelLedger;
+    this.#rateLimitGate = options.rateLimitGate;
     this.#messages = [{ role: 'user', content: promptFromMessage(options.request.message) }];
   }
 
@@ -429,14 +517,39 @@ class OpenAICompatibleFileTurnSessionV1 {
     }
 
     const envelope = envelopeResult.data;
+    // Providers are not pinned, so the run's identity rests on every response
+    // reporting one served model; a divergent identity poisons the whole run's
+    // comparability and must surface as this task's infrastructure error. A
+    // response that omits the model field is not a free pass either: it is
+    // recorded as unverified so the finalizer can see the invariant was not
+    // checked for this request.
+    let servedModelVerified: boolean | undefined;
+    let mismatchedExpectation: string | undefined;
+    if (this.#servedModelLedger) {
+      if (envelope.model) {
+        const observation = this.#servedModelLedger.observe(envelope.model);
+        servedModelVerified = observation.consistent;
+        if (!observation.consistent) mismatchedExpectation = observation.expected;
+      } else {
+        servedModelVerified = false;
+      }
+    }
     const telemetry = telemetryFromResponse({
       requestedModel: this.#requestedModel,
       resolvedModel: this.#resolvedModel,
       fetched,
       envelope,
+      ...(servedModelVerified === undefined ? {} : { servedModelVerified }),
       outcome: 'invalid_response',
     });
     this.#recordTelemetry(telemetry);
+    if (mismatchedExpectation !== undefined) {
+      throw new FileModelDriverErrorV1(
+        'model_identity_mismatch',
+        `File model provider served "${envelope.model}" in a run that `
+        + `established "${mismatchedExpectation}"`,
+      );
+    }
     const choiceResult = providerChoiceSchema.safeParse(envelope.choices[0]);
     if (!choiceResult.success) {
       throw new FileModelDriverErrorV1(
@@ -550,17 +663,40 @@ class OpenAICompatibleFileTurnSessionV1 {
 
   async #fetchCompletion(signal: AbortSignal): Promise<FetchedCompletion> {
     const timeoutMs = this.#request.options?.timeoutMs ?? DEFAULT_PROVIDER_TIMEOUT_MS_V1;
+    const configuredAttemptTimeoutMs =
+      this.#model.provider === 'openai-compatible'
+        ? this.#model.attemptTimeoutMs
+        : undefined;
+    const attemptTimeoutMs = Math.min(
+      timeoutMs,
+      configuredAttemptTimeoutMs ?? Math.max(
+        PROVIDER_ATTEMPT_TIMEOUT_FLOOR_MS_V1,
+        Math.ceil(timeoutMs / MAX_PROVIDER_STALL_ATTEMPTS_V1),
+      ),
+    );
     const startedAt = Date.now();
     let failureHeaders: ProviderHeaders = {};
     let failureStatus: number | undefined;
     let failureRetryable: boolean | undefined;
     let attempts = 0;
+    let stallAttempts = 0;
+    let rateLimitAttempts = 0;
     try {
-      while (attempts < MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1) {
+      for (;;) {
         attempts += 1;
+        // Honor a run-wide rate-limit block before spending this attempt, so
+        // concurrent tasks queue behind one 429 instead of piling onto it.
+        if (this.#rateLimitGate) await this.#rateLimitGate.wait(signal);
         failureHeaders = {};
         failureStatus = undefined;
         failureRetryable = undefined;
+        // AbortSignal.timeout's timer is unref'd and collected with the signal,
+        // so each attempt carries its own deadline with no timer left to clear
+        // on the success, redirect, 429 and error paths below.
+        const attemptSignal = AbortSignal.any([
+          signal,
+          AbortSignal.timeout(attemptTimeoutMs),
+        ]);
         let response: Response;
         try {
           response = await this.#fetchImplementation(this.#completionUrl, {
@@ -568,10 +704,21 @@ class OpenAICompatibleFileTurnSessionV1 {
             headers: { ...this.#authHeaders, 'content-type': 'application/json' },
             body: JSON.stringify(this.#requestBody()),
             redirect: 'manual',
-            signal,
+            signal: attemptSignal,
           });
         } catch {
+          // A task-level abort is terminal; only this attempt's own timeout
+          // earns another try, and only from the stall budget.
           throwIfAborted(signal);
+          if (attemptSignal.aborted) {
+            stallAttempts += 1;
+            if (stallAttempts < MAX_PROVIDER_STALL_ATTEMPTS_V1) continue;
+            failureRetryable = true;
+            throw new ProviderRequestErrorV1(
+              'File model provider attempts kept exceeding their deadline',
+              { retryable: true },
+            );
+          }
           failureRetryable = true;
           throw new ProviderRequestErrorV1(
             'File model provider request failed',
@@ -599,10 +746,22 @@ class OpenAICompatibleFileTurnSessionV1 {
         }
         if (!response.ok) {
           const retryable = failureRetryable;
-          if (response.status === 429 && attempts < MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1) {
-            const delayMs = providerRateLimitDelayMs(response, attempts);
+          if (response.status === 429) {
+            rateLimitAttempts += 1;
             await cancelOpenAICompatibleProviderResponseBodyV1(response);
-            await waitForProviderRateLimitV1(delayMs, signal);
+            if (rateLimitAttempts >= MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1) {
+              throw new ProviderRequestErrorV1(
+                'File model provider rate limit did not clear',
+                { status: 429, retryable: true },
+              );
+            }
+            const delayMs = providerRateLimitDelayMs(response, rateLimitAttempts);
+            if (this.#rateLimitGate) {
+              this.#rateLimitGate.block(delayMs);
+              await this.#rateLimitGate.wait(signal);
+            } else {
+              await waitForProviderRateLimitV1(delayMs, signal);
+            }
             continue;
           }
           await cancelOpenAICompatibleProviderResponseBodyV1(response);
@@ -613,7 +772,7 @@ class OpenAICompatibleFileTurnSessionV1 {
         }
         const responseBody = await readBoundedOpenAICompatibleProviderJsonV1(
           response,
-          signal,
+          attemptSignal,
           timeoutMs,
           'File model provider',
         );
@@ -624,10 +783,6 @@ class OpenAICompatibleFileTurnSessionV1 {
           latencyMs: Date.now() - startedAt,
         };
       }
-      throw new ProviderRequestErrorV1(
-        'File model provider rate limit did not clear',
-        { status: 429, retryable: true },
-      );
     } catch (error) {
       throwIfAborted(signal);
       this.#recordTelemetry({
@@ -888,6 +1043,7 @@ function telemetryFromResponse(options: {
   resolvedModel: string;
   fetched: FetchedCompletion;
   envelope?: z.infer<typeof providerEnvelopeSchema>;
+  servedModelVerified?: boolean;
   outcome: FileProviderRequestTelemetryV1['outcome'];
 }): FileProviderRequestTelemetryV1 {
   const usage = providerUsage(options.envelope?.usage);
@@ -895,6 +1051,9 @@ function telemetryFromResponse(options: {
     requestedModel: options.requestedModel,
     resolvedModel: options.resolvedModel,
     ...(options.envelope?.model ? { servedModel: options.envelope.model } : {}),
+    ...(options.servedModelVerified === undefined
+      ? {}
+      : { servedModelVerified: options.servedModelVerified }),
     ...(options.envelope?.provider ?? options.fetched.headers.provider
       ? { provider: options.envelope?.provider ?? options.fetched.headers.provider }
       : {}),

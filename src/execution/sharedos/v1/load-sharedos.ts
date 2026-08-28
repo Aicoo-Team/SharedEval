@@ -32,9 +32,9 @@ export const SHAREDOS_RUNTIME_PACKAGES_V1 = [
 const IMPORTED_PACKAGES = SHAREDOS_RUNTIME_PACKAGES_V1;
 
 export const SHAREDOS_VERIFIED_REVISION_V1 =
-  'a303d97fe974c149d4575b1f5d6426aee6f37367' as const;
+  'ac0f1bb210baa3ba4b7e0d0baaf2291bbe9ffd05' as const;
 export const SHAREDOS_VERIFIED_RUNTIME_DIGEST_V1 =
-  'faefbf2ae61ffdcaf57f76e0c5b9b3f1438790213c0f16b3e02905bdbcba37cb' as const;
+  '849c121d18a3f2a9ddcc3c704d0bed7f3f64f0738395fa8c53ff46be918f0473' as const;
 export const SHAREDOS_PROVENANCE_FILE_V1 = 'sharedos-provenance.json' as const;
 export const SHAREDEVAL_SHAREDOS_DIR_ENV_V1 = 'SHAREDEVAL_SHAREDOS_DIR' as const;
 export const SHAREDEVAL_REQUIRE_SHAREDOS_ENV_V1 = 'SHAREDEVAL_REQUIRE_SHAREDOS' as const;

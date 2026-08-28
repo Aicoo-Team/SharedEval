@@ -73,7 +73,7 @@ The image bakes, at build time: the pinned Node version, the lockfile-exact
 dependency install, the committed SharedEval tree (the runner refuses dirty
 checkouts, so baking a committed tree satisfies that check by construction),
 and the staged SharedOS build at revision
-`a303d97fe974c149d4575b1f5d6426aee6f37367` with its runtime digest. The
+`ac0f1bb210baa3ba4b7e0d0baaf2291bbe9ffd05` with its runtime digest. The
 resulting image digest enters cell provenance.
 
 `SHAREDEVAL_MODEL_API_KEY` is injected only at `docker run -e` time. It never
@@ -232,18 +232,53 @@ for missing cost telemetry appears there too, with its reservation intact.
 |---|---|---|---|
 | `configDigest` | yes | `npm run sharedeval -- --check` (deterministic digest of the effective run config) | `plan.json` cell provenance; cross-checked against the run |
 | `taskSetDigest` | yes | Runner task selection (`selectedTaskDigest` in `run.json`) | `plan.json` cell provenance |
-| `sharedosRevision` | yes | `load-sharedos` pin (`a303d97f…`), enforced at runtime | `plan.json` cell provenance |
+| `sharedosRevision` | yes | `load-sharedos` pin (`ac0f1bb2…`), enforced at runtime | `plan.json` cell provenance |
 | `sharedosRuntimeDigest` | yes | Same pin, digest of the staged runtime | `plan.json` cell provenance |
 | `providerRouting`, `seed`, `temperature` | yes (inside `model`) | Cell model config | `plan.json` cell definition |
-| Full `workflow` block (`mode`/`protocol`/`maxTicks`/`stopWhen`) | yes | Cell workflow config | `plan.json` cell definition |
+| Full `workflow` block (`mode`/`protocol`/`maxTicks`/`stopWhen`/`taskConcurrency`) | yes | Cell workflow config | `plan.json` cell definition |
 | `imageDigest` | no (execution provenance) | `docker build` of `docker/experiments/Dockerfile` | Scheduler cell manifest; echoed into the finalizer output |
 | `egressProbe` | no (execution provenance) | Per-cell probe before spend | Scheduler cell manifest; echoed into the finalizer output |
 | Denied-egress attempt counts | no | Proxy | Scheduler cell manifest |
 | Policy hashes, dataset/gold-set digests, backend provenance | n/a (run level) | Runner | `run.json` |
 | `lastRecordDigest`, `recordCount` | n/a (run level) | Runner checkpoint | `checkpoint.json`; binds rescore artifacts |
 
-`providerRouting` is deliberately part of the identity: the same model slug
-routed to a different upstream is a different experiment condition.
+`providerRouting`, when present, is part of the identity because it changes
+the request body. The experiment condition is the model, not the upstream
+serving it, so configs must not pin providers (`only`, `order`,
+`allowFallbacks: false`). They should, however, keep
+`providerRouting: { requireParameters: true }`: that is a capability filter,
+not a pin — without it OpenRouter routes to providers that silently ignore
+request parameters, and a provider that ignores `parallel_tool_calls: false`
+(observed with Relace) returns multiple tool calls per response, which the
+driver rejects and the task dies. Measured on a 30-task smoke: 27/30 errors
+without the filter, expected error rates with it. The runner holds the model
+invariant directly — every response in a run must report the same served
+model (the first response fixes the expectation; a divergent
+`model_identity_mismatch` fails that task loudly), while the serving
+provider may vary freely within the capability filter and is recorded per
+request in telemetry.
+
+`workflow.taskConcurrency` (single mode only) processes up to that many tasks
+at once inside one cell while the cell stays a single accounting unit: one
+cell provenance, per-task artifacts, and batch output in task order
+regardless of completion order. Absent means 1 and stays out of the digest,
+so pre-existing configs keep their identity; any written value, 1 included,
+is part of it. A run-wide rate-limit gate queues every task's next attempt
+behind one 429 so concurrency degrades into waiting instead of burning retry
+budgets into data holes. The cell proxy's `MaxClients` is derived from the
+config's own `taskConcurrency` (two tunnels per task plus slack, never below
+16), so proxy capacity can never silently queue the cell's own traffic.
+
+Two documented departures from strict serial equivalence: the served-model
+ledger seeds from whichever response lands first, so under an inconsistent
+provider pool *which* tasks die with `model_identity_mismatch` is
+timing-dependent (the scored set stays internally consistent — every scored
+task matched the same identity); and after a fatal error the in-flight tasks
+settle and leave durable per-task artifacts a serial run would not have
+created. Relaunching over those store roots is governed by the recovery
+protocol: committed state replays exactly with zero further model calls, and
+divergent or indeterminate state is rejected loudly
+(`file-workflow-recovery`).
 
 ## 8. Runbook
 
@@ -309,7 +344,7 @@ value):
       "provenance": {
         "configDigest": "<64-hex from --check>",
         "taskSetDigest": "<64-hex selected-task digest>",
-        "sharedosRevision": "a303d97fe974c149d4575b1f5d6426aee6f37367",
+        "sharedosRevision": "ac0f1bb210baa3ba4b7e0d0baaf2291bbe9ffd05",
         "sharedosRuntimeDigest": "<64-hex staged runtime digest>"
       }
     }
@@ -427,7 +462,8 @@ endpoint:
   deterministic identity; a 429 after a durable commit causes no repeated
   model call.
 - `providerRouting` identity: changing only the routing block changes the
-  `cellId`.
+  `cellId` (the block is normally omitted; see section 7 on the served-model
+  invariant).
 - Score/finalize cardinality: exact row counts, unique task ids, fixed
   denominators, and rejection of mixed batches.
 

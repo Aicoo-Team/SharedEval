@@ -96,6 +96,12 @@ export const pactOpenAICompatibleModelConfigV1Schema = z
     reasoning: pactReasoningV1Schema.optional(),
     providerRouting: pactProviderRoutingV1Schema.optional(),
     maxOutputTokens: z.number().int().safe().min(1).max(65_536).default(4_096),
+    /**
+     * Per-attempt provider deadline. Absent, the driver scales it from the
+     * task budget; set it explicitly for models whose single generation is
+     * long relative to that budget.
+     */
+    attemptTimeoutMs: z.number().int().safe().min(1_000).max(3_600_000).optional(),
   })
   .strict();
 

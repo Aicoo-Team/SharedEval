@@ -24,6 +24,7 @@ export const MAX_SHAREDEVAL_TICKS_V1 = 10_000;
 export const MIN_SHAREDEVAL_TOOL_CALLS_V1 = 6;
 export const MAX_SHAREDEVAL_TOOL_CALLS_V1 = 128;
 export const MAX_SHAREDEVAL_RUNTIME_MS_V1 = 600_000;
+export const MAX_SHAREDEVAL_TASK_CONCURRENCY_V1 = 32;
 
 export const sharedevalWorkflowV1Schema = z
   .object({
@@ -31,8 +32,26 @@ export const sharedevalWorkflowV1Schema = z
     protocol: z.literal('files'),
     maxTicks: z.number().int().safe().positive().max(MAX_SHAREDEVAL_TICKS_V1),
     stopWhen: z.literal('all-terminal'),
+    // Absent means 1 and stays absent so pre-existing configs keep their
+    // configDigest; a written value, 1 included, is part of the identity.
+    taskConcurrency: z
+      .number()
+      .int()
+      .safe()
+      .min(1)
+      .max(MAX_SHAREDEVAL_TASK_CONCURRENCY_V1)
+      .optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((workflow, context) => {
+    if (workflow.mode === 'multi' && (workflow.taskConcurrency ?? 1) > 1) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['taskConcurrency'],
+        message: 'taskConcurrency applies only to the single workflow',
+      });
+    }
+  });
 
 export const sharedevalTaskSelectionV1Schema = z
   .object({

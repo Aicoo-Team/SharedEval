@@ -62,7 +62,7 @@ function cellDefinition(
     provenance: {
       configDigest: CONFIG_DIGEST,
       taskSetDigest: overrides.taskSetDigest ?? TASK_SET_DIGEST,
-      sharedosRevision: 'a303d97fe974c149d4575b1f5d6426aee6f37367',
+      sharedosRevision: 'ac0f1bb210baa3ba4b7e0d0baaf2291bbe9ffd05',
       sharedosRuntimeDigest: 'f'.repeat(64),
     },
   };

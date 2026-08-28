@@ -321,6 +321,25 @@ test('tinyproxy config is CONNECT-only with a single exact-host allowlist', () =
   assert.throws(() => tinyproxyAllowlistV1('openrouter.ai/path'), /invalid/);
 });
 
+test('proxy capacity scales with the cell task concurrency and never silently caps it', () => {
+  assert.match(tinyproxyConfigV1() as string, /^MaxClients 16$/m);
+  assert.match(tinyproxyConfigV1({ taskConcurrency: 6 }) as string, /^MaxClients 16$/m);
+  assert.match(tinyproxyConfigV1({ taskConcurrency: 16 }) as string, /^MaxClients 36$/m);
+  assert.match(tinyproxyConfigV1({ taskConcurrency: 32 }) as string, /^MaxClients 68$/m);
+  assert.throws(() => tinyproxyConfigV1({ taskConcurrency: 0 }), /taskConcurrency/);
+  assert.throws(() => tinyproxyConfigV1({ taskConcurrency: 33 }), /taskConcurrency/);
+
+  const single = httpsConfig
+    .replace('mode: multi', 'mode: single')
+    .replace('stopWhen: all-terminal', 'stopWhen: all-terminal\n  taskConcurrency: 12');
+  assert.equal(deriveCellEndpointV1(single).taskConcurrency, 12);
+  assert.equal(deriveCellEndpointV1(httpsConfig).taskConcurrency, 1);
+  assert.throws(
+    () => deriveCellEndpointV1(single.replace('taskConcurrency: 12', 'taskConcurrency: 40')),
+    /taskConcurrency/,
+  );
+});
+
 test('cell provenance records image digest, allowlist, probe, and exit code', () => {
   const probe = {
     directEgressBlocked: true,

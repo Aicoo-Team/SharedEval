@@ -184,3 +184,164 @@ test('single stops the batch on indeterminate external effects without schedulin
     await rm(workspaceRootDir, { recursive: true, force: true });
   }
 });
+
+test('taskConcurrency overlaps session work while results stay in task order', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-single-concurrency-'));
+  const tasks = fileSessionQaTasksV1(['PAIR-Q1', 'PAIR-Q2']);
+  const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+  const factory = createFakeSharedOsFileSessionFactoryV1({ trace });
+  // The first task's session refuses to open until the second task has fully
+  // finished, which both proves the overlap (a serial batch would deadlock
+  // here) and forces completion order to invert against task order.
+  const secondTaskClosed = async () => {
+    const deadline = Date.now() + 5_000;
+    while (!trace.closes.includes(1)) {
+      if (Date.now() > deadline) throw new Error('tasks did not overlap');
+      await new Promise(resolve => setTimeout(resolve, 5));
+    }
+  };
+
+  try {
+    await mkdir(join(workspaceRootDir, 'store'));
+    const batch = await runPactPairFilesSingleV1({
+      runId: 'single-task-concurrency',
+      workspaceRootDir,
+      registryRootDir: fileSessionRegistryRootV1,
+      runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+      requester: fileSessionSingleActorsV1.requester,
+      responder: fileSessionSingleActorsV1.responder,
+      tasks,
+      maxTicks: 1,
+      taskConcurrency: 2,
+      budget: { deadlineMs: 5_000, maxToolCalls: 8 },
+      createDriver: unreachableFileTurnDriverV1,
+      createSharedOsSession: async input => {
+        if (input.sessionIndex === 0) await secondTaskClosed();
+        return await factory(input);
+      },
+      pactWorkspaceForTask: () => createPactPairWorkspaceV1(),
+      storeRootForTask: (task, index) => join(
+        workspaceRootDir,
+        'store',
+        `${index}-${task.taskId}`,
+      ),
+    });
+
+    // Task 1 finished first, yet every batch array keeps task order.
+    assert.deepEqual(trace.closes, [1, 0]);
+    assert.deepEqual(batch.outcomes.map(outcome => outcome.taskId), ['PAIR-Q1', 'PAIR-Q2']);
+    assert.deepEqual(
+      batch.sessions.map(session => session.outcomes[0]?.taskId),
+      ['PAIR-Q1', 'PAIR-Q2'],
+    );
+    assert.deepEqual(
+      batch.publicProjection.outcomes.map(outcome => outcome.taskId),
+      ['PAIR-Q1', 'PAIR-Q2'],
+    );
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('taskConcurrency keeps preparation failures contained and in task order', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-single-concurrency-prep-'));
+  const tasks = fileSessionQaTasksV1(['PAIR-Q1', 'PAIR-Q2', 'PAIR-Q3']);
+  const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+
+  try {
+    const batch = await runPactPairFilesSingleV1({
+      runId: 'single-concurrency-prep-failure',
+      workspaceRootDir,
+      registryRootDir: fileSessionRegistryRootV1,
+      runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+      requester: fileSessionSingleActorsV1.requester,
+      responder: fileSessionSingleActorsV1.responder,
+      tasks,
+      taskConcurrency: 3,
+      budget: { deadlineMs: 5_000, maxToolCalls: 8 },
+      createDriver: unreachableFileTurnDriverV1,
+      createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({
+        trace,
+        failCreateForSessionIndexes: new Set([1]),
+      }),
+      pactWorkspaceForTask: () => createPactPairWorkspaceV1(),
+      storeRootForTask: (task, index) => join(workspaceRootDir, `${index}-${task.taskId}`),
+    });
+
+    assert.deepEqual(batch.preparationFailures, [{
+      taskId: 'PAIR-Q2',
+      errorCode: 'FILE_SESSION_PREPARATION_FAILED',
+    }]);
+    assert.deepEqual(batch.outcomes.map(outcome => [outcome.taskId, outcome.status]), [
+      ['PAIR-Q1', 'refused'],
+      ['PAIR-Q2', 'error'],
+      ['PAIR-Q3', 'refused'],
+    ]);
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('taskConcurrency still stops the batch on a fatal session failure', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-single-concurrency-fatal-'));
+  const tasks = fileSessionQaTasksV1(['PAIR-Q1', 'PAIR-Q2']);
+  const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+
+  try {
+    await assert.rejects(
+      () => runPactPairFilesSingleV1({
+        runId: 'single-concurrency-fatal',
+        workspaceRootDir,
+        registryRootDir: fileSessionRegistryRootV1,
+        runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+        requester: fileSessionSingleActorsV1.requester,
+        responder: fileSessionSingleActorsV1.responder,
+        tasks,
+        taskConcurrency: 2,
+        budget: { deadlineMs: 5_000, maxToolCalls: 8 },
+        createDriver: unreachableFileTurnDriverV1,
+        createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({
+          trace,
+          failCloseForSessionIndexes: new Set([0]),
+        }),
+        pactWorkspaceForTask: () => createPactPairWorkspaceV1(),
+        storeRootForTask: (task, index) => join(workspaceRootDir, `${index}-${task.taskId}`),
+      }),
+      /PRIVATE_FAKE_SESSION_CLOSE_FAILURE/,
+    );
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('rejects a taskConcurrency outside the supported range', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-single-concurrency-range-'));
+  const tasks = fileSessionQaTasksV1(['PAIR-Q1']);
+  const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+
+  try {
+    for (const taskConcurrency of [0, 33, 1.5]) {
+      await assert.rejects(
+        () => runPactPairFilesSingleV1({
+          runId: 'single-concurrency-range',
+          workspaceRootDir,
+          registryRootDir: fileSessionRegistryRootV1,
+          runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+          requester: fileSessionSingleActorsV1.requester,
+          responder: fileSessionSingleActorsV1.responder,
+          tasks,
+          taskConcurrency,
+          budget: { deadlineMs: 2_000, maxToolCalls: 8 },
+          createDriver: unreachableFileTurnDriverV1,
+          createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({ trace }),
+          pactWorkspaceForTask: () => createPactPairWorkspaceV1(),
+          storeRootForTask: (task, index) => join(workspaceRootDir, `${index}-${task.taskId}`),
+        }),
+        /taskConcurrency must be a safe integer between 1 and 32/,
+      );
+    }
+    assert.equal(trace.creates.length, 0);
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});

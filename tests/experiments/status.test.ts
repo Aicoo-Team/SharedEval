@@ -58,7 +58,7 @@ function cellDefinition(): ExperimentCellV1 {
     provenance: {
       configDigest: hex('config'),
       taskSetDigest: hex('task-set'),
-      sharedosRevision: 'a303d97fe974c149d4575b1f5d6426aee6f37367',
+      sharedosRevision: 'ac0f1bb210baa3ba4b7e0d0baaf2291bbe9ffd05',
       sharedosRuntimeDigest: hex('sharedos-runtime'),
       imageDigest: `sha256:${hex('image')}`,
       egressProbe: {
