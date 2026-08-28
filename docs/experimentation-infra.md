@@ -63,6 +63,27 @@ Runner container hardening: read-only root filesystem, tmpfs `/tmp`, all
 capabilities dropped, `no-new-privileges`, explicit CPU and memory limits.
 The only writable bind mount is the run volume; outputs go nowhere else.
 
+Proxy container hardening: `no-new-privileges`, CPU/memory/pids limits, a
+read-only config mount, and all capabilities dropped except `SETUID` and
+`SETGID`. Those two are required rather than incidental — tinyproxy starts as
+root and drops to `User nobody` from the generated config, so removing them
+makes the privilege drop fail at startup. The proxy is the only container
+holding the egress route, which is why its capability set is pinned by a test
+rather than left to convention.
+
+Because a multi-homed container loses Docker's embedded DNS on some engines
+(observed on colima), the proxy is given explicit upstream resolvers. They
+default to `1.1.1.1` and `8.8.8.8` and are overridable:
+
+```bash
+SHAREDEVAL_EXPERIMENT_DNS_PRIMARY=10.0.0.53 \
+SHAREDEVAL_EXPERIMENT_DNS_SECONDARY=10.0.0.54 \
+  scripts/experiments/run-cell.sh ...
+```
+
+Set them on a host whose egress DNS is restricted, or where sending the model
+endpoint's hostname to a third-party resolver is not acceptable.
+
 The runner needs zero code changes to use the proxy: the model client uses
 `globalThis.fetch` (undici), so the image sets `NODE_USE_ENV_PROXY=1` and the
 launcher sets `HTTPS_PROXY` to the proxy's internal address. This requires
