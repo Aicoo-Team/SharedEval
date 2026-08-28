@@ -6,6 +6,7 @@ import type {
 } from '../../src/execution/sharedos/v1/contracts.js';
 import {
   createOpenAICompatibleFileTurnDriverV1,
+  createProviderRateLimitGateV1,
   createServedModelConsistencyLedgerV1,
 } from '../../src/runner/v1/file-model-driver.js';
 import {
@@ -790,3 +791,57 @@ function turnRequest(
 function neverAbort(): AbortSignal {
   return new AbortController().signal;
 }
+
+test('rate-limit gate lets unblocked work pass and holds callers through a block', async () => {
+  const gate = createProviderRateLimitGateV1();
+  await gate.wait(neverAbort());
+
+  gate.block(60);
+  const startedAt = Date.now();
+  await gate.wait(neverAbort());
+  assert.ok(Date.now() - startedAt >= 45, 'wait returned before the block cleared');
+
+  gate.block(5_000);
+  const controller = new AbortController();
+  const waiting = assert.rejects(gate.wait(controller.signal), /cancelled|abort/i);
+  controller.abort();
+  await waiting;
+});
+
+test('one 429 blocks the shared gate and every driver still settles through it', async () => {
+  const gate = createProviderRateLimitGateV1();
+  const limited = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      new Response('busy', { status: 429, headers: { 'retry-after': '0.05' } }),
+      completion({ content: 'recovered' }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    rateLimitGate: gate,
+  });
+  const limitedSession = await limited.open(turnRequest(), neverAbort());
+  const limitedStart = Date.now();
+
+  assert.equal(
+    (await limitedSession.next({ type: 'start' }, neverAbort())).type,
+    'complete',
+  );
+  assert.ok(Date.now() - limitedStart >= 40, '429 retry skipped the blocked window');
+  assert.equal(limited.getFileProviderTelemetryV1().requests[0]?.attempts, 2);
+
+  // A sibling driver arriving while the gate is blocked waits the window out.
+  gate.block(60);
+  const sibling = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([completion({ content: 'after the window' })], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    rateLimitGate: gate,
+  });
+  const siblingSession = await sibling.open(turnRequest(), neverAbort());
+  const siblingStart = Date.now();
+  assert.equal(
+    (await siblingSession.next({ type: 'start' }, neverAbort())).type,
+    'complete',
+  );
+  assert.ok(Date.now() - siblingStart >= 45, 'sibling ignored the shared block');
+});

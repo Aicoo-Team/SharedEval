@@ -235,7 +235,7 @@ for missing cost telemetry appears there too, with its reservation intact.
 | `sharedosRevision` | yes | `load-sharedos` pin (`a303d97f…`), enforced at runtime | `plan.json` cell provenance |
 | `sharedosRuntimeDigest` | yes | Same pin, digest of the staged runtime | `plan.json` cell provenance |
 | `providerRouting`, `seed`, `temperature` | yes (inside `model`) | Cell model config | `plan.json` cell definition |
-| Full `workflow` block (`mode`/`protocol`/`maxTicks`/`stopWhen`) | yes | Cell workflow config | `plan.json` cell definition |
+| Full `workflow` block (`mode`/`protocol`/`maxTicks`/`stopWhen`/`taskConcurrency`) | yes | Cell workflow config | `plan.json` cell definition |
 | `imageDigest` | no (execution provenance) | `docker build` of `docker/experiments/Dockerfile` | Scheduler cell manifest; echoed into the finalizer output |
 | `egressProbe` | no (execution provenance) | Per-cell probe before spend | Scheduler cell manifest; echoed into the finalizer output |
 | Denied-egress attempt counts | no | Proxy | Scheduler cell manifest |
@@ -249,6 +249,17 @@ holds that invariant directly — every response in a run must report the same
 served model (the first response fixes the expectation; a divergent
 `model_identity_mismatch` fails that task loudly), while the serving
 provider may vary freely and is recorded per request in telemetry.
+
+`workflow.taskConcurrency` (single mode only) processes up to that many tasks
+at once inside one cell while the cell stays a single accounting unit: one
+cell provenance, per-task artifacts and ordering byte-equivalent to a serial
+run. Absent means 1 and stays out of the digest, so pre-existing configs keep
+their identity; any written value, 1 included, is part of it. A run-wide
+rate-limit gate queues every task's next attempt behind one 429 so
+concurrency degrades into waiting instead of burning retry budgets into data
+holes. Note the cell proxy currently allows 16 concurrent tunnels
+(`MaxClients` in `run-cell-lib.mjs`); keep `taskConcurrency` at or below
+that, or raise both together.
 
 ## 8. Runbook
 

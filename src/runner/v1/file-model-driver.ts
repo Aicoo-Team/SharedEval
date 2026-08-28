@@ -191,12 +191,40 @@ export function createServedModelConsistencyLedgerV1(): ServedModelConsistencyLe
   };
 }
 
+export interface ProviderRateLimitGateV1 {
+  wait(signal: AbortSignal): Promise<void>;
+  block(delayMs: number): void;
+}
+
+/**
+ * Shared across every driver in a run so that one rate-limited task holds the
+ * others' next attempts back until the provider's window clears, instead of
+ * letting concurrent tasks pile onto the same limit and burn their retry
+ * budgets into data holes.
+ */
+export function createProviderRateLimitGateV1(): ProviderRateLimitGateV1 {
+  let blockedUntilMs = 0;
+  return {
+    async wait(signal: AbortSignal): Promise<void> {
+      for (;;) {
+        const remainingMs = blockedUntilMs - Date.now();
+        if (remainingMs <= 0) return;
+        await waitForProviderRateLimitV1(remainingMs, signal);
+      }
+    },
+    block(delayMs: number): void {
+      blockedUntilMs = Math.max(blockedUntilMs, Date.now() + delayMs);
+    },
+  };
+}
+
 export type OpenAICompatibleFileTurnDriverV1Options = Readonly<{
   model: PactModelConfigV1;
   requestedModel?: string;
   fetch?: FetchImplementation;
   environment?: Record<string, string | undefined>;
   servedModelLedger?: ServedModelConsistencyLedgerV1;
+  rateLimitGate?: ProviderRateLimitGateV1;
 }>;
 
 class FileModelDriverErrorV1 extends Error {
@@ -273,10 +301,12 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
   readonly #model: PactModelConfigV1;
   readonly #providerRequests: FileProviderRequestTelemetryV1[] = [];
   readonly #servedModelLedger: ServedModelConsistencyLedgerV1 | undefined;
+  readonly #rateLimitGate: ProviderRateLimitGateV1 | undefined;
 
   constructor(options: OpenAICompatibleFileTurnDriverV1Options) {
     this.#model = options.model;
     this.#servedModelLedger = options.servedModelLedger;
+    this.#rateLimitGate = options.rateLimitGate;
     this.#fetchImplementation = options.fetch ?? globalThis.fetch;
     if (typeof this.#fetchImplementation !== 'function') {
       throw new Error('A fetch implementation is required for the file model driver');
@@ -317,6 +347,7 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
       ...(this.#servedModelLedger
         ? { servedModelLedger: this.#servedModelLedger }
         : {}),
+      ...(this.#rateLimitGate ? { rateLimitGate: this.#rateLimitGate } : {}),
     });
   }
 
@@ -351,6 +382,7 @@ type SessionOptions = Readonly<{
   fetchImplementation: FetchImplementation;
   recordTelemetry: (telemetry: FileProviderRequestTelemetryV1) => void;
   servedModelLedger?: ServedModelConsistencyLedgerV1;
+  rateLimitGate?: ProviderRateLimitGateV1;
 }>;
 
 class OpenAICompatibleFileTurnSessionV1 {
@@ -365,6 +397,7 @@ class OpenAICompatibleFileTurnSessionV1 {
   readonly #fetchImplementation: FetchImplementation;
   readonly #recordTelemetry: SessionOptions['recordTelemetry'];
   readonly #servedModelLedger: ServedModelConsistencyLedgerV1 | undefined;
+  readonly #rateLimitGate: ProviderRateLimitGateV1 | undefined;
   readonly #messages: ProviderMessage[];
   readonly #seenProviderCallIds = new Set<string>();
   #started = false;
@@ -385,6 +418,7 @@ class OpenAICompatibleFileTurnSessionV1 {
     this.#fetchImplementation = options.fetchImplementation;
     this.#recordTelemetry = options.recordTelemetry;
     this.#servedModelLedger = options.servedModelLedger;
+    this.#rateLimitGate = options.rateLimitGate;
     this.#messages = [{ role: 'user', content: promptFromMessage(options.request.message) }];
   }
 
@@ -615,6 +649,9 @@ class OpenAICompatibleFileTurnSessionV1 {
     try {
       while (attempts < MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1) {
         attempts += 1;
+        // Honor a run-wide rate-limit block before spending this attempt, so
+        // concurrent tasks queue behind one 429 instead of piling onto it.
+        if (this.#rateLimitGate) await this.#rateLimitGate.wait(signal);
         failureHeaders = {};
         failureStatus = undefined;
         failureRetryable = undefined;
@@ -674,7 +711,12 @@ class OpenAICompatibleFileTurnSessionV1 {
           if (response.status === 429 && attempts < MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1) {
             const delayMs = providerRateLimitDelayMs(response, attempts);
             await cancelOpenAICompatibleProviderResponseBodyV1(response);
-            await waitForProviderRateLimitV1(delayMs, signal);
+            if (this.#rateLimitGate) {
+              this.#rateLimitGate.block(delayMs);
+              await this.#rateLimitGate.wait(signal);
+            } else {
+              await waitForProviderRateLimitV1(delayMs, signal);
+            }
             continue;
           }
           await cancelOpenAICompatibleProviderResponseBodyV1(response);

@@ -18,6 +18,7 @@ import {
 import { createPactPairWorkspaceV1 } from '../../suites/pact-pair/workspace.js';
 import {
   createOpenAICompatibleFileTurnDriverV1,
+  createProviderRateLimitGateV1,
   createServedModelConsistencyLedgerV1,
   type OpenAICompatibleFileTurnDriverV1Options,
 } from './file-model-driver.js';
@@ -147,8 +148,10 @@ export async function runSharedevalProductionV1(
     backend: { adapterId: 'sharedos-runtime', executor: 'sharedos-executor' },
   });
   const createDriver = dependencies.createDriver ?? createOpenAICompatibleFileTurnDriverV1;
-  // One ledger per run: providers may vary freely, the served model may not.
+  // One ledger and one rate-limit gate per run: providers may vary freely,
+  // the served model may not, and concurrent tasks queue behind one 429.
   const servedModelLedger = createServedModelConsistencyLedgerV1();
+  const rateLimitGate = createProviderRateLimitGateV1();
   const run = await (dependencies.runFiles ?? runSharedevalPactPairFilesV1)({
     config: options.config,
     runProvenance,
@@ -172,6 +175,7 @@ export async function runSharedevalProductionV1(
       requestedModel: modelId,
       environment: driverEnvironment,
       servedModelLedger,
+      rateLimitGate,
     } satisfies OpenAICompatibleFileTurnDriverV1Options),
     createSharedOsSession,
     createSessionResources: input => ({
