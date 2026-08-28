@@ -674,6 +674,7 @@ const providerRequestTelemetrySchema = z.object({
   requestedModel: z.string().min(1).max(512),
   resolvedModel: z.string().min(1).max(512),
   servedModel: z.string().min(1).max(512).optional(),
+  servedModelVerified: z.boolean().optional(),
   provider: z.string().min(1).max(512).optional(),
   responseId: z.string().min(1).max(512).optional(),
   requestId: z.string().min(1).max(512).optional(),

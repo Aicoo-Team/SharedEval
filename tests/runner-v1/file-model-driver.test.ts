@@ -624,7 +624,7 @@ test('fails the turn when a response reports a different served model than the r
   );
 });
 
-test('skips served-model enforcement when the provider omits the model field', async () => {
+test('a response with no served model completes but is recorded as unverified', async () => {
   const ledger = createServedModelConsistencyLedgerV1();
   const driver = createOpenAICompatibleFileTurnDriverV1({
     model: modelConfig(),
@@ -637,7 +637,113 @@ test('skips served-model enforcement when the provider omits the model field', a
   const session = await driver.open(turnRequest(), neverAbort());
 
   assert.equal((await session.next({ type: 'start' }, neverAbort())).type, 'complete');
+  // The invariant went unchecked for this request and telemetry must say so;
+  // it is not a free pass, and the ledger stays unseeded.
+  const request = driver.getFileProviderTelemetryV1().requests[0];
+  assert.equal(request?.servedModelVerified, false);
+  assert.equal(request?.servedModel, undefined);
   assert.deepEqual(ledger.observe('later-model'), { consistent: true });
+});
+
+test('a verified response records servedModelVerified true, and no ledger records nothing', async () => {
+  const ledger = createServedModelConsistencyLedgerV1();
+  const governed = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([completion({ content: 'ok' })], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+  const governedSession = await governed.open(turnRequest(), neverAbort());
+  assert.equal((await governedSession.next({ type: 'start' }, neverAbort())).type, 'complete');
+  assert.equal(governed.getFileProviderTelemetryV1().requests[0]?.servedModelVerified, true);
+
+  const ungoverned = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([completion({ content: 'ok' })], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const ungovernedSession = await ungoverned.open(turnRequest(), neverAbort());
+  assert.equal((await ungovernedSession.next({ type: 'start' }, neverAbort())).type, 'complete');
+  assert.equal(
+    'servedModelVerified' in (ungoverned.getFileProviderTelemetryV1().requests[0] ?? {}),
+    false,
+  );
+});
+
+test('stalls and rate limits spend separate budgets instead of one shared cap', async () => {
+  let calls = 0;
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: async (_input, init) => {
+      calls += 1;
+      const signal = init?.signal as AbortSignal;
+      if (calls === 1 || calls === 3) {
+        return await new Promise<Response>((_resolve, reject) => {
+          const keepAlive = setTimeout(() => {}, 10_000);
+          signal.addEventListener('abort', () => {
+            clearTimeout(keepAlive);
+            reject(signal.reason ?? new Error('aborted'));
+          }, { once: true });
+        });
+      }
+      if (calls === 2) {
+        return new Response('busy', { status: 429, headers: { 'retry-after': '0' } });
+      }
+      return completion({ content: 'survived both failure modes' });
+    },
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(
+    turnRequest({ options: { maxSteps: 4, maxToolCalls: 3, timeoutMs: 60 } }),
+    neverAbort(),
+  );
+
+  // stall, 429, stall, success: the old single three-attempt cap would have
+  // failed before the fourth request; separate budgets let it settle.
+  const decision = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(decision.type, 'complete');
+  assert.equal(calls, 4);
+  assert.equal(driver.getFileProviderTelemetryV1().requests[0]?.attempts, 4);
+});
+
+test('model.attemptTimeoutMs overrides the scaled per-attempt deadline', async () => {
+  let calls = 0;
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: pactModelConfigV1Schema.parse({
+      provider: 'openai-compatible',
+      baseUrl: 'https://api.example.com/v1',
+      apiKeyEnv: SHAREDEVAL_MODEL_API_KEY_ENV_V1,
+      model: 'example-model',
+      attemptTimeoutMs: 1_000,
+    }),
+    fetch: async (_input, init) => {
+      calls += 1;
+      const signal = init?.signal as AbortSignal;
+      if (calls === 1) {
+        return await new Promise<Response>((_resolve, reject) => {
+          const keepAlive = setTimeout(() => {}, 30_000);
+          signal.addEventListener('abort', () => {
+            clearTimeout(keepAlive);
+            reject(signal.reason ?? new Error('aborted'));
+          }, { once: true });
+        });
+      }
+      return completion({ content: 'after the configured bound' });
+    },
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  // Task budget is far above the override; without the override the scaled
+  // bound (max(90s, budget/3)) would stall this test for 20 seconds.
+  const session = await driver.open(
+    turnRequest({ options: { maxSteps: 4, maxToolCalls: 3, timeoutMs: 60_000 } }),
+    neverAbort(),
+  );
+
+  const startedAt = Date.now();
+  const decision = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(decision.type, 'complete');
+  assert.equal(calls, 2);
+  assert.ok(Date.now() - startedAt < 10_000, 'override did not bound the stalled attempt');
 });
 
 type ProviderMessage = {

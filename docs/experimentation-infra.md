@@ -260,14 +260,25 @@ request in telemetry.
 
 `workflow.taskConcurrency` (single mode only) processes up to that many tasks
 at once inside one cell while the cell stays a single accounting unit: one
-cell provenance, per-task artifacts and ordering byte-equivalent to a serial
-run. Absent means 1 and stays out of the digest, so pre-existing configs keep
-their identity; any written value, 1 included, is part of it. A run-wide
-rate-limit gate queues every task's next attempt behind one 429 so
-concurrency degrades into waiting instead of burning retry budgets into data
-holes. Note the cell proxy currently allows 16 concurrent tunnels
-(`MaxClients` in `run-cell-lib.mjs`); keep `taskConcurrency` at or below
-that, or raise both together.
+cell provenance, per-task artifacts, and batch output in task order
+regardless of completion order. Absent means 1 and stays out of the digest,
+so pre-existing configs keep their identity; any written value, 1 included,
+is part of it. A run-wide rate-limit gate queues every task's next attempt
+behind one 429 so concurrency degrades into waiting instead of burning retry
+budgets into data holes. The cell proxy's `MaxClients` is derived from the
+config's own `taskConcurrency` (two tunnels per task plus slack, never below
+16), so proxy capacity can never silently queue the cell's own traffic.
+
+Two documented departures from strict serial equivalence: the served-model
+ledger seeds from whichever response lands first, so under an inconsistent
+provider pool *which* tasks die with `model_identity_mismatch` is
+timing-dependent (the scored set stays internally consistent — every scored
+task matched the same identity); and after a fatal error the in-flight tasks
+settle and leave durable per-task artifacts a serial run would not have
+created. Relaunching over those store roots is governed by the recovery
+protocol: committed state replays exactly with zero further model calls, and
+divergent or indeterminate state is rejected loudly
+(`file-workflow-recovery`).
 
 ## 8. Runbook
 

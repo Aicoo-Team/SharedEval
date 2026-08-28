@@ -62,11 +62,16 @@ export type PactPairFilesSingleBatchV1 = Readonly<{
  * durable session may have acted, every other failure stops the batch.
  *
  * taskConcurrency processes up to that many tasks at once through the same
- * per-task isolation; results stay in task order, byte-equivalent to a serial
- * run. On a fatal error no new task starts, in-flight tasks settle, and the
- * lowest-index fatal error propagates (later tasks that finished first are
- * discarded with the batch, exactly as a serial run would never have run
- * them).
+ * per-task isolation; batch output stays in task order regardless of
+ * completion order. Two caveats keep this short of full serial equivalence:
+ * the run-wide served-model ledger seeds from whichever response lands first,
+ * so under an inconsistent provider pool *which* tasks die with
+ * model_identity_mismatch is timing-dependent (the scored set stays
+ * internally consistent); and on a fatal error the in-flight tasks settle and
+ * leave durable per-task artifacts a serial run would not have created —
+ * relaunching over them is governed by the recovery protocol (exact replay or
+ * loud rejection, file-workflow-recovery). No new task starts after a fatal
+ * error and the lowest-index fatal error propagates.
  */
 export async function runPactPairFilesSingleV1(
   options: RunPactPairFilesSingleV1Options,
