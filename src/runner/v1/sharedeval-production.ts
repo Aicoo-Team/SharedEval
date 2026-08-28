@@ -265,6 +265,7 @@ export async function prepareSharedevalRunDirectoriesV1(input: Readonly<{
 
 function requesterIdentity(requester: PactPairRequesterIdV1): { assetName: string } {
   const names: Partial<Record<PactPairRequesterIdV1, string>> = {
+    R0: 'riley',
     R1: 'tina',
     R2: 'marcus',
     R3: 'jordan',
