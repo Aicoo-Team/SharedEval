@@ -243,12 +243,20 @@ for missing cost telemetry appears there too, with its reservation intact.
 | `lastRecordDigest`, `recordCount` | n/a (run level) | Runner checkpoint | `checkpoint.json`; binds rescore artifacts |
 
 `providerRouting`, when present, is part of the identity because it changes
-the request body. Runs do not need it and should normally omit it: the
-experiment condition is the model, not the upstream serving it. The runner
-holds that invariant directly — every response in a run must report the same
-served model (the first response fixes the expectation; a divergent
+the request body. The experiment condition is the model, not the upstream
+serving it, so configs must not pin providers (`only`, `order`,
+`allowFallbacks: false`). They should, however, keep
+`providerRouting: { requireParameters: true }`: that is a capability filter,
+not a pin — without it OpenRouter routes to providers that silently ignore
+request parameters, and a provider that ignores `parallel_tool_calls: false`
+(observed with Relace) returns multiple tool calls per response, which the
+driver rejects and the task dies. Measured on a 30-task smoke: 27/30 errors
+without the filter, expected error rates with it. The runner holds the model
+invariant directly — every response in a run must report the same served
+model (the first response fixes the expectation; a divergent
 `model_identity_mismatch` fails that task loudly), while the serving
-provider may vary freely and is recorded per request in telemetry.
+provider may vary freely within the capability filter and is recorded per
+request in telemetry.
 
 `workflow.taskConcurrency` (single mode only) processes up to that many tasks
 at once inside one cell while the cell stays a single accounting unit: one
@@ -304,6 +312,7 @@ value):
         "model": "deepseek/deepseek-v3.2",
         "temperature": 0,
         "seed": 7,
+        "providerRouting": { "requireParameters": true },
         "maxOutputTokens": 4096
       },
       "benchmark": {
