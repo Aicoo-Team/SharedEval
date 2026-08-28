@@ -107,6 +107,8 @@ test('compose isolates the runner and routes egress only through the proxy', asy
       networks?: string[];
       read_only?: boolean;
       cap_drop?: string[];
+      cap_add?: string[];
+      dns?: string[];
       security_opt?: string[];
       mem_limit?: unknown;
       memswap_limit?: unknown;
@@ -156,6 +158,23 @@ test('compose isolates the runner and routes egress only through the proxy', asy
   assert.ok(proxy.security_opt?.includes('no-new-privileges:true'));
   const proxyConfigMount = proxy.volumes?.find(volume => volume.type === 'bind');
   assert.equal(proxyConfigMount?.read_only, true, 'proxy config mount must be read-only');
+  // The proxy holds the only egress route, so its capability set is the one
+  // that matters. tinyproxy drops to `User nobody` from the generated config
+  // and needs exactly SETUID and SETGID to do it -- asserting the pair keeps a
+  // later `cap_drop: ALL` tidy-up from silently breaking privilege drop, and
+  // keeps anything else from being added back without a test saying why.
+  assert.deepEqual(proxy.cap_drop, ['ALL'], 'proxy must drop all capabilities by default');
+  assert.deepEqual(
+    [...(proxy.cap_add ?? [])].sort(),
+    ['SETGID', 'SETUID'],
+    'proxy may regain only the two capabilities tinyproxy needs to drop privileges',
+  );
+  // Defaulted rather than hardcoded, so a DNS-restricted or air-gapped host can
+  // point at its own resolver instead of Cloudflare and Google.
+  assert.deepEqual(proxy.dns, [
+    '${SHAREDEVAL_EXPERIMENT_DNS_PRIMARY:-1.1.1.1}',
+    '${SHAREDEVAL_EXPERIMENT_DNS_SECONDARY:-8.8.8.8}',
+  ], 'proxy DNS servers must be overridable with the documented defaults');
 });
 
 test('Dockerfile pins node:24-slim, lockfile install, proxy env, and SharedOS provenance', async () => {

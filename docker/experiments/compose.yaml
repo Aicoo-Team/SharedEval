@@ -62,9 +62,23 @@ services:
     # Docker's embedded DNS on some engines (observed on colima): name lookups
     # for the allowlisted endpoint return EAI_AGAIN. Explicit upstream servers
     # restore forwarding; the proxy never needs service-name DNS.
+    #
+    # Overridable so a DNS-restricted or air-gapped host can point at its own
+    # resolver: the defaults reach Cloudflare and Google, which is a third-party
+    # dependency and sends the endpoint hostname off-host.
     dns:
-      - 1.1.1.1
-      - 8.8.8.8
+      - "${SHAREDEVAL_EXPERIMENT_DNS_PRIMARY:-1.1.1.1}"
+      - "${SHAREDEVAL_EXPERIMENT_DNS_SECONDARY:-8.8.8.8}"
+    # The proxy is the only container holding the egress route, so it is the one
+    # where an escape would actually buy something. tinyproxy starts as root and
+    # drops to `User nobody` / `Group nobody` from the generated config, so it
+    # needs exactly SETUID and SETGID -- and nothing else. Dropping ALL without
+    # adding them back makes the process fail to drop privileges at startup.
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
     security_opt:
       - no-new-privileges:true
     init: true
