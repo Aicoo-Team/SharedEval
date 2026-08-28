@@ -61,8 +61,8 @@ commands.
 ## SharedOS pin
 
 The production boundary is verified against SharedOS revision
-`a303d97fe974c149d4575b1f5d6426aee6f37367` and the four-package runtime digest
-`faefbf2ae61ffdcaf57f76e0c5b9b3f1438790213c0f16b3e02905bdbcba37cb`.
+`ac0f1bb210baa3ba4b7e0d0baaf2291bbe9ffd05` and the four-package runtime digest
+`849c121d18a3f2a9ddcc3c704d0bed7f3f64f0738395fa8c53ff46be918f0473`.
 SharedEval loads only SharedOS contracts, core, OS tools, and runtime packages;
 an unavailable or mismatched build fails before model spend.
 
