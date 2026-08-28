@@ -11,6 +11,7 @@ import {
   encodeFileVersionV1,
   type SharedOsFileProviderV1,
 } from '../../src/runner/v1/sharedos-file-provider.js';
+import { FileMemoryFormatErrorV1 } from '../../src/runner/v1/file-memory.js';
 import type {
   FileReadReceiptV1,
   FileWorkspacePortV1,
@@ -460,6 +461,71 @@ test('sanitizes workspace failures and never records them as successful evidence
   assert.doesNotMatch(JSON.stringify(result), /secret|filesystem path/i);
 });
 
+test('surfaces actor-authored MEMORY contract violations as correctable denials, not workspace faults', async () => {
+  const requester = new FakeWorkspace('requester');
+  const provider = createProvider(requester, new FakeWorkspace('responder'));
+
+  await provider.invoke(readMemoryOperation('trace-format', 'read-memory'), neverAbort());
+  requester.failNextReplace = new FileMemoryFormatErrorV1(
+    'MEMORY row 2 must use TASK-ID [status] — note',
+  );
+  const denied = await provider.invoke(replaceOperation({
+    traceId: 'trace-format',
+    operationId: 'replace-malformed',
+    expectedVersion: '0',
+    content: 'malformed memory content',
+  }), neverAbort());
+  assert.equal(denied.status, 'denied');
+  assert.equal(
+    denied.status === 'denied' && denied.error.code,
+    'file_memory_format_invalid',
+  );
+  assert.match(
+    denied.status === 'denied' ? denied.error.message : '',
+    /MEMORY row 2 must use TASK-ID \[status\] — note/,
+  );
+  assert.match(
+    denied.status === 'denied' ? denied.error.message : '',
+    /pending, answered, refused, or error/,
+  );
+
+  const corrected = await provider.invoke(replaceOperation({
+    traceId: 'trace-format',
+    operationId: 'replace-corrected',
+    expectedVersion: '0',
+    content: 'corrected memory content',
+  }), neverAbort());
+  assertSucceededOutcome(corrected, 'committed');
+  assert.equal((await provider.readReceipts({
+    actorId: 'requester',
+    traceId: 'trace-format',
+  })).filter(receipt => receipt.action === 'replace').length, 1);
+});
+
+test('still sanitizes genuine workspace replace faults as failures', async () => {
+  const requester = new FakeWorkspace('requester');
+  const provider = createProvider(requester, new FakeWorkspace('responder'));
+
+  await provider.invoke(readMemoryOperation('trace-fault', 'read-memory'), neverAbort());
+  requester.failNextReplace = new Error('private filesystem path /secret/workspace');
+  const failed = await provider.invoke(replaceOperation({
+    traceId: 'trace-fault',
+    operationId: 'replace-fault',
+    expectedVersion: '0',
+    content: 'candidate memory',
+  }), neverAbort());
+  assert.deepEqual(failed, {
+    status: 'failed',
+    operationId: 'replace-fault',
+    error: {
+      code: 'file_workspace_failed',
+      message: 'The actor file workspace operation failed.',
+    },
+    completedAt: TURN_NOW,
+  });
+  assert.doesNotMatch(JSON.stringify(failed), /secret|filesystem path/i);
+});
+
 test('fails closed on malformed workspace results instead of forging file evidence', async () => {
   const candidate = 'candidate memory';
   const malformedResults: unknown[] = [
@@ -745,6 +811,7 @@ class FakeWorkspace implements FileWorkspacePortV1 {
   afterNextRead?: () => void;
   afterNextReplace?: () => void;
   failNextRead?: Error;
+  failNextReplace?: Error;
   nextReadResult?: { value: unknown };
   nextReplaceResult?: { value: unknown };
   private memory: string;
@@ -789,6 +856,11 @@ class FakeWorkspace implements FileWorkspacePortV1 {
     deadlineAtMs?: number;
   }): Promise<ReplaceMemoryResultV1> {
     this.replacements.push({ ...input });
+    if (this.failNextReplace) {
+      const error = this.failNextReplace;
+      this.failNextReplace = undefined;
+      throw error;
+    }
     if (this.nextReplaceResult) {
       const result = this.nextReplaceResult.value;
       this.nextReplaceResult = undefined;

@@ -15,6 +15,7 @@ import {
 import {
   SHAREDOS_VERIFIED_REVISION_V1,
   SHAREDOS_VERIFIED_RUNTIME_DIGEST_V1,
+  defaultSharedOsDirV1,
 } from '../../src/execution/sharedos/v1/load-sharedos.js';
 import type {
   SoToolResult,
@@ -38,8 +39,7 @@ import { createPactPairWorkspaceV1 } from '../../src/suites/pact-pair/workspace.
 const FILES = ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'] as const;
 const NOW = '2026-08-26T12:00:00.000Z';
 const SHAREDOS_DIRECTORY = resolve(
-  process.env.SHAREDEVAL_SHAREDOS_DIR
-    ?? '/private/tmp/sharedos-message-foundation.NkahQk/repo',
+  defaultSharedOsDirV1(),
 );
 const SHAREDOS_BUILD_SKIP =
   !process.env.SHAREDEVAL_REQUIRE_SHAREDOS
