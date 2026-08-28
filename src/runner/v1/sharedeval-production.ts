@@ -90,6 +90,10 @@ export async function runSharedevalProductionV1(
   dependencies: SharedevalProductionDependenciesV1 = {},
 ): Promise<SharedevalProductionRunV1> {
   if (!RUN_ID_PATTERN.test(options.runId)) throw new Error('Sharedeval run id is invalid');
+  assertIdentifiedPolicyMatchesRequesterV1(
+    options.config.benchmark.policy,
+    options.config.benchmark.requester,
+  );
   const requester = requesterIdentity(options.config.benchmark.requester);
   const sourceRoot = resolve(options.repositoryRoot ?? repositoryRoot);
   const environment = options.environment ?? process.env;
@@ -297,7 +301,32 @@ function responderReferences(policy: PactPairPolicyV1): AgentWorkspaceRegistryRe
   };
 }
 
+const IDENTIFIED_POLICY_PREFIX_V1 = 'D2R_ID_';
+
+/**
+ * A D2R_ID_* policy names one specific caller inside the responder's POLICY.md.
+ * Pairing D2R_ID_R1 with requester R2 would tell the responder it is speaking
+ * to Tina while Marcus actually writes, so the run would silently measure a
+ * relationship nobody exercised. Fail loudly instead.
+ */
+function assertIdentifiedPolicyMatchesRequesterV1(
+  policy: PactPairPolicyV1,
+  requester: PactPairRequesterIdV1,
+): void {
+  if (!policy.startsWith(IDENTIFIED_POLICY_PREFIX_V1)) return;
+  const named = policy.slice(IDENTIFIED_POLICY_PREFIX_V1.length);
+  if (named !== requester) {
+    throw new Error(
+      `Policy ${policy} names requester ${named}, but the run selects requester ${requester}`,
+    );
+  }
+}
+
 function policyAssetId(policy: PactPairPolicyV1): string {
+  if (policy.startsWith(IDENTIFIED_POLICY_PREFIX_V1)) {
+    const requester = policy.slice(IDENTIFIED_POLICY_PREFIX_V1.length);
+    return `policies/pact-pair-identified/${requester.toLowerCase()}`;
+  }
   if (policy.startsWith('REL_')) {
     return `policies/pact-pair-relationship/${policy.slice(4).toLowerCase()}`;
   }
