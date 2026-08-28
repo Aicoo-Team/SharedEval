@@ -232,7 +232,7 @@ for missing cost telemetry appears there too, with its reservation intact.
 |---|---|---|---|
 | `configDigest` | yes | `npm run sharedeval -- --check` (deterministic digest of the effective run config) | `plan.json` cell provenance; cross-checked against the run |
 | `taskSetDigest` | yes | Runner task selection (`selectedTaskDigest` in `run.json`) | `plan.json` cell provenance |
-| `sharedosRevision` | yes | `load-sharedos` pin (`a303d97f…`), enforced at runtime | `plan.json` cell provenance |
+| `sharedosRevision` | yes | `load-sharedos` pin (`ac0f1bb2…`), enforced at runtime | `plan.json` cell provenance |
 | `sharedosRuntimeDigest` | yes | Same pin, digest of the staged runtime | `plan.json` cell provenance |
 | `providerRouting`, `seed`, `temperature` | yes (inside `model`) | Cell model config | `plan.json` cell definition |
 | Full `workflow` block (`mode`/`protocol`/`maxTicks`/`stopWhen`/`taskConcurrency`) | yes | Cell workflow config | `plan.json` cell definition |
