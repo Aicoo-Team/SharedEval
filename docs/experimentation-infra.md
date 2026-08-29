@@ -73,7 +73,7 @@ The image bakes, at build time: the pinned Node version, the lockfile-exact
 dependency install, the committed SharedEval tree (the runner refuses dirty
 checkouts, so baking a committed tree satisfies that check by construction),
 and the staged SharedOS build at revision
-`ac0f1bb210baa3ba4b7e0d0baaf2291bbe9ffd05` with its runtime digest. The
+`3aa07e33999b656a10ace294fd4e41df8cbc318e` with its runtime digest. The
 resulting image digest enters cell provenance.
 
 `SHAREDEVAL_MODEL_API_KEY` is injected only at `docker run -e` time. It never
@@ -344,7 +344,7 @@ value):
       "provenance": {
         "configDigest": "<64-hex from --check>",
         "taskSetDigest": "<64-hex selected-task digest>",
-        "sharedosRevision": "ac0f1bb210baa3ba4b7e0d0baaf2291bbe9ffd05",
+        "sharedosRevision": "3aa07e33999b656a10ace294fd4e41df8cbc318e",
         "sharedosRuntimeDigest": "<64-hex staged runtime digest>"
       }
     }
