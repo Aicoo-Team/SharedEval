@@ -5,6 +5,8 @@ import type {
   SoToolDefinition,
 } from '../../src/execution/sharedos/v1/contracts.js';
 import {
+  MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1,
+  PARALLEL_TOOL_CALL_DENIAL_V1,
   createOpenAICompatibleFileTurnDriverV1,
   createProviderRateLimitGateV1,
   createServedModelConsistencyLedgerV1,
@@ -110,7 +112,10 @@ test('projects only SharedOS-visible tool syntax and returns tool work to Shared
       'After messages.request returns, you must successfully call files.replace on MEMORY.md before returning final output. expectedVersion is the exact string version from the latest files.read result and content is the complete file with exactly one line per existing task in the same order: TASK-ID [pending|answered|refused|error] — single-line note. Add no headings, fences, blank lines, or extra text.',
     ].join('\n'),
   }]);
-  assert.equal(firstBody.parallel_tool_calls, false);
+  // Sending parallel_tool_calls resolves to zero endpoints for every model that
+  // does not declare it once providerRouting.requireParameters is on -- all but
+  // five on OpenRouter. The single-call rule is enforced in the driver instead.
+  assert.equal('parallel_tool_calls' in firstBody, false);
   assert.equal(firstBody.tool_choice, 'auto');
   for (const privateField of [
     'requiredCapability',
@@ -950,4 +955,109 @@ test('one 429 blocks the shared gate and every driver still settles through it',
     'complete',
   );
   assert.ok(Date.now() - siblingStart >= 45, 'sibling ignored the shared block');
+});
+
+const parallelBatch = [
+  {
+    id: 'batched-call-1',
+    type: 'function' as const,
+    function: { name: 'files.read', arguments: JSON.stringify({ path: ['AGENT.md'] }) },
+  },
+  {
+    id: 'batched-call-2',
+    type: 'function' as const,
+    function: { name: 'files.read', arguments: JSON.stringify({ path: ['POLICY.md'] }) },
+  },
+];
+
+test('denies a parallel tool-call batch and accepts the corrected single call', async () => {
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: null, tool_calls: parallelBatch }),
+      completion({
+        content: null,
+        tool_calls: [{
+          id: 'corrected-call',
+          type: 'function',
+          function: {
+            name: 'files.read',
+            arguments: JSON.stringify({ path: ['AGENT.md'] }),
+          },
+        }],
+      }),
+      completion({ content: 'done after correction' }),
+    ], requests),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+
+  // The batch costs a round trip, not the task.
+  const call = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(call.type, 'tool_call');
+  assert.equal(call.type === 'tool_call' ? call.call.tool : '', 'files.read');
+  assert.equal(requests.length, 2);
+
+  // The transcript records what the model actually emitted -- both calls -- and
+  // answers each one, because the protocol requires every tool_call to be
+  // resolved before the next assistant turn.
+  const retryMessages = requests[1]?.body.messages ?? [];
+  const assistant = retryMessages.find(m => m.role === 'assistant');
+  assert.deepEqual(assistant?.tool_calls, parallelBatch);
+  const denials = retryMessages.filter(m => m.role === 'tool');
+  assert.equal(denials.length, 2);
+  assert.deepEqual(
+    denials.map(m => m.tool_call_id),
+    ['batched-call-1', 'batched-call-2'],
+  );
+  for (const denial of denials) {
+    assert.equal(denial.content, PARALLEL_TOOL_CALL_DENIAL_V1);
+  }
+
+  // Only the executed call counts as a tool step.
+  const complete = await session.next({
+    type: 'tool_result',
+    result: {
+      callId: call.type === 'tool_call' ? call.call.id : 'unreachable',
+      tool: 'files.read',
+      status: 'succeeded',
+      output: { content: 'agent bytes' },
+      completedAt: '2026-08-26T00:00:01.000Z',
+    },
+  }, neverAbort());
+  assert.deepEqual(complete, {
+    type: 'complete',
+    output: {
+      type: 'completed',
+      content: 'done after correction',
+      toolSteps: 1,
+      contactCalls: 0,
+    },
+  });
+});
+
+test('a model that keeps batching fails with its own code, not a generic one', async () => {
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch(
+      Array.from(
+        { length: MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 + 1 },
+        () => completion({ content: null, tool_calls: parallelBatch }),
+      ),
+      requests,
+    ),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+
+  const decision = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(decision.type, 'fail');
+  assert.match(
+    JSON.stringify(decision),
+    /model_parallel_tool_calls_unresolved/,
+  );
+  // Bounded: it re-asks a fixed number of times and then reports.
+  assert.equal(requests.length, MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 + 1);
 });

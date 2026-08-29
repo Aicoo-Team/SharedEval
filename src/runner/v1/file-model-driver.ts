@@ -109,6 +109,31 @@ type ProviderToolCall = {
   function: { name: string; arguments: string };
 };
 
+/**
+ * How many consecutive parallel-tool-call batches are denied and re-asked
+ * before the turn fails. One correction is enough for a model that batches
+ * incidentally; a model that keeps batching is reported rather than retried.
+ */
+export const MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 = 2;
+
+/**
+ * Stated as protocol fact and nothing more. Per the benchmark's standing rule,
+ * the runtime describes the situation; it does not coach the model toward a
+ * better score, so this says what happened and what the shape must be, with no
+ * hint about which of the batched calls to prefer.
+ */
+export const PARALLEL_TOOL_CALL_DENIAL_V1 =
+  'This runtime executes one tool call per assistant turn. None of the calls '
+  + 'in that turn were executed. Issue a single tool call.';
+
+type ParallelToolCallCorrectionV1 = Readonly<{ corrected: true }>;
+
+function isParallelToolCallCorrection(
+  outcome: SoTurnDecision | ParallelToolCallCorrectionV1,
+): outcome is ParallelToolCallCorrectionV1 {
+  return (outcome as ParallelToolCallCorrectionV1).corrected === true;
+}
+
 type ProviderMessage =
   | { role: 'user'; content: string }
   | {
@@ -496,6 +521,27 @@ class OpenAICompatibleFileTurnSessionV1 {
   }
 
   async #requestNextDecision(signal: AbortSignal): Promise<SoTurnDecision> {
+    for (
+      let corrections = 0;
+      corrections <= MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1;
+      corrections += 1
+    ) {
+      const outcome = await this.#attemptNextDecision(signal);
+      if (!isParallelToolCallCorrection(outcome)) return outcome;
+      throwIfAborted(signal);
+    }
+    // A model that will not stop batching is a real finding about that model,
+    // so it gets its own code rather than hiding inside model_invalid_tool_call.
+    throw new FileModelDriverErrorV1(
+      'model_parallel_tool_calls_unresolved',
+      'File model provider returned multiple parallel tool calls in '
+      + `${MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 + 1} consecutive responses`,
+    );
+  }
+
+  async #attemptNextDecision(
+    signal: AbortSignal,
+  ): Promise<SoTurnDecision | ParallelToolCallCorrectionV1> {
     const fetched = await this.#fetchCompletion(signal);
     throwIfAborted(signal);
     const response = redactOpenAICompatibleProviderCredentialV1(
@@ -562,10 +608,15 @@ class OpenAICompatibleFileTurnSessionV1 {
     const calls = message.tool_calls ?? [];
     if (calls.length > 0) {
       if (calls.length !== 1) {
-        throw new FileModelDriverErrorV1(
-          'model_invalid_tool_call',
-          'File model provider returned multiple parallel tool calls',
-        );
+        // A parallel batch is a protocol violation by the model, not a broken
+        // provider, so it is correctable: deny the whole batch and ask for one
+        // call. Killing the task here is what lost 27 of 30 tasks when a
+        // provider ignored parallel_tool_calls: false.
+        this.#denyParallelToolCalls(calls, message);
+        // The response was well-formed but yielded no decision; leaving the
+        // telemetry outcome at invalid_response is what makes corrections
+        // visible per request instead of silently absorbed.
+        return { corrected: true };
       }
       const call = calls[0];
       if (!call) {
@@ -642,6 +693,38 @@ class OpenAICompatibleFileTurnSessionV1 {
     return decision;
   }
 
+  /**
+   * The OpenAI-compatible protocol requires every tool_call in an assistant
+   * message to be answered before the next assistant turn, so the batch is
+   * recorded in full and each call is denied individually. Recording the calls
+   * the model actually emitted keeps the transcript honest: it asked for
+   * several actions and none of them ran.
+   *
+   * The denied ids are deliberately NOT added to #seenProviderCallIds. That set
+   * exists to catch a provider replaying an id across *executed* steps; these
+   * never executed, and a temperature-0 model that regenerates the same id on
+   * the corrected turn should not be failed for it.
+   */
+  #denyParallelToolCalls(
+    calls: readonly ProviderToolCall[],
+    message: { content?: string | null; reasoning_details?: unknown[] | null },
+  ): void {
+    const reasoning = parseReasoningDetails(message.reasoning_details);
+    this.#messages.push({
+      role: 'assistant',
+      content: message.content ?? null,
+      tool_calls: [...calls],
+      ...(reasoning ? { reasoning_details: reasoning } : {}),
+    });
+    for (const call of calls) {
+      this.#messages.push({
+        role: 'tool',
+        tool_call_id: call.id,
+        content: PARALLEL_TOOL_CALL_DENIAL_V1,
+      });
+    }
+  }
+
   #requestBody(): Record<string, unknown> {
     return {
       model: this.#resolvedModel,
@@ -651,12 +734,18 @@ class OpenAICompatibleFileTurnSessionV1 {
       ...openAICompatibleProviderRequestExtrasV1(this.#model),
       max_tokens: this.#model.maxOutputTokens,
       messages: this.#messages,
+      // parallel_tool_calls is deliberately NOT sent. Only 5 of OpenRouter's
+      // ~396 models declare support for it, and providerRouting's
+      // requireParameters -- a capability filter we must keep -- resolves a
+      // request carrying an unsupported parameter to zero endpoints. Sending it
+      // 404s every Anthropic, OpenAI, Qwen and Gemini model, and pins the rest
+      // to the single provider that does declare it. The one-call-per-turn
+      // invariant is enforced below instead, by denying a parallel batch.
       ...(this.#tools.length === 0
         ? {}
         : {
           tools: this.#tools,
           tool_choice: 'auto',
-          parallel_tool_calls: false,
         }),
     };
   }
