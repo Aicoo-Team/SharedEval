@@ -18,6 +18,7 @@ test('parses default multi and explicit multi and single commands', () => {
     {
       configPath: 'run.yaml',
       check: true,
+      worldHash: false,
       workflow: {
         id: 'files-multi',
         mode: 'multi',
@@ -35,6 +36,7 @@ test('parses default multi and explicit multi and single commands', () => {
     {
       configPath: 'run.yaml',
       check: false,
+      worldHash: false,
       runId: 'single-run-7',
       taskIds: ['PAIR-Q-0101'],
       maxTicks: 7,
