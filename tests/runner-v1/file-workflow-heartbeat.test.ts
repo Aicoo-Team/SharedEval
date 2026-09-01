@@ -242,6 +242,48 @@ test('rejects a current contact for a task that is already terminal in history',
   );
 });
 
+test('multiTurn allows a repeated contact for a still-pending task', () => {
+  const gateless = binding('files-multi', 'builder-repeat-contact', ['PAIR-Q-001']);
+  const prior = projectionFor(gateless, 1, {
+    contact: {
+      taskId: 'PAIR-Q-001',
+      message: 'first ask',
+      status: 'denied',
+      errorCode: 'CONTACT_RESPONDER_DENIED',
+    },
+  });
+  const current = projectionFor(gateless, 2, {
+    contact: {
+      taskId: 'PAIR-Q-001',
+      message: 'retry with a different framing',
+      status: 'completed',
+      response: 'flip',
+    },
+  });
+  const input: any = baseInput(gateless, current);
+  input.history = {
+    terminalTaskIds: [],
+    contacts: [prior.native.currentContact!.authority],
+  };
+  assert.throws(
+    () => buildFileWorkflowHeartbeatPayloadV1(input),
+    /unique selected task/i,
+    'ACCEPTED_UNGATED_REPEAT_CONTACT',
+  );
+
+  const gated = {
+    ...gateless,
+    scheduler: {
+      ...gateless.scheduler,
+      multiTurn: { phase2StartTick: 2, finalizeTick: 3 },
+    },
+  };
+  assert.doesNotThrow(
+    () => buildFileWorkflowHeartbeatPayloadV1({ ...input, binding: gated }),
+    'REJECTED_GATED_REPEAT_CONTACT',
+  );
+});
+
 test('preserves changed-action and denied-contact fallback authority', () => {
   const actionBinding = binding('files-multi', 'builder-changed-action-error', ['PAIR-A-001']);
   const changed = projectionFor(actionBinding, 1, {

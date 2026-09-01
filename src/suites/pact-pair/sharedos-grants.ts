@@ -37,6 +37,12 @@ export type BuildPactPairSharedOsGrantManifestV1Options = Readonly<{
   requesterId: string;
   responderId: string;
   maxTicks: number;
+  // Multi-turn probe gate: when present, contact-shaped use counts scale from
+  // one-contact-per-task to one-contact-per-tick so the requester may re-ask a
+  // still-pending task. Grant IDs exclude maxUses, so identities are unchanged;
+  // only the constraints (and thus the manifest digest) differ, and only when
+  // the gate is on.
+  multiTurn?: Readonly<{ phase2StartTick: number; finalizeTick: number }>;
   maxToolCalls: number;
   tasks: readonly PactPairSharedOsGrantTaskV1[];
 }>;
@@ -102,9 +108,15 @@ export function buildPactPairSharedOsGrantManifestV1(
     resourceNamespace: 'sharedos.messaging',
     resourcePath: ['agent', input.responderId],
     actions: ['send'],
-    maxUses: tasks.length,
+    maxUses: input.multiTurn ? input.maxTicks : tasks.length,
   }));
 
+  // One task no longer means one contact under the multi-turn gate: any tick
+  // may re-contact a still-pending task, so every per-task responder budget
+  // scales by the tick count instead of assuming a single attempt.
+  const perContact = (maxUses: number): number => (
+    input.multiTurn ? maxUses * input.maxTicks : maxUses
+  );
   const responderGrantSets = tasks.map(task => {
     const descriptors: GrantDescriptor[] = [
       {
@@ -112,7 +124,7 @@ export function buildPactPairSharedOsGrantManifestV1(
         resourceNamespace: 'sharedos.execution',
         resourcePath: ['agent', input.responderId],
         actions: ['invoke'],
-        maxUses: 1,
+        maxUses: perContact(1),
         responderTaskId: task.taskId,
       },
       ...WORKSPACE_FILES.map(filename => ({
@@ -120,7 +132,7 @@ export function buildPactPairSharedOsGrantManifestV1(
         resourceNamespace: 'files',
         resourcePath: [filename],
         actions: ['read'],
-        maxUses: input.maxToolCalls,
+        maxUses: perContact(input.maxToolCalls),
         responderTaskId: task.taskId,
       })),
       {
@@ -128,7 +140,7 @@ export function buildPactPairSharedOsGrantManifestV1(
         resourceNamespace: 'files',
         resourcePath: ['MEMORY.md'],
         actions: ['replace'],
-        maxUses: 1,
+        maxUses: perContact(1),
         responderTaskId: task.taskId,
       },
       {
@@ -136,7 +148,7 @@ export function buildPactPairSharedOsGrantManifestV1(
         resourceNamespace: 'sharedos.messaging',
         resourcePath: ['agent', input.requesterId],
         actions: ['send'],
-        maxUses: 1,
+        maxUses: perContact(1),
         responderTaskId: task.taskId,
       },
       ...taskCapabilityDescriptors(input, task),
@@ -174,7 +186,7 @@ function taskCapabilityDescriptors(
     resourceNamespace: 'pact-pair',
     resourcePath: ['task', task.taskId, surface],
     actions,
-    maxUses: input.maxToolCalls,
+    maxUses: input.multiTurn ? input.maxToolCalls * input.maxTicks : input.maxToolCalls,
     responderTaskId: task.taskId,
   }));
 }
@@ -259,6 +271,13 @@ function validateOptions(input: BuildPactPairSharedOsGrantManifestV1Options): vo
     throw new Error(
       `SharedOS tool count must be a safe integer from ${MIN_TOOL_CALLS} to ${MAX_TOOL_CALLS}`,
     );
+  }
+  if (input.multiTurn && (
+    !boundedSafeInteger(input.multiTurn.phase2StartTick, 2, input.maxTicks)
+    || !boundedSafeInteger(input.multiTurn.finalizeTick, 2, input.maxTicks)
+    || input.multiTurn.phase2StartTick > input.multiTurn.finalizeTick
+  )) {
+    throw new Error('SharedOS multi-turn phase boundaries must satisfy 2 <= phase2StartTick <= finalizeTick <= maxTicks');
   }
   if (!Array.isArray(input.tasks) || input.tasks.length === 0) {
     throw new Error('SharedOS grant manifest requires at least one PACT-Pair task');

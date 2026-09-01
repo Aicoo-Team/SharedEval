@@ -538,6 +538,7 @@ async function openSessionAuthority(
     requesterId: options.requester.actorId,
     responderId: options.responder.actorId,
     maxTicks: options.maxTicks,
+    ...(options.multiTurn ? { multiTurn: options.multiTurn } : {}),
     maxToolCalls: options.maxToolCalls,
     tasks: options.tasks,
   });
@@ -552,6 +553,7 @@ async function openSessionAuthority(
       purpose: SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
       startedAt: runStartedAt,
       toolSurface: 'sharedos-runtime' as const,
+      ...(options.multiTurn ? { allowRepeatContacts: true as const } : {}),
       responderGrantSets: manifest.responderGrantSets.map(set => ({
         taskId: set.taskId,
         grantIds: [...set.grantIds],

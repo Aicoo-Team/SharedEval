@@ -170,7 +170,8 @@ export function heartbeatPayloadFor(
   privateValue?: any,
 ): any {
   const rebound = transitions.map(row => rewriteTransition(row, runBinding));
-  const previousMemoryVersion = Math.max(0, tick - 1);
+  const previousMemoryVersion = privateValue?.requesterMemory?.previousVersion
+    ?? Math.max(0, tick - 1);
   const defaultPreviousMemory = memoryContent(runBinding.selectedTaskIds, previousMemoryVersion);
   const defaultNextMemory = memoryContent(
     runBinding.selectedTaskIds,
@@ -1225,6 +1226,17 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
   requesterExecutionStatus?: 'succeeded' | 'failed';
   leaveTaskPending?: boolean;
   contactStatus?: 'denied' | 'failed';
+  /**
+   * Scripted multi-turn behavior: entry [tick-1] names the contacted task, its
+   * contact outcome, and the requester MEMORY status written that tick (absent
+   * means the row stays pending and no MEMORY replace happens). Overrides the
+   * default one-task-per-tick refusal walk.
+   */
+  tickScript?: ReadonlyArray<Readonly<{
+    taskId: string;
+    contactStatus: 'denied' | 'completed';
+    memoryStatus?: 'answered' | 'refused';
+  }>>;
   mutatePactWorkspaceForTask?: (
     workspace: CreateSharedOsFileSessionV1Options['pactWorkspace'],
     task: LoadedPactPairTaskV1,
@@ -1307,9 +1319,15 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
         if (input.failTurnForSessionIndexes?.has(options.sessionIndex)) {
           throw new Error('PRIVATE_FAKE_SESSION_TURN_FAILURE');
         }
-        const task = options.tasks[taskIndex];
+        const scriptEntry = input.tickScript?.[turn.tick - 1];
+        if (input.tickScript && !scriptEntry) {
+          throw new Error('Fake SharedOS tick script exhausted');
+        }
+        const task = scriptEntry
+          ? options.tasks.find(candidate => candidate.taskId === scriptEntry.taskId)
+          : options.tasks[taskIndex];
         if (!task) throw new Error('Fake SharedOS session exhausted its task queue');
-        taskIndex += 1;
+        if (!scriptEntry) taskIndex += 1;
         const requesterRead = await readFourFiles(
           options.requester.workspace,
           options.requester.actorId,
@@ -1323,17 +1341,24 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
           ? memory.content.slice(0, -1)
           : memory.content;
         const requesterExecutionStatus = input.requesterExecutionStatus ?? 'succeeded';
-        const rows = memoryBody.split('\n').map(line => (
-          line.startsWith(`${task.taskId} `)
-            ? input.leaveTaskPending
-              ? line
-              : requesterExecutionStatus === 'failed'
+        const rows = memoryBody.split('\n').map(line => {
+          if (!line.startsWith(`${task.taskId} `)) return line;
+          if (scriptEntry) {
+            return scriptEntry.memoryStatus
+              ? `${task.taskId} [${scriptEntry.memoryStatus}] — scripted fake reply`
+              : line;
+          }
+          return input.leaveTaskPending
+            ? line
+            : requesterExecutionStatus === 'failed'
               ? `${task.taskId} [error] — fake SharedOS execution failure`
-              : `${task.taskId} [refused] — fake SharedOS reply`
-            : line
-        ));
+              : `${task.taskId} [refused] — fake SharedOS reply`;
+        });
         const nextMemory = `${rows.join('\n')}\n`;
-        if (requesterExecutionStatus === 'succeeded' && !input.leaveTaskPending) {
+        const commitsMemory = requesterExecutionStatus === 'succeeded' && (
+          scriptEntry ? scriptEntry.memoryStatus !== undefined : !input.leaveTaskPending
+        );
+        if (commitsMemory) {
           const replacement = await options.requester.workspace.replaceMemory({
             actorId: options.requester.actorId,
             expectedVersion: memory.receipt.version,
@@ -1344,32 +1369,40 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
           }
         }
         const actionBefore = options.pactWorkspace.snapshot();
-        if (requesterExecutionStatus === 'succeeded' && !input.leaveTaskPending) {
+        if (requesterExecutionStatus === 'succeeded' && !scriptEntry && !input.leaveTaskPending) {
           input.mutatePactWorkspaceForTask?.(options.pactWorkspace, task);
         }
         const actionAfter = options.pactWorkspace.snapshot();
         const contactSeed = `fake-provider-contact-${turn.tick}`;
-        const contactStatus = input.contactStatus ?? 'denied';
+        const contactStatus = scriptEntry
+          ? scriptEntry.contactStatus
+          : input.contactStatus ?? 'denied';
+        const includeContact = scriptEntry !== undefined
+          || (requesterExecutionStatus === 'succeeded' && !input.leaveTaskPending);
         const payload = heartbeatPayloadFor(runBinding, turn.tick, [], {
           traceId: turn.traceId,
           omitSessionStopReason: true,
           requesterExecutionStatus,
-          omitRequesterMemoryReplace: requesterExecutionStatus === 'failed' || input.leaveTaskPending,
+          omitRequesterMemoryReplace: !commitsMemory,
           requesterMemory: {
             previousVersion: memory.receipt.version,
             previousBytesBase64: Buffer.from(memory.content).toString('base64'),
             newBytesBase64: Buffer.from(nextMemory).toString('base64'),
           },
-          ...(requesterExecutionStatus === 'succeeded' && !input.leaveTaskPending
+          ...(includeContact
             ? {
               contact: {
                 taskId: task.taskId,
                 requestMessageId: contactSeed,
                 message: `fake SharedOS request for ${task.taskId}`,
                 status: contactStatus,
-                errorCode: contactStatus === 'denied'
-                  ? 'CONTACT_RESPONDER_DENIED'
-                  : 'CONTACT_RESPONDER_FAILED',
+                ...(contactStatus === 'completed'
+                  ? { response: `scripted fake answer for ${task.taskId}` }
+                  : {
+                    errorCode: contactStatus === 'denied'
+                      ? 'CONTACT_RESPONDER_DENIED'
+                      : 'CONTACT_RESPONDER_FAILED',
+                  }),
                 ...(contactStatus === 'failed' ? { responderExecutionId: 'started' } : {}),
               },
             }
@@ -1419,9 +1452,13 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
                   : {}),
                 status: contactStatus,
                 responderReads: Object.freeze(responderReads),
-                errorCode: contactStatus === 'denied'
-                  ? 'CONTACT_RESPONDER_DENIED' as const
-                  : 'CONTACT_RESPONDER_FAILED' as const,
+                ...(contactStatus === 'completed'
+                  ? { response: `scripted fake answer for ${task.taskId}` }
+                  : {
+                    errorCode: contactStatus === 'denied'
+                      ? 'CONTACT_RESPONDER_DENIED' as const
+                      : 'CONTACT_RESPONDER_FAILED' as const,
+                  }),
                 providerUsage: evidence.providerTelemetry.responder!,
               }),
             }

@@ -52,6 +52,7 @@ const LOCK_POLL_MS = 5;
 class BoundedReadChangedError extends Error {}
 const recordNamePattern = /^record-([0-9]{12})\.json$/;
 const responderBindingNamePattern = /^task-[a-f0-9]{64}\.json$/;
+const repeatContactBindingNamePattern = /^contact-[a-f0-9]{64}\.json$/;
 const stageNamePattern = /^stage-[0-9a-f-]{36}\.json$/;
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 const identifierSchema = z.string().trim().min(1).max(256);
@@ -127,6 +128,11 @@ const sessionBindingSchema = z.object({
   purpose: z.string().trim().min(1).max(512),
   startedAt: canonicalUtcTimestampSchema,
   toolSurface: z.literal('sharedos-runtime'),
+  // Multi-turn probe gate: when committed as true at open, a task may receive
+  // one responder binding per accepted request instead of exactly one ever.
+  // Absent for every pre-existing session, so committed binding bytes and
+  // digests are unchanged.
+  allowRepeatContacts: z.literal(true).optional(),
   responderGrantSets: z.array(responderGrantSetSchema),
 }).strict();
 
@@ -650,20 +656,25 @@ export class SharedOsSessionStoreV1 implements
         ...candidateWithoutDigest,
         bindingDigest: digestCanonical(candidateWithoutDigest),
       });
-      const sameTask = existing.find(record => record.taskId === parsed.taskId);
-      if (sameTask && isDeepStrictEqual(sameTask, candidate)) return 'replayed';
+      const repeatContacts = this.authority.binding.allowRepeatContacts === true;
+      const sameRequest = existing.find(record => (
+        record.requestMessageId === parsed.requestMessageId
+      ));
+      if (sameRequest && isDeepStrictEqual(sameRequest, candidate)) return 'replayed';
       if (existing.some(record => record.traceId === parsed.traceId)) {
         throw new Error('Responder trace already has a conflicting immutable binding');
       }
-      if (existing.some(record => record.requestMessageId === parsed.requestMessageId)) {
+      if (sameRequest) {
         throw new Error('Responder request already has a conflicting immutable binding');
       }
-      if (sameTask) {
+      if (!repeatContacts && existing.some(record => record.taskId === parsed.taskId)) {
         throw new SharedOsResponderTaskAlreadyBoundErrorV1(parsed.taskId);
       }
       const destination = join(
         this.paths.responderBindings,
-        `task-${sha256(parsed.taskId)}.json`,
+        repeatContacts
+          ? `contact-${sha256(parsed.requestMessageId)}.json`
+          : `task-${sha256(parsed.taskId)}.json`,
       );
       await establishImmutableJson(
         this.paths,
@@ -1308,9 +1319,13 @@ async function scanResponderBindings(
   authority: NormalizedAuthority,
 ): Promise<readonly ResponderBindingRecord[]> {
   await assertDirectory(paths.responderBindings, 'SharedOS responder-binding directory');
+  const repeatContacts = authority.binding.allowRepeatContacts === true;
+  const namePattern = repeatContacts
+    ? repeatContactBindingNamePattern
+    : responderBindingNamePattern;
   const records: ResponderBindingRecord[] = [];
   for (const name of (await readdir(paths.responderBindings)).sort(compareCodeUnits)) {
-    if (!responderBindingNamePattern.test(name)) {
+    if (!namePattern.test(name)) {
       throw new Error(`Unsafe unknown responder-binding record: ${name}`);
     }
     let record: ResponderBindingRecord;
@@ -1325,10 +1340,10 @@ async function scanResponderBindings(
       throw new Error('Responder grant binding is malformed');
     }
     const { bindingDigest, ...withoutDigest } = record;
-    if (
-      bindingDigest !== digestCanonical(withoutDigest)
-      || name !== `task-${sha256(record.taskId)}.json`
-    ) {
+    const expectedName = repeatContacts
+      ? `contact-${sha256(record.requestMessageId)}.json`
+      : `task-${sha256(record.taskId)}.json`;
+    if (bindingDigest !== digestCanonical(withoutDigest) || name !== expectedName) {
       throw new Error('Responder grant binding digest is invalid');
     }
     const configured = authority.responderGrantSets.get(record.taskId);
@@ -1336,7 +1351,7 @@ async function scanResponderBindings(
       throw new Error('Responder grant binding conflicts with immutable task grants');
     }
     if (
-      records.some(existing => existing.taskId === record.taskId)
+      (!repeatContacts && records.some(existing => existing.taskId === record.taskId))
       || records.some(existing => existing.traceId === record.traceId)
       || records.some(existing => existing.requestMessageId === record.requestMessageId)
     ) {

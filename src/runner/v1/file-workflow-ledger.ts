@@ -613,12 +613,14 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
     if (remaining.length === 0) {
       throw new Error('Quarantine requires at least one unresolved selected task');
     }
-    const committedContacts = new Map(records.flatMap(record => {
+    // Every committed contact counts, not only a task's latest: under repeat
+    // contacts a later no-op retry must not hide an earlier proven change.
+    const changedTaskIds = new Set(records.flatMap(record => {
       const authority = record.payload.contactAuthority;
-      return authority ? [[authority.taskId, authority] as const] : [];
+      return authority?.stateChanged === true ? [authority.taskId] : [];
     }));
     for (const task of remaining) {
-      if (committedContacts.get(task.taskId)?.stateChanged === true) {
+      if (changedTaskIds.has(task.taskId)) {
         // A committed contact proves this task already changed action state;
         // sealing it as a plain typed error would erase that proven side
         // effect, so this stays a loud run-level failure.
@@ -1633,8 +1635,14 @@ function assertContactAuthorityHistory(
   payloads: readonly FileWorkflowLedgerPayloadV1[],
   binding: FileWorkflowRunBindingV1,
 ): void {
+  // Under the multi-turn gate byTask is latest-wins (a still-pending task may
+  // be re-contacted on later ticks); changedTasks remembers every committed
+  // changed-action contact so a later no-op retry cannot launder a real side
+  // effect into a plain error terminal.
+  const repeatContacts = binding.scheduler.multiTurn !== undefined;
   const byTask = new Map<string, FileWorkflowContactAuthorityV1>();
   const byContact = new Map<string, FileWorkflowContactAuthorityV1>();
+  const changedTasks = new Set<string>();
   const terminalTasks = new Set<string>();
   const memoryRowsByActor = new Map<string, readonly Pick<FileMemoryRowV1, 'taskId' | 'status'>[]>([
     [binding.actors.requester.actorId,
@@ -1648,11 +1656,15 @@ function assertContactAuthorityHistory(
       if (terminalTasks.has(current.taskId)) {
         throw new Error('Contact authority cannot be appended after terminal task authority');
       }
-      if (byTask.has(current.taskId) || byContact.has(current.contactId)) {
+      if (
+        byContact.has(current.contactId)
+        || (!repeatContacts && byTask.has(current.taskId))
+      ) {
         throw new Error('Distinct duplicate or conflicting contact/snapshot authority');
       }
       byTask.set(current.taskId, current);
       byContact.set(current.contactId, current);
+      if (current.stateChanged === true) changedTasks.add(current.taskId);
     }
     for (const memoryAuthority of payload.memoryAuthorities) {
       const previousRows = memoryRowsByActor.get(memoryAuthority.actorId);
@@ -1739,14 +1751,17 @@ function assertContactAuthorityHistory(
           ) {
             throw new Error('Action evaluation state change conflicts with snapshot authority');
           }
+          const anyStateChanged = repeatContacts
+            ? changedTasks.has(transition.taskId)
+            : authority.stateChanged === true;
           if (
             transition.result.status === 'side_effect_before_failure'
-            && authority.stateChanged !== true
+            && !anyStateChanged
           ) {
             throw new Error('Side-effect failure requires changed action snapshot authority');
           }
           if (
-            authority.stateChanged === true
+            anyStateChanged
             && (
               transition.result.status === 'error'
               || transition.result.status === 'no_response'

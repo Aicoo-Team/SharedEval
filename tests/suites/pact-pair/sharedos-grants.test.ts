@@ -206,6 +206,44 @@ test('builds the exact root grant matrix with bounded uses', () => {
   ]);
 });
 
+test('multiTurn scales contact-shaped use counts without changing grant identities', () => {
+  const single = build({ maxTicks: 5 });
+  const multi = build({ maxTicks: 5, multiTurn: { phase2StartTick: 2, finalizeTick: 5 } });
+
+  assert.deepEqual(
+    multi.grants.map(grant => grant.id),
+    single.grants.map(grant => grant.id),
+  );
+  assert.deepEqual(multi.responderGrantSets, single.responderGrantSets);
+
+  const singleById = new Map(single.grants.map(grant => [grant.id, grant]));
+  for (const grant of multi.grants) {
+    const before = singleById.get(grant.id)!;
+    const capability = grant.capabilities[0]!;
+    const isRequesterSubject = grant.subject.kind === 'agent'
+      && grant.subject.agentId === REQUESTER_ID;
+    if (isRequesterSubject && capability.resource.namespace === 'sharedos.messaging') {
+      // Requester send: one contact per tick (maxTicks) instead of one per task.
+      assert.equal(before.constraints.maxUses, 3);
+      assert.equal(grant.constraints.maxUses, 5);
+    } else if (isRequesterSubject) {
+      assert.equal(grant.constraints.maxUses, before.constraints.maxUses);
+    } else {
+      // Every per-task responder budget scales by the tick count.
+      assert.equal(grant.constraints.maxUses, (before.constraints.maxUses ?? 0) * 5);
+    }
+  }
+
+  assert.throws(
+    () => build({ multiTurn: { phase2StartTick: 4, finalizeTick: 3 } }),
+    /phase2StartTick/,
+  );
+  assert.throws(
+    () => build({ multiTurn: { phase2StartTick: 2, finalizeTick: 4 } }),
+    /phase2StartTick|maxTicks/,
+  );
+});
+
 test('uses task-discriminated responder IDs without changing canonical capabilities', () => {
   const manifest = build({
     tasks: [qaTask('PAIR-Q1', 'notes'), qaTask('PAIR-Q2', 'notes')],

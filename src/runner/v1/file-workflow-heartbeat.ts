@@ -154,6 +154,10 @@ function collectContacts(
   binding: FileWorkflowRunBindingV1,
 ): ReadonlyMap<string, FileWorkflowContactAuthorityV1> {
   const selected = new Set(binding.selectedTaskIds);
+  // Under the multi-turn gate the same still-pending task may be contacted on
+  // many ticks, so per-task uniqueness is waived while every native identity
+  // (contact, message, execution) stays unique.
+  const repeatContacts = binding.scheduler.multiTurn !== undefined;
   const byContact = new Map<string, FileWorkflowContactAuthorityV1>();
   const taskIds = new Set<string>();
   const messageIds = new Set<string>();
@@ -171,7 +175,7 @@ function collectContacts(
     const identities = [contact.contactId, ...(contact.replyMessageId ? [contact.replyMessageId] : [])];
     if (
       !selected.has(contact.taskId)
-      || taskIds.has(contact.taskId)
+      || (!repeatContacts && taskIds.has(contact.taskId))
       || byContact.has(contact.contactId)
       || identities.some(id => messageIds.has(id))
       || (contact.responderExecutionId && executionIds.has(contact.responderExecutionId))

@@ -1129,6 +1129,16 @@ async function planCommittedHeartbeat(input: {
   const contacts = new Map(input.history.contacts.map(row => [row.taskId, row]));
   const current = contactFromLiveProjection(input.native, input.tick);
   if (current) contacts.set(current.taskId, current);
+  // Fallback terminals must honor every committed contact, not only a task's
+  // latest: under the multi-turn gate a later no-op retry cannot hide an
+  // earlier proven action-state change.
+  const contactRows = [...input.history.contacts, ...(current ? [current] : [])];
+  const anyStateChangedFor = (taskId: string): boolean => contactRows.some(row => (
+    row.taskId === taskId
+    && row.actionBefore !== undefined
+    && row.actionAfter !== undefined
+    && !isDeepStrictEqual(row.actionBefore, row.actionAfter)
+  ));
   const requesterMemory = input.native.memoryAuthorities.find(row => (
     row.actorId === input.binding.actors.requester.actorId
   ));
@@ -1161,11 +1171,16 @@ async function planCommittedHeartbeat(input: {
   ));
   let stopReason: FileDrivenPairStopReasonV1 | undefined;
   const completeAfterMemory = existing.size + planned.size === input.tasks.length;
+  const fallbackChanged = (task: LoadedPactPairTaskV1): boolean => (
+    input.binding.scheduler.multiTurn
+      ? anyStateChangedFor(task.taskId)
+      : hasStateChanged(actionStateFromContact(task, contacts.get(task.taskId)))
+  );
   if (fatal) {
     for (const task of remainingAfterMemory) {
       const contact = contacts.get(task.taskId);
       const state = actionStateFromContact(task, contact);
-      const status = hasStateChanged(state) ? 'side_effect_before_failure' : 'error';
+      const status = fallbackChanged(task) ? 'side_effect_before_failure' : 'error';
       planned.set(task.taskId, await heartbeatTerminalOutcome({ task, status, contact, state }));
     }
     stopReason = 'fatal_error';
@@ -1175,7 +1190,7 @@ async function planCommittedHeartbeat(input: {
     for (const task of remainingAfterMemory) {
       const contact = contacts.get(task.taskId);
       const state = actionStateFromContact(task, contact);
-      const status = hasStateChanged(state) ? 'side_effect_before_failure' : 'no_response';
+      const status = fallbackChanged(task) ? 'side_effect_before_failure' : 'no_response';
       planned.set(task.taskId, await heartbeatTerminalOutcome({ task, status, contact, state }));
     }
     stopReason = 'tick_exhausted';
