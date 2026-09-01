@@ -284,6 +284,45 @@ test('multiTurn allows a repeated contact for a still-pending task', () => {
   );
 });
 
+test('multiTurn commits a plainly failed turn as a lost tick without stop authority', () => {
+  const gateless = binding('files-multi', 'builder-lost-tick', ['PAIR-Q-001']);
+  const gated = {
+    ...gateless,
+    scheduler: {
+      ...gateless.scheduler,
+      multiTurn: { phase2StartTick: 2, finalizeTick: 3 },
+    },
+  };
+  const makeInput = (runBinding: typeof gateless): any => {
+    const current = projectionFor(runBinding, 1, { omitMemoryCommit: true });
+    const input: any = baseInput(runBinding, current);
+    input.native = structuredClone(current.native);
+    input.native.sharedOsAuthority.requesterExecutionStatus = 'failed';
+    input.native.retainedEvidence.requesterExecutionStatus = 'failed';
+    input.native.retainedEvidence.tickDecisions = [];
+    return input;
+  };
+
+  assert.throws(
+    () => buildFileWorkflowHeartbeatPayloadV1(makeInput(gateless)),
+    /fatal_error/,
+    'ACCEPTED_UNGATED_FAILED_TURN_WITHOUT_FATAL',
+  );
+  assert.doesNotThrow(
+    () => buildFileWorkflowHeartbeatPayloadV1(makeInput(gated)),
+    'REJECTED_GATED_LOST_TICK',
+  );
+
+  // Answered/refused outcomes can never ride a failed turn, gate or not.
+  const withAnswered = makeInput(gated);
+  withAnswered.terminalOutcomes = [{
+    taskId: 'PAIR-Q-001',
+    status: 'answered',
+    fullEvaluation: null,
+  }];
+  assert.throws(() => buildFileWorkflowHeartbeatPayloadV1(withAnswered));
+});
+
 test('preserves changed-action and denied-contact fallback authority', () => {
   const actionBinding = binding('files-multi', 'builder-changed-action-error', ['PAIR-A-001']);
   const changed = projectionFor(actionBinding, 1, {

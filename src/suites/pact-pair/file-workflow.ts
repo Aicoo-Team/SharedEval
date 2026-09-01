@@ -1148,8 +1148,18 @@ async function planCommittedHeartbeat(input: {
       : []
   )) ?? []);
   const planned = new Map<string, FileWorkflowHeartbeatTerminalOutcomeV1>();
-  const fatal = input.native.sharedOsAuthority.requesterExecutionStatus !== 'succeeded'
-    || input.native.retainedEvidence.tickDecisions[0]?.type === 'cancelled';
+  const cancelled = input.native.retainedEvidence.tickDecisions[0]?.type === 'cancelled';
+  const failed = input.native.sharedOsAuthority.requesterExecutionStatus !== 'succeeded';
+  // Under the multi-turn gate a plainly failed turn (provider/driver failure,
+  // never a cancellation) is committable as one lost tick instead of ending the
+  // whole trajectory — but only when the turn left no terminal MEMORY flip: a
+  // flip could not be terminalized against a failed execution, so fail-closed
+  // stays in force for that shape.
+  const survivableFailure = failed
+    && !cancelled
+    && input.binding.scheduler.multiTurn !== undefined
+    && deltas.size === 0;
+  const fatal = (failed || cancelled) && !survivableFailure;
 
   for (const task of input.tasks) {
     if (existing.has(task.taskId)) continue;

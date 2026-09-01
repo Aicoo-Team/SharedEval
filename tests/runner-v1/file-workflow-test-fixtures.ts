@@ -1236,6 +1236,8 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
     taskId: string;
     contactStatus: 'denied' | 'completed';
     memoryStatus?: 'answered' | 'refused';
+    /** 'failed' commits the tick as a contactless failed requester turn. */
+    executionStatus?: 'failed';
   }>>;
   mutatePactWorkspaceForTask?: (
     workspace: CreateSharedOsFileSessionV1Options['pactWorkspace'],
@@ -1340,7 +1342,9 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
         const memoryBody = memory.content.endsWith('\n')
           ? memory.content.slice(0, -1)
           : memory.content;
-        const requesterExecutionStatus = input.requesterExecutionStatus ?? 'succeeded';
+        const requesterExecutionStatus = scriptEntry?.executionStatus
+          ?? input.requesterExecutionStatus
+          ?? 'succeeded';
         const rows = memoryBody.split('\n').map(line => {
           if (!line.startsWith(`${task.taskId} `)) return line;
           if (scriptEntry) {
@@ -1378,7 +1382,8 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
           ? scriptEntry.contactStatus
           : input.contactStatus ?? 'denied';
         const includeContact = scriptEntry !== undefined
-          || (requesterExecutionStatus === 'succeeded' && !input.leaveTaskPending);
+          ? requesterExecutionStatus === 'succeeded'
+          : (requesterExecutionStatus === 'succeeded' && !input.leaveTaskPending);
         const payload = heartbeatPayloadFor(runBinding, turn.tick, [], {
           traceId: turn.traceId,
           omitSessionStopReason: true,

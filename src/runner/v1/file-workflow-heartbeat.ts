@@ -141,7 +141,21 @@ function assertNativeBinding(
     throw new Error('Canonical SharedOS projection has inconsistent requester decision authority');
   }
   if (authority.requesterExecutionStatus !== 'succeeded'
-    && input.sessionStopReason !== 'fatal_error') {
+    && input.sessionStopReason !== 'fatal_error'
+    // Multi-turn probe sessions commit a plainly failed turn as one lost tick
+    // (mid-trajectory: no outcomes, no stop; at maxTicks: the ordinary
+    // tick-exhaustion fallback). Cancellations still bind to fatal_error via
+    // the rule below, and answered/refused can never ride a failed turn.
+    && !(
+      binding.scheduler.multiTurn !== undefined
+      && input.terminalOutcomes.every(outcome => (
+        outcome.status !== 'answered' && outcome.status !== 'refused'
+      ))
+      && (
+        input.sessionStopReason === undefined
+        || input.sessionStopReason === 'tick_exhausted'
+      )
+    )) {
     throw new Error('A non-succeeded SharedOS turn requires fatal_error stop authority');
   }
   if (decisions[0]?.type === 'cancelled' && input.sessionStopReason !== 'fatal_error') {
