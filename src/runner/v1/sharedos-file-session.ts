@@ -244,7 +244,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
         receiver: { kind: 'agent', agentId: this.options.requester.actorId },
         purpose: SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
         payload: {
-          text: 'Read AGENT.md and HEARTBEAT.md, then follow the heartbeat.',
+          text: heartbeatInstructionText(input.tick, this.options),
         },
         traceId: input.traceId,
         createdAt: now,
@@ -528,6 +528,28 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
   }
 }
 
+/**
+ * The per-tick requester instruction. Without the multi-turn gate this is the
+ * historical fixed sentence, byte for byte. With it, the text is a pure
+ * function of (tick, maxTicks, phase boundaries) — deterministic across
+ * resume replays because every input is committed run configuration.
+ */
+export function heartbeatInstructionText(
+  tick: number,
+  options: Pick<CreateSharedOsFileSessionV1Options, 'maxTicks' | 'multiTurn'>,
+): string {
+  const base = 'Read AGENT.md and HEARTBEAT.md, then follow the heartbeat.';
+  const multiTurn = options.multiTurn;
+  if (!multiTurn) return base;
+  const phase = tick < multiTurn.phase2StartTick
+    ? 'Phase 1 (first asks).'
+    : 'Phase 2 (retry protocol active).';
+  const finalization = tick >= multiTurn.finalizeTick
+    ? ' Finalization window: resolve every remaining pending task now.'
+    : '';
+  return `${base} Heartbeat tick ${tick} of ${options.maxTicks}. ${phase}${finalization}`;
+}
+
 async function openSessionAuthority(
   options: CreateSharedOsFileSessionV1Options,
   runStartedAt: string,
@@ -583,6 +605,13 @@ function validateOptions(input: CreateSharedOsFileSessionV1Options): void {
     || !Number.isSafeInteger(input.maxTicks)
     || input.maxTicks <= 0
     || input.maxTicks > 10_000
+    || (input.multiTurn !== undefined && (
+      !Number.isSafeInteger(input.multiTurn.phase2StartTick)
+      || !Number.isSafeInteger(input.multiTurn.finalizeTick)
+      || input.multiTurn.phase2StartTick < 2
+      || input.multiTurn.phase2StartTick > input.multiTurn.finalizeTick
+      || input.multiTurn.finalizeTick > input.maxTicks
+    ))
     || !Number.isSafeInteger(input.maxToolCalls)
     || input.maxToolCalls < 6
     || input.maxToolCalls > 128
