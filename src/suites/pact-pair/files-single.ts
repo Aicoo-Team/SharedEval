@@ -58,8 +58,12 @@ export type PactPairFilesSingleBatchV1 = Readonly<{
 
 /**
  * Single creates one fully isolated invocation of the shared scheduler per
- * task. Only a typed pre-session preparation failure is contained; once a
- * durable session may have acted, every other failure stops the batch.
+ * task. Two failure classes are contained to their own task: a typed
+ * pre-session preparation failure, and an indeterminate external operation,
+ * which the session itself seals as a durable
+ * 'error'/'INDETERMINATE_EXTERNAL_OPERATION' terminal (the started heartbeat
+ * is never re-executed). Every other failure after a durable session may have
+ * acted stops the batch.
  *
  * taskConcurrency processes up to that many tasks at once through the same
  * per-task isolation; batch output stays in task order regardless of

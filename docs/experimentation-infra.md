@@ -167,6 +167,17 @@ with per-request `outcome`, `httpStatus`, `attempts`) and checkpoint state:
 best-of-N bias. `indeterminate_external_operation` is never auto-retried
 under any circumstances; it requires operator review.
 
+In `single` mode the blast radius of an indeterminate external operation is
+one task, not the run: each task owns its session, ledger, and PACT
+workspace, so the scheduler seals the poisoned task's ledger with a
+quarantine record — a durable `error` result carrying the typed
+`INDETERMINATE_EXTERNAL_OPERATION` code, with `fatal_error` stop authority
+and zero claimed usage — and the batch keeps running its other tasks. The
+started heartbeat is never re-executed: replaying the task's run directory
+reproduces the same sealed terminal with zero model calls. `multi` mode
+keeps the run-level fail-closed stop, and run-level ledger corruption still
+fails the whole run in both modes.
+
 ### Auto-resume rules
 
 Only two situations resume automatically, and resume always reuses the exact

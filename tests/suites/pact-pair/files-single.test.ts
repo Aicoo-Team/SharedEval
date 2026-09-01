@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -148,38 +148,112 @@ test('single fails loud when a created session cannot close its durable authorit
   }
 });
 
-test('single stops the batch on indeterminate external effects without scheduling another task', async () => {
+test('single seals an indeterminate task as a typed terminal error and keeps the batch alive', async () => {
   const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-single-indeterminate-'));
   const tasks = fileSessionQaTasksV1(['PAIR-Q1', 'PAIR-Q2']);
   const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
 
   try {
-    await assert.rejects(
-      () => runPactPairFilesSingleV1({
-        runId: 'single-indeterminate',
-        workspaceRootDir,
-        registryRootDir: fileSessionRegistryRootV1,
-        runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
-        requester: fileSessionSingleActorsV1.requester,
-        responder: fileSessionSingleActorsV1.responder,
-        tasks,
-        budget: { deadlineMs: 2_000, maxToolCalls: 8 },
-        createDriver: unreachableFileTurnDriverV1,
-        createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({
-          trace,
-          failTurnForSessionIndexes: new Set([0]),
-        }),
-        pactWorkspaceForTask: () => createPactPairWorkspaceV1(),
-        storeRootForTask: (task, index) => join(workspaceRootDir, `${index}-${task.taskId}`),
+    const batch = await runPactPairFilesSingleV1({
+      runId: 'single-indeterminate',
+      workspaceRootDir,
+      registryRootDir: fileSessionRegistryRootV1,
+      runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+      requester: fileSessionSingleActorsV1.requester,
+      responder: fileSessionSingleActorsV1.responder,
+      tasks,
+      budget: { deadlineMs: 2_000, maxToolCalls: 8 },
+      createDriver: unreachableFileTurnDriverV1,
+      createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({
+        trace,
+        failTurnForSessionIndexes: new Set([0]),
       }),
-      error => error instanceof Error
-        && error.name === 'FileDrivenPairIndeterminateExternalOperationErrorV1'
-        && 'errorCode' in error
-        && error.errorCode === 'indeterminate_external_operation',
+      pactWorkspaceForTask: () => createPactPairWorkspaceV1(),
+      storeRootForTask: (task, index) => join(workspaceRootDir, `${index}-${task.taskId}`),
+    });
+
+    // The poisoned task is terminal with the typed quarantine code, the
+    // second task still ran, and the batch completed without a fatal throw.
+    assert.deepEqual(batch.outcomes.map(outcome => [outcome.taskId, outcome.status]), [
+      ['PAIR-Q1', 'error'],
+      ['PAIR-Q2', 'refused'],
+    ]);
+    assert.equal(batch.preparationFailures.length, 0);
+    assert.equal(batch.sessions.length, 2);
+    assert.equal(batch.sessions[0]?.stopReason, 'fatal_error');
+    assert.equal(batch.sessions[0]?.fatalErrorCode, 'INDETERMINATE_EXTERNAL_OPERATION');
+    assert.equal(batch.sessions[1]?.stopReason, 'all_terminal');
+    assert.deepEqual(trace.creates.map(created => created.sessionIndex), [0, 1]);
+    assert.deepEqual(trace.turns.map(turn => turn.sessionIndex), [0, 1]);
+    assert.deepEqual([...trace.closes].sort(), [0, 1]);
+
+    // Durable per-task authority: the quarantined task's own run directory
+    // finalizes with the typed error row; no external work is ever re-rolled.
+    const quarantinedResults = await readFile(
+      join(workspaceRootDir, '0-PAIR-Q1', 'results.jsonl'),
+      'utf8',
     );
-    assert.deepEqual(trace.creates.map(created => created.sessionIndex), [0]);
-    assert.deepEqual(trace.turns.map(turn => turn.sessionIndex), [0]);
-    assert.deepEqual(trace.closes, [0]);
+    const row = JSON.parse(quarantinedResults.trim());
+    assert.equal(row.taskId, 'PAIR-Q1');
+    assert.equal(row.status, 'error');
+    assert.equal(row.errorCode, 'INDETERMINATE_EXTERNAL_OPERATION');
+    assert.equal(row.publicEvaluation, null);
+    const checkpoint = JSON.parse(await readFile(
+      join(workspaceRootDir, '0-PAIR-Q1', 'checkpoint.json'),
+      'utf8',
+    ));
+    assert.equal(checkpoint.status, 'completed');
+    const summary = JSON.parse(await readFile(
+      join(workspaceRootDir, '0-PAIR-Q1', 'summary.json'),
+      'utf8',
+    ));
+    assert.equal(summary.statuses.error, 1);
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('single replays a quarantined task terminal without another SharedOS turn', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-single-quarantine-replay-'));
+  const tasks = fileSessionQaTasksV1(['PAIR-Q1']);
+  const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+
+  try {
+    const common = {
+      runId: 'single-quarantine-replay',
+      workspaceRootDir,
+      registryRootDir: fileSessionRegistryRootV1,
+      runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+      requester: fileSessionSingleActorsV1.requester,
+      responder: fileSessionSingleActorsV1.responder,
+      tasks,
+      budget: { deadlineMs: 2_000, maxToolCalls: 8 },
+      createDriver: unreachableFileTurnDriverV1,
+      pactWorkspaceForTask: () => createPactPairWorkspaceV1(),
+      storeRootForTask: (task: (typeof tasks)[number], index: number) => join(
+        workspaceRootDir,
+        `${index}-${task.taskId}`,
+      ),
+    } as const;
+    const first = await runPactPairFilesSingleV1({
+      ...common,
+      createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({
+        trace,
+        failTurnForSessionIndexes: new Set([0]),
+      }),
+    });
+    assert.equal(first.sessions[0]?.fatalErrorCode, 'INDETERMINATE_EXTERNAL_OPERATION');
+
+    const replayTrace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+    const replay = await runPactPairFilesSingleV1({
+      ...common,
+      createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({ trace: replayTrace }),
+    });
+    assert.equal(replayTrace.turns.length, 0);
+    assert.deepEqual(replay.outcomes.map(outcome => [outcome.taskId, outcome.status]), [
+      ['PAIR-Q1', 'error'],
+    ]);
+    assert.equal(replay.sessions[0]?.fatalErrorCode, 'INDETERMINATE_EXTERNAL_OPERATION');
   } finally {
     await rm(workspaceRootDir, { recursive: true, force: true });
   }

@@ -62,6 +62,7 @@ export const FILE_WORKFLOW_PUBLIC_ERROR_CODES_V1 = Object.freeze([
   'FILE_TURN_FAILED',
   'FILE_SESSION_FAILED',
   'FILE_SESSION_PREPARATION_FAILED',
+  'INDETERMINATE_EXTERNAL_OPERATION',
 ] as const);
 const publicErrorCodeSchema = z.enum(
   FILE_WORKFLOW_PUBLIC_ERROR_CODES_V1 as unknown as [string, ...string[]],
@@ -1001,6 +1002,87 @@ export const fileWorkflowHeartbeatPayloadV1Schema = z.object({
 export type FileWorkflowHeartbeatPayloadV1 = z.infer<
   typeof fileWorkflowHeartbeatPayloadV1Schema
 >;
+
+/**
+ * The one committable record for a heartbeat whose external effects cannot be
+ * proven: a start marker exists but its turn never produced native SharedOS
+ * evidence. The payload claims no evidence at all -- no contact, no reads, no
+ * MEMORY authority, zero proven usage -- and only seals every remaining task
+ * as a typed terminal error so the contact is never re-rolled. Anything that
+ * would assert knowledge of the lost turn is unrepresentable here by schema.
+ */
+export const fileWorkflowQuarantinePayloadV1Schema = z.object({
+  quarantine: z.object({
+    errorCode: z.literal('INDETERMINATE_EXTERNAL_OPERATION'),
+  }).strict(),
+  inputDigest: sha256Schema,
+  event: z.object({
+    eventId: opaqueIdSchema,
+    runId: opaqueIdSchema,
+    sessionId: opaqueIdSchema,
+    tick: nonNegativeSafeIntegerSchema,
+    actorId: opaqueIdSchema,
+    traceId: opaqueIdSchema,
+  }).strict(),
+  contactAuthority: z.undefined().optional(),
+  fileReads: z.array(fileReadReceiptSchema).max(0),
+  memoryTransitions: z.array(fileWorkflowMemoryTransitionV1Schema).max(0),
+  memoryAuthorities: z.array(fileWorkflowMemoryAuthorityV1Schema).max(0),
+  transitions: z.array(fileWorkflowTerminalTransitionV1Schema)
+    .min(1)
+    .max(MAX_FILE_WORKFLOW_SELECTED_TASKS_V1),
+  sharedOsAuthority: z.undefined().optional(),
+  sessionStopReason: z.literal('fatal_error'),
+  provider: z.undefined().optional(),
+  usage: fileWorkflowUsageV1Schema,
+  privateEvidenceDigest: z.undefined().optional(),
+  privateEvidence: z.undefined().optional(),
+}).strict().superRefine((payload, context) => {
+  const taskIds = payload.transitions.map(transition => transition.taskId);
+  if (new Set(taskIds).size !== taskIds.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['transitions'],
+      message: 'quarantine transitions must contain unique task IDs',
+    });
+  }
+  for (const [index, transition] of payload.transitions.entries()) {
+    if (
+      transition.result.status !== 'error'
+      || transition.result.errorCode !== payload.quarantine.errorCode
+      || transition.result.publicEvaluation !== null
+      || transition.contactId !== undefined
+      || transition.result.terminalTick !== payload.event.tick
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['transitions', index],
+        message: 'quarantine transitions must be contact-free typed indeterminate errors',
+      });
+    }
+  }
+  if (Object.values(payload.usage).some(value => value !== 0)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['usage'],
+      message: 'a quarantine record cannot claim proven usage',
+    });
+  }
+});
+
+export type FileWorkflowQuarantinePayloadV1 = z.infer<
+  typeof fileWorkflowQuarantinePayloadV1Schema
+>;
+
+export type FileWorkflowLedgerPayloadV1 =
+  | FileWorkflowHeartbeatPayloadV1
+  | FileWorkflowQuarantinePayloadV1;
+
+export function isFileWorkflowQuarantinePayloadV1(
+  payload: FileWorkflowLedgerPayloadV1,
+): payload is FileWorkflowQuarantinePayloadV1 {
+  return (payload as FileWorkflowQuarantinePayloadV1).quarantine !== undefined;
+}
 
 export const fileWorkflowPublicEventV1Schema = z.object({
   apiVersion: z.literal('sharedeval-file-event/v1'),
