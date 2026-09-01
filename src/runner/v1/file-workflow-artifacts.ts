@@ -203,6 +203,13 @@ export const fileWorkflowRunBindingV1Schema = z.object({
       maxToolCalls: positiveSafeIntegerSchema,
     }).strict(),
     initialActionSha256: sha256Schema,
+    // Multi-turn probe gate: absent for every pre-existing run so committed
+    // bindings and their digests are unchanged; the ledger keys every relaxed
+    // multi-turn check off this field, never off runtime options.
+    multiTurn: z.object({
+      phase2StartTick: positiveSafeIntegerSchema,
+      finalizeTick: positiveSafeIntegerSchema,
+    }).strict().optional(),
   }).strict(),
   dataset: datasetProvenanceSchema,
   goldSet: goldSetProvenanceSchema,
@@ -246,6 +253,27 @@ export const fileWorkflowRunBindingV1Schema = z.object({
       path: ['actors'],
       message: 'requester and responder actor IDs must be distinct',
     });
+  }
+  const multiTurn = binding.scheduler.multiTurn;
+  if (multiTurn) {
+    if (binding.workflowId !== 'files-multi') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduler', 'multiTurn'],
+        message: 'multiTurn applies only to the files-multi workflow',
+      });
+    }
+    if (
+      multiTurn.phase2StartTick < 2
+      || multiTurn.phase2StartTick > multiTurn.finalizeTick
+      || multiTurn.finalizeTick > binding.scheduler.maxTicks
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduler', 'multiTurn'],
+        message: 'multiTurn phase boundaries must satisfy 2 <= phase2StartTick <= finalizeTick <= maxTicks',
+      });
+    }
   }
   for (const role of ['requester', 'responder'] as const) {
     if (

@@ -370,6 +370,28 @@ test('binds pre-spend initial hashes separately from strict final four-file meta
     /scheduler|Required/i,
   );
 
+  const multiTurn = structuredClone(value) as any;
+  multiTurn.scheduler.multiTurn = { phase2StartTick: 61, finalizeTick: 230 };
+  assert.deepEqual(
+    fileWorkflowRunBindingV1Schema.parse(multiTurn).scheduler.multiTurn,
+    { phase2StartTick: 61, finalizeTick: 230 },
+  );
+  const invertedPhases = structuredClone(multiTurn);
+  invertedPhases.scheduler.multiTurn = { phase2StartTick: 231, finalizeTick: 230 };
+  assert.throws(
+    () => fileWorkflowRunBindingV1Schema.parse(invertedPhases),
+    /phase2StartTick/i,
+  );
+  const finalizeBeyondTicks = structuredClone(multiTurn);
+  finalizeBeyondTicks.scheduler.multiTurn = {
+    phase2StartTick: 61,
+    finalizeTick: multiTurn.scheduler.maxTicks + 1,
+  };
+  assert.throws(
+    () => fileWorkflowRunBindingV1Schema.parse(finalizeBeyondTicks),
+    /phase2StartTick|maxTicks/i,
+  );
+
   for (const role of ['requester', 'responder'] as const) {
     const forgedPolicy = structuredClone(value);
     forgedPolicy.policies[role].sha256 = 'f'.repeat(64);

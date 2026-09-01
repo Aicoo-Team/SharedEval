@@ -26,6 +26,18 @@ export const MAX_SHAREDEVAL_TOOL_CALLS_V1 = 128;
 export const MAX_SHAREDEVAL_RUNTIME_MS_V1 = 600_000;
 export const MAX_SHAREDEVAL_TASK_CONCURRENCY_V1 = 32;
 
+// The multi-turn probe protocol gate. Absent means the files-multi workflow
+// behaves exactly as today and the configDigest of pre-existing configs is
+// unchanged byte for byte; present, it parameterizes the trajectory phases.
+export const sharedevalMultiTurnV1Schema = z
+  .object({
+    phase2StartTick: z.number().int().safe().min(2).max(MAX_SHAREDEVAL_TICKS_V1),
+    finalizeTick: z.number().int().safe().min(2).max(MAX_SHAREDEVAL_TICKS_V1),
+  })
+  .strict();
+
+export type SharedevalMultiTurnV1 = z.infer<typeof sharedevalMultiTurnV1Schema>;
+
 export const sharedevalWorkflowV1Schema = z
   .object({
     mode: z.enum(['multi', 'single']),
@@ -41,6 +53,7 @@ export const sharedevalWorkflowV1Schema = z
       .min(1)
       .max(MAX_SHAREDEVAL_TASK_CONCURRENCY_V1)
       .optional(),
+    multiTurn: sharedevalMultiTurnV1Schema.optional(),
   })
   .strict()
   .superRefine((workflow, context) => {
@@ -49,6 +62,29 @@ export const sharedevalWorkflowV1Schema = z
         code: z.ZodIssueCode.custom,
         path: ['taskConcurrency'],
         message: 'taskConcurrency applies only to the single workflow',
+      });
+    }
+    if (!workflow.multiTurn) return;
+    if (workflow.mode !== 'multi') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['multiTurn'],
+        message: 'multiTurn applies only to the multi workflow',
+      });
+      return;
+    }
+    if (workflow.multiTurn.phase2StartTick > workflow.multiTurn.finalizeTick) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['multiTurn', 'finalizeTick'],
+        message: 'finalizeTick must be at or after phase2StartTick',
+      });
+    }
+    if (workflow.multiTurn.finalizeTick > workflow.maxTicks) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['multiTurn', 'finalizeTick'],
+        message: 'finalizeTick must not exceed maxTicks',
       });
     }
   });

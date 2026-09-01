@@ -99,6 +99,11 @@ export type FileDrivenPairBudgetV1 = Readonly<{
   maxToolCalls: number;
 }>;
 
+export type FileDrivenPairMultiTurnV1 = Readonly<{
+  phase2StartTick: number;
+  finalizeTick: number;
+}>;
+
 export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   workflowId: FileDrivenPairWorkflowIdV1;
   runId: string;
@@ -111,6 +116,7 @@ export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   responder: FileDrivenPairActorV1;
   tasks: readonly LoadedPactPairTaskV1[];
   maxTicks: number;
+  multiTurn?: FileDrivenPairMultiTurnV1;
   budget: FileDrivenPairBudgetV1;
   pactWorkspace: PactPairWorkspaceV1;
   storeRoot: string;
@@ -378,6 +384,7 @@ export async function runOneFileDrivenPairSessionV1(
       namespaceId,
       sessionIndex: options.sessionIndex,
       maxTicks: options.maxTicks,
+      ...(options.multiTurn ? { multiTurn: structuredClone(options.multiTurn) } : {}),
       maxToolCalls: options.budget.maxToolCalls,
       deadlineMs: options.budget.deadlineMs,
       requester: { actorId: options.requester.actorId, workspace: requesterWorkspace },
@@ -845,6 +852,9 @@ function buildRunBinding(input: {
       maxTicks: input.options.maxTicks,
       budget: structuredClone(input.options.budget),
       initialActionSha256: input.initialActionSha256,
+      ...(input.options.multiTurn
+        ? { multiTurn: structuredClone(input.options.multiTurn) }
+        : {}),
     },
     dataset: structuredClone(input.runProvenance.dataset),
     goldSet: structuredClone(input.runProvenance.goldSet),
@@ -1447,6 +1457,20 @@ function validateSessionOptions(options: RunOneFileDrivenPairSessionV1Options): 
     || options.maxTicks > MAX_FILE_DRIVEN_PAIR_TICKS_V1
   ) {
     throw new Error('maxTicks must be a positive safe integer up to 10000');
+  }
+  if (options.multiTurn) {
+    if (options.workflowId !== 'files-multi') {
+      throw new Error('multiTurn applies only to the files-multi workflow');
+    }
+    if (
+      !Number.isSafeInteger(options.multiTurn.phase2StartTick)
+      || !Number.isSafeInteger(options.multiTurn.finalizeTick)
+      || options.multiTurn.phase2StartTick < 2
+      || options.multiTurn.phase2StartTick > options.multiTurn.finalizeTick
+      || options.multiTurn.finalizeTick > options.maxTicks
+    ) {
+      throw new Error('multiTurn phase boundaries must satisfy 2 <= phase2StartTick <= finalizeTick <= maxTicks');
+    }
   }
   if (
     !positiveBoundedInteger(options.budget.deadlineMs, MAX_FILE_DRIVEN_DEADLINE_MS_V1)
