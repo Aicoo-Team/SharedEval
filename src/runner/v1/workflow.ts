@@ -5,6 +5,8 @@ export type SharedevalWorkflowV1 = Readonly<{
   protocol: 'files';
   maxTicks: number;
   stopWhen: 'all-terminal';
+  /** Single-mode tasks processed at once; absent means 1 (serial). */
+  taskConcurrency?: number;
 }>;
 
 export type ResolvedSharedevalWorkflowV1 = SharedevalWorkflowV1 & Readonly<{

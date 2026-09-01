@@ -114,12 +114,12 @@ work.
 ## 5. Verify the SharedOS build
 
 Production execution is pinned to SharedOS revision
-`a303d97fe974c149d4575b1f5d6426aee6f37367`. Build that checkout with pnpm
+`3aa07e33999b656a10ace294fd4e41df8cbc318e`. Build that checkout with pnpm
 9.15.0, then point SharedEval at it:
 
 ```bash
 git clone https://github.com/Aicoo-Team/SharedOS.git ../SharedOS
-git -C ../SharedOS checkout a303d97fe974c149d4575b1f5d6426aee6f37367
+git -C ../SharedOS checkout 3aa07e33999b656a10ace294fd4e41df8cbc318e
 corepack pnpm --dir ../SharedOS install --frozen-lockfile
 corepack pnpm --dir ../SharedOS build
 SHAREDEVAL_SHAREDOS_DIR=../SharedOS npm run test:sharedos

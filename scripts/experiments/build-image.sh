@@ -17,7 +17,7 @@
 # Prints a single-line JSON summary (including the image digest) on success.
 set -euo pipefail
 
-SHAREDOS_PINNED_REVISION="a303d97fe974c149d4575b1f5d6426aee6f37367"
+SHAREDOS_PINNED_REVISION="3aa07e33999b656a10ace294fd4e41df8cbc318e"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "$script_dir/../.." && pwd)"

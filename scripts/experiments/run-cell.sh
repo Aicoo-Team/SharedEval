@@ -107,6 +107,7 @@ endpoint_json="$(node "$script_dir/run-cell-lib.mjs" derive-endpoint "$config_pa
 endpoint_host="$(node -p 'JSON.parse(process.argv[1]).endpointHost' "$endpoint_json")"
 mode="$(node -p 'JSON.parse(process.argv[1]).mode' "$endpoint_json")"
 output_relative="$(node -p 'JSON.parse(process.argv[1]).outputDirectory' "$endpoint_json")"
+task_concurrency="$(node -p 'JSON.parse(process.argv[1]).taskConcurrency ?? 1' "$endpoint_json")"
 
 command -v docker >/dev/null 2>&1 || die 'docker is required'
 [ -n "${SHAREDEVAL_MODEL_API_KEY:-}" ] \
@@ -125,7 +126,7 @@ cell_dir="$output_dir/$run_id"
 [ -e "$cell_dir" ] && die "cell directory already exists (refusing to overwrite run evidence): $cell_dir"
 mkdir -p "$cell_dir/proxy"
 cp "$config_path" "$cell_dir/config.yaml"
-node "$script_dir/run-cell-lib.mjs" write-proxy-config "$cell_dir/proxy" "$endpoint_host"
+node "$script_dir/run-cell-lib.mjs" write-proxy-config "$cell_dir/proxy" "$endpoint_host" "$task_concurrency"
 
 image_id="$(docker image inspect --format '{{.Id}}' "$image_ref")" \
   || die "image not found locally: $image_ref (build it with scripts/experiments/build-image.sh)"

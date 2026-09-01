@@ -51,8 +51,10 @@ test('scripts contain only the supported exporter and experiment launchers', () 
     'build-image.sh',
     'egress-probe.mjs',
     'egress-probe.sh',
+    'merge-grid-metrics.mjs',
     'run-cell-lib.mjs',
     'run-cell.sh',
+    'run-grid.sh',
     'stage-sharedos-provenance.ts',
   ]);
 });
