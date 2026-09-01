@@ -10,6 +10,13 @@
 #     --output-dir <directory under $HOME> \
 #     --image <experiment image ref> \
 #     [--proxy-image <proxy image ref>]   # default: <image>-proxy:<tag>
+#     [--resume]                          # re-enter an existing cell directory
+#
+# --resume relaunches an interrupted cell: the collision guard is skipped, the
+# existing cell config must be byte-identical to --config, and a cell whose
+# cell-provenance.json already records cliExitCode 0 is refused. The runner
+# resumes from its committed ledger records; cell-provenance.json is rewritten
+# to describe the latest attempt.
 #
 # Requirements and guarantees:
 #   - SHAREDEVAL_MODEL_API_KEY must be exported by the caller; it reaches the
@@ -44,8 +51,13 @@ config_path=""
 run_id=""
 output_dir=""
 image_ref=""
+resume=0
 while [ $# -gt 0 ]; do
   case "$1" in
+    --resume)
+      resume=1
+      shift
+      ;;
     --config)
       [ $# -ge 2 ] || usage
       config_path="$2"
@@ -109,11 +121,9 @@ mode="$(node -p 'JSON.parse(process.argv[1]).mode' "$endpoint_json")"
 output_relative="$(node -p 'JSON.parse(process.argv[1]).outputDirectory' "$endpoint_json")"
 task_concurrency="$(node -p 'JSON.parse(process.argv[1]).taskConcurrency ?? 1' "$endpoint_json")"
 
-command -v docker >/dev/null 2>&1 || die 'docker is required'
-[ -n "${SHAREDEVAL_MODEL_API_KEY:-}" ] \
-  || die 'SHAREDEVAL_MODEL_API_KEY must be exported (it is passed to the runner only via docker compose run -e)'
-
 # --- prepare the cell directory (collision-refusing, symlink-checked) -------
+# Runs before the docker/image checks so collision and resume guards need no
+# container runtime and never mask a guard failure behind an environment one.
 mkdir -p "$output_dir"
 output_dir="$(node -p 'require("node:fs").realpathSync(process.argv[1])' "$output_dir")"
 home_real="$(node -p 'require("node:fs").realpathSync(process.argv[1])' "$HOME")"
@@ -123,15 +133,30 @@ case "$output_dir" in
 esac
 
 cell_dir="$output_dir/$run_id"
-[ -e "$cell_dir" ] && die "cell directory already exists (refusing to overwrite run evidence): $cell_dir"
-mkdir -p "$cell_dir/proxy"
-cp "$config_path" "$cell_dir/config.yaml"
-node "$script_dir/run-cell-lib.mjs" write-proxy-config "$cell_dir/proxy" "$endpoint_host" "$task_concurrency"
+if [ -e "$cell_dir" ]; then
+  [ "$resume" -eq 1 ] \
+    || die "cell directory already exists (refusing to overwrite run evidence; pass --resume to re-enter it): $cell_dir"
+  [ -f "$cell_dir/config.yaml" ] \
+    || die "cannot resume: $cell_dir/config.yaml is missing"
+  cmp -s "$config_path" "$cell_dir/config.yaml" \
+    || die "cannot resume: $cell_dir/config.yaml differs from --config (a resumed cell must keep its exact config)"
+  if [ -f "$cell_dir/cell-provenance.json" ]; then
+    prior_exit="$(node -p 'JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).cliExitCode ?? ""' "$cell_dir/cell-provenance.json" 2>/dev/null || printf '')"
+    [ "$prior_exit" = "0" ] && die "cannot resume: cell already completed with cliExitCode 0: $cell_dir"
+  fi
+fi
+command -v docker >/dev/null 2>&1 || die 'docker is required'
+[ -n "${SHAREDEVAL_MODEL_API_KEY:-}" ] \
+  || die 'SHAREDEVAL_MODEL_API_KEY must be exported (it is passed to the runner only via docker compose run -e)'
 
 image_id="$(docker image inspect --format '{{.Id}}' "$image_ref")" \
   || die "image not found locally: $image_ref (build it with scripts/experiments/build-image.sh)"
 docker image inspect --format '{{.Id}}' "$proxy_image_ref" >/dev/null \
   || die "proxy image not found locally: $proxy_image_ref (build it with scripts/experiments/build-image.sh)"
+
+mkdir -p "$cell_dir/proxy"
+cp "$config_path" "$cell_dir/config.yaml"
+node "$script_dir/run-cell-lib.mjs" write-proxy-config "$cell_dir/proxy" "$endpoint_host" "$task_concurrency"
 
 export SHAREDEVAL_EXPERIMENT_IMAGE="$image_ref"
 export SHAREDEVAL_EXPERIMENT_PROXY_IMAGE="$proxy_image_ref"
