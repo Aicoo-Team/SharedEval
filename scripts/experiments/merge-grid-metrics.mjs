@@ -37,6 +37,8 @@ const isDir = (p) => {
 };
 
 // root/<slug>/<runPrefix>.<slug>/runs/<runId>/single/<NNNN-taskId>/
+// and, for multi-turn trajectory cells, root/.../runs/<runId>/multi/ which
+// holds one whole-trajectory results.jsonl + summary.json directly.
 const taskDirsOf = (shardDir) => {
   const out = [];
   for (const cell of readdirSync(shardDir)) {
@@ -44,10 +46,15 @@ const taskDirsOf = (shardDir) => {
     if (!isDir(runsDir)) continue;
     for (const runId of readdirSync(runsDir)) {
       const singleDir = join(runsDir, runId, "single");
-      if (!isDir(singleDir)) continue;
-      for (const task of readdirSync(singleDir)) {
-        const d = join(singleDir, task);
-        if (isDir(d)) out.push(d);
+      if (isDir(singleDir)) {
+        for (const task of readdirSync(singleDir)) {
+          const d = join(singleDir, task);
+          if (isDir(d)) out.push(d);
+        }
+      }
+      const multiDir = join(runsDir, runId, "multi");
+      if (isDir(multiDir) && existsSync(join(multiDir, "results.jsonl"))) {
+        out.push(multiDir);
       }
     }
   }

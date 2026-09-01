@@ -972,6 +972,18 @@ test('multiTurn keeps contact history latest-wins so a pending task can be re-co
   assert.equal((await store.readRecords()).length, 2);
   await store.close();
 
+  // The gated run publishes a per-tick public trajectory artifact.
+  const tickRows = (await readFile(join(root, 'run', 'ticks.jsonl'), 'utf8'))
+    .trim()
+    .split('\n')
+    .map(line => JSON.parse(line));
+  assert.deepEqual(
+    tickRows.map(row => [row.tick, row.phase, row.selectedTaskId, row.contactStatus]),
+    [[1, 1, 'PAIR-Q-1', 'denied'], [2, 2, 'PAIR-Q-1', 'completed']],
+  );
+  assert.equal(tickRows[1].response, 'completed');
+  assert.deepEqual(tickRows[1].terminalStatuses, [{ taskId: 'PAIR-Q-1', status: 'answered' }]);
+
   // The same two-tick history without the gate stays a duplicate-authority error.
   const gateless = binding('files-multi', 'repeat-contact-gateless', ['PAIR-Q-1']);
   const gatelessStore = await openFileWorkflowLedgerV1({
@@ -996,6 +1008,9 @@ test('multiTurn keeps contact history latest-wins so a pending task can be re-co
     'ACCEPTED_UNGATED_REPEAT_CONTACT',
   );
   await gatelessStore.close();
+
+  // Ungated runs keep their exact public artifact set: no ticks.jsonl.
+  await assert.rejects(() => readFile(join(root, 'gateless', 'ticks.jsonl')), /ENOENT/);
 });
 
 test('requires responder provenance and contact usage for completed contact authority', async t => {

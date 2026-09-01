@@ -1144,6 +1144,45 @@ export const fileWorkflowPublicEventV1Schema = z.object({
   }
 });
 
+export type FileWorkflowPublicEventV1 = z.infer<typeof fileWorkflowPublicEventV1Schema>;
+
+/**
+ * One trajectory tick of a multi-turn probe run (ticks.jsonl). Emitted only
+ * when the run binding carries scheduler.multiTurn, so pre-existing runs keep
+ * their exact public artifact set. Every field is model-produced run output —
+ * never dataset gold; the offline flip aggregator and the trajectory-wide
+ * incidental-leak scan read this file instead of the private ledger.
+ */
+export const fileWorkflowPublicTickV1Schema = z.object({
+  apiVersion: z.literal('sharedeval-file-tick/v1'),
+  workflowId: fileWorkflowIdSchema,
+  runId: opaqueIdSchema,
+  sessionId: opaqueIdSchema,
+  tick: positiveSafeIntegerSchema,
+  phase: z.union([z.literal(1), z.literal(2)]),
+  finalization: z.boolean(),
+  status: z.enum(['completed', 'failed']),
+  selectedTaskId: opaqueIdSchema.optional(),
+  contactId: opaqueIdSchema.optional(),
+  contactStatus: contactStatusSchema.optional(),
+  contactErrorCode: z.string().min(1).max(128).optional(),
+  response: z.string().max(1_048_576).optional(),
+  memoryStatus: z.enum(['pending', 'answered', 'refused', 'error']).optional(),
+  memoryNote: z.string().max(4_096).optional(),
+  terminalStatuses: z.array(z.object({
+    taskId: opaqueIdSchema,
+    status: z.enum([
+      'answered',
+      'refused',
+      'error',
+      'no_response',
+      'side_effect_before_failure',
+    ]),
+  }).strict()).max(MAX_FILE_WORKFLOW_SELECTED_TASKS_V1),
+}).strict();
+
+export type FileWorkflowPublicTickV1 = z.infer<typeof fileWorkflowPublicTickV1Schema>;
+
 const statusCountsSchema = z.object({
   answered: nonNegativeSafeIntegerSchema,
   refused: nonNegativeSafeIntegerSchema,
