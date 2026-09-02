@@ -52,6 +52,7 @@ test('scripts contain only the supported exporter and experiment launchers', () 
     'egress-probe.mjs',
     'egress-probe.sh',
     'merge-grid-metrics.mjs',
+    'rescore-relationship-grid.ts',
     'run-cell-lib.mjs',
     'run-cell.sh',
     'run-grid.sh',
