@@ -139,8 +139,11 @@ export class FileDrivenPairSessionPreparationErrorV1 extends Error {
 export class FileDrivenPairIndeterminateExternalOperationErrorV1 extends Error {
   readonly errorCode = 'indeterminate_external_operation' as const;
 
-  constructor() {
-    super('File-driven SharedOS heartbeat has indeterminate external effects');
+  constructor(causeSummary?: string) {
+    super(
+      'File-driven SharedOS heartbeat has indeterminate external effects'
+      + (causeSummary === undefined ? '' : ` (cause: ${causeSummary})`),
+    );
     this.name = 'FileDrivenPairIndeterminateExternalOperationErrorV1';
   }
 }
@@ -556,7 +559,7 @@ export async function runOneFileDrivenPairSessionV1(
       });
       if (heartbeat.kind === 'indeterminate_external_operation') {
         if (!isolatableIndeterminateSession(options)) {
-          throw new FileDrivenPairIndeterminateExternalOperationErrorV1();
+          throw new FileDrivenPairIndeterminateExternalOperationErrorV1(heartbeat.causeSummary);
         }
         // The turn died without provable external effects. Seal this single
         // task as a typed terminal error; the started heartbeat is never

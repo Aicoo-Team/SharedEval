@@ -156,6 +156,11 @@ docker image inspect --format '{{.Id}}' "$proxy_image_ref" >/dev/null \
 
 mkdir -p "$cell_dir/proxy"
 cp "$config_path" "$cell_dir/config.yaml"
+if [ "$resume" -eq 1 ]; then
+  # The proxy config is a pure function of the (byte-identical) cell config;
+  # clear the exclusive-write artifacts so the rewrite cannot EEXIST.
+  rm -f "$cell_dir/proxy/tinyproxy.conf" "$cell_dir/proxy/allowlist"
+fi
 node "$script_dir/run-cell-lib.mjs" write-proxy-config "$cell_dir/proxy" "$endpoint_host" "$task_concurrency"
 
 export SHAREDEVAL_EXPERIMENT_IMAGE="$image_ref"
