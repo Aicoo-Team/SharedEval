@@ -163,6 +163,7 @@ export async function runSharedevalProductionV1(
       references: requesterReferences(
         requester.assetName,
         options.config.workflow.id,
+        options.config.workflow.multiTurn !== undefined,
       ),
     },
     responder: {
@@ -291,10 +292,16 @@ function requesterIdentity(requester: PactPairRequesterIdV1): { assetName: strin
 function requesterReferences(
   assetName: string,
   workflowId: 'files-multi' | 'files-single',
+  multiTurn: boolean,
 ): AgentWorkspaceRegistryReferencesV1 {
+  // The multi-turn probe protocol swaps in its own heartbeat asset; every
+  // other reference — and every non-multiTurn run — stays exactly as today.
+  const heartbeat = multiTurn
+    ? { id: 'heartbeats/files-multi-probe', version: INSTRUCTION_VERSION }
+    : { id: `heartbeats/${workflowId}`, version: INSTRUCTION_VERSION };
   return {
     agent: { id: `agents/${assetName}/base/agent`, version: INSTRUCTION_VERSION },
-    heartbeat: { id: `heartbeats/${workflowId}`, version: INSTRUCTION_VERSION },
+    heartbeat,
     policy: { id: `agents/${assetName}/base/policy`, version: STATE_VERSION },
     memory: { id: 'memory-seeds/pact-pair-requester', version: STATE_VERSION },
   };

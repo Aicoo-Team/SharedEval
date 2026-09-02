@@ -78,6 +78,9 @@ export type CreateSharedOsFileSessionV1Options = Readonly<{
   namespaceId: string;
   sessionIndex: number;
   maxTicks: number;
+  // Multi-turn probe gate: absent preserves today's session behavior
+  // (single-contact grants, fixed heartbeat instruction) byte for byte.
+  multiTurn?: Readonly<{ phase2StartTick: number; finalizeTick: number }>;
   maxToolCalls: number;
   deadlineMs: number;
   requester: Readonly<{

@@ -934,6 +934,85 @@ test('allows a new contact for task B while terminalizing prior contacted task A
   await store.close();
 });
 
+test('multiTurn keeps contact history latest-wins so a pending task can be re-contacted', async t => {
+  const root = await temporaryRoot(t, 'repeat-contact');
+  const base = binding('files-multi', 'repeat-contact', ['PAIR-Q-1']);
+  const runBinding = {
+    ...base,
+    scheduler: {
+      ...base.scheduler,
+      multiTurn: { phase2StartTick: 2, finalizeTick: 3 },
+    },
+  };
+  const store = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'run'),
+    binding: runBinding,
+    retainPrivate: true,
+  });
+
+  // Tick 1: the responder denies and the requester keeps the task pending.
+  const firstEvidence = qaContactEvidence('denied');
+  firstEvidence.fullEvaluations = [];
+  await commitStartedHeartbeat(store, heartbeatPayloadFor(runBinding, 1, [], firstEvidence));
+
+  // Tick 2: the same task is re-contacted, answered, and terminalized against
+  // the latest contact authority.
+  const second = heartbeatPayloadFor(
+    runBinding,
+    2,
+    [evaluatedQaTransition('PAIR-Q-1', 2)],
+    qaContactEvidence('completed'),
+  );
+  second.transitions[0]!.contactId = second.contactAuthority!.contactId;
+  second.transitions[0]!.result.contactStatus = 'completed';
+  await assert.doesNotReject(
+    () => commitStartedHeartbeat(store, second),
+    'REJECTED_GATED_REPEAT_CONTACT',
+  );
+  assert.equal((await store.readRecords()).length, 2);
+  await store.close();
+
+  // The gated run publishes a per-tick public trajectory artifact.
+  const tickRows = (await readFile(join(root, 'run', 'ticks.jsonl'), 'utf8'))
+    .trim()
+    .split('\n')
+    .map(line => JSON.parse(line));
+  assert.deepEqual(
+    tickRows.map(row => [row.tick, row.phase, row.selectedTaskId, row.contactStatus]),
+    [[1, 1, 'PAIR-Q-1', 'denied'], [2, 2, 'PAIR-Q-1', 'completed']],
+  );
+  assert.equal(tickRows[1].response, 'completed');
+  assert.deepEqual(tickRows[1].terminalStatuses, [{ taskId: 'PAIR-Q-1', status: 'answered' }]);
+
+  // The same two-tick history without the gate stays a duplicate-authority error.
+  const gateless = binding('files-multi', 'repeat-contact-gateless', ['PAIR-Q-1']);
+  const gatelessStore = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'gateless'),
+    binding: gateless,
+    retainPrivate: true,
+  });
+  const gatelessFirst = qaContactEvidence('denied');
+  gatelessFirst.fullEvaluations = [];
+  await commitStartedHeartbeat(gatelessStore, heartbeatPayloadFor(gateless, 1, [], gatelessFirst));
+  const gatelessSecond = heartbeatPayloadFor(
+    gateless,
+    2,
+    [evaluatedQaTransition('PAIR-Q-1', 2)],
+    qaContactEvidence('completed'),
+  );
+  gatelessSecond.transitions[0]!.contactId = gatelessSecond.contactAuthority!.contactId;
+  gatelessSecond.transitions[0]!.result.contactStatus = 'completed';
+  await assert.rejects(
+    () => commitStartedHeartbeat(gatelessStore, gatelessSecond),
+    /duplicate|conflicting/i,
+    'ACCEPTED_UNGATED_REPEAT_CONTACT',
+  );
+  await gatelessStore.close();
+
+  // Ungated runs keep their exact public artifact set: no ticks.jsonl.
+  await assert.rejects(() => readFile(join(root, 'gateless', 'ticks.jsonl')), /ENOENT/);
+});
+
 test('requires responder provenance and contact usage for completed contact authority', async t => {
   const root = await temporaryRoot(t, 'contact-provenance-usage');
   const runBinding = binding('files-multi', 'contact-provenance-usage', ['PAIR-Q-1']);

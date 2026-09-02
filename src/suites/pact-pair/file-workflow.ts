@@ -99,6 +99,11 @@ export type FileDrivenPairBudgetV1 = Readonly<{
   maxToolCalls: number;
 }>;
 
+export type FileDrivenPairMultiTurnV1 = Readonly<{
+  phase2StartTick: number;
+  finalizeTick: number;
+}>;
+
 export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   workflowId: FileDrivenPairWorkflowIdV1;
   runId: string;
@@ -111,6 +116,7 @@ export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   responder: FileDrivenPairActorV1;
   tasks: readonly LoadedPactPairTaskV1[];
   maxTicks: number;
+  multiTurn?: FileDrivenPairMultiTurnV1;
   budget: FileDrivenPairBudgetV1;
   pactWorkspace: PactPairWorkspaceV1;
   storeRoot: string;
@@ -133,8 +139,11 @@ export class FileDrivenPairSessionPreparationErrorV1 extends Error {
 export class FileDrivenPairIndeterminateExternalOperationErrorV1 extends Error {
   readonly errorCode = 'indeterminate_external_operation' as const;
 
-  constructor() {
-    super('File-driven SharedOS heartbeat has indeterminate external effects');
+  constructor(causeSummary?: string) {
+    super(
+      'File-driven SharedOS heartbeat has indeterminate external effects'
+      + (causeSummary === undefined ? '' : ` (cause: ${causeSummary})`),
+    );
     this.name = 'FileDrivenPairIndeterminateExternalOperationErrorV1';
   }
 }
@@ -378,6 +387,7 @@ export async function runOneFileDrivenPairSessionV1(
       namespaceId,
       sessionIndex: options.sessionIndex,
       maxTicks: options.maxTicks,
+      ...(options.multiTurn ? { multiTurn: structuredClone(options.multiTurn) } : {}),
       maxToolCalls: options.budget.maxToolCalls,
       deadlineMs: options.budget.deadlineMs,
       requester: { actorId: options.requester.actorId, workspace: requesterWorkspace },
@@ -549,7 +559,7 @@ export async function runOneFileDrivenPairSessionV1(
       });
       if (heartbeat.kind === 'indeterminate_external_operation') {
         if (!isolatableIndeterminateSession(options)) {
-          throw new FileDrivenPairIndeterminateExternalOperationErrorV1();
+          throw new FileDrivenPairIndeterminateExternalOperationErrorV1(heartbeat.causeSummary);
         }
         // The turn died without provable external effects. Seal this single
         // task as a typed terminal error; the started heartbeat is never
@@ -845,6 +855,9 @@ function buildRunBinding(input: {
       maxTicks: input.options.maxTicks,
       budget: structuredClone(input.options.budget),
       initialActionSha256: input.initialActionSha256,
+      ...(input.options.multiTurn
+        ? { multiTurn: structuredClone(input.options.multiTurn) }
+        : {}),
     },
     dataset: structuredClone(input.runProvenance.dataset),
     goldSet: structuredClone(input.runProvenance.goldSet),
@@ -1119,6 +1132,16 @@ async function planCommittedHeartbeat(input: {
   const contacts = new Map(input.history.contacts.map(row => [row.taskId, row]));
   const current = contactFromLiveProjection(input.native, input.tick);
   if (current) contacts.set(current.taskId, current);
+  // Fallback terminals must honor every committed contact, not only a task's
+  // latest: under the multi-turn gate a later no-op retry cannot hide an
+  // earlier proven action-state change.
+  const contactRows = [...input.history.contacts, ...(current ? [current] : [])];
+  const anyStateChangedFor = (taskId: string): boolean => contactRows.some(row => (
+    row.taskId === taskId
+    && row.actionBefore !== undefined
+    && row.actionAfter !== undefined
+    && !isDeepStrictEqual(row.actionBefore, row.actionAfter)
+  ));
   const requesterMemory = input.native.memoryAuthorities.find(row => (
     row.actorId === input.binding.actors.requester.actorId
   ));
@@ -1128,8 +1151,18 @@ async function planCommittedHeartbeat(input: {
       : []
   )) ?? []);
   const planned = new Map<string, FileWorkflowHeartbeatTerminalOutcomeV1>();
-  const fatal = input.native.sharedOsAuthority.requesterExecutionStatus !== 'succeeded'
-    || input.native.retainedEvidence.tickDecisions[0]?.type === 'cancelled';
+  const cancelled = input.native.retainedEvidence.tickDecisions[0]?.type === 'cancelled';
+  const failed = input.native.sharedOsAuthority.requesterExecutionStatus !== 'succeeded';
+  // Under the multi-turn gate a plainly failed turn (provider/driver failure,
+  // never a cancellation) is committable as one lost tick instead of ending the
+  // whole trajectory — but only when the turn left no terminal MEMORY flip: a
+  // flip could not be terminalized against a failed execution, so fail-closed
+  // stays in force for that shape.
+  const survivableFailure = failed
+    && !cancelled
+    && input.binding.scheduler.multiTurn !== undefined
+    && deltas.size === 0;
+  const fatal = (failed || cancelled) && !survivableFailure;
 
   for (const task of input.tasks) {
     if (existing.has(task.taskId)) continue;
@@ -1151,11 +1184,16 @@ async function planCommittedHeartbeat(input: {
   ));
   let stopReason: FileDrivenPairStopReasonV1 | undefined;
   const completeAfterMemory = existing.size + planned.size === input.tasks.length;
+  const fallbackChanged = (task: LoadedPactPairTaskV1): boolean => (
+    input.binding.scheduler.multiTurn
+      ? anyStateChangedFor(task.taskId)
+      : hasStateChanged(actionStateFromContact(task, contacts.get(task.taskId)))
+  );
   if (fatal) {
     for (const task of remainingAfterMemory) {
       const contact = contacts.get(task.taskId);
       const state = actionStateFromContact(task, contact);
-      const status = hasStateChanged(state) ? 'side_effect_before_failure' : 'error';
+      const status = fallbackChanged(task) ? 'side_effect_before_failure' : 'error';
       planned.set(task.taskId, await heartbeatTerminalOutcome({ task, status, contact, state }));
     }
     stopReason = 'fatal_error';
@@ -1165,7 +1203,7 @@ async function planCommittedHeartbeat(input: {
     for (const task of remainingAfterMemory) {
       const contact = contacts.get(task.taskId);
       const state = actionStateFromContact(task, contact);
-      const status = hasStateChanged(state) ? 'side_effect_before_failure' : 'no_response';
+      const status = fallbackChanged(task) ? 'side_effect_before_failure' : 'no_response';
       planned.set(task.taskId, await heartbeatTerminalOutcome({ task, status, contact, state }));
     }
     stopReason = 'tick_exhausted';
@@ -1447,6 +1485,20 @@ function validateSessionOptions(options: RunOneFileDrivenPairSessionV1Options): 
     || options.maxTicks > MAX_FILE_DRIVEN_PAIR_TICKS_V1
   ) {
     throw new Error('maxTicks must be a positive safe integer up to 10000');
+  }
+  if (options.multiTurn) {
+    if (options.workflowId !== 'files-multi') {
+      throw new Error('multiTurn applies only to the files-multi workflow');
+    }
+    if (
+      !Number.isSafeInteger(options.multiTurn.phase2StartTick)
+      || !Number.isSafeInteger(options.multiTurn.finalizeTick)
+      || options.multiTurn.phase2StartTick < 2
+      || options.multiTurn.phase2StartTick > options.multiTurn.finalizeTick
+      || options.multiTurn.finalizeTick > options.maxTicks
+    ) {
+      throw new Error('multiTurn phase boundaries must satisfy 2 <= phase2StartTick <= finalizeTick <= maxTicks');
+    }
   }
   if (
     !positiveBoundedInteger(options.budget.deadlineMs, MAX_FILE_DRIVEN_DEADLINE_MS_V1)

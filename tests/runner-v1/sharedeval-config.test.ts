@@ -198,6 +198,58 @@ test('rejects taskConcurrency outside its bounds or on the multi workflow', () =
   );
 });
 
+test('parses multiTurn phase boundaries for the multi workflow only', () => {
+  const withMultiTurn = (mode: string, phase2: number, finalize: number, maxTicks = 240) =>
+    validConfig
+      .replace('mode: multi', `mode: ${mode}`)
+      .replace('maxTicks: 240', `maxTicks: ${maxTicks}`)
+      .replace(
+        'stopWhen: all-terminal',
+        `stopWhen: all-terminal\n  multiTurn:\n    phase2StartTick: ${phase2}\n    finalizeTick: ${finalize}`,
+      );
+
+  assert.deepEqual(
+    parseSharedevalRunConfigV1Yaml(withMultiTurn('multi', 61, 230)).workflow.multiTurn,
+    { phase2StartTick: 61, finalizeTick: 230 },
+  );
+  const absent = parseSharedevalRunConfigV1Yaml(validConfig);
+  assert.equal('multiTurn' in absent.workflow, false);
+
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withMultiTurn('single', 61, 230)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withMultiTurn('multi', 231, 230)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withMultiTurn('multi', 61, 241)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withMultiTurn('multi', 1, 230)), ZodError);
+});
+
+test('multiTurn rejects a maxTicks override below its finalize boundary', () => {
+  const source = validConfig.replace(
+    'stopWhen: all-terminal',
+    'stopWhen: all-terminal\n  multiTurn:\n    phase2StartTick: 4\n    finalizeTick: 7',
+  );
+  const parsed = parseSharedevalRunConfigV1Yaml(source);
+  assert.doesNotThrow(() => applySharedevalOverridesV1(parsed, resolveWorkflow(['multi']), {
+    maxTicks: 8,
+  }));
+  assert.throws(() => applySharedevalOverridesV1(parsed, resolveWorkflow(['multi']), {
+    maxTicks: 6,
+  }), ZodError);
+});
+
+test('written multiTurn is part of the digest and absence leaves it unchanged', () => {
+  const digestOf = (source: string) => applySharedevalOverridesV1(
+    parseSharedevalRunConfigV1Yaml(source),
+    resolveWorkflow(['multi']),
+  ).configDigest;
+  const absent = digestOf(validConfig);
+  const present = digestOf(validConfig.replace(
+    'stopWhen: all-terminal',
+    'stopWhen: all-terminal\n  multiTurn:\n    phase2StartTick: 61\n    finalizeTick: 230',
+  ));
+
+  assert.notEqual(present, absent);
+  assert.equal(absent, digestOf(validConfig));
+});
+
 test('written taskConcurrency is part of the digest and absence leaves it unchanged', () => {
   const single = validConfig.replace('mode: multi', 'mode: single');
   const digestOf = (source: string) => applySharedevalOverridesV1(

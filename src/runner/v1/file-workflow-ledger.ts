@@ -29,6 +29,7 @@ import {
   fileWorkflowFinalFilesV1Schema,
   fileWorkflowHeartbeatPayloadV1Schema,
   fileWorkflowPublicEventV1Schema,
+  fileWorkflowPublicTickV1Schema,
   fileWorkflowPublicEvaluationRecordV1Schema,
   fileWorkflowPublicResultV1Schema,
   fileWorkflowRunBindingV1Schema,
@@ -127,6 +128,7 @@ type WriterClaim = z.infer<typeof writerClaimSchema>;
 type PublicArtifactName =
   | 'run.json'
   | 'events.jsonl'
+  | 'ticks.jsonl'
   | 'results.jsonl'
   | 'summary.json'
   | 'checkpoint.json';
@@ -613,12 +615,14 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
     if (remaining.length === 0) {
       throw new Error('Quarantine requires at least one unresolved selected task');
     }
-    const committedContacts = new Map(records.flatMap(record => {
+    // Every committed contact counts, not only a task's latest: under repeat
+    // contacts a later no-op retry must not hide an earlier proven change.
+    const changedTaskIds = new Set(records.flatMap(record => {
       const authority = record.payload.contactAuthority;
-      return authority ? [[authority.taskId, authority] as const] : [];
+      return authority?.stateChanged === true ? [authority.taskId] : [];
     }));
     for (const task of remaining) {
-      if (committedContacts.get(task.taskId)?.stateChanged === true) {
+      if (changedTaskIds.has(task.taskId)) {
         // A committed contact proves this task already changed action state;
         // sealing it as a plain typed error would erase that proven side
         // effect, so this stays a loud run-level failure.
@@ -1633,8 +1637,14 @@ function assertContactAuthorityHistory(
   payloads: readonly FileWorkflowLedgerPayloadV1[],
   binding: FileWorkflowRunBindingV1,
 ): void {
+  // Under the multi-turn gate byTask is latest-wins (a still-pending task may
+  // be re-contacted on later ticks); changedTasks remembers every committed
+  // changed-action contact so a later no-op retry cannot launder a real side
+  // effect into a plain error terminal.
+  const repeatContacts = binding.scheduler.multiTurn !== undefined;
   const byTask = new Map<string, FileWorkflowContactAuthorityV1>();
   const byContact = new Map<string, FileWorkflowContactAuthorityV1>();
+  const changedTasks = new Set<string>();
   const terminalTasks = new Set<string>();
   const memoryRowsByActor = new Map<string, readonly Pick<FileMemoryRowV1, 'taskId' | 'status'>[]>([
     [binding.actors.requester.actorId,
@@ -1648,11 +1658,15 @@ function assertContactAuthorityHistory(
       if (terminalTasks.has(current.taskId)) {
         throw new Error('Contact authority cannot be appended after terminal task authority');
       }
-      if (byTask.has(current.taskId) || byContact.has(current.contactId)) {
+      if (
+        byContact.has(current.contactId)
+        || (!repeatContacts && byTask.has(current.taskId))
+      ) {
         throw new Error('Distinct duplicate or conflicting contact/snapshot authority');
       }
       byTask.set(current.taskId, current);
       byContact.set(current.contactId, current);
+      if (current.stateChanged === true) changedTasks.add(current.taskId);
     }
     for (const memoryAuthority of payload.memoryAuthorities) {
       const previousRows = memoryRowsByActor.get(memoryAuthority.actorId);
@@ -1739,14 +1753,17 @@ function assertContactAuthorityHistory(
           ) {
             throw new Error('Action evaluation state change conflicts with snapshot authority');
           }
+          const anyStateChanged = repeatContacts
+            ? changedTasks.has(transition.taskId)
+            : authority.stateChanged === true;
           if (
             transition.result.status === 'side_effect_before_failure'
-            && authority.stateChanged !== true
+            && !anyStateChanged
           ) {
             throw new Error('Side-effect failure requires changed action snapshot authority');
           }
           if (
-            authority.stateChanged === true
+            anyStateChanged
             && (
               transition.result.status === 'error'
               || transition.result.status === 'no_response'
@@ -1833,6 +1850,74 @@ async function publishPublicProjections(input: {
     memoryCommitted: record.payload.memoryTransitions.length > 0,
     usage: record.payload.usage,
   }));
+  const multiTurn = input.binding.scheduler.multiTurn;
+  const ticks = multiTurn
+    ? input.records.flatMap(record => {
+      const payload = record.payload;
+      if (isFileWorkflowQuarantinePayloadV1(payload)) return [];
+      const authority = payload.contactAuthority;
+      const reply = authority
+        ? payload.privateEvidence?.sourceEvidence.acceptedMessages.find(message => (
+          message.replyTo === authority.contactId
+        ))
+        : undefined;
+      const replyPayload = reply?.payload;
+      const response = replyPayload
+        && typeof replyPayload === 'object'
+        && !Array.isArray(replyPayload)
+        && typeof (replyPayload as Record<string, unknown>).response === 'string'
+        ? (replyPayload as Record<string, string>).response
+        : undefined;
+      const requesterMemory = payload.memoryAuthorities.find(row => (
+        row.actorId === input.binding.actors.requester.actorId
+      ));
+      const memoryRow = authority
+        ? requesterMemory?.newRows.find(row => row.taskId === authority.taskId)
+        : undefined;
+      const memoryReplace = payload.privateEvidence?.sourceEvidence.requesterFileOperations
+        .find(operation => operation.action === 'replace' && operation.path === 'MEMORY.md');
+      let memoryNote: string | undefined;
+      if (authority && memoryReplace && 'newBytesBase64' in memoryReplace) {
+        try {
+          const rows = parseFileMemoryV1({
+            content: Buffer.from(memoryReplace.newBytesBase64, 'base64').toString('utf8'),
+            selectedTaskIds: input.binding.selectedTaskIds,
+          });
+          memoryNote = rows.find(row => row.taskId === authority.taskId)?.note;
+        } catch {
+          // A malformed MEMORY commit is already surfaced by the ledger's own
+          // validation; the tick row simply omits the note.
+        }
+      }
+      return [fileWorkflowPublicTickV1Schema.parse({
+        apiVersion: 'sharedeval-file-tick/v1',
+        workflowId: input.binding.workflowId,
+        runId: input.binding.runId,
+        sessionId: payload.event.sessionId,
+        tick: payload.event.tick,
+        phase: payload.event.tick < multiTurn.phase2StartTick ? 1 : 2,
+        finalization: payload.event.tick >= multiTurn.finalizeTick,
+        status: payload.sharedOsAuthority.requesterExecutionStatus === 'succeeded'
+          ? 'completed'
+          : 'failed',
+        ...(authority
+          ? {
+            selectedTaskId: authority.taskId,
+            contactId: authority.contactId,
+            contactStatus: authority.status,
+            ...(authority.errorCode ? { contactErrorCode: authority.errorCode } : {}),
+          }
+          : {}),
+        ...(response === undefined ? {} : { response }),
+        ...(memoryRow ? { memoryStatus: memoryRow.status } : {}),
+        ...(memoryNote === undefined ? {} : { memoryNote }),
+        terminalStatuses: payload.transitions.map(transition => ({
+          taskId: transition.taskId,
+          status: transition.result.status,
+        })),
+      })];
+    })
+    : undefined;
   const summary = buildSummary(input.binding, input.records, results, evaluations);
   const run = fileWorkflowRunManifestV1Schema.parse({
     apiVersion: 'sharedeval-file-run/v1',
@@ -1876,6 +1961,7 @@ async function publishPublicProjections(input: {
   const artifacts: Array<[PublicArtifactName, string]> = [
     ['run.json', `${canonicalJson(run)}\n`],
     ['events.jsonl', jsonLines(events)],
+    ...(ticks ? [['ticks.jsonl', jsonLines(ticks)] as [PublicArtifactName, string]] : []),
     ['results.jsonl', jsonLines(results)],
     ['summary.json', `${canonicalJson(summary)}\n`],
     ['checkpoint.json', `${canonicalJson(checkpoint)}\n`],
@@ -2368,6 +2454,7 @@ async function assertPublicLanePaths(runDirectory: string): Promise<void> {
   for (const name of [
     'run.json',
     'events.jsonl',
+    'ticks.jsonl',
     'results.jsonl',
     'summary.json',
     'checkpoint.json',

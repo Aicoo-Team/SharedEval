@@ -254,7 +254,10 @@ test('maps execute and callback validation failures to stable indeterminate afte
         throw new Error('PRIVATE_PROVIDER credential=SECRET');
       },
     });
-    assert.deepEqual(result, indeterminate());
+    // The failure identity survives as a sanitized summary; the raw message
+    // (which can carry provider credentials) never does.
+    assert.deepEqual(result, { ...indeterminate(), causeSummary: 'Error' });
+    assert.doesNotMatch(JSON.stringify(result), /SECRET|PRIVATE_PROVIDER/);
     assert.match(await readFile(markerPath(fixture.runDirectory, 1), 'utf8'), /markerDigest/);
     assert.deepEqual(await runFileWorkflowHeartbeatV1({
       ledger: fixture.store,
@@ -288,7 +291,10 @@ test('maps execute and callback validation failures to stable indeterminate afte
         start: startFor(payload),
         execute: async () => callback,
       });
-      assert.deepEqual(result, indeterminate());
+      assert.deepEqual(result, {
+        ...indeterminate(),
+        causeSummary: kind === 'malformed' ? 'ZodError' : 'heartbeat_payload_identity_diverged',
+      });
       assert.equal(commitCalls, 0);
       await fixture.store.close();
     });

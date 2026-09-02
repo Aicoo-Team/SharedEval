@@ -53,6 +53,13 @@ export type FileWorkflowHeartbeatRecoveryResultV1 =
 type FileWorkflowHeartbeatIndeterminateResultV1 = Readonly<{
   kind: 'indeterminate_external_operation';
   errorCode: 'indeterminate_external_operation';
+  /**
+   * Sanitized description of the underlying failure, when one exists: an
+   * internal label, or an error's constructor name plus its enumerated
+   * code field. Never a raw error message — provider failures can carry
+   * credential-bearing text, and this result reaches public error surfaces.
+   */
+  causeSummary?: string;
 }>;
 
 /**
@@ -99,10 +106,10 @@ export async function runFileWorkflowHeartbeatV1(input: {
       !isDeepStrictEqual(payload.event, start.event)
       || payload.inputDigest !== start.inputDigest
     ) {
-      return indeterminateFileWorkflowHeartbeatResultV1();
+      return indeterminateFileWorkflowHeartbeatResultV1('heartbeat_payload_identity_diverged');
     }
-  } catch {
-    return indeterminateFileWorkflowHeartbeatResultV1();
+  } catch (error) {
+    return indeterminateFileWorkflowHeartbeatResultV1(error);
   }
 
   try {
@@ -120,9 +127,32 @@ export async function runFileWorkflowHeartbeatV1(input: {
   }
 }
 
-export function indeterminateFileWorkflowHeartbeatResultV1(): FileWorkflowHeartbeatIndeterminateResultV1 {
+export function indeterminateFileWorkflowHeartbeatResultV1(
+  cause?: unknown,
+): FileWorkflowHeartbeatIndeterminateResultV1 {
   return {
     kind: 'indeterminate_external_operation',
     errorCode: 'indeterminate_external_operation',
+    ...(cause === undefined ? {} : { causeSummary: sanitizedCauseSummary(cause) }),
   };
+}
+
+/**
+ * Reduce a failure to leak-safe identity: an internal string label passes
+ * through, an Error contributes its constructor name plus any enumerated
+ * `code`/`errorCode` field, everything else only its type. Raw messages are
+ * deliberately dropped — they can carry provider credentials.
+ */
+function sanitizedCauseSummary(cause: unknown): string {
+  if (typeof cause === 'string') return cause;
+  if (cause instanceof Error) {
+    const coded = cause as Error & { code?: unknown; errorCode?: unknown };
+    const code = typeof coded.code === 'string'
+      ? coded.code
+      : typeof coded.errorCode === 'string'
+        ? coded.errorCode
+        : undefined;
+    return code ? `${cause.name}:${code}` : cause.name;
+  }
+  return typeof cause;
 }

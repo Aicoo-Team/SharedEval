@@ -26,6 +26,7 @@ const requesterInstructionAssetIds = [
   'agents/tina/base/agent',
   'agents/tina/base/heartbeat',
   'heartbeats/files-multi',
+  'heartbeats/files-multi-probe',
   'heartbeats/files-single',
 ] as const;
 

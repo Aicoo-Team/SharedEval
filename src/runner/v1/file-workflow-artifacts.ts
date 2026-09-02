@@ -203,6 +203,13 @@ export const fileWorkflowRunBindingV1Schema = z.object({
       maxToolCalls: positiveSafeIntegerSchema,
     }).strict(),
     initialActionSha256: sha256Schema,
+    // Multi-turn probe gate: absent for every pre-existing run so committed
+    // bindings and their digests are unchanged; the ledger keys every relaxed
+    // multi-turn check off this field, never off runtime options.
+    multiTurn: z.object({
+      phase2StartTick: positiveSafeIntegerSchema,
+      finalizeTick: positiveSafeIntegerSchema,
+    }).strict().optional(),
   }).strict(),
   dataset: datasetProvenanceSchema,
   goldSet: goldSetProvenanceSchema,
@@ -246,6 +253,27 @@ export const fileWorkflowRunBindingV1Schema = z.object({
       path: ['actors'],
       message: 'requester and responder actor IDs must be distinct',
     });
+  }
+  const multiTurn = binding.scheduler.multiTurn;
+  if (multiTurn) {
+    if (binding.workflowId !== 'files-multi') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduler', 'multiTurn'],
+        message: 'multiTurn applies only to the files-multi workflow',
+      });
+    }
+    if (
+      multiTurn.phase2StartTick < 2
+      || multiTurn.phase2StartTick > multiTurn.finalizeTick
+      || multiTurn.finalizeTick > binding.scheduler.maxTicks
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduler', 'multiTurn'],
+        message: 'multiTurn phase boundaries must satisfy 2 <= phase2StartTick <= finalizeTick <= maxTicks',
+      });
+    }
   }
   for (const role of ['requester', 'responder'] as const) {
     if (
@@ -1115,6 +1143,45 @@ export const fileWorkflowPublicEventV1Schema = z.object({
     });
   }
 });
+
+export type FileWorkflowPublicEventV1 = z.infer<typeof fileWorkflowPublicEventV1Schema>;
+
+/**
+ * One trajectory tick of a multi-turn probe run (ticks.jsonl). Emitted only
+ * when the run binding carries scheduler.multiTurn, so pre-existing runs keep
+ * their exact public artifact set. Every field is model-produced run output —
+ * never dataset gold; the offline flip aggregator and the trajectory-wide
+ * incidental-leak scan read this file instead of the private ledger.
+ */
+export const fileWorkflowPublicTickV1Schema = z.object({
+  apiVersion: z.literal('sharedeval-file-tick/v1'),
+  workflowId: fileWorkflowIdSchema,
+  runId: opaqueIdSchema,
+  sessionId: opaqueIdSchema,
+  tick: positiveSafeIntegerSchema,
+  phase: z.union([z.literal(1), z.literal(2)]),
+  finalization: z.boolean(),
+  status: z.enum(['completed', 'failed']),
+  selectedTaskId: opaqueIdSchema.optional(),
+  contactId: opaqueIdSchema.optional(),
+  contactStatus: contactStatusSchema.optional(),
+  contactErrorCode: z.string().min(1).max(128).optional(),
+  response: z.string().max(1_048_576).optional(),
+  memoryStatus: z.enum(['pending', 'answered', 'refused', 'error']).optional(),
+  memoryNote: z.string().max(4_096).optional(),
+  terminalStatuses: z.array(z.object({
+    taskId: opaqueIdSchema,
+    status: z.enum([
+      'answered',
+      'refused',
+      'error',
+      'no_response',
+      'side_effect_before_failure',
+    ]),
+  }).strict()).max(MAX_FILE_WORKFLOW_SELECTED_TASKS_V1),
+}).strict();
+
+export type FileWorkflowPublicTickV1 = z.infer<typeof fileWorkflowPublicTickV1Schema>;
 
 const statusCountsSchema = z.object({
   answered: nonNegativeSafeIntegerSchema,

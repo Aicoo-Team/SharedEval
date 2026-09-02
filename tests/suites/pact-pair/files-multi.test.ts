@@ -91,6 +91,165 @@ test('multi opens one SharedOS session and schedules every heartbeat through it'
   }
 });
 
+test('multiTurn re-asks a refused-but-pending task and terminalizes it on the flip', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-multi-retry-'));
+  const tasks = fileSessionQaTasksV1(['PAIR-Q1']);
+  const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+
+  try {
+    const result = await runPactPairFilesMultiV1({
+      runId: 'multi-retry-flip',
+      workspaceRootDir,
+      registryRootDir: fileSessionRegistryRootV1,
+      runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+      storeRoot: join(workspaceRootDir, 'store'),
+      requester: fileSessionActorsV1.requester,
+      responder: fileSessionActorsV1.responder,
+      tasks,
+      maxTicks: 3,
+      multiTurn: { phase2StartTick: 2, finalizeTick: 3 },
+      budget: { deadlineMs: 2_000, maxToolCalls: 8 },
+      pactWorkspace: createPactPairWorkspaceV1(loadCanonicalPactPairStoreV1()),
+      createDriver: unreachableFileTurnDriverV1,
+      createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({
+        trace,
+        // Tick 1: denied and kept pending; tick 2: the retry flips to answered.
+        tickScript: [
+          { taskId: 'PAIR-Q1', contactStatus: 'denied' },
+          { taskId: 'PAIR-Q1', contactStatus: 'completed', memoryStatus: 'answered' },
+        ],
+      }),
+    });
+
+    assert.equal(result.stopReason, 'all_terminal');
+    assert.deepEqual(trace.turns.map(turn => turn.tick), [1, 2]);
+    assert.deepEqual(
+      result.contacts.map(contact => [contact.tick, contact.taskId, contact.status]),
+      [[1, 'PAIR-Q1', 'denied'], [2, 'PAIR-Q1', 'completed']],
+    );
+    assert.deepEqual(
+      result.outcomes.map(outcome => [outcome.taskId, outcome.status, outcome.terminalTick]),
+      [['PAIR-Q1', 'answered', 2]],
+    );
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('multiTurn survives a failed provider turn as one lost tick', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-multi-lost-tick-'));
+  const tasks = fileSessionQaTasksV1(['PAIR-Q1']);
+  const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+
+  try {
+    const result = await runPactPairFilesMultiV1({
+      runId: 'multi-lost-tick',
+      workspaceRootDir,
+      registryRootDir: fileSessionRegistryRootV1,
+      runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+      storeRoot: join(workspaceRootDir, 'store'),
+      requester: fileSessionActorsV1.requester,
+      responder: fileSessionActorsV1.responder,
+      tasks,
+      maxTicks: 4,
+      multiTurn: { phase2StartTick: 2, finalizeTick: 4 },
+      budget: { deadlineMs: 2_000, maxToolCalls: 8 },
+      pactWorkspace: createPactPairWorkspaceV1(loadCanonicalPactPairStoreV1()),
+      createDriver: unreachableFileTurnDriverV1,
+      createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({
+        trace,
+        tickScript: [
+          { taskId: 'PAIR-Q1', contactStatus: 'denied' },
+          { taskId: 'PAIR-Q1', contactStatus: 'denied', executionStatus: 'failed' },
+          { taskId: 'PAIR-Q1', contactStatus: 'completed', memoryStatus: 'answered' },
+        ],
+      }),
+    });
+
+    assert.equal(result.stopReason, 'all_terminal');
+    assert.deepEqual(
+      result.ticks.map(tick => [tick.tick, tick.status]),
+      [[1, 'completed'], [2, 'failed'], [3, 'completed']],
+    );
+    assert.equal(result.ticks[1]?.errorCode, 'FILE_TURN_FAILED');
+    assert.deepEqual(
+      result.outcomes.map(outcome => [outcome.taskId, outcome.status, outcome.terminalTick]),
+      [['PAIR-Q1', 'answered', 3]],
+    );
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('an ungated failed turn still ends the whole files-multi run as fatal', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-multi-ungated-failure-'));
+  const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+
+  try {
+    const result = await runPactPairFilesMultiV1({
+      runId: 'multi-ungated-failed-turn',
+      workspaceRootDir,
+      registryRootDir: fileSessionRegistryRootV1,
+      runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+      storeRoot: join(workspaceRootDir, 'store'),
+      requester: fileSessionActorsV1.requester,
+      responder: fileSessionActorsV1.responder,
+      tasks: fileSessionQaTasksV1(['PAIR-Q1', 'PAIR-Q2']),
+      maxTicks: 3,
+      budget: { deadlineMs: 2_000, maxToolCalls: 8 },
+      pactWorkspace: createPactPairWorkspaceV1(loadCanonicalPactPairStoreV1()),
+      createDriver: unreachableFileTurnDriverV1,
+      createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({
+        trace,
+        requesterExecutionStatus: 'failed',
+      }),
+    });
+
+    assert.equal(result.stopReason, 'fatal_error');
+    assert.deepEqual(trace.turns.map(turn => turn.tick), [1]);
+    assert.deepEqual(
+      result.outcomes.map(outcome => [outcome.taskId, outcome.status]),
+      [['PAIR-Q1', 'error'], ['PAIR-Q2', 'error']],
+    );
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
+test('an ungated files-multi run still refuses a repeated contact', async () => {
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-multi-retry-ungated-'));
+  const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+
+  try {
+    await assert.rejects(
+      () => runPactPairFilesMultiV1({
+        runId: 'multi-retry-ungated',
+        workspaceRootDir,
+        registryRootDir: fileSessionRegistryRootV1,
+        runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+        storeRoot: join(workspaceRootDir, 'store'),
+        requester: fileSessionActorsV1.requester,
+        responder: fileSessionActorsV1.responder,
+        tasks: fileSessionQaTasksV1(['PAIR-Q1']),
+        maxTicks: 3,
+        budget: { deadlineMs: 2_000, maxToolCalls: 8 },
+        pactWorkspace: createPactPairWorkspaceV1(loadCanonicalPactPairStoreV1()),
+        createDriver: unreachableFileTurnDriverV1,
+        createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({
+          trace,
+          tickScript: [
+            { taskId: 'PAIR-Q1', contactStatus: 'denied' },
+            { taskId: 'PAIR-Q1', contactStatus: 'completed', memoryStatus: 'answered' },
+          ],
+        }),
+      }),
+      FileDrivenPairIndeterminateExternalOperationErrorV1,
+    );
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
 function testStableId(prefix: string, tuple: unknown[]): string {
   return `${prefix}-${createHash('sha256')
     .update(JSON.stringify(tuple))
