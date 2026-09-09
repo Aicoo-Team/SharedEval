@@ -1,0 +1,56 @@
+{
+  "agent": "kenji_matsuda",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "ehr_build",
+      "access": "admin"
+    },
+    {
+      "system": "workflow_specs",
+      "access": "admin"
+    },
+    {
+      "system": "training_material",
+      "access": "admin"
+    },
+    {
+      "system": "build_tickets",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "ehr_config_change",
+      "note": "Only within a governance decision; never on its own authority"
+    }
+  ],
+  "cannot_approve": [
+    "clinical_safety_signoff",
+    "phi_disclosure",
+    "security_exception",
+    "it_spend"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 07:00-16:00 ET"
+  },
+  "segregation_of_duties": []
+}

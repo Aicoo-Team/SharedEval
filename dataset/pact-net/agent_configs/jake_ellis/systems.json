@@ -1,0 +1,52 @@
+{
+  "agent": "jake_ellis",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "repo",
+      "access": "read"
+    },
+    {
+      "system": "sandbox",
+      "access": "read_write"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "pr_review_merge",
+    "production_deploy",
+    "contract_signature"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 09:00-18:00 PT"
+  },
+  "segregation_of_duties": [
+    {
+      "control": "code_change",
+      "role": "author",
+      "counterparties": [
+        "mike_torres",
+        "lisa_nakamura"
+      ]
+    }
+  ],
+  "reach_note": "Contact graph limits Jake to four engineers. No separate tool-level restriction is needed or wanted."
+}

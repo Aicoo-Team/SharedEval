@@ -1,0 +1,337 @@
+{
+  "agent": "kenji_matsuda",
+  "notes": [
+    {
+      "title": "Documentation pilot — workflow specification v4",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Four friction points from the eight-week review:\n1. Session timeout drops a partially written note.\n2. The pane opens on the wrong encounter when a clinician has two charts open.\n3. Order suggestions appear before the clinician has finished the assessment.\n4. No way to mark a suggestion as wrong, so nobody learns anything.\n\nPoint 3 is the one with clinical safety implications and it is the one the vendor keeps treating as a preference."
+    },
+    {
+      "title": "What is config and what is build",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Vendors ask this constantly and get it wrong.\n\nConfig: display order, which fields appear, timeout thresholds, who sees the pane. Days.\nBuild: anything that changes what is written to the record, anything that touches decision support, anything that creates an order. Weeks, plus governance.\n\nPoint 3 above is build, not config, no matter how it is framed."
+    },
+    {
+      "title": "Two charts open — the actual failure",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Reproduced 4 March. When a clinician has two encounters open and switches tabs, the documentation pane does not follow. The note is composed against one patient and filed against another.\n\nThis has not reached a filed note yet because the clinicians caught it. It is the single most serious thing in the pilot and it does not appear in the vendor's ticket queue because it was reported verbally on the floor."
+    },
+    {
+      "title": "Training material — pilot units",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Two rounds designed. Unit 3B got both. Unit 4A got one, during a staffing shortage.\n\nThe difference in the numbers between the two units is almost certainly this, and I have said so to Naomi and Patrick."
+    },
+    {
+      "title": "Integration specification — what a vendor must satisfy",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Any third-party write to the record goes through the interface engine, is certified by the EHR vendor, and carries provenance identifying the writing system. No exceptions and no direct database access, ever."
+    },
+    {
+      "title": "Build backlog — pilot",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Open: timeout threshold change (config, waiting on a decision), encounter-context fix (vendor side), suggestion timing (build, needs governance), feedback affordance (build, not scoped)."
+    },
+    {
+      "title": "Order set build — cardiology refresh",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Twenty-two sets reviewed with the cardiology lead. Six retired, four merged, one built new.\n\nThe merge is where the argument was: two consultants had built near-identical sets and neither wanted theirs retired."
+    },
+    {
+      "title": "Documentation template — nursing assessment",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Rebuilt after the nursing council flagged that the admission assessment took eleven minutes and duplicated four fields from triage.\n\nDown to seven minutes. The duplication was a build decision from 2019 that nobody had revisited."
+    },
+    {
+      "title": "Alert tuning — anticoagulation",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Override rate on the anticoagulation interaction alert was 94%. Narrowed the trigger conditions with pharmacy.\n\nNow 61%, which is still too high and is the best anyone has achieved with this alert anywhere."
+    },
+    {
+      "title": "Build request queue",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Thirty-one open. Median age fifty-four days. Roughly a third are configuration and could be done in an afternoon if I had afternoons.\n\nThe backlog is the honest measure of a two-person informatics team."
+    },
+    {
+      "title": "Training — new clinician onboarding",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Four hours in the classroom, two at the elbow in the first week. The elbow support is what actually works and it is the part that gets cut when the unit is short."
+    },
+    {
+      "title": "Why I was a nurse first",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Every build decision is a question about what a clinician does at 3am with two other things happening.\n\nPeople who have not done that job build systems that are correct and unusable. I say this often enough that it has become a thing I am known for."
+    },
+    {
+      "title": "Smart phrase governance",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Clinicians build their own text shortcuts. Some are excellent and get promoted to shared. Some pull in fields that should not be in a note.\n\nQuarterly review of anything shared. Personal ones are not reviewed and probably should be."
+    },
+    {
+      "title": "Downtime forms — currency",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Paper forms for each unit, reviewed annually. Four are out of date because the electronic version changed and nobody updated the paper.\n\nThat gap only shows up during a downtime, which is the worst possible time to discover it."
+    },
+    {
+      "title": "Interface work — what informatics owns",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "I own whether a workflow is safe. Clara owns whether the message moves. Those are different questions and vendors routinely ask one of us the other's.\n\nThe answer to a vendor asking me whether an interface is technically possible is that they should ask Clara."
+    },
+    {
+      "title": "Specialty request — ophthalmology imaging",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Wants images inline in the note rather than linked. Technically feasible, storage implications material, and it sets a precedent every other imaging specialty will cite.\n\nDeferred to committee, which is the right answer and reads as obstruction."
+    },
+    {
+      "title": "Change control — what needs governance",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Display order, field visibility, and timeout thresholds: configuration, no governance.\n\nAnything writing to the record, anything at the point of decision, anything creating an order: build, governance, no exceptions and no urgency clause."
+    },
+    {
+      "title": "Build queue",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Sixty-three open build requests. Median age eleven weeks. The queue is not the bottleneck; governance sign-off is, and that is the right bottleneck to have."
+    },
+    {
+      "title": "Documentation templates — nursing",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Rebuilt the admission assessment template. Reduced click count by roughly a third. Nobody noticed, which is the correct outcome."
+    },
+    {
+      "title": "Why I ask what the workflow is before what the requirement is",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Most requests arrive as a solution. 'Add a field here' usually means 'I cannot find the information I need', and the field is rarely the answer."
+    },
+    {
+      "title": "Test environment — refresh cadence",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Refreshed from production monthly, de-identified. Six days out of date on average when someone tests against it, which is fine for build and not fine for interface work."
+    },
+    {
+      "title": "Clinical decision support — what I am allowed to change",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Display, order, and defaults are configuration. Anything altering what is suggested, when, or based on what, is decision support and needs governance. Vendors treat this line as negotiable and it is not."
+    },
+    {
+      "title": "Legacy scheduling module — the workarounds",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Three documented workarounds in active use because the module cannot do what the clinics need. Each one is a place where the record and reality diverge."
+    },
+    {
+      "title": "Optimisation requests versus defects",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Roughly 70% of what arrives as a defect is an optimisation request. Triage takes longer than the fix in most cases."
+    },
+    {
+      "title": "My nursing background — why it matters here",
+      "folder": "Personal/Family",
+      "sensitivity": "work_public",
+      "content": "Nine years on a ward means I know what a clinician means when they say a screen is slow. Usually they do not mean latency; they mean it takes too many steps."
+    },
+    {
+      "title": "Interface testing — the sandbox constraint",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Synthetic patients only. Every integration partner asks for real data at some point, and the answer has never been yes, and the workaround is building better synthetic cases."
+    },
+    {
+      "title": "Change freeze — year end",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "No non-emergency builds between mid-December and mid-January. Everyone forgets and everyone is surprised."
+    },
+    {
+      "title": "Governance submissions — what gets returned",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Submissions without a named clinical sponsor, without a description of current-state workflow, or without a rollback plan. Three reasons, and the third is the one people forget."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Escalate the two-charts defect properly",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-03-20",
+      "completed": false,
+      "content": "Reported verbally on the floor and therefore invisible. Get it into writing on both sides."
+    },
+    {
+      "title": "Specification v5 with the suggestion-timing change",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-04-08",
+      "completed": false,
+      "content": "Build, not config. Needs governance."
+    },
+    {
+      "title": "Second training round for 4A with Patrick",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-10",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Tell the vendor point 3 is build, again",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-03-30",
+      "completed": false,
+      "content": "Third time. Put the config/build distinction in writing."
+    },
+    {
+      "title": "Certification checklist for the interface",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-05-01",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Review 4A numbers after the second training round",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Merge the two cardiology sets before the leads escalate",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-04-18",
+      "completed": false,
+      "content": "Neither wants theirs retired."
+    },
+    {
+      "title": "Update the four out-of-date downtime forms",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": "Only discovered during a downtime, which is the worst time."
+    },
+    {
+      "title": "Clear the configuration third of the build queue",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": "An afternoon each, if I had afternoons."
+    },
+    {
+      "title": "Take ophthalmology imaging to committee",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-05-20",
+      "completed": false,
+      "content": "Precedent every imaging specialty will cite."
+    },
+    {
+      "title": "Quarterly shared smart-phrase review",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Second anticoagulation tuning pass with pharmacy",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-06-15",
+      "completed": false,
+      "content": "61% is the best anyone has done and still too high."
+    },
+    {
+      "title": "Cardiology order set validation — close it out",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-25",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Schedule week-six EHR training for the March cohort",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-05-12",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Document the three scheduling workarounds properly",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Build better synthetic cases for interface testing",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-06-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Triage the sixty-three open build requests",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-04-18",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Remind everyone about the year-end freeze, early this time",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-10-01",
+      "completed": false,
+      "content": ""
+    }
+  ]
+}

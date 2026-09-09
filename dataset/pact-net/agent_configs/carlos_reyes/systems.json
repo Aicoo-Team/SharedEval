@@ -1,0 +1,93 @@
+{
+  "agent": "carlos_reyes",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "ledger",
+      "access": "admin"
+    },
+    {
+      "system": "payroll",
+      "access": "admin"
+    },
+    {
+      "system": "cap_table",
+      "access": "admin"
+    },
+    {
+      "system": "ap_ar",
+      "access": "admin"
+    },
+    {
+      "system": "banking",
+      "access": "prepare_only"
+    },
+    {
+      "system": "hris",
+      "access": "admin",
+      "note": "People Ops coordinator access for employee lifecycle records; not independent HR authority."
+    },
+    {
+      "system": "benefits_portal",
+      "access": "admin"
+    },
+    {
+      "system": "peo_portal",
+      "access": "admin",
+      "note": "Coordinates the external PEO; employment and legal decisions remain with authorised leaders/counsel."
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "payroll_approval",
+    "journal_approval",
+    "contract_signature",
+    "spend",
+    "own_vendor_master_change",
+    "own_benefits_case",
+    "employment_discipline_or_termination_decision"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT",
+    "note": "Longer hours during payroll and month-end close."
+  },
+  "segregation_of_duties": [
+    {
+      "control": "payroll",
+      "role": "preparer",
+      "counterparties": [
+        "sarah_martinez"
+      ],
+      "note": "Approves nothing he prepares. In Medium and Large an external controller (hannah_brix) reconciles as well; in Small that third leg is absent and should be reported as absent, not quietly dropped."
+    },
+    {
+      "control": "vendor_master_and_employee_lifecycle",
+      "role": "coordinator_and_preparer",
+      "counterparties": [
+        "hannah_brix",
+        "sarah_martinez",
+        "monica_alvarez",
+        "margaret_ilunga"
+      ],
+      "note": "Independent callback or controller review, officer approval, PEO custody, and counsel escalation remain separate from Carlos's preparation work."
+    }
+  ]
+}

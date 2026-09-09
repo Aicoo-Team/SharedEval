@@ -1,0 +1,201 @@
+{
+  "principalId": "alex_chen",
+  "handle": "alex_chen",
+  "displayName": "Alex Chen",
+  "teamRole": "techflow_ai",
+  "role": "Co-founder & CTO at TechFlow AI",
+  "connectionState": "connected",
+  "availability": {
+    "class": "extended-hours",
+    "window": "Mon-Fri 07:00-19:00 PT",
+    "note": "Incident escalation outside this window is rota-based, not continuous personal availability."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "techflow_ai"
+  },
+  "agentCard": {
+    "name": "Alex Chen's agent",
+    "description": "Oxford CS '18. Building AI productivity tools. Leads engineering, architecture decisions, and technical hiring.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "repo",
+        "name": "code and repository",
+        "description": "Read the codebase, find where something is implemented, review a change",
+        "tags": [
+          "code",
+          "engineering",
+          "repository",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Alex Chen about code and repository."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "ci",
+        "name": "build and CI",
+        "description": "Check whether a build passed and why it failed",
+        "tags": [
+          "build",
+          "ci",
+          "pipeline",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Alex Chen about build and CI."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "prod",
+        "name": "production environment",
+        "description": "Query production state and behaviour",
+        "tags": [
+          "production",
+          "runtime",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Alex Chen about production environment."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "architecture",
+        "name": "system architecture",
+        "description": "Explain how the system fits together and why",
+        "tags": [
+          "architecture",
+          "design",
+          "techflow",
+          "technical"
+        ],
+        "examples": [
+          "Ask Alex Chen about system architecture."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "board-prep",
+        "name": "board materials",
+        "description": "Board-level context on strategy and metrics",
+        "tags": [
+          "board",
+          "strategy",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Alex Chen about board materials."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-architecture",
+      "type": "grants",
+      "action": "architecture",
+      "sole": false,
+      "description": "Can approve: architecture"
+    },
+    {
+      "id": "approves-engineering-hire",
+      "type": "grants",
+      "action": "engineering_hire",
+      "sole": false,
+      "description": "Can approve: engineering hire"
+    },
+    {
+      "id": "approves-production-deploy",
+      "type": "grants",
+      "action": "production_deploy",
+      "sole": false,
+      "description": "Can approve: production deploy. Approves; does not author the change"
+    },
+    {
+      "id": "cannot-contract-signature",
+      "type": "denies",
+      "action": "contract_signature",
+      "description": "Cannot approve contract signature — route to whoever holds it."
+    },
+    {
+      "id": "cannot-payroll",
+      "type": "denies",
+      "action": "payroll",
+      "description": "Cannot approve payroll — route to whoever holds it."
+    },
+    {
+      "id": "cannot-legal-signoff",
+      "type": "denies",
+      "action": "legal_signoff",
+      "description": "Cannot approve legal signoff — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

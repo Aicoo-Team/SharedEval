@@ -1,0 +1,655 @@
+{
+  "agent": "tina_rodriguez",
+  "notes": [
+    {
+      "title": "Product Roadmap Q1-Q2 2026",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow AI Product Roadmap\n\nQ1 2026 (Jan–Mar):\n- Project Alpha launch (target: March 15)\n- Calendar integration v1\n- Mobile app beta (internal)\n- SOC2 readiness (blocker for Acme Corp)\n\nQ2 2026 (Apr–Jun):\n- Mobile app public launch (April 30)\n- AI assistant v2 (contextual suggestions)\n- Enterprise SSO (SAML/OIDC)\n- Pricing tier restructure\n- Analytics dashboard v2\n\nKey dependencies:\n- SOC2 certification needed before Acme Corp can sign ($100K deal)\n- Calendar integration requires Google/Microsoft OAuth partnerships\n- Mobile app blocked on design system completion (Derek)\n\nSuccess metrics:\n- DAU growth: 15% MoM\n- Enterprise pipeline: $500K by end of Q2\n- NPS: maintain above 40"
+    },
+    {
+      "title": "Project Alpha PRD",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Product Requirements Document: Project Alpha\nVersion: 2.1 | Last updated: 2026-02-28\nOwner: Tina Rodriguez | Eng Lead: Mike Torres\n\n## Overview\nProject Alpha is TechFlow's flagship AI productivity assistant — an intelligent workspace that learns from user behavior to surface relevant context, automate repetitive tasks, and reduce tool-switching.\n\n## Target Users\n- Knowledge workers at companies with 50-500 employees\n- Product managers, engineers, designers who use 5+ tools daily\n\n## Core Features (v1 - March 15 launch)\n1. Smart Context Panel — surfaces relevant docs, messages, and tasks based on current focus\n2. AI Summarization — one-click meeting notes and document summaries\n3. Cross-tool Search — unified search across Slack, Notion, GitHub, Google Workspace\n4. Action Suggestions — proactive task recommendations based on patterns\n\n## Technical Requirements\n- Response time: <200ms for context panel\n- Accuracy: >90% relevance for surfaced items\n- Privacy: all processing on-device for free tier, cloud-optional for enterprise\n- Integrations: Slack, Notion, GitHub, Google Calendar, Jira (v1)\n\n## Launch Plan\n- Beta: Feb 15 (internal) → Feb 28 (50 external users)\n- Public: March 15 (Product Hunt + press)\n- Enterprise: March 30 (Acme Corp first customer)\n\n## Open Questions\n- Pricing for enterprise tier (Rachel working on this)\n- Whether to include calendar integration in v1 or push to v1.1\n- Mobile app timeline (Derek's designs not finalized)"
+    },
+    {
+      "title": "Feature Prioritization Matrix",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Feature Prioritization — RICE Scoring (March 2026)\n\nFormat: Feature | Reach | Impact | Confidence | Effort | RICE Score\n\n1. AI Summarization | 8000 | 3 | 90% | 2 | 10,800\n2. Cross-tool Search | 6000 | 3 | 85% | 3 | 5,100\n3. Calendar Integration | 5000 | 2 | 80% | 2 | 4,000\n4. Smart Context Panel | 4000 | 3 | 70% | 4 | 2,100\n5. Enterprise SSO | 2000 | 3 | 95% | 2 | 2,850\n6. Mobile App | 3000 | 2 | 60% | 5 | 720\n7. Dark Mode | 7000 | 1 | 95% | 1 | 6,650\n8. Action Suggestions | 3000 | 3 | 50% | 4 | 1,125\n9. Custom Workflows | 1500 | 3 | 40% | 5 | 360\n10. API Access | 800 | 2 | 90% | 3 | 480\n\nDecisions:\n- Ship AI Summarization and Cross-tool Search in Alpha v1\n- Enterprise SSO moved up for Acme Corp deal\n- Dark mode deprioritized despite high score (low strategic value)\n- Mobile app pushed to Q2 (effort too high for Q1)"
+    },
+    {
+      "title": "Customer Feedback Synthesis — 15 User Interviews",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Customer Feedback Synthesis\nInterviews conducted: Jan 15 – Feb 10, 2026\nTotal interviews: 15 users (mix of beta and waitlist)\n\nKey Themes:\n\n1. SEARCH IS BROKEN (mentioned by 12/15)\n- Users switch between 4-7 tools to find information\n- 'I spend 30 minutes looking for a Slack message from last week' — Sarah K., PM at Dropbox\n- 'My team's knowledge is scattered across Notion, Google Docs, and GitHub' — David L., Eng Manager at Stripe\n\n2. MEETING OVERLOAD (mentioned by 9/15)\n- 'I need AI to just tell me what happened in meetings I missed' — Jennifer P., Designer at Figma\n- Average user attends 6.2 meetings/day, wants summaries not recordings\n\n3. CONTEXT SWITCHING COST (mentioned by 11/15)\n- 'Every time I switch tools, I lose 5 minutes of focus' — Mark T., Engineer at Airbnb\n- Users want a single pane of glass\n\n4. PRIVACY CONCERNS (mentioned by 7/15)\n- Enterprise users need on-premise or SOC2\n- 'My legal team would never approve sending our data to a third party' — James Wilson, VP Eng at Acme Corp\n- SOC2 is table stakes for enterprise\n\n5. PRICING SENSITIVITY (mentioned by 5/15)\n- $15/user/month sweet spot for teams\n- Enterprise willing to pay $50/seat/year for volume\n- Free tier important for bottoms-up adoption\n\nInterviewee Details:\n- Sarah Kim, PM, Dropbox (200 employees)\n- David Liu, Eng Manager, Stripe (8000 employees)\n- Jennifer Park, Designer, Figma (1200 employees)\n- Mark Thompson, Engineer, Airbnb (6000 employees)\n- James Wilson, VP Engineering, Acme Corp (450 employees)\n- Lisa Chang, Marketing Lead, Notion (500 employees)\n- Robert Anderson, CTO, Series A startup (25 employees)\n- Amanda Foster, Product Director, Salesforce (70000 employees)\n- Kevin Nguyen, Tech Lead, GitHub (3000 employees)\n- Rachel Adams, Operations Manager, Gusto (1800 employees)\n- Chris Martinez, Founder, AI startup (8 employees)\n- Diana Brown, UX Researcher, Microsoft (200000 employees)\n- Tom Williams, Engineering VP, Databricks (5000 employees)\n- Priya Patel, Product Manager, Twilio (7000 employees)\n- Nathan Ross, Head of IT, Mid-market SaaS (150 employees)"
+    },
+    {
+      "title": "Competitive Analysis",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Competitive Landscape — AI Productivity Tools (Updated Feb 2026)\n\n## Direct Competitors\n\n1. Notion AI\n- Strengths: Large user base, integrated workspace, good AI features\n- Weaknesses: Slow, limited cross-tool, no real-time context\n- Pricing: $10/user/month (AI add-on)\n- Threat level: HIGH\n\n2. Glean\n- Strengths: Enterprise search, strong integrations, Series C funded\n- Weaknesses: Expensive ($50/user/month), slow deployment, no consumer play\n- Pricing: Enterprise only, $50+/user/month\n- Threat level: MEDIUM (different market segment)\n\n3. Mem\n- Strengths: AI-first, good UX, fast\n- Weaknesses: Small team, limited integrations, no enterprise\n- Pricing: $15/user/month\n- Threat level: MEDIUM\n\n4. Rewind AI\n- Strengths: On-device, privacy-first, screen recording\n- Weaknesses: Mac only, creepy factor, limited actionability\n- Pricing: $20/month individual\n- Threat level: LOW\n\n## Our Differentiation\n- Cross-tool intelligence (not just search)\n- Proactive context (not reactive queries)\n- Privacy-first architecture (on-device for free tier)\n- Enterprise-ready from day one (SOC2, SSO)\n- Speed: <200ms response time vs. competitors' 1-2 seconds"
+    },
+    {
+      "title": "Project Alpha Launch Checklist",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Project Alpha Launch Checklist — Target: March 15, 2026\n\nStatus: 🟡 On track with risks\n\n## Engineering (Owner: Mike Torres)\n- [x] Core AI engine deployed\n- [x] Slack integration complete\n- [x] Notion integration complete\n- [ ] GitHub integration (ETA: March 5)\n- [ ] Google Calendar integration (ETA: March 8)\n- [ ] Performance optimization (<200ms target)\n- [ ] Load testing (10K concurrent users)\n- [ ] Security audit complete\n\n## Design (Owner: Derek Lam)\n- [x] Desktop UI finalized\n- [x] Onboarding flow designed\n- [ ] Mobile responsive (ETA: March 10)\n- [ ] Accessibility audit fixes (7 critical issues)\n\n## Marketing (Owner: Nina Volkov)\n- [x] Landing page copy\n- [ ] Product Hunt listing draft\n- [ ] Press embargo lifted (March 14)\n- [ ] Email sequence for waitlist (12K subscribers)\n\n## Sales (Owner: Rachel Kim)\n- [x] Enterprise pricing finalized\n- [ ] Acme Corp pilot agreement signed\n- [ ] Demo environment ready\n- [ ] Sales deck updated\n\n## Legal (Owner: Elena Park)\n- [ ] Terms of Service v2.3 published\n- [ ] Privacy policy updated\n- [ ] SOC2 Type I certification (blocker!)\n\n## RISKS\n1. SOC2 certification may not be ready by March 15 — Acme Corp deal depends on it\n2. GitHub integration behind by 3 days\n3. Accessibility fixes need 5 more engineering days"
+    },
+    {
+      "title": "Beta Testing Plan",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Beta Testing Plan — Project Alpha\n\nPhase 1: Internal Beta (Feb 15–28)\n- All TechFlow employees (14 people)\n- Daily dogfooding, bug reports in #alpha-feedback\n- Focus: stability, basic functionality\n\nPhase 2: Closed Beta (Mar 1–14)\n- 50 external users from waitlist\n- Selection criteria: diverse company sizes, roles, tool stacks\n- Metrics: activation rate, DAU/WAU, feature usage, NPS\n- Feedback: in-app surveys + 10 follow-up interviews\n\nPhase 3: Public Launch (Mar 15)\n- Product Hunt launch\n- Waitlist opens (12K subscribers)\n- Press coverage (Nina coordinating)\n\nSuccess Criteria for Beta:\n- Activation rate > 60% (complete onboarding + use 3 features)\n- Day 7 retention > 40%\n- NPS > 30\n- No P0 bugs in production\n- <1% crash rate"
+    },
+    {
+      "title": "Mobile App Requirements",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Mobile App Requirements Document\nTarget: Q2 2026 (April 30 launch)\nPlatforms: iOS first, Android Q3\n\n## Core Features (Mobile v1)\n1. Quick Search — voice and text search across all connected tools\n2. Notification Hub — AI-prioritized notifications with smart grouping\n3. Meeting Prep — auto-generated briefing docs before meetings\n4. Quick Capture — voice notes, photos, links saved to workspace\n\n## Design Principles\n- Mobile-first UX (not desktop shrunk down)\n- Offline-capable for search history and recent items\n- Deep links to source apps (Slack, Notion, etc.)\n- Biometric authentication\n\n## Technical Constraints\n- React Native for cross-platform (Alex's decision)\n- On-device ML for basic context (privacy requirement)\n- Max 50MB app size\n- Battery impact: <5% daily\n\n## Dependencies\n- Derek: mobile design system (in progress)\n- Mike: API endpoints for mobile (Q1 deliverable)\n- Priya: CDN and edge caching for mobile performance"
+    },
+    {
+      "title": "Calendar Integration Spec",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Calendar Integration — Technical Specification\nVersion: 1.0 | Owner: Tina Rodriguez\n\n## Overview\nIntegrate with Google Calendar and Microsoft Outlook to provide:\n- Pre-meeting context (relevant docs, previous notes, attendee info)\n- Post-meeting AI summaries\n- Smart scheduling suggestions\n- Calendar-aware notifications\n\n## Supported Providers\n1. Google Calendar (via Google Workspace API)\n2. Microsoft Outlook (via Microsoft Graph API)\n3. Apple Calendar (stretch goal, Q3)\n\n## Data Model\n- Events: title, time, attendees, location, description\n- Recurring patterns: weekly 1:1s, standups, team meetings\n- Context links: associated documents, Slack channels, Jira tickets\n\n## Privacy\n- Read-only calendar access (never write without explicit permission)\n- Attendee info limited to name + email (no profile enrichment)\n- All calendar data encrypted at rest\n- Enterprise: optional on-premise calendar connector\n\n## Timeline\n- Google Calendar: March 8 (in Alpha v1)\n- Outlook: April 15 (v1.1)\n- Apple Calendar: July (stretch)"
+    },
+    {
+      "title": "Pricing Experiments Results",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Pricing Experiment Results — Feb 2026\n\nExperiment: Tested 4 pricing tiers with 200 waitlist users via fake door test\n\nVariant A: $10/month individual, $15/user/month team\nVariant B: $15/month individual, $20/user/month team\nVariant C: Free tier + $20/month pro + $50/user/month enterprise\nVariant D: Usage-based ($0.10/query after 100 free queries/month)\n\nResults:\n- Variant C won (32% higher intent-to-purchase)\n- Free tier drives adoption (78% said free tier important)\n- Enterprise buyers insensitive to price below $60/seat/year\n- Usage-based confused users (lowest intent)\n\nRecommendation:\n- Free: 100 queries/day, 3 integrations, single user\n- Pro ($15/month): unlimited queries, all integrations, 5 team members\n- Enterprise ($50/seat/year): SSO, SOC2, admin controls, unlimited everything\n\nNext steps:\n- Confirm with Rachel (enterprise pricing alignment)\n- Build billing infrastructure (Stripe integration)\n- A/B test landing page with final pricing"
+    },
+    {
+      "title": "A/B Test Results — Onboarding Flow",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "A/B Test Results: Onboarding Flow Optimization\nTest period: Feb 1–14, 2026 | N = 847 new signups\n\nControl (A): 5-step wizard (connect tools → set preferences → tutorial → invite team → start)\nVariant (B): 2-step quick start (connect 1 tool → start immediately, optional setup later)\n\nResults:\n- Activation rate: A = 52%, B = 71% (+19 percentage points, p < 0.01)\n- Day 7 retention: A = 38%, B = 44% (+6pp, p < 0.05)\n- Tools connected (day 7): A = 2.8, B = 2.1 (users connect more later in A)\n- Time to first value: A = 4.2 minutes, B = 1.1 minutes\n\nDecision: Ship Variant B (quick start)\n- Users who see value quickly connect more tools over time\n- Reduced onboarding friction is worth the initial lower tool connection\n- Add contextual prompts to connect additional tools after first 'aha' moment\n\nDesign implications for Derek:\n- Simplify onboarding to 2 screens\n- Add 'Connect more tools' nudge in settings after day 2"
+    },
+    {
+      "title": "Sprint Planning — Sprint 24 (Alex + Mike)",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Sprint 24 Planning — March 3-14, 2026\nAttendees: Tina, Alex, Mike, Lisa, Tom, Jake, Priya\n\nCapacity: 85 story points (Jake at 50% due to onboarding)\n\nCommitted:\n1. [13 SP] GitHub integration — Mike + Tom\n2. [8 SP] Google Calendar API connection — Lisa\n3. [5 SP] Performance optimization (context panel <200ms) — Mike\n4. [8 SP] Load testing infrastructure — Priya\n5. [5 SP] Security audit remediation — Priya + Tom\n6. [3 SP] Bug fixes from beta feedback — Jake\n7. [8 SP] Action suggestions ML model tuning — Mike\n8. [5 SP] Accessibility fixes (from Derek's audit) — Lisa\n\nStretch:\n- Mobile API endpoints (5 SP)\n- Error handling improvements (3 SP)\n\nRisks:\n- GitHub integration depends on their API rate limits\n- Jake's velocity uncertain (new, still ramping)\n- If security audit reveals P0s, we may need to drop stretch goals\n\nAction items:\n- Mike: unblock GitHub API key by Monday\n- Priya: set up load testing environment by Wednesday\n- Tina: prioritize beta bug reports by Tuesday"
+    },
+    {
+      "title": "Customer Call Notes — Acme Corp",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Customer Call: Acme Corp — Enterprise Requirements\nDate: 2026-02-20\nAttendees: Tina Rodriguez, Rachel Kim (TechFlow); James Wilson (VP Eng, Acme), Sarah Chen (Security Lead, Acme)\n\nAcme Corp Overview:\n- 450 employees, mid-market SaaS company\n- Currently using Notion + Slack + Jira + Google Workspace\n- Pain point: information silos, new hires take 3 months to become productive\n\nRequirements (must-have for contract):\n1. SOC2 Type I certification — non-negotiable, their security policy requires it\n2. SSO via Okta (SAML 2.0)\n3. Data residency: US-only\n4. Admin controls: ability to restrict which tools are connected\n5. Audit log: who accessed what, when\n\nNice-to-have:\n- On-premise deployment option (for regulated teams)\n- Custom AI model training on their data\n- Jira integration (not just search, but create/update)\n\nBudget: $100K/year for 200 seats ($500/seat/year — within our enterprise pricing)\nTimeline: Want to pilot by end of Q1, full rollout Q2\n\nBlockers:\n- SOC2 certification (Priya + Elena working on it)\n- SSO implementation (2 weeks of eng work)\n\nNext steps:\n- Rachel to send proposal by March 5\n- Tina to share product roadmap (public version) with James\n- Follow-up call March 12 to review SOC2 progress\n\nContact: James Wilson, VP Engineering\nEmail: james.wilson@acmecorp.com\nPhone: (415) 555-0147"
+    },
+    {
+      "title": "Product Review Meeting Notes",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Weekly Product Review — Feb 27, 2026\nAttendees: Sarah, Tina, Alex, Mike\n\nAgenda:\n1. Alpha progress update\n2. Beta feedback initial themes\n3. Q2 planning kickoff\n\nKey Decisions:\n- Calendar integration confirmed for v1 (not v1.1) — customer demand too high\n- Mobile app pushed to Q2 (design not ready, better to launch desktop well)\n- Enterprise SSO moved up in priority (Acme Corp blocker)\n\nAction Items:\n- Tina: Finalize Q2 roadmap draft by March 7\n- Alex: Review mobile app architecture proposal\n- Mike: Provide estimate for SSO implementation\n- Sarah: Approve Q2 headcount plan (1 more engineer?)\n\nMetrics reviewed:\n- Beta signups: 847 (target was 500)\n- Active beta users: 423 (50% activation)\n- Top feature usage: Search (89%), Summarize (72%), Context Panel (54%)\n- Bug reports: 23 (5 P0, 12 P1, 6 P2)"
+    },
+    {
+      "title": "Design Review with Derek",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Design Review — Mobile App Concepts\nDate: 2026-02-25\nAttendees: Tina, Derek\n\nDerek presented 3 concepts for mobile app:\n\nConcept A: 'Command Center'\n- Bottom tab navigation (Search, Notifications, Meetings, Capture)\n- Floating AI button for voice queries\n- Pros: familiar pattern, discoverable features\n- Cons: too many tabs, feels generic\n\nConcept B: 'Flow'\n- Single scrolling feed with AI-curated content\n- Swipe gestures for actions (archive, snooze, star)\n- Pros: simple, engaging, unique\n- Cons: learning curve, less discoverable\n\nConcept C: 'Smart Cards'\n- Card-based UI with contextual stacks\n- Meeting cards expand to show prep materials\n- Pros: information density, contextual\n- Cons: complex interaction model\n\nDecision: Hybrid of A + C\n- Tab navigation for structure (from A)\n- Card-based content display (from C)\n- Voice AI button from A\n\nNext steps:\n- Derek to produce high-fidelity mockups by March 10\n- Share with Alex for technical feasibility review\n- User test with 5 beta participants"
+    },
+    {
+      "title": "Sales Enablement Meeting with Rachel",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Sales Enablement Sync — March 1, 2026\nAttendees: Tina, Rachel\n\nPurpose: Align on product positioning for enterprise sales conversations\n\nTopics discussed:\n1. Demo script updates — need to show SOC2 compliance badge (once ready)\n2. Competitive positioning vs Glean — our advantage: speed + privacy + price\n3. Objection handling: 'How is this different from Notion AI?'\n   Answer: Cross-tool intelligence, not locked into one workspace\n4. Customer success stories — need 2 case studies by launch\n   Omar working on getting quotes from beta users\n5. Pricing clarification: Enterprise is $50/seat/year for 10+ seats, $60/seat for <10\n\nMaterials needed:\n- Updated product one-pager (Tina to draft)\n- Technical architecture diagram (for security-conscious buyers)\n- ROI calculator (time saved × hourly rate × team size)\n\nAction items:\n- Tina: Update demo script with new features by March 8\n- Rachel: Share top 5 objections from prospect calls\n- Tina: Create ROI calculator template"
+    },
+    {
+      "title": "Marketing Sync with Nina",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Product-Marketing Sync — Feb 28, 2026\nAttendees: Tina, Nina\n\nTopics:\n1. Product Hunt launch plan\n   - Target: March 15 (same as public launch)\n   - Nina to prepare all assets by March 12\n   - Tina to write maker comment and product description\n   - Goal: Top 5 Product of the Day\n\n2. Press strategy\n   - TechCrunch exclusive pitch (Nina has contact)\n   - Embargo: March 14 (day before launch)\n   - Key angle: 'Privacy-first AI productivity' differentiator\n\n3. Content for launch\n   - Blog post: 'Why we built TechFlow' (Sarah to write, Tina to review)\n   - Technical blog: 'How our AI works without sending your data to the cloud' (Alex to write)\n   - Customer story: need permission from 1 beta user\n\n4. Messaging alignment\n   - Tagline options: 'Your AI productivity co-pilot' vs 'Work smarter, not harder'\n   - Tina prefers co-pilot angle (more specific)\n   - Decision: 'The AI co-pilot that actually knows your work'\n\nAction items:\n- Nina: First draft of PH listing by March 5\n- Tina: Review and provide feedback by March 7\n- Both: Align on final messaging by March 10"
+    },
+    {
+      "title": "QBR Prep with Omar",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "QBR Preparation Meeting — Feb 26, 2026\nAttendees: Tina, Omar\n\nPurpose: Align product and CS for quarterly business review with Sarah\n\nCustomer health overview (from Omar):\n- Total active accounts: 47 (beta + early access)\n- Healthy: 38 (81%)\n- At-risk: 6 (13%)\n- Churned: 3 (6%)\n\nChurn reasons:\n1. Feature gaps (no calendar integration) — 2 accounts\n2. Performance issues (slow on large workspaces) — 1 account\n\nProduct requests from CS:\n1. Calendar integration (highest demand)\n2. Better onboarding for non-technical users\n3. Bulk import from Notion\n4. Mobile app (frequent ask)\n\nExpansion opportunities:\n- 5 accounts ready to upgrade from free to pro\n- Acme Corp pilot could expand from 20 to 200 seats\n\nAction items:\n- Tina: Add calendar integration timeline to roadmap communication\n- Omar: Prepare customer health slides for QBR\n- Both: Identify 2 customers for case study"
+    },
+    {
+      "title": "All-Hands Meeting Notes — Feb 2026",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "TechFlow AI All-Hands — February 28, 2026\nPresenter: Sarah Martinez\n\nCompany Updates:\n- Runway: healthy, 15+ months at current burn\n- Headcount: 14 (hiring 1 senior engineer — Maria Garcia in final rounds)\n- Office: staying at current space through 2026\n\nProduct Update (Tina):\n- Alpha on track for March 15 launch\n- Beta metrics strong (50% activation, NPS 38)\n- Q2 focus: mobile app + enterprise features\n\nEngineering Update (Alex):\n- Infrastructure stable, <0.1% downtime in Feb\n- SOC2 prep on schedule\n- Considering hiring 1 more engineer for mobile\n\nSales Update (Rachel):\n- Pipeline: $450K\n- Acme Corp deal progressing ($100K)\n- Need 2 more enterprise logos by end of Q2\n\nQ&A highlights:\n- Jake asked about remote work policy — staying hybrid (3 days in office)\n- Derek asked about design tool budget — approved Figma enterprise\n- Omar asked about customer support tooling — evaluating Intercom vs Zendesk"
+    },
+    {
+      "title": "Sprint 23 Retrospective",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Sprint 23 Retrospective — Feb 28, 2026\nFacilitator: Tina\n\nWhat went well:\n- Shipped Notion integration on time\n- Beta feedback overwhelmingly positive\n- Team velocity increased 15% from Sprint 22\n\nWhat could improve:\n- Too many context switches for engineers (meetings)\n- Bug prioritization unclear — need clearer P0/P1/P2 criteria\n- Jake needs more mentorship time with Mike\n\nAction items:\n- Tina: Implement 'No Meeting Wednesday' for engineering\n- Tina: Create bug severity matrix and share with team\n- Mike: Schedule weekly 1:1 with Jake (already started)\n- Alex: Review sprint planning process for efficiency"
+    },
+    {
+      "title": "My Compensation Details",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Tina Rodriguez — Compensation Summary\nEffective: January 1, 2026\n\nBase salary: $140,000/year\nEquity: 0.4% (40,000 shares at $0.50 strike price)\nVesting: 4-year schedule, 1-year cliff (cliff passed Aug 2025)\nShares vested to date: 15,000\n\nBenefits:\n- Health insurance: Anthem Gold (company covers 90%)\n- 401K: 4% match\n- PTO: unlimited (took 15 days in 2025)\n- Home office stipend: $1,000 (used for standing desk)\n\nPerformance review: scheduled for April 2026\nExpected raise discussion: April 2026 cycle\n\nNotes to self:\n- Market rate for PM at Series A in SF: $150-170K\n- Should discuss raise after Alpha launch success\n- Want to negotiate for 0.5% equity (additional 0.1%)"
+    },
+    {
+      "title": "Interview Feedback — Maria Garcia",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Interview Feedback: Maria Garcia — Product Sense Round\nDate: 2026-02-18\nInterviewer: Tina Rodriguez\n\nOverall: STRONG HIRE\n\nProduct sense exercise: Design a feature for TechFlow's enterprise offering\n- Maria immediately identified the key persona (IT admin) and their pain points\n- Structured her approach well: user research → problem definition → solution → metrics\n- Proposed an admin dashboard with usage analytics and access controls\n- Thoughtful about edge cases (what happens when an employee leaves?)\n\nStrengths:\n- Deep technical understanding (can speak to API design, system architecture)\n- 7 years at Google gave her enterprise product experience\n- Strong communication — explains complex ideas simply\n- Growth mindset — asked great questions about our culture\n\nConcerns:\n- Coming from big company — may need to adjust to startup pace\n- No startup experience (but seems eager to learn)\n\nRecommendation: Strongly recommend hiring. She would be excellent as a senior engineer working on our enterprise features. Her product sense would complement the engineering team well.\n\nNote: Alex is leading the offer process. I believe they're targeting $180K + equity but I'm not involved in comp decisions."
+    },
+    {
+      "title": "Apartment Search in SF",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Apartment Search — Spring 2026\n\nBudget: $3,000/month max (comfortable at my salary)\nPreferred areas: Mission, Hayes Valley, Noe Valley\nMove-in target: April 1, 2026\n\nViewed:\n1. 234 Valencia St, #4B — $2,800/mo, 1BR/1BA, great location, small kitchen\n2. 567 Hayes St, #2A — $3,100/mo (over budget), 1BR/1BA, newly renovated\n3. 890 Guerrero St, #3C — $2,650/mo, studio+den, quiet street, parking included\n\nFavorite so far: Guerrero St — den can be home office, parking is a bonus\n\nTo do:\n- Schedule viewing for 1122 Dolores St (listed at $2,900)\n- Check credit score (should be ~780)\n- Gather documents: pay stubs, bank statements, employment letter\n- Ask Sarah if TechFlow can provide employment verification\n\nCurrent lease expires: April 30\nSaving for: First + last + security = ~$8,400"
+    },
+    {
+      "title": "Yoga Studio Membership",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "CorePower Yoga — Membership Details\n\nLocation: CorePower Yoga, 1425 Valencia St, San Francisco\nMembership: Unlimited classes, $189/month\nJoined: October 2025\n\nWeekly schedule:\n- Tuesday 7:00am: Yoga Sculpt (high intensity)\n- Thursday 7:00am: Hot Power Fusion\n- Saturday 9:00am: C2 (intermediate vinyasa)\n\nGoals:\n- Manage work stress (Alpha launch is intense)\n- Improve flexibility (tight hips from sitting)\n- Build community outside of work\n\nNote: Consider pausing membership if I move to a new neighborhood. Check if there's a CorePower near Guerrero St. Yes — there's one on 16th St, 10 min walk."
+    },
+    {
+      "title": "Weekend Trip with College Friends",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Girls' Weekend — Napa Valley\nDate: March 22-23, 2026 (after Alpha launch!)\n\nAttendees:\n- Me (Tina)\n- Jessica Park (college roommate, now at Meta)\n- Amy Liu (sorority, works at Deloitte)\n- Megan O'Brien (study abroad friend, freelance writer)\n\nPlan:\n- Friday evening: Drive up after work, dinner in downtown Napa\n- Saturday: Wine tasting (Opus One, Stag's Leap, Domaine Carneros)\n- Saturday night: Dinner at The French Laundry (Amy's birthday treat)\n- Sunday: Brunch at Bouchon, drive back by 3pm\n\nLogistics:\n- Airbnb booked: $450/night, split 4 ways ($225/person total)\n- I'm driving (I'll be the DD at wine tastings... or Uber)\n- Budget: $500 all-in for the weekend\n\nLooking forward to this! Need a break after the launch sprint."
+    },
+    {
+      "title": "Product FAQ",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "TechFlow AI — Product FAQ (Internal + External)\n\nQ: What is TechFlow?\nA: TechFlow is an AI productivity assistant that connects your work tools and surfaces relevant context automatically.\n\nQ: Which tools does TechFlow integrate with?\nA: Slack, Notion, GitHub, Google Calendar, Jira (v1). More coming in Q2-Q3 2026.\n\nQ: Is my data safe?\nA: Yes. Free tier processes everything on-device. Enterprise tier offers SOC2 compliance, SSO, and optional data residency controls.\n\nQ: How much does TechFlow cost?\nA: Free tier available. Pro: $15/user/month. Enterprise: contact sales.\n\nQ: Can I use TechFlow on mobile?\nA: Mobile app coming Q2 2026. Currently desktop (Mac, Windows, Linux).\n\nQ: How is TechFlow different from Notion AI?\nA: TechFlow works across all your tools, not just one workspace. It proactively surfaces context rather than requiring you to ask.\n\nQ: What about enterprise security?\nA: SOC2 Type I certified. SSO via SAML/OIDC. Admin controls, audit logs, and data residency options available.\n\nQ: Can I try before buying?\nA: Yes! Free tier has no time limit — 100 queries/day, 3 tool integrations."
+    },
+    {
+      "title": "Feature Request Template",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Feature Request Template — TechFlow AI\n\n## Request Summary\n[One-line description of the feature]\n\n## Problem Statement\n[What problem does this solve? Who is affected?]\n\n## Proposed Solution\n[High-level description of the feature]\n\n## User Stories\n- As a [role], I want to [action] so that [benefit]\n\n## Success Metrics\n- [How will we measure if this feature is successful?]\n\n## Priority Assessment\n- Reach: [How many users affected? Low/Med/High]\n- Impact: [How much does it help? 1-3]\n- Confidence: [How sure are we? %]\n- Effort: [Eng weeks estimate]\n\n## Dependencies\n- [Any other features, teams, or external dependencies?]\n\n## Open Questions\n- [Unresolved decisions or unknowns]\n\n---\nSubmit to: #product-requests channel or DM Tina\nReview cadence: Weekly prioritization meeting (Mondays)"
+    },
+    {
+      "title": "API Rate Limiting Strategy",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "API Rate Limiting — Design Decision\n\nProblem: Third-party APIs (Slack, GitHub, Google) have rate limits that affect our cross-tool search.\n\nCurrent limits:\n- Slack: 50 req/min (Web API), 1 req/sec (Events API)\n- GitHub: 5000 req/hr (authenticated)\n- Google Calendar: 500 req/100sec/user\n- Notion: 3 req/sec\n\nStrategy:\n1. Aggressive caching: Cache responses for 5 min (configurable per tool)\n2. Request batching: Combine multiple user queries into batch API calls\n3. Graceful degradation: If rate limited, serve from cache with staleness indicator\n4. Priority queue: Real-time search gets priority over background sync\n5. Per-user budgets: Distribute rate limits fairly across concurrent users\n\nImplementation plan:\n- Phase 1: Redis-based cache layer (Mike, Sprint 24)\n- Phase 2: Smart batching algorithm (Tom, Sprint 25)\n- Phase 3: User-facing rate limit indicators (Derek, Sprint 25)\n\nMetrics to track:\n- Cache hit rate (target: >80%)\n- P99 response time under rate limiting (<500ms)\n- User-visible errors from rate limits (<0.1%)"
+    },
+    {
+      "title": "Onboarding Optimization Notes",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Onboarding Optimization — Learnings & Next Steps\n\nCurrent funnel (from A/B test):\n- Signup → Connect first tool: 71% (after switching to 2-step)\n- Connect first tool → First search: 83%\n- First search → Day 1 return: 64%\n- Day 1 return → Day 7 active: 44%\n\nBiggest drop-off: Day 1 → Day 7 (need habit formation)\n\nHypotheses to test:\n1. Daily email digest showing 'what you missed' increases D7 retention\n2. Push notification for 'your meeting in 30 min — here's context' drives reopens\n3. Team invite reduces churn (accountability + shared value)\n\nPlanned experiments:\n- March 18: Email digest experiment (Nina helping with copy)\n- March 25: Push notification experiment (need mobile or browser notifs)\n- April 1: Team referral flow experiment\n\nTarget: Improve D7 retention from 44% to 55% by end of Q2"
+    },
+    {
+      "title": "Customer Feedback — Enterprise Pain Points",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Enterprise Customer Pain Points — Synthesis from Sales Calls\nSource: Rachel's deal notes + my customer calls (Feb 2026)\n\nTop 5 enterprise blockers:\n\n1. SECURITY COMPLIANCE (100% of enterprise prospects)\n- SOC2 required by all\n- Some need ISO 27001 (larger enterprises)\n- HIPAA for healthcare vertical (future)\n\n2. SSO/IDENTITY (90% of enterprise prospects)\n- Okta most common (60%)\n- Azure AD (30%)\n- OneLogin, Ping (10%)\n\n3. ADMIN CONTROLS (80%)\n- Who can connect which tools\n- Data access policies\n- Usage reporting for IT\n\n4. DATA RESIDENCY (50%)\n- US-only storage for US companies\n- EU storage option needed for GDPR\n- Some need on-premise (government, finance)\n\n5. INTEGRATION DEPTH (70%)\n- Not just search — need to create/update\n- Jira: create tickets from AI suggestions\n- Slack: post summaries to channels\n- Custom integrations via API\n\nImplication for roadmap:\n- SOC2 + SSO must be in v1 enterprise\n- Admin dashboard is Q2 priority\n- Data residency is Q3 (requires infra work)\n- Deep integrations can be gradual (API-first approach)"
+    },
+    {
+      "title": "Stakeholder Communication Plan",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Stakeholder Communication Plan — Project Alpha Launch\n\nDaily:\n- #alpha-launch Slack channel: blockers, progress, decisions\n- Automated: deployment status, test results\n\nWeekly:\n- Monday: Sprint planning (eng team)\n- Wednesday: Cross-functional sync (all leads)\n- Friday: Progress email to Sarah + Alex\n\nMilestone updates:\n- Beta launch (Feb 15): All-hands announcement\n- Public launch (March 15): Company-wide celebration + press\n- First enterprise deal (March 30): Revenue milestone email\n\nEscalation paths:\n- P0 bug in production: Slack @alex @mike immediately\n- Customer-facing issue: @rachel @omar in #customer-success\n- Legal/compliance blocker: @elena directly\n- Budget/resource issue: @sarah in 1:1\n\nExternal communication:\n- Press: Nina owns all media relationships\n- Customers: Rachel for enterprise, Omar for existing\n- Investors: Sarah only (never go to Dana directly about product issues)"
+    },
+    {
+      "title": "Integration Partnership Tracker",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Integration Partnerships — Status Tracker\n\nActive Partnerships:\n1. Google Workspace — API access approved, OAuth app in review\n   - Contact: Developer Relations team\n   - Status: Approved for up to 10K users\n   - Timeline: Ready for launch\n\n2. Slack — Standard Slack App\n   - Contact: Partner engineering\n   - Status: App approved in Slack marketplace\n   - Timeline: Live since Feb 1\n\n3. Notion — API integration\n   - Contact: Developer platform team\n   - Status: Using public API (no special partnership yet)\n   - Timeline: Live since Jan 15\n\n4. GitHub — GitHub App\n   - Contact: Ecosystem team\n   - Status: App in review\n   - Timeline: Expected approval by March 5\n\nPending:\n5. Microsoft 365 — Applied for partnership program\n   - Status: Application under review (6-8 week process)\n   - Timeline: Expected April 2026\n\n6. Jira/Atlassian — Initial outreach\n   - Status: Exploratory conversation scheduled\n   - Timeline: Q2 target\n\nFuture (Q3-Q4):\n- Linear, Asana, Monday.com, Figma, Miro"
+    },
+    {
+      "title": "User Persona Cards",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow AI — User Personas\n\nPersona 1: 'Busy PM' (Primary)\n- Name: Maya, 32, Product Manager at a 200-person startup\n- Tools: Slack, Notion, Jira, Google Calendar, Figma\n- Pain: 6 meetings/day, information scattered, can't find decisions made last week\n- Goal: Reduce time searching for information from 2hr/day to 20min/day\n- Willingness to pay: $15-20/month (personal), $50/seat/year (company)\n\nPersona 2: 'New Hire' (Secondary)\n- Name: Ryan, 26, Software Engineer, just joined a 500-person company\n- Tools: GitHub, Slack, Confluence, Google Meet\n- Pain: Doesn't know where anything is, afraid to ask 'dumb' questions\n- Goal: Get up to speed in 2 weeks instead of 2 months\n- Willingness to pay: Company would buy for onboarding\n\nPersona 3: 'IT Admin' (Enterprise buyer)\n- Name: David, 45, Head of IT at a 1000-person company\n- Tools: All of them (manages tool stack)\n- Pain: Shadow IT, security compliance, tool sprawl\n- Goal: Single visibility into how tools are used, ensure compliance\n- Willingness to pay: $50-100/seat/year for control + visibility\n\nPersona 4: 'Executive' (Sponsor)\n- Name: Jennifer, 48, VP Operations\n- Tools: Email, Calendar, few others\n- Pain: Needs updates without attending every meeting\n- Goal: Know what's happening without asking\n- Willingness to pay: Will approve enterprise budget if team sees value"
+    }
+  ],
+  "todos": [
+    {
+      "title": "Finalize Q2 roadmap draft",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-07",
+      "completed": false,
+      "content": "Complete Q2 roadmap with feature priorities, timelines, and resource allocation. Present to Sarah and Alex by Friday."
+    },
+    {
+      "title": "Update demo script with new features",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-08",
+      "completed": false,
+      "content": "Add calendar integration and AI summarization demos. Rachel needs this for Acme Corp demo."
+    },
+    {
+      "title": "Write Product Hunt maker comment",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "Draft the founder story and product description for Product Hunt launch. Coordinate with Nina on messaging."
+    },
+    {
+      "title": "Create ROI calculator template",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Build spreadsheet showing time saved × hourly rate × team size. Rachel to use in enterprise sales conversations."
+    },
+    {
+      "title": "Prioritize beta bug reports",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-04",
+      "completed": true,
+      "content": "Review all 23 beta bug reports and assign P0/P1/P2 severity. 5 P0s need immediate attention."
+    },
+    {
+      "title": "Review Nina's PH listing draft",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-07",
+      "completed": false,
+      "content": "Provide feedback on Product Hunt listing copy, screenshots, and video."
+    },
+    {
+      "title": "Follow up with James Wilson (Acme Corp)",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "Send product roadmap (public version) and SOC2 progress update. Coordinate with Rachel."
+    },
+    {
+      "title": "Write product one-pager for sales",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-08",
+      "completed": false,
+      "content": "One-page product summary with key features, differentiators, and pricing overview for Rachel's team."
+    },
+    {
+      "title": "Schedule customer interviews for case study",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Work with Omar to identify 2 beta customers willing to do a case study. Need before launch."
+    },
+    {
+      "title": "Review accessibility audit fixes",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Check Derek's 7 critical accessibility issues and confirm Lisa has bandwidth to fix before launch."
+    },
+    {
+      "title": "Prepare sprint 25 planning",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Draft sprint 25 backlog based on launch feedback and Q2 priorities. Include mobile API work."
+    },
+    {
+      "title": "Create bug severity matrix",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-06",
+      "completed": true,
+      "content": "Define P0/P1/P2/P3 criteria clearly for engineering team. Share in #engineering channel."
+    },
+    {
+      "title": "Implement No Meeting Wednesday",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Block all recurring meetings on Wednesdays for engineering team. Send calendar holds."
+    },
+    {
+      "title": "Write feature spec: Enterprise Admin Dashboard",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "PRD for admin dashboard feature. Includes user management, access controls, usage analytics. Enterprise requirement."
+    },
+    {
+      "title": "Write feature spec: Team Invites",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-22",
+      "completed": false,
+      "content": "Spec for team referral and invitation flow. Key for retention experiment in April."
+    },
+    {
+      "title": "Plan email digest experiment with Nina",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-18",
+      "completed": false,
+      "content": "Design daily email digest experiment to improve D7 retention. Need copy from Nina, eng work from Lisa."
+    },
+    {
+      "title": "Review onboarding flow mockups from Derek",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-11",
+      "completed": false,
+      "content": "Derek is simplifying onboarding to 2 screens based on A/B test results. Review his high-fidelity mockups."
+    },
+    {
+      "title": "Prepare competitive positioning doc",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-25",
+      "completed": false,
+      "content": "Detailed competitive positioning guide for sales team. Cover Notion AI, Glean, Mem, Rewind."
+    },
+    {
+      "title": "Update roadmap communication for customers",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Public-facing roadmap showing calendar integration timeline. Omar will share with at-risk customers."
+    },
+    {
+      "title": "Sprint 24 daily standups",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Daily 15-min standup with eng team. Track blockers, especially GitHub integration and security audit."
+    },
+    {
+      "title": "Align with Alex on mobile architecture",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "Review Alex's React Native decision and ensure it aligns with product requirements (offline, <50MB, battery)."
+    },
+    {
+      "title": "Draft customer communication for launch",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-13",
+      "completed": false,
+      "content": "Email to beta users announcing public launch. Include new features, thank them for feedback, offer referral perks."
+    },
+    {
+      "title": "Review Sarah's 'Why we built TechFlow' blog",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Product review of Sarah's founder blog post. Ensure technical claims are accurate."
+    },
+    {
+      "title": "Set up beta feedback session — round 2",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "Schedule 10 user interviews with beta participants. Focus on enterprise use cases and mobile interest."
+    },
+    {
+      "title": "Define success metrics for Alpha launch",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-05",
+      "completed": true,
+      "content": "Launch day targets: 1000 signups, 50% activation, top 5 on Product Hunt, 0 P0 bugs, <500ms P99 latency."
+    },
+    {
+      "title": "Feature request backlog grooming",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Review and categorize all 47 feature requests from beta users. Tag by theme, priority, and effort."
+    },
+    {
+      "title": "Coordinate launch day logistics",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "War room setup for March 15. Who monitors what: Mike (infra), Omar (support), Nina (social), Rachel (inbound leads), me (product issues)."
+    },
+    {
+      "title": "Write release notes for Alpha v1",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Public release notes covering all v1 features. Include screenshots from Derek's final designs."
+    },
+    {
+      "title": "Plan Q2 team offsite agenda",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-28",
+      "completed": false,
+      "content": "Sarah wants a product team offsite in April. Plan agenda: Q1 retrospective, Q2 goals, team building."
+    },
+    {
+      "title": "Research pricing tools for billing",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-25",
+      "completed": false,
+      "content": "Evaluate Stripe Billing vs Paddle vs Chargebee for subscription management. Need recommendation for Alex."
+    },
+    {
+      "title": "Update user persona docs",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "Refresh persona cards based on latest beta user data. Add enterprise IT admin persona."
+    },
+    {
+      "title": "Book CorePower yoga classes for March",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-01",
+      "completed": true,
+      "content": "Book Tuesday/Thursday/Saturday classes for March. Done via app."
+    },
+    {
+      "title": "Schedule apartment viewing — Dolores St",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "priority": "medium",
+      "due_date": "2026-03-05",
+      "completed": false,
+      "content": "Call landlord at 1122 Dolores St to schedule viewing. Listed at $2,900/mo. Bring ID and pay stubs."
+    },
+    {
+      "title": "Gather apartment application documents",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "priority": "medium",
+      "due_date": "2026-03-08",
+      "completed": false,
+      "content": "Need: last 3 pay stubs, bank statements, credit report, employment verification letter from HR."
+    },
+    {
+      "title": "Confirm Napa trip Airbnb booking",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Confirm reservation for March 22-23. Venmo Jessica, Amy, and Megan for their share ($112.50 each)."
+    },
+    {
+      "title": "Buy birthday gift for mom",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-18",
+      "completed": false,
+      "content": "Mom's birthday is March 25. Thinking a nice scarf or spa gift card. Budget: $100."
+    },
+    {
+      "title": "Research Jira integration requirements",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "For Q2 roadmap. Understand Atlassian API capabilities, rate limits, and partnership requirements."
+    },
+    {
+      "title": "Draft enterprise SLA document",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Work with Elena to define enterprise SLA terms. 99.9% uptime, 4-hour response time for P0, etc."
+    },
+    {
+      "title": "Finalize launch day press kit review",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-13",
+      "completed": false,
+      "content": "Review press kit Nina prepared. Ensure product screenshots are current and messaging is aligned."
+    },
+    {
+      "title": "Plan post-launch retro",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-17",
+      "completed": false,
+      "content": "Schedule launch retrospective for March 18. Invite all leads. Template: what went well, what to improve, action items."
+    },
+    {
+      "title": "Review technical architecture diagram for sales",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-08",
+      "completed": false,
+      "content": "Alex to provide system architecture diagram. I need to simplify it for enterprise security-conscious buyers."
+    },
+    {
+      "title": "Check credit score for apartment application",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-03-04",
+      "completed": true,
+      "content": "Checked via Credit Karma. Score: 782. Should be fine for any SF apartment application."
+    },
+    {
+      "title": "Set up analytics dashboard for launch",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Work with Priya to set up real-time dashboard: signups, activations, errors, latency. Need for launch day war room."
+    },
+    {
+      "title": "Write internal launch announcement",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Celebratory Slack message for #general on launch day. Thank the team, share metrics, next steps."
+    },
+    {
+      "title": "Order launch day celebration supplies",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-13",
+      "completed": false,
+      "content": "Champagne, snacks, cake for the office on March 15. Budget from Sarah: $300."
+    },
+    {
+      "title": "Follow up on Stripe integration setup",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Check with Mike on Stripe billing integration progress. Need ready before paid tier launches."
+    },
+    {
+      "title": "Review Derek's mobile wireframes",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Derek presenting mobile wireframes (hybrid of Concept A + C). Review for product completeness."
+    },
+    {
+      "title": "Prepare investor update product section",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-28",
+      "completed": false,
+      "content": "Sarah needs product metrics section for March investor update to Dana. Include DAU, retention, pipeline."
+    },
+    {
+      "title": "Plan customer advisory board",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "Identify 5-8 power users for customer advisory board. Quarterly meetings for roadmap input. Benefits: early access, swag."
+    },
+    {
+      "title": "Update product analytics tracking plan",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Ensure all v1 features have proper event tracking. Key events: search_performed, tool_connected, summary_generated, context_viewed."
+    }
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "principalId": "sarah_martinez",
+  "handle": "sarah_martinez",
+  "displayName": "Sarah Martinez",
+  "teamRole": "techflow_ai",
+  "role": "Co-founder & CEO at TechFlow AI",
+  "connectionState": "connected",
+  "availability": {
+    "class": "extended-hours",
+    "window": "Mon-Fri 07:00-20:00 PT",
+    "note": "Emergency executive escalation is explicit; this is not 24/7 availability."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "techflow_ai"
+  },
+  "agentCard": {
+    "name": "Sarah Martinez's agent",
+    "description": "Former McKinsey consultant. Leads company strategy, fundraising, and board relations. Drives business development and organizational growth.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "strategy",
+        "name": "company strategy",
+        "description": "Direction, priorities, and what has been decided",
+        "tags": [
+          "planning",
+          "strategy",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Sarah Martinez about company strategy."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "board",
+        "name": "board relations",
+        "description": "Board process, consents, and what the board has seen",
+        "tags": [
+          "board",
+          "governance",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Sarah Martinez about board relations."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "comp-matrix",
+        "name": "compensation framework",
+        "description": "Bands and levelling — never individual figures",
+        "tags": [
+          "compensation",
+          "hr",
+          "levelling",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Sarah Martinez about compensation framework."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "banking",
+        "name": "banking and cash",
+        "description": "Cash position and payment status",
+        "tags": [
+          "banking",
+          "cash",
+          "techflow",
+          "treasury"
+        ],
+        "examples": [
+          "Ask Sarah Martinez about banking and cash."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-contract-signature",
+      "type": "grants",
+      "action": "contract_signature",
+      "sole": false,
+      "description": "Can approve: contract signature. May sign agreement types and amounts within board-approved officer authority; material or reserved matters require the applicable board or authorised-officer path."
+    },
+    {
+      "id": "approves-compensation",
+      "type": "grants",
+      "action": "compensation",
+      "sole": false,
+      "description": "Can approve: compensation"
+    },
+    {
+      "id": "approves-spend",
+      "type": "grants",
+      "action": "spend",
+      "sole": false,
+      "description": "Can approve: spend up to $25,000. Above this goes to the board"
+    },
+    {
+      "id": "approves-payroll-approval",
+      "type": "grants",
+      "action": "payroll_approval",
+      "sole": false,
+      "description": "Can approve: payroll approval. Approves what Carlos prepares. Never prepares it."
+    },
+    {
+      "id": "approves-public-statement",
+      "type": "grants",
+      "action": "public_statement",
+      "sole": false,
+      "description": "Can approve: public statement. Company-level public claims after Legal, Privacy, and customer-consent gates where applicable."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

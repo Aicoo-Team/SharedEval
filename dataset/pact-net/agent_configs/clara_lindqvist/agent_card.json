@@ -1,0 +1,152 @@
+{
+  "principalId": "clara_lindqvist",
+  "handle": "clara_lindqvist",
+  "displayName": "Clara Lindqvist",
+  "teamRole": "kestrel_health",
+  "role": "Integration Engineer (HL7/FHIR) at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 07:30-17:00 ET",
+    "note": "Plus rotating on-call for interface failures"
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Clara Lindqvist's agent",
+    "description": "Owns the interface engine and every message that moves between the EHR and anything else. Every third-party write to the record passes through her and is certified by the EHR vendor before it does.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "interface-engine",
+        "name": "interface engine",
+        "description": "Routing and transformation between the record and everything else",
+        "tags": [
+          "fhir",
+          "hl7",
+          "integration",
+          "interface",
+          "kestrel"
+        ],
+        "examples": [
+          "Ask Clara Lindqvist about interface engine."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "message-logs",
+        "name": "interface message logs",
+        "description": "Volume, error rate, and failure class — never a payload",
+        "tags": [
+          "integration",
+          "interface",
+          "kestrel",
+          "logs"
+        ],
+        "examples": [
+          "Ask Clara Lindqvist about interface message logs."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "integration-sandbox",
+        "name": "integration sandbox",
+        "description": "Synthetic-data test environment for interface work",
+        "tags": [
+          "integration",
+          "kestrel",
+          "sandbox",
+          "testing"
+        ],
+        "examples": [
+          "Ask Clara Lindqvist about integration sandbox."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-interface-deployment",
+      "type": "grants",
+      "action": "interface_deployment",
+      "sole": false,
+      "description": "Can approve: interface deployment. Only against a vendor-certified specification"
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    },
+    {
+      "id": "cannot-clinical-safety-signoff",
+      "type": "denies",
+      "action": "clinical_safety_signoff",
+      "description": "Cannot approve clinical safety signoff — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-it-spend",
+      "type": "denies",
+      "action": "it_spend",
+      "description": "Cannot approve it spend — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

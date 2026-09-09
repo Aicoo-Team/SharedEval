@@ -1,0 +1,151 @@
+{
+  "principalId": "aisha_rahman",
+  "handle": "aisha_rahman",
+  "displayName": "Aisha Rahman",
+  "teamRole": "kestrel_health",
+  "role": "Patient Safety & Clinical Risk Manager at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:00-17:00 ET; immediate patient care uses the clinical escalation chain",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Aisha Rahman's agent",
+    "description": "Runs patient-safety event review, systems analysis and corrective-action follow-up. She coordinates learning and may require evidence before closure, but she does not direct bedside care or replace Medical Staff, Pharmacy, Privacy or Legal authority.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "patient-safety-events",
+        "name": "patient safety events",
+        "description": "Restricted event review and systems-learning records",
+        "tags": [
+          "events",
+          "kestrel",
+          "patient",
+          "safety"
+        ],
+        "examples": [
+          "Ask Aisha Rahman about patient safety events."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "corrective-action-register",
+        "name": "safety corrective actions",
+        "description": "Owners, implementation and effectiveness evidence",
+        "tags": [
+          "actions",
+          "effectiveness",
+          "kestrel",
+          "safety"
+        ],
+        "examples": [
+          "Ask Aisha Rahman about safety corrective actions."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "clinical-governance",
+        "name": "clinical governance",
+        "description": "Governance decisions, their conditions, and what a submission requires",
+        "tags": [
+          "clinical",
+          "committee",
+          "governance",
+          "kestrel"
+        ],
+        "examples": [
+          "Ask Aisha Rahman about clinical governance."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-patient-safety-action-closure",
+      "type": "grants",
+      "action": "patient_safety_action_closure",
+      "sole": false,
+      "description": "Can approve: patient safety action closure. May close a corrective action after evidence and effectiveness review; the accountable clinical owner approves any practice change."
+    },
+    {
+      "id": "cannot-bedside-treatment",
+      "type": "denies",
+      "action": "bedside_treatment",
+      "description": "Cannot approve bedside treatment — route to whoever holds it."
+    },
+    {
+      "id": "cannot-ehr-release",
+      "type": "denies",
+      "action": "ehr_release",
+      "description": "Cannot approve ehr release — route to whoever holds it."
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    },
+    {
+      "id": "cannot-disciplinary-action",
+      "type": "denies",
+      "action": "disciplinary_action",
+      "description": "Cannot approve disciplinary action — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

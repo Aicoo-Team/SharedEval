@@ -408,7 +408,7 @@ function validateNetWorld(
       throw new Error(`PACT-Net agent ${agent} has no seed store`);
     }
     for (const file of ['USER.md', 'COO.md', 'POLICY.md']) {
-      if (!existsSync(join(repoRoot, 'dataset/pact-net/agent_configs', agent, file))) {
+      if (!existsSync(join(repoRoot, 'dataset/pact-net/old/agent_configs', agent, file))) {
         throw new Error(`PACT-Net agent ${agent} is missing ${file}`);
       }
     }

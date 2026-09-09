@@ -1,0 +1,56 @@
+{
+  "agent": "bea_ferreira",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "ticket_queue",
+      "access": "admin",
+      "note": "Service desk queue, all sites"
+    },
+    {
+      "system": "asset_inventory",
+      "access": "read_write"
+    },
+    {
+      "system": "identity_resets",
+      "access": "scoped_write",
+      "note": "Standard accounts only; privileged accounts need manager confirmation"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "access_reset",
+      "scope": "standard_accounts",
+      "note": "Privileged accounts require manager confirmation"
+    }
+  ],
+  "cannot_approve": [
+    "privileged_access_reset",
+    "security_exception",
+    "phi_disclosure",
+    "it_spend"
+  ],
+  "availability": {
+    "class": "business-hours-with-duty-manager-rota",
+    "window": "Bea: Mon-Fri 08:00-17:00 ET; service-desk duty-manager rota: 24/7",
+    "note": "The service desk and duty-manager rota are continuous services; Bea is one named manager, not personally available 24/7."
+  },
+  "segregation_of_duties": []
+}

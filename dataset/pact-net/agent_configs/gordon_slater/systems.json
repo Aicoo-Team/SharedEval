@@ -1,0 +1,55 @@
+{
+  "agent": "gordon_slater",
+  "organisation": "marchmont_assurance",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "evidence_locker",
+      "access": "admin"
+    },
+    {
+      "system": "control_matrix",
+      "access": "admin"
+    },
+    {
+      "system": "report_drafts",
+      "access": "admin"
+    }
+  ],
+  "approves": [
+    {
+      "action": "report_issuance",
+      "note": "After management response only"
+    }
+  ],
+  "cannot_approve": [
+    "contract_signature",
+    "security_exception",
+    "remediation_advice"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:30-18:00 PT"
+  },
+  "segregation_of_duties": [],
+  "independence_boundary": {
+    "holds": "auditor_independence",
+    "note": "Takes evidence from the audited party, gives the report to relying parties, advises neither. The asymmetry is the independence."
+  }
+}

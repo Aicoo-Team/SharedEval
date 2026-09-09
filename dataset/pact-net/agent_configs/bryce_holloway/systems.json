@@ -1,0 +1,56 @@
+{
+  "agent": "bryce_holloway",
+  "organisation": "fenwick_search",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "candidate_pipeline",
+      "access": "admin"
+    },
+    {
+      "system": "comp_benchmarks",
+      "access": "admin"
+    },
+    {
+      "system": "client_briefs",
+      "access": "admin"
+    }
+  ],
+  "approves": [
+    {
+      "action": "candidate_presentation",
+      "note": "With the candidate's explicit consent only"
+    }
+  ],
+  "cannot_approve": [
+    "contract_signature",
+    "spend"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT"
+  },
+  "segregation_of_duties": [],
+  "unescalatable": [
+    {
+      "request": "confirm_a_candidate_is_in_a_process",
+      "note": "Never, to anyone, and least of all to their current employer. The refusal must not confirm."
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "agent": "alicia_morgan",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "roi_queue",
+      "access": "admin"
+    },
+    {
+      "system": "record_amendment_log",
+      "access": "admin"
+    },
+    {
+      "system": "legal_request_log",
+      "access": "read_write"
+    },
+    {
+      "system": "ehr",
+      "access": "scoped_read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "record_release_execution",
+      "note": "May execute a release only after identity, authority, scope and any required Privacy or Legal determination are documented."
+    }
+  ],
+  "cannot_approve": [
+    "privacy_determination",
+    "legal_interpretation",
+    "security_exception",
+    "ehr_clinical_change"
+  ],
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:00-17:00 ET; urgent legal requests use the HIM on-call route",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "segregation_of_duties": []
+}

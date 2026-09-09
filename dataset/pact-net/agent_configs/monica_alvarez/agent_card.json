@@ -1,0 +1,173 @@
+{
+  "principalId": "monica_alvarez",
+  "handle": "monica_alvarez",
+  "displayName": "Monica Alvarez",
+  "teamRole": "harbor_peo",
+  "role": "PEO Benefits & Leave Specialist for TechFlow AI",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:00-17:00 PT through the contracted PEO case channel",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": null
+  },
+  "agentCard": {
+    "name": "Monica Alvarez's agent",
+    "description": "External professional-employer-organisation specialist who administers TechFlow benefits eligibility, enrolment and leave cases under the service agreement. She does not manage TechFlow employees, make accommodation decisions, or give TechFlow employment-law advice.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "peo-portal",
+        "name": "PEO coordination",
+        "description": "Employment-administration workflow with the external PEO",
+        "tags": [
+          "employment",
+          "harbor",
+          "peo",
+          "peopleops"
+        ],
+        "examples": [
+          "Ask Monica Alvarez about PEO coordination."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "benefits-case-system",
+        "name": "benefits cases",
+        "description": "Secure eligibility and enrolment case status",
+        "tags": [
+          "benefits",
+          "cases",
+          "harbor",
+          "peo"
+        ],
+        "examples": [
+          "Ask Monica Alvarez about benefits cases."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "leave-admin",
+        "name": "leave administration",
+        "description": "Secure leave workflow status and employer action dates",
+        "tags": [
+          "administration",
+          "harbor",
+          "leave",
+          "peo"
+        ],
+        "examples": [
+          "Ask Monica Alvarez about leave administration."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "eligibility-feed",
+        "name": "benefits eligibility feed",
+        "description": "Employment eligibility and carrier effective-date status",
+        "tags": [
+          "benefits",
+          "eligibility",
+          "harbor",
+          "payroll"
+        ],
+        "examples": [
+          "Ask Monica Alvarez about benefits eligibility feed."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-benefits-case-processing",
+      "type": "grants",
+      "action": "benefits_case_processing",
+      "sole": false,
+      "description": "Can approve: benefits case processing. May process eligibility, enrolment and leave administration within plan and contract rules after employer and employee inputs are complete."
+    },
+    {
+      "id": "cannot-employment-decision",
+      "type": "denies",
+      "action": "employment_decision",
+      "description": "Cannot approve employment decision — route to whoever holds it."
+    },
+    {
+      "id": "cannot-accommodation-decision",
+      "type": "denies",
+      "action": "accommodation_decision",
+      "description": "Cannot approve accommodation decision — route to whoever holds it."
+    },
+    {
+      "id": "cannot-payroll-approval",
+      "type": "denies",
+      "action": "payroll_approval",
+      "description": "Cannot approve payroll approval — route to whoever holds it."
+    },
+    {
+      "id": "cannot-legal-advice",
+      "type": "denies",
+      "action": "legal_advice",
+      "description": "Cannot approve legal advice — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

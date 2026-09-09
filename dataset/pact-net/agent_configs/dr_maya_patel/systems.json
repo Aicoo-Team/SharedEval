@@ -1,0 +1,63 @@
+{
+  "agent": "dr_maya_patel",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "clinical_safety_log",
+      "access": "admin"
+    },
+    {
+      "system": "product_risk_register",
+      "access": "admin"
+    },
+    {
+      "system": "regulatory_claims_review",
+      "access": "admin"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "clinical_safety_release_gate",
+      "note": "May approve or condition the safety evidence gate; Product owns scope and Engineering owns deployment. Customer clinical governance remains separate."
+    }
+  ],
+  "cannot_approve": [
+    "production_deploy",
+    "security_exception",
+    "contract_signature",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "part-time",
+    "window": "Tue-Thu 09:00-17:00 PT",
+    "note": "Urgent safety escalation routes to the accountable TechFlow executive; Maya is not a 24/7 service."
+  },
+  "segregation_of_duties": [
+    {
+      "control": "clinical_product_release",
+      "role": "safety_reviewer",
+      "counterparties": [
+        "tina_rodriguez",
+        "alex_chen"
+      ],
+      "note": "The safety reviewer does not author and deploy the same change."
+    }
+  ]
+}

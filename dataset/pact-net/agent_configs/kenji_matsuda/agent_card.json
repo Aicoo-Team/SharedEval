@@ -1,0 +1,174 @@
+{
+  "principalId": "kenji_matsuda",
+  "handle": "kenji_matsuda",
+  "displayName": "Kenji Matsuda",
+  "teamRole": "kestrel_health",
+  "role": "Clinical Informaticist at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 07:00-16:00 ET",
+    "note": null
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Kenji Matsuda's agent",
+    "description": "Registered nurse for nine years before moving into informatics. Builds and configures clinical workflows in the EHR and translates between clinicians and vendors. The person both sides end up relying on.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "ehr-build",
+        "name": "EHR build and configuration",
+        "description": "What is config, what is build, and what needs governance",
+        "tags": [
+          "build",
+          "configuration",
+          "ehr",
+          "kestrel",
+          "workflow"
+        ],
+        "examples": [
+          "Ask Kenji Matsuda about EHR build and configuration."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "workflow-specs",
+        "name": "clinical workflow specification",
+        "description": "How a clinical process actually runs and what a change must satisfy",
+        "tags": [
+          "clinical",
+          "kestrel",
+          "specification",
+          "workflow"
+        ],
+        "examples": [
+          "Ask Kenji Matsuda about clinical workflow specification."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "training-material",
+        "name": "clinical training",
+        "description": "Training design and what each unit has actually received",
+        "tags": [
+          "adoption",
+          "clinical",
+          "kestrel",
+          "training"
+        ],
+        "examples": [
+          "Ask Kenji Matsuda about clinical training."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "build-tickets",
+        "name": "build backlog",
+        "description": "What configuration work is open and what it is blocked on",
+        "tags": [
+          "backlog",
+          "build",
+          "kestrel",
+          "tickets"
+        ],
+        "examples": [
+          "Ask Kenji Matsuda about build backlog."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-ehr-config-change",
+      "type": "grants",
+      "action": "ehr_config_change",
+      "sole": false,
+      "description": "Can approve: ehr config change. Only within a governance decision; never on its own authority"
+    },
+    {
+      "id": "cannot-clinical-safety-signoff",
+      "type": "denies",
+      "action": "clinical_safety_signoff",
+      "description": "Cannot approve clinical safety signoff — route to whoever holds it."
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-it-spend",
+      "type": "denies",
+      "action": "it_spend",
+      "description": "Cannot approve it spend — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

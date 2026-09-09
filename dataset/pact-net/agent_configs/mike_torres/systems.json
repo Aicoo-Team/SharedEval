@@ -1,0 +1,73 @@
+{
+  "agent": "mike_torres",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "repo",
+      "access": "read_write"
+    },
+    {
+      "system": "ci",
+      "access": "read_write"
+    },
+    {
+      "system": "prod",
+      "access": "read"
+    },
+    {
+      "system": "incident_log",
+      "access": "read_write"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "pr_review_merge",
+      "scope": "backend",
+      "note": "May not merge own PRs"
+    }
+  ],
+  "cannot_approve": [
+    "production_deploy",
+    "contract_signature"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 09:00-18:00 PT",
+    "note": "Plus a rotating engineering on-call duty."
+  },
+  "segregation_of_duties": [
+    {
+      "control": "code_change",
+      "role": "reviewer",
+      "counterparties": [
+        "tom_bradford",
+        "jake_ellis",
+        "lisa_nakamura"
+      ]
+    },
+    {
+      "control": "production_deploy",
+      "role": "author",
+      "counterparties": [
+        "alex_chen"
+      ]
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import {
   type PairDataStore,
 } from '../pact-pair/schemas.js';
 import {
+  PACT_NET_V1_ASSET_DIR_SEGMENTS_V1,
   pactNetAgentStoreV1Schema,
   type PactNetAgentStoreV1,
   type PactNetNoteV1,
@@ -32,7 +33,7 @@ function defaultRootDir(): string {
 }
 
 /**
- * Loads every agent's seed store from `dataset/pact-net/agent_configs/`.
+ * Loads every agent's seed store from `dataset/pact-net/old/agent_configs/`.
  *
  * `alex_chen` intentionally ships without a `data.json`: the design reuses the
  * PACT-Pair hub workspace ("Reuse existing PACT-Pair data", DESIGN §2.1), so
@@ -44,7 +45,11 @@ export function loadPactNetAgentStoresV1(
   options: { rootDir?: string } = {},
 ): Map<string, PactNetAgentStoreV1> {
   const rootDir = options.rootDir ?? defaultRootDir();
-  const configsDir = join(rootDir, 'dataset', 'pact-net', 'agent_configs');
+  const configsDir = join(
+    rootDir,
+    ...PACT_NET_V1_ASSET_DIR_SEGMENTS_V1,
+    'agent_configs',
+  );
   const agents = readdirSync(configsDir, { withFileTypes: true })
     .filter(entry => entry.isDirectory())
     .map(entry => entry.name)

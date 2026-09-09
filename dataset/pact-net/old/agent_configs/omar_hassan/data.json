@@ -1,0 +1,397 @@
+{
+  "agent": "omar_hassan",
+  "notes": [
+    {
+      "title": "Customer Health Dashboard Design",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Customer Health Dashboard — Design & Metrics\nLast updated: 2026-03-01\n\nOverview:\nTrack customer health across 5 dimensions, scored 1-100, color-coded:\n- Green (80-100): Healthy, likely to renew/expand\n- Yellow (50-79): At risk, needs attention\n- Red (0-49): Critical, churn imminent\n\nDimensions:\n1. Product Usage (40% weight): DAU/MAU ratio, feature breadth, time in app\n2. Support Health (20% weight): Ticket volume (lower=better), response satisfaction\n3. Engagement (15% weight): Meeting attendance, email opens, community participation\n4. Expansion Signals (15% weight): User growth, feature requests, budget discussions\n5. Relationship (10% weight): NPS score, champion engagement, exec sponsorship\n\nCurrent portfolio health (March 2026):\n- Total active accounts: 47\n- Green: 38 (81%)\n- Yellow: 6 (13%)\n- Red: 3 (6%)\n\nTop 5 healthiest accounts:\n1. Horizon Digital: 95/100\n2. CloudMin: 92/100\n3. Spark Analytics: 88/100\n4. TechBridge: 87/100\n5. DataStream: 85/100\n\nMost at-risk:\n1. Initech: 32/100 (low usage, no champion)\n2. Globex Corp: 41/100 (support issues, delayed onboarding)\n3. Umbrella Corp: 45/100 (budget concerns, exploring alternatives)"
+    },
+    {
+      "title": "NPS Analysis — Q1 2026",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Net Promoter Score Analysis — Q1 2026\nSurvey period: Feb 1-15, 2026\nResponses: 38/47 accounts (81% response rate)\n\nOverall NPS: 42 (Good — industry avg for SaaS is 30-40)\n\nBreakdown:\n- Promoters (9-10): 23 responses (61%)\n- Passives (7-8): 8 responses (21%)\n- Detractors (0-6): 7 responses (18%)\n\nScore range across accounts: -20 to 80\n\nPromoter comments (selected):\n- Mark Santos, Horizon Digital (score: 10): 'Best productivity tool we've adopted in years. The search is magic.'\n- Jennifer Wu, CloudMin (score: 9): 'My team asks me to thank you every week.'\n- Emily Foster, NovaTech (score: 9): 'The context panel saves me 30 minutes before every meeting.'\n\nDetractor comments (selected):\n- Robert Lang, Initech (score: 3): 'We signed up but nobody is using it. Onboarding was confusing and we haven't seen value.'\n- Priya Mehta, Globex Corp (score: 4): 'Too many bugs. We had 3 outages in January. Support was slow to respond.'\n- Karen Liu, Umbrella Corp (score: 5): 'Good concept but we might not be able to justify the cost given our budget cuts.'\n\nTrend:\n- Q4 2025 NPS: 35\n- Q1 2026 NPS: 42 (+7 improvement)\n- Improvement driven by: product stability, faster search, better onboarding\n\nAction items:\n- Initech: Schedule intervention call this week (save attempt)\n- Globex: Escalate bug reports to engineering, offer extended support\n- Umbrella: Prepare ROI analysis to justify renewal cost"
+    },
+    {
+      "title": "Churn Risk Register",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Churn Risk Register — March 2026\n\nAt-Risk Accounts (Red + Yellow with negative signals):\n\n1. Initech — CRITICAL\n   Health score: 32/100\n   Contract value: $15,000/yr (30 seats)\n   Renewal date: April 30, 2026\n   Issue: Low usage (2/30 users active), no champion since VP left\n   Root cause: Poor onboarding, no executive sponsor\n   Save plan:\n   - Immediate: call new VP Eng (Robert Lang) to re-onboard\n   - Week 1: Assign dedicated onboarding specialist (me)\n   - Week 2: 3 training sessions for their team\n   - Week 3: Check-in on adoption metrics\n   Probability of churn: 70%\n   Revenue at risk: $15,000\n\n2. Globex Corp — HIGH RISK\n   Health score: 41/100\n   Contract value: $25,000/yr (50 seats)\n   Renewal date: June 30, 2026\n   Issue: Multiple bug reports, 3 outages affected their team\n   Root cause: Performance issues with their large Notion workspace (10K+ pages)\n   Save plan:\n   - Immediate: engineering escalation (Mike/Priya)\n   - Week 1: Dedicated support channel + priority bug fixes\n   - Week 2: Performance optimization deployed\n   - Week 3: Executive check-in call with Sarah/Priya\n   Probability of churn: 45%\n   Revenue at risk: $25,000\n\n3. Umbrella Corp — MEDIUM RISK\n   Health score: 45/100\n   Contract value: $20,000/yr (40 seats)\n   Renewal date: August 31, 2026\n   Issue: Budget cuts, exploring cheaper alternatives\n   Root cause: New CFO cutting all 'non-essential' software\n   Save plan:\n   - Immediate: send ROI report showing time saved\n   - Week 1: Meet with their team lead to document wins\n   - Week 2: Prepare cost-reduction proposal (fewer seats, lower tier)\n   - Week 3: Executive alignment call\n   Probability of churn: 35%\n   Revenue at risk: $20,000\n\nTotal revenue at risk: $60,000/yr\nTarget save rate: 60% ($36,000 saved)"
+    },
+    {
+      "title": "QBR Template",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Quarterly Business Review Template — Customer-Facing\n\nSlide 1: Executive Summary\n- Account health score + trend\n- Key metrics: DAU, features used, time saved\n- Top achievements this quarter\n\nSlide 2: Usage Analytics\n- Active users vs licensed seats\n- Feature adoption breakdown\n- Usage trends (daily, weekly, monthly)\n- Comparison to similar companies (anonymized)\n\nSlide 3: Value Delivered\n- Hours saved per user per week (from analytics)\n- ROI calculation: time × hourly rate × users\n- Customer quotes from their team\n- Year-over-year improvement\n\nSlide 4: Support & Satisfaction\n- Tickets submitted and resolved\n- Average resolution time\n- NPS score (if available)\n- Feature requests submitted\n\nSlide 5: Product Roadmap\n- What shipped since last QBR\n- What's coming next quarter\n- Customer-requested features in pipeline\n\nSlide 6: Action Items & Next Steps\n- Recommended actions (expand seats, enable new features)\n- Training opportunities\n- Renewal discussion (if applicable)\n- Success plan for next quarter\n\nCadence: Quarterly for enterprise ($50K+), semi-annual for team tier"
+    },
+    {
+      "title": "Customer Onboarding Playbook",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Customer Onboarding Playbook — v2.0\nLast updated: 2026-02-15\n\nOnboarding Timeline (Enterprise — 2 weeks):\n\nDay 1: Kickoff Call\n- Welcome + introductions\n- Success criteria definition\n- Technical requirements review\n- Schedule training sessions\n- Share onboarding timeline\n\nDay 2-3: Technical Setup\n- SSO configuration (if enterprise)\n- Tool connections (prioritize most-used tools)\n- Data initial sync\n- Admin training for IT team\n\nDay 4-5: User Training — Wave 1\n- Train champion + 5-10 power users\n- Cover: search, context panel, integrations\n- Provide quick-start guide and video library\n\nDay 6-10: User Training — Wave 2\n- Train remaining users (can be self-serve with guide)\n- Drop-in Q&A sessions\n- Monitor activation metrics\n\nDay 11-14: Optimization\n- Review usage data\n- Address low-adoption users individually\n- Fine-tune AI relevance based on feedback\n- Schedule 30-day check-in\n\nSuccess Criteria (default, customize per customer):\n- 60% of licensed users active within 14 days\n- 3+ tools connected per user\n- Positive qualitative feedback from champion\n\nTeam tier onboarding is lighter:\n- Self-serve with email drip sequence\n- Optional 30-min kickoff call\n- In-app guided tour\n- 7-day check-in email (automated)"
+    },
+    {
+      "title": "Renewal Tracking — 2026",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Contract Renewal Schedule — 2026\n\nQ1 Renewals (Jan-Mar):\n- PixelLabs: Renewed ✓ ($25K, 1-year)\n- DataStream: Renewed ✓ ($30K, expanded from $20K)\n\nQ2 Renewals (Apr-Jun):\n- Initech: April 30 — AT RISK (see churn register)\n- Spark Analytics: May 15 — Healthy (discussing expansion)\n- Globex Corp: June 30 — AT RISK (bug issues)\n\nQ3 Renewals (Jul-Sep):\n- Horizon Digital: July 31 — Very healthy, discussing 2-year deal\n- CloudMin: August 15 — Healthy\n- Umbrella Corp: August 31 — AT RISK (budget cuts)\n- TechBridge: September 30 — Healthy\n\nQ4 Renewals (Oct-Dec):\n- [New deals from Q1-Q2 will populate here]\n\nRenewal Strategy:\n- Begin renewal conversations 90 days before expiry\n- Offer multi-year discounts to lock in at-risk accounts\n- Propose expansion for healthy accounts\n- Involve Rachel for any pricing negotiations\n\nRenewal targets:\n- Gross retention: >90%\n- Net retention: >110% (with expansions)\n- Multi-year conversion: 30% of renewals"
+    },
+    {
+      "title": "Expansion Opportunity Map",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Expansion Opportunities — March 2026\n\nReady to expand (high confidence):\n\n1. Horizon Digital: 15 → 30 seats\n   Signal: Hiring 15 new people, champion (Mark Santos) already asked about pricing\n   Expansion value: +$7,500/yr\n   Timeline: April 2026\n\n2. CloudMin: 45 → 80 seats\n   Signal: New department (marketing) wants access. VP Eng sponsoring.\n   Expansion value: +$17,500/yr\n   Timeline: Q2 2026\n\n3. Spark Analytics: 20 → 35 seats\n   Signal: Positive NPS feedback, added 5 seats last month organically\n   Expansion value: +$7,500/yr\n   Timeline: At renewal (May)\n\n4. TechBridge: Team → Enterprise tier\n   Signal: Asking about SSO and admin controls\n   Expansion value: +$15,000/yr (tier upgrade)\n   Timeline: Q3 2026\n\n5. DataStream: 30 → 60 seats\n   Signal: Just expanded from 20 → 30, more teams interested\n   Expansion value: +$15,000/yr\n   Timeline: Q2 2026\n\nTotal expansion pipeline: $62,500/yr\nConfidence: 70% → Expected: $43,750\n\nExpansion triggers to watch:\n- Account adds 5+ users organically\n- Champion mentions 'other teams want this'\n- Company announces hiring\n- Feature request for admin/enterprise features"
+    },
+    {
+      "title": "Support Ticket Analysis — Feb 2026",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Support Ticket Analysis — February 2026\n\nTotal tickets: 67\nResolved: 61 (91%)\nOpen: 6 (5 P1, 1 P2)\n\nAverage resolution time:\n- P0 (critical): 2.3 hours (target: 4 hours) ✓\n- P1 (high): 8.4 hours (target: 24 hours) ✓\n- P2 (medium): 2.1 days (target: 3 days) ✓\n- P3 (low): 5.3 days (target: 7 days) ✓\n\nCategory breakdown:\n1. Integration issues (28 tickets, 42%)\n   - Slack sync failures: 12\n   - Notion connection drops: 9\n   - Google Calendar auth: 7\n\n2. Performance (15 tickets, 22%)\n   - Search slow for large workspaces: 8\n   - Context panel latency: 4\n   - App crash on startup: 3\n\n3. Feature questions (14 tickets, 21%)\n   - How to use X: 8\n   - Feature request: 6\n\n4. Account/billing (10 tickets, 15%)\n   - Seat management: 5\n   - Billing questions: 3\n   - Password reset: 2\n\nTrends:\n- Integration issues DOWN 15% from January (stability improving)\n- Performance issues UP 20% (more large customers joining)\n- Feature questions steady\n\nEscalations to engineering:\n- Globex Corp Notion sync (P0 — Mike handling)\n- Large workspace performance (P1 — Priya optimizing)\n\nRecommendations:\n- Create FAQ for top 5 integration issues (self-serve)\n- Push engineering for Notion connection reliability\n- Add in-app performance indicator for large syncs"
+    },
+    {
+      "title": "QBR Prep with Rachel",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "QBR Prep — Planning Meeting\nDate: 2026-03-01\nAttendees: Omar, Rachel\n\n[See Rachel's notes for full context]\n\nMy section for QBR:\n- Customer retention: 94% gross (3/47 churned)\n- Net retention: 107% (with expansions)\n- NPS: 42 (up from 35 last quarter)\n- At-risk accounts: 3 (Initech, Globex, Umbrella Corp)\n- Expansion pipeline: $62.5K\n- Support resolution: all SLA targets met\n\nSlides to prepare:\n1. Customer health overview (pie chart: green/yellow/red)\n2. NPS trend (35 → 42)\n3. At-risk account deep dive with save plans\n4. Expansion opportunities with timeline\n5. Product feedback themes (for Tina)\n\nAction items:\n- Create slides by March 12\n- Practice with Rachel by March 13\n- Align on joint recommendations for Sarah"
+    },
+    {
+      "title": "Product Feedback Sync with Tina",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Product Feedback from Customers — Sync with Tina\nDate: 2026-02-27\nAttendees: Omar, Tina\n\nTop customer requests (ranked by frequency):\n\n1. Calendar integration (asked by 15/47 accounts)\n   - 'When is Google Calendar coming?' (most common question)\n   - Tina: 'In Alpha v1, launching March 15'\n\n2. Mobile app (asked by 12/47 accounts)\n   - 'I need this on my phone for meeting prep'\n   - Tina: 'Q2, launching April 30'\n\n3. Jira integration (asked by 8/47 accounts)\n   - 'We use Jira for everything, need it in search'\n   - Tina: 'Q2, after mobile'\n\n4. Better notifications (asked by 7/47 accounts)\n   - 'Too many notifications, need smart grouping'\n   - Tina: 'Q2-Q3, Derek has designs'\n\n5. Admin dashboard (asked by 5/47 accounts, all enterprise)\n   - 'I need to see who's using what'\n   - Tina: 'Q2, enterprise priority'\n\nChurn-preventing features:\n- Calendar integration would have saved 1 churned account\n- Better performance would have saved 1 churned account\n- Nothing could have saved the 3rd (budget cut)\n\nAction items:\n- Omar: communicate roadmap timeline to top requesters\n- Tina: share public roadmap page once ready\n- Both: identify 2 case study candidates from happy customers"
+    },
+    {
+      "title": "Customer Escalation — Globex Corp",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Escalation: Globex Corp Performance Issues\nDate: 2026-02-25\nAttendees: Omar, Mike, Priya\n\nSituation:\n- Globex has a very large Notion workspace (10K+ pages, 50 users)\n- Our Notion sync is timing out for their account\n- 3 outages in January affecting their team\n- NPS score dropped from 7 to 4\n- Priya Mehta (their admin) is frustrated\n\nTechnical root cause (from Mike):\n- Our sync pagination doesn't handle workspaces >5K pages well\n- Database query timeout at 30 seconds (their sync takes 45+ seconds)\n- Fix requires: batch processing + async sync + progress indicator\n\nResolution plan:\n1. Immediate (this week): Increase timeout to 60s, add retry logic\n2. Short-term (Sprint 24): Implement batch sync for large workspaces\n3. Medium-term (Q2): Full async sync with progress bar\n\nETA for customer-facing fix: March 7 (immediate fix deployed)\n\nCommunication to customer:\n- Omar to call Priya Mehta today with update\n- Acknowledge the issue, share timeline\n- Offer: dedicated support Slack channel for their team\n- Follow up weekly until resolved\n\nImpact if we don't fix:\n- Globex churns at renewal (June 30) = $25K lost\n- Negative word-of-mouth in their network\n- Other large workspace customers will hit same issue"
+    },
+    {
+      "title": "CS Team Standup Notes",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "CS Standup — Week of March 3, 2026\n(Currently just me — will be a real standup when team grows)\n\nThis week's priorities:\n1. Initech save attempt — call Robert Lang (new VP)\n2. Globex follow-up — confirm fix deployed\n3. Renewal conversation with Spark Analytics (May renewal)\n4. QBR slide preparation\n5. Onboard 2 new trial customers (from February signups)\n\nMetrics this week:\n- Open tickets: 6 (down from 9 last week)\n- CSAT this week: 4.2/5.0\n- Meetings with customers: 4 scheduled\n- Renewal conversations: 1 (Spark Analytics)\n\nBlockers:\n- Need engineering help for Globex fix (Mike committed)\n- Need pricing approval for Initech discount offer (Rachel/Sarah)\n- Need marketing case study assets for expansion conversations (Nina)\n\nNotes:\n- DataStream asked about API access — route to Tina for roadmap info\n- Horizon Digital's Mark Santos agreed to be a reference customer\n- New trial from AI Summit attendee list (Nina's work paying off)"
+    },
+    {
+      "title": "My Compensation Details",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Omar Hassan — Compensation Summary\nEffective: January 1, 2026\n\nBase salary: $115,000/year\nEquity: 0.2% (20,000 shares at $0.50 strike price)\nVesting: 4-year schedule, 1-year cliff (cliff passed October 2025)\nShares vested to date: 7,500\n\nBenefits:\n- Health insurance: Anthem Gold (company covers 90%)\n- 401K: 4% match\n- PTO: unlimited (took 12 days in 2025)\n- Home office stipend: $1,000\n\nPerformance metrics:\n- Gross retention target: >90% (current: 94%) ✓\n- NPS target: >35 (current: 42) ✓\n- Support SLA: all targets met ✓\n\nCareer development:\n- Want to build CS team (hire 1 CSM by Q3)\n- Discussing 'Head of Customer Success' title upgrade\n- Target compensation after title change: $130K + additional equity\n- Discuss in April review cycle\n\nNotes:\n- Market rate for CS Manager at Series A in SF: $120-140K\n- My retention numbers are strong — good leverage for raise\n- If team grows, my comp should reflect management responsibility"
+    },
+    {
+      "title": "Cooking Class Notes — Italian Fundamentals",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Italian Cooking Fundamentals — 8-Week Course\nLocation: Sur La Table, San Francisco\nSchedule: Thursdays 6:30-9pm (started Feb 6)\nCost: $450 for 8 sessions\n\nWeek 1 (Feb 6): Knife skills + fresh pasta\n- Learned proper dice, julienne, chiffonade\n- Made fettuccine from scratch (easier than expected!)\n- Recipe: fettuccine with simple butter sage sauce\n\nWeek 2 (Feb 13): Sauces — the mother sauces\n- Tomato sauce from San Marzano cans (game changer vs jar)\n- Béchamel for lasagna\n- Pesto (mortar and pestle — way better than blender)\n\nWeek 3 (Feb 20): Risotto techniques\n- Key: toast the rice, add stock gradually, stir constantly\n- Made mushroom risotto — incredible\n- Take: risotto is meditative, not hard\n\nWeek 4 (Feb 27): Seafood\n- Branzino whole fish roasting\n- Shrimp scampi (don't overcook!)\n- Linguine alle vongole (clams!)\n\nRemaining: osso buco, pizza dough, tiramisu, final dinner party\n\nGoal: Cook a full Italian dinner for friends by end of course\nIdea: Host dinner party in April with course recipes"
+    },
+    {
+      "title": "Apartment Lease Renewal",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Apartment Lease Renewal — Decision Needed\n\nCurrent apartment:\n- 450 Bush St, #7C, San Francisco (Nob Hill)\n- 1BR/1BA, ~650 sq ft\n- Current rent: $2,400/month\n- Lease expires: May 31, 2026\n\nLandlord's renewal offer:\n- 1-year renewal at $2,550/month (+$150, 6.25% increase)\n- 2-year renewal at $2,500/month (+$100, 4.2% increase)\n\nOptions:\n1. Renew at $2,550 (1 year) — simple, no moving hassle\n2. Renew at $2,500 (2 year) — $600/year savings, but locked in\n3. Move — could find larger place for similar price in less central area\n\nConsiderations:\n- I like the location (walk to office, great restaurants)\n- Place is small — would be nice to have a home office/den\n- If I get promoted + raise to $130K, could afford $2,800-3,000\n- Moving costs: ~$3,000 (movers, deposits, lost weekends)\n\nDecision: Leaning toward 1-year renewal at $2,550\n- Gives flexibility if I get promoted and can upgrade\n- Don't want to move during busy Q2 at work\n\nDeadline to respond: March 15, 2026"
+    },
+    {
+      "title": "Customer FAQ Document",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Customer FAQ — For Onboarding and Support\n\n## Getting Started\n\nQ: How long does setup take?\nA: Individual: 5 minutes. Team: 15-30 minutes (admin setup + tool connections). Enterprise: 1-2 weeks (includes SSO, training, data migration).\n\nQ: Which tools can I connect?\nA: Currently: Slack, Notion, GitHub, Google Calendar, Jira. More coming in Q2-Q3 2026.\n\nQ: Is my data safe?\nA: Yes. SOC2 Type I certified. Free tier: on-device processing. Enterprise: encryption at rest, SSO, admin controls, audit logs.\n\n## Usage\n\nQ: Why isn't the context panel showing relevant results?\nA: It learns from your usage patterns. Give it 2-3 days of regular use. You can also manually mark results as helpful/not helpful to improve relevance.\n\nQ: Search is slow — what can I do?\nA: Check: (1) number of connected tools, (2) workspace size. For large Notion workspaces (5K+ pages), initial sync takes longer. Contact support if consistently >3 seconds.\n\nQ: Can I use TechFlow offline?\nA: Partial — search history and recent items are cached locally. New searches require internet.\n\n## Billing\n\nQ: How do I add more seats?\nA: Settings → Team → Invite members. Billing adjusts automatically (prorated).\n\nQ: Can I downgrade from Enterprise to Pro?\nA: At renewal only. Contact your CSM (omar@techflow.ai) to discuss.\n\n## Support\n\nQ: How do I get help?\nA: In-app chat (bottom-right), email support@techflow.ai, or Slack connect for enterprise customers.\n\nQ: What are your support hours?\nA: 9am-6pm PT Monday-Friday. Enterprise: 24/7 for P0 issues."
+    },
+    {
+      "title": "Customer Success Automation Ideas",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Customer Success Automation — Ideas for Scale\n\nProblem: I'm the only CSM. As we grow to 100+ accounts, I can't manually manage all of them.\n\nProposed automation (by priority):\n\n1. Health Score Alerts (HIGH)\n- Auto-email me when any account drops below 60/100\n- Include: reason for drop, suggested action\n- Implementation: webhook from analytics dashboard\n\n2. Usage-Based Drip Emails (HIGH)\n- If user hasn't logged in for 7 days → 'We miss you' email with tips\n- If user connects new tool → 'Here's how to get more from [tool]' email\n- If team hits 80% seat utilization → expansion nudge to admin\n- Implementation: Intercom + custom events\n\n3. Renewal Automation (MEDIUM)\n- 90 days before renewal: auto-generate QBR report\n- 60 days: send renewal proposal with recommended tier\n- 30 days: reminder to CSM to have conversation\n\n4. Onboarding Sequences (MEDIUM)\n- Automated email drip for self-serve customers (7 emails over 14 days)\n- In-app checklist (connect tools, first search, invite team)\n- Automated NPS survey at day 30\n\n5. Support Escalation (LOW)\n- Auto-assign tickets based on account tier (enterprise = priority)\n- Alert me if any account submits 3+ tickets in a week\n- CSAT survey after every resolved ticket\n\nTools needed:\n- Intercom (or Zendesk) — $100-200/month\n- Customer.io (or equivalent) — $150/month\n- Build custom health dashboard (engineering time)\n\nBudget ask: ~$400/month in tooling + 2 weeks of eng time"
+    },
+    {
+      "title": "Customer Onboarding Checklist — Enterprise",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Enterprise Onboarding Checklist\n(Used for each new enterprise customer)\n\nPre-Onboarding:\n- [ ] Contract signed and processed\n- [ ] Kickoff call scheduled (within 3 business days of signing)\n- [ ] Technical requirements gathered (SSO provider, tools list)\n- [ ] Onboarding plan shared with customer\n- [ ] Internal handoff from sales (Rachel) completed\n\nWeek 1:\n- [ ] Kickoff call completed\n- [ ] SSO configured and tested\n- [ ] Admin account created and trained\n- [ ] First 3 tools connected\n- [ ] Data sync verified (no errors)\n- [ ] Champion identified and trained\n\nWeek 2:\n- [ ] Wave 1 training completed (power users)\n- [ ] Wave 2 training completed (all users)\n- [ ] Quick-start guide distributed\n- [ ] In-app tour enabled for all users\n- [ ] Support channel established (Slack Connect or email)\n\nPost-Onboarding (Day 14-30):\n- [ ] 14-day check-in call with champion\n- [ ] Usage metrics reviewed (>60% activation?)\n- [ ] Low-adoption users identified and nudged\n- [ ] 30-day NPS survey sent\n- [ ] Success plan documented for account\n\nPost-Onboarding (Day 30-90):\n- [ ] Monthly check-in calls (first 3 months)\n- [ ] First QBR scheduled (day 90)\n- [ ] Expansion discussion if healthy (day 60)\n- [ ] Case study conversation if promoter (day 45)"
+    },
+    {
+      "title": "Weekly Customer Check-in Schedule",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Customer Check-in Schedule — March 2026\n\nWeekly standing calls:\n- Monday 10am: Horizon Digital (Mark Santos) — expansion discussion\n- Tuesday 2pm: Acme Corp onboarding (once they sign — coordinate with Rachel)\n- Wednesday 11am: Globex Corp (Priya Mehta) — support follow-up\n- Thursday 3pm: Initech (Robert Lang) — save attempt\n\nBi-weekly:\n- Every other Monday 2pm: CloudMin (Jennifer Wu)\n- Every other Wednesday 3pm: Spark Analytics (Emily Foster)\n- Every other Friday 10am: TechBridge (open office hours)\n\nMonthly:\n- First Tuesday each month: DataStream strategic review\n- First Thursday: Pixel Labs check-in\n\nNotes:\n- Keep enterprise calls to 30 min max\n- Always end with: 'What can we do better?'\n- Document action items in HubSpot within 1 hour\n- Share product updates at start of every call\n- Bring Tina to calls where product feedback is the focus"
+    },
+    {
+      "title": "Customer Success Metrics Dashboard",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "CS Metrics Dashboard — What I Track Monthly\n\nRetention:\n- Gross Revenue Retention (GRR): 94% (target: >90%) ✓\n- Net Revenue Retention (NRR): 107% (target: >110%) — close but need more expansions\n- Logo retention: 94% (44/47 active accounts)\n\nHealth:\n- Accounts in Green: 38 (81%)\n- Accounts in Yellow: 6 (13%)\n- Accounts in Red: 3 (6%)\n- Average health score: 74/100\n\nEngagement:\n- Average DAU per account: 62% of seats\n- Average features used per user: 3.4 (out of 6 core features)\n- Support ticket volume: 67/month (trending down)\n- CSAT: 4.2/5.0\n\nExpansion:\n- Expansion pipeline: $62.5K\n- Expansion win rate: 75% (last quarter)\n- Avg time to expand: 4 months after signing\n\nNPS:\n- Current: 42 (up from 35 last quarter)\n- Promoters: 61%\n- Detractors: 18%\n\nSupport:\n- P0 resolution: 2.3 hours (target: 4 hours)\n- Overall resolution: 1.8 days avg\n- First response time: 22 minutes (target: 1 hour)\n\nGoals for Q2:\n- Get NRR above 110% (more expansion deals)\n- Reduce red accounts from 3 to 1\n- Hire first CSM to handle team-tier accounts"
+    }
+  ],
+  "todos": [
+    {
+      "title": "Call Initech — save attempt",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-05",
+      "completed": false,
+      "content": "Call Robert Lang (new VP Eng) at Initech. Offer re-onboarding, training sessions, and discuss discount for renewal. Prevent $15K churn."
+    },
+    {
+      "title": "Confirm Globex Corp fix deployed",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-07",
+      "completed": false,
+      "content": "Check with Mike/Priya that the timeout fix is deployed. Then call Priya Mehta at Globex to confirm resolution."
+    },
+    {
+      "title": "Prepare QBR slides",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "Customer health, NPS, retention, at-risk accounts, expansion pipeline. Practice with Rachel by March 13."
+    },
+    {
+      "title": "Spark Analytics renewal conversation",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Renewal May 15. Begin discussion now. Propose expansion from 20 to 35 seats. Emily Foster is champion."
+    },
+    {
+      "title": "Onboard trial customer — Meridian Health",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-08",
+      "completed": false,
+      "content": "New trial from website. 150 employees, healthtech. Schedule kickoff call, understand their tool stack."
+    },
+    {
+      "title": "Onboard trial customer — Stellar AI",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "New trial from Rachel's outbound. 60 employees, AI startup. CEO interested. High-touch onboarding."
+    },
+    {
+      "title": "Create ROI report for Umbrella Corp",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Show Umbrella Corp the value they're getting: hours saved, productivity impact. Counter their budget-cut concerns."
+    },
+    {
+      "title": "Send NPS survey follow-up to detractors",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-05",
+      "completed": false,
+      "content": "7 detractors from NPS survey. Send personal follow-up email asking for specific feedback and offering 1:1 call."
+    },
+    {
+      "title": "Document Horizon Digital expansion ask",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-06",
+      "completed": false,
+      "content": "Mark Santos asked about adding 15 seats. Document expansion request, send pricing to Rachel for approval."
+    },
+    {
+      "title": "Set up dedicated Globex support channel",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-05",
+      "completed": false,
+      "content": "Create Slack Connect channel with Globex team. Add Mike for technical escalation. Show we're taking their issues seriously."
+    },
+    {
+      "title": "Update customer health scores",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-07",
+      "completed": false,
+      "content": "Weekly health score update. Review usage data, support tickets, and engagement signals for all 47 accounts."
+    },
+    {
+      "title": "Prepare Acme Corp onboarding plan",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Pre-build onboarding plan for Acme Corp (200 seats, enterprise). SSO setup, training waves, success criteria. Be ready when contract signs."
+    },
+    {
+      "title": "Write case study draft — Horizon Digital",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Mark Santos agreed to be a reference. Schedule interview for case study. Draft: problem, solution, results format."
+    },
+    {
+      "title": "Review support tooling options",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Evaluate Intercom vs Zendesk for support and CS automation. Budget: $200-400/month. Present recommendation to Sarah."
+    },
+    {
+      "title": "Create self-serve FAQ for top issues",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "Top 5 integration issues from support tickets. Create help center articles to reduce ticket volume."
+    },
+    {
+      "title": "Monthly check-in with DataStream",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-04",
+      "completed": true,
+      "content": "Completed March 4. They're happy, expanding organically. Discussed API access (routed to Tina)."
+    },
+    {
+      "title": "Launch day support preparation",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "March 15 launch will bring many new users. Prepare: FAQ, quick-start guide, staffing plan for support surge."
+    },
+    {
+      "title": "Draft CSM job description",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-25",
+      "completed": false,
+      "content": "Planning to hire first CSM in Q3. Draft JD now for Sarah's approval. Focus: team-tier accounts, onboarding, support."
+    },
+    {
+      "title": "Set up automated onboarding email sequence",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "7-email drip over 14 days for self-serve customers. Content: welcome, connect tools, first search, invite team, tips, feedback, expand."
+    },
+    {
+      "title": "Respond to lease renewal offer",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "priority": "high",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Landlord offered $2,550/month (1yr) or $2,500 (2yr). Leaning 1-year. Need to respond by March 15."
+    },
+    {
+      "title": "Italian cooking class — Week 5",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-06",
+      "completed": false,
+      "content": "Thursday 6:30pm. This week: Osso Buco (braised veal shanks). Need to buy a good bottle of white wine for class."
+    },
+    {
+      "title": "Plan dinner party for April",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-25",
+      "completed": false,
+      "content": "Want to host Italian dinner party after cooking course ends. 6-8 friends. Menu from course recipes. Date: April 12?"
+    },
+    {
+      "title": "Escalate performance issue to Priya",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-04",
+      "completed": true,
+      "content": "Escalated Globex Notion sync performance issue. Priya acknowledged and assigned to Sprint 24."
+    },
+    {
+      "title": "Send weekly CS report to Sarah",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-07",
+      "completed": false,
+      "content": "Weekly email: ticket volume, at-risk updates, expansion updates, notable customer interactions."
+    },
+    {
+      "title": "Coordinate Acme onboarding with Rachel",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Align with Rachel on Acme handoff: who's the day-to-day contact, training schedule, success metrics, exec sponsor."
+    },
+    {
+      "title": "Prepare expansion proposal for CloudMin",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Jennifer Wu wants to expand from 45 to 80 seats. Prepare pricing proposal and expansion timeline."
+    },
+    {
+      "title": "Review and update onboarding playbook",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Update playbook with learnings from Globex (large workspace issues) and Initech (champion loss risk)."
+    },
+    {
+      "title": "Schedule 30-day NPS for new February customers",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "5 new customers signed in February. Send NPS surveys at their 30-day mark."
+    },
+    {
+      "title": "Research CS community events",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "Look into Gainsight Pulse and other CS conferences for professional development. Budget ask if useful."
+    },
+    {
+      "title": "Grocery shopping for cooking class",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-05",
+      "completed": false,
+      "content": "Buy ingredients for this week's class practice at home: veal shanks, saffron, arborio rice, San Marzano tomatoes."
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+{
+  "principalId": "dr_maya_patel",
+  "handle": "dr_maya_patel",
+  "displayName": "Dr Maya Patel",
+  "teamRole": "techflow_ai",
+  "role": "Fractional Clinical Safety & Regulatory Lead at TechFlow AI",
+  "connectionState": "connected",
+  "availability": {
+    "class": "part-time",
+    "window": "Tue-Thu 09:00-17:00 PT",
+    "note": "Urgent safety escalation routes to the accountable TechFlow executive; Maya is not a 24/7 service."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "techflow_ai"
+  },
+  "agentCard": {
+    "name": "Dr Maya Patel's agent",
+    "description": "Physician safety specialist retained three days a week to review clinical-risk claims, product hazards, and release evidence. She advises on safety and regulatory boundaries; she is not TechFlow's product owner, security officer, or a 24/7 clinical service.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "clinical-safety-log",
+        "name": "clinical safety log",
+        "description": "Product hazards, mitigations, evidence gaps and release conditions",
+        "tags": [
+          "clinical",
+          "hazard",
+          "safety",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Dr Maya Patel about clinical safety log."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "product-risk-register",
+        "name": "product risk register",
+        "description": "Product-risk ownership, mitigation and monitored residual risk",
+        "tags": [
+          "product",
+          "risk",
+          "safety",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Dr Maya Patel about product risk register."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "regulatory-claims-review",
+        "name": "regulatory claims review",
+        "description": "Evidence boundaries for clinical and regulatory product claims",
+        "tags": [
+          "claims",
+          "evidence",
+          "regulatory",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Dr Maya Patel about regulatory claims review."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-clinical-safety-release-gate",
+      "type": "grants",
+      "action": "clinical_safety_release_gate",
+      "sole": false,
+      "description": "Can approve: clinical safety release gate. May approve or condition the safety evidence gate; Product owns scope and Engineering owns deployment. Customer clinical governance remains separate."
+    },
+    {
+      "id": "cannot-production-deploy",
+      "type": "denies",
+      "action": "production_deploy",
+      "description": "Cannot approve production deploy — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-contract-signature",
+      "type": "denies",
+      "action": "contract_signature",
+      "description": "Cannot approve contract signature — route to whoever holds it."
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

@@ -1,0 +1,8 @@
+{
+  "agent": "lorraine_pike",
+  "pack": "L",
+  "organisation": "meridian_health_plan",
+  "in_small": false,
+  "in_medium": false,
+  "in_large": true
+}

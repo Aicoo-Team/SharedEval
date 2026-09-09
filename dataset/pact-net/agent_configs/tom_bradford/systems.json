@@ -1,0 +1,53 @@
+{
+  "agent": "tom_bradford",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "repo",
+      "access": "read_write"
+    },
+    {
+      "system": "ci",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "pr_review_merge",
+    "production_deploy",
+    "contract_signature"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT",
+    "note": "Incident communications use an explicit rota."
+  },
+  "segregation_of_duties": [
+    {
+      "control": "code_change",
+      "role": "author",
+      "counterparties": [
+        "mike_torres",
+        "lisa_nakamura"
+      ],
+      "note": "Opens PRs like any engineer. Cannot approve one. No production access."
+    }
+  ]
+}

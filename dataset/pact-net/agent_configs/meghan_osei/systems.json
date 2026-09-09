@@ -1,0 +1,53 @@
+{
+  "agent": "meghan_osei",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "public_affairs_calendar",
+      "access": "admin"
+    },
+    {
+      "system": "media_inquiries",
+      "access": "admin"
+    },
+    {
+      "system": "patient_notice_templates",
+      "access": "read_write"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "approved_public_message_release",
+      "note": "May release a message after the accountable subject-matter owners approve facts and any required Privacy or Legal review is recorded."
+    }
+  ],
+  "cannot_approve": [
+    "breach_determination",
+    "clinical_claim_approval",
+    "security_classification",
+    "legal_advice"
+  ],
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:30-17:30 ET plus the approved incident-communications rota",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "segregation_of_duties": []
+}

@@ -1,0 +1,68 @@
+{
+  "agent": "helen_vasquez",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "contract_repo",
+      "access": "admin"
+    },
+    {
+      "system": "baa_dpa_templates",
+      "access": "admin"
+    },
+    {
+      "system": "redlines",
+      "access": "read_write"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "legal_signoff",
+      "note": "Legal clearance after Privacy and Security have cleared their own domains."
+    },
+    {
+      "action": "contract_signature",
+      "note": "Delegated signature for approved standard agreements; material non-standard terms route to an authorised executive."
+    }
+  ],
+  "cannot_approve": [
+    "security_exception",
+    "phi_disclosure",
+    "it_spend"
+  ],
+  "privilege_boundary": {
+    "holds": "attorney_client_privilege",
+    "note": "Privileged material does not become shareable through any grant Kestrel or a counterparty issues."
+  },
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:30-18:00 ET"
+  },
+  "segregation_of_duties": [
+    {
+      "control": "purchase",
+      "role": "signer",
+      "counterparties": [
+        "dmitri_sokolov",
+        "stephen_kowalczyk"
+      ]
+    }
+  ]
+}

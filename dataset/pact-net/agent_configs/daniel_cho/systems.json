@@ -1,0 +1,57 @@
+{
+  "agent": "daniel_cho",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "continuity_plans",
+      "access": "admin"
+    },
+    {
+      "system": "exercise_log",
+      "access": "admin"
+    },
+    {
+      "system": "recovery_register",
+      "access": "read_write"
+    },
+    {
+      "system": "incident_response_plan",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "continuity_exercise_closure",
+      "note": "May close an exercise only when accountable owners accept assigned corrective actions and evidence; operational risk remains with those owners."
+    }
+  ],
+  "cannot_approve": [
+    "clinical_command",
+    "production_change",
+    "security_exception",
+    "capital_spend"
+  ],
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 07:30-16:30 ET plus a rotating emergency-management duty schedule",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "segregation_of_duties": []
+}

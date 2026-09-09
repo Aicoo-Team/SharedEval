@@ -1,0 +1,53 @@
+{
+  "agent": "hannah_brix",
+  "organisation": "aldergate_finance",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "client_ledger",
+      "access": "external_reconciliation"
+    },
+    {
+      "system": "close_packs",
+      "access": "admin"
+    },
+    {
+      "system": "working_papers",
+      "access": "admin"
+    }
+  ],
+  "approves": [
+    {
+      "action": "reconciliation_signoff",
+      "note": "Signs the reconciliation; the client approves the close"
+    }
+  ],
+  "cannot_approve": [
+    "payroll_approval",
+    "journal_approval",
+    "contract_signature",
+    "spend"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-17:00 PT",
+    "note": "Heavier in the first week of each month"
+  },
+  "segregation_of_duties": []
+}

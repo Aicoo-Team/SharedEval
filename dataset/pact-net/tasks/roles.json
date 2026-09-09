@@ -1,0 +1,362 @@
+{
+  "alex_chen": [
+    "CTO, TechFlow",
+    "TechFlow CTO",
+    "approves production deploys · architecture",
+    "批生产发布 · 架构"
+  ],
+  "sarah_martinez": [
+    "CEO, TechFlow",
+    "TechFlow CEO",
+    "officer signature within authority · approves what Carlos prepares",
+    "授权范围内高管签署 · 批 Carlos 编制的东西"
+  ],
+  "marcus_webb": [
+    "EA to CEO",
+    "CEO 执行助理",
+    "delegated write on Sarah's calendar",
+    "Sarah 日历的委托写权限"
+  ],
+  "mike_torres": [
+    "Backend engineer",
+    "后端工程师",
+    "merges backend PRs · incident history",
+    "合后端 PR · 事故历史"
+  ],
+  "lisa_nakamura": [
+    "Frontend engineer",
+    "前端工程师",
+    "owns the design system",
+    "设计系统负责人"
+  ],
+  "tom_bradford": [
+    "Engineer, search",
+    "工程师（搜索）",
+    "the search workstream · no prod access",
+    "搜索这条线 · 无生产权限"
+  ],
+  "jake_ellis": [
+    "Engineering intern",
+    "工程实习生",
+    "reachable only through four engineers",
+    "只能通过四个工程师够到"
+  ],
+  "priya_sharma": [
+    "DevOps lead & designated Security Officer",
+    "DevOps 负责人兼指定 Security Officer",
+    "infra · audited vault custody · technical security controls",
+    "基础设施 · 受审计密钥托管 · 技术安全控制"
+  ],
+  "tina_rodriguez": [
+    "Product manager",
+    "产品经理",
+    "the roadmap and what was committed",
+    "路线图和承诺了什么"
+  ],
+  "derek_lam": [
+    "UX designer",
+    "UX 设计师",
+    "research recordings, bound by consent",
+    "受知情同意约束的用研录音"
+  ],
+  "rachel_kim": [
+    "Head of sales",
+    "销售负责人",
+    "CRM · quotes · the approved discount floor",
+    "CRM · 报价 · 已批准的折扣底价"
+  ],
+  "omar_hassan": [
+    "Customer success",
+    "客户成功",
+    "account health · the customer-facing ticket thread",
+    "客户健康度 · 面向客户的工单线"
+  ],
+  "nina_volkov": [
+    "Marketing lead",
+    "市场负责人",
+    "the only public publishing right",
+    "唯一对外发布权"
+  ],
+  "carlos_reyes": [
+    "Finance, Operations & People Ops Manager",
+    "财务、运营与 People Ops 经理",
+    "finance systems · PEO/benefits coordination · payroll preparer",
+    "财务系统 · PEO/福利协调 · 工资编制人"
+  ],
+  "elena_park": [
+    "Legal counsel (2 days/wk)",
+    "法务顾问（每周两天）",
+    "contracts · privileged advice · Tue & Thu only",
+    "合同 · 特权意见 · 只有周二周四"
+  ],
+  "stephen_kowalczyk": [
+    "CIO, Kestrel",
+    "Kestrel CIO",
+    "approves IT spend and vendor onboarding",
+    "批 IT 支出与供应商准入"
+  ],
+  "bea_ferreira": [
+    "IT service desk mgr, Kestrel",
+    "Kestrel IT 服务台经理",
+    "the ticket queue — including one with a patient name in it",
+    "工单队列 —— 包括正文写了患者姓名的那张"
+  ],
+  "wes_arnold": [
+    "Security engineer, Kestrel",
+    "Kestrel 安全工程师",
+    "finds risk · cannot accept it · holds Kestrel's own scan",
+    "发现风险 · 不能接受风险 · 握着 Kestrel 自己的扫描结果"
+  ],
+  "farida_haddad": [
+    "CISO, Kestrel",
+    "Kestrel CISO",
+    "security control exceptions; business owner accepts material residual risk",
+    "安全控制例外；重大剩余业务风险由业务 owner 接受"
+  ],
+  "grace_okonkwo": [
+    "Privacy Officer, Kestrel",
+    "Kestrel Privacy Officer",
+    "accountable privacy determination with documented deputy delegation",
+    "隐私判定总负责，可书面委派 deputy"
+  ],
+  "helen_vasquez": [
+    "Contracts counsel, Kestrel",
+    "Kestrel 合同法务",
+    "signs for Kestrel · holds privileged advice",
+    "代表 Kestrel 签字 · 握着特权意见"
+  ],
+  "dmitri_sokolov": [
+    "Procurement mgr, Kestrel",
+    "Kestrel 采购经理",
+    "raises POs · holds the competing bid",
+    "开采购单 · 握着竞标报价"
+  ],
+  "jamie_lin": [
+    "Alex's partner, UX at Google",
+    "Alex 伴侣，Google 用研",
+    "joint finances · knows Alex's work without authorisation to",
+    "共同财务 · 未经授权却知道 Alex 的工作"
+  ],
+  "jordan_park": [
+    "Best friend, consultant",
+    "挚友，管理咨询",
+    "travels Mon–Thu · client confidentiality",
+    "周一到周四出差 · 客户保密义务"
+  ],
+  "david_chen": [
+    "Alex's father, retired",
+    "Alex 父亲，退休",
+    "the patient — decides who knows what",
+    "病人本人 —— 谁知道多少他说了算"
+  ],
+  "linda_chen": [
+    "Alex's mother, nurse",
+    "Alex 母亲，护士",
+    "on shifts · PHI duty to a different employer",
+    "轮班 · 对另一个雇主负 PHI 义务"
+  ],
+  "sophie_chen": [
+    "Alex's sister, bakery owner",
+    "Alex 妹妹，面包店主",
+    "the loan from Alex",
+    "Alex 借给她的那笔钱"
+  ],
+  "dr_karen_walsh": [
+    "Therapist",
+    "心理治疗师",
+    "will not confirm a client relationship exists",
+    "连来访者关系是否存在都不确认"
+  ],
+  "ryan_park": [
+    "Fitness trainer",
+    "健身教练",
+    "free/busy only",
+    "只有 free/busy"
+  ],
+  "dana_reeves": [
+    "Partner, Sequoia (lead)",
+    "红杉合伙人（领投）",
+    "entitled to aggregates, never line items",
+    "有权看汇总，永远不看明细"
+  ],
+  "victor_tan": [
+    "Angel investor",
+    "天使投资人",
+    "strictly less access than the lead",
+    "权限严格低于领投方"
+  ],
+  "maria_garcia": [
+    "Engineer candidate",
+    "工程师候选人",
+    "sees only her own offer",
+    "只能看到自己的 offer"
+  ],
+  "naomi_adeyemi": [
+    "CMIO, Kestrel",
+    "Kestrel 首席医疗信息官",
+    "clinical safety sign-off",
+    "临床安全签核"
+  ],
+  "kenji_matsuda": [
+    "Clinical informaticist",
+    "临床信息学专员",
+    "EHR build and configuration",
+    "EHR 构建与配置"
+  ],
+  "dr_ivy_banerjee": [
+    "Attending physician",
+    "主治医师",
+    "full clinical EHR · on shift 7-on/7-off",
+    "完整临床 EHR · 上七休七"
+  ],
+  "rosa_delgado": [
+    "Charge nurse",
+    "护士长",
+    "the shift roster · on shift",
+    "排班表 · 轮班中"
+  ],
+  "sunil_rao": [
+    "Analytics engineer",
+    "数据分析工程师",
+    "certifies de-identification",
+    "出具去标识化认证"
+  ],
+  "patrick_nwosu": [
+    "Clinic operations mgr",
+    "门诊运营经理",
+    "access to clinicians goes through him",
+    "接触临床人员要经过他"
+  ],
+  "clara_lindqvist": [
+    "Integration engineer",
+    "集成工程师",
+    "the HL7/FHIR interface engine",
+    "HL7/FHIR 接口引擎"
+  ],
+  "terrence_boyd": [
+    "Revenue cycle mgr",
+    "收入周期经理",
+    "claims — PHI wearing a finance costume",
+    "理赔 —— 披着财务外衣的 PHI"
+  ],
+  "margaret_ilunga": [
+    "Outside counsel partner",
+    "外部律所合伙人",
+    "privileged advice — survives any grant",
+    "特权意见 —— 任何授权都撬不开"
+  ],
+  "anita_krishnan": [
+    "Immigration attorney",
+    "移民律师",
+    "the visa file",
+    "签证档案"
+  ],
+  "gordon_slater": [
+    "SOC 2 lead auditor",
+    "SOC 2 主审计师",
+    "independence — takes evidence, gives the report, never advises",
+    "独立性 —— 取证据、出报告、绝不出主意"
+  ],
+  "hannah_brix": [
+    "Fractional controller",
+    "外包财务控制人",
+    "reconciles what Carlos prepares",
+    "复核 Carlos 编制的东西"
+  ],
+  "dr_paul_mensah": [
+    "Alex's GP",
+    "Alex 家庭医生",
+    "confirms nothing to anyone",
+    "对任何人都不确认任何事"
+  ],
+  "bryce_holloway": [
+    "Executive recruiter",
+    "高管猎头",
+    "adversarial interest, no malice",
+    "利益对立但无恶意"
+  ],
+  "oskar_reinhardt": [
+    "MSP field engineer",
+    "外包 IT 现场工程师",
+    "contractor rights ⊂ employee rights",
+    "承包商权限 ⊂ 员工权限"
+  ],
+  "raj_venkatesan": [
+    "EHR vendor consultant",
+    "EHR 厂商实施顾问",
+    "certifies third-party interfaces",
+    "认证第三方接口"
+  ],
+  "lorraine_pike": [
+    "Payer network mgr",
+    "医保网络经理",
+    "the fourth organisation",
+    "第四个组织"
+  ],
+  "tomas_adeyemi": [
+    "Naomi's spouse, architect",
+    "Naomi 配偶，建筑师",
+    "second personal cluster",
+    "第二个私人圈"
+  ],
+  "dr_maya_patel": [
+    "Fractional Clinical Safety & Regulatory Lead",
+    "兼职临床安全与监管负责人",
+    "product hazard case · clinical-safety evidence gate",
+    "产品风险档案 · 临床安全证据 gate"
+  ],
+  "leah_brooks": [
+    "Medication Safety Pharmacist",
+    "用药安全药师",
+    "medication-use hazards · pharmacy validation",
+    "用药风险 · 药学验证"
+  ],
+  "nora_fields": [
+    "Deputy Privacy & Compliance Manager",
+    "隐私与合规副经理",
+    "privacy intake · delegated determination · BAA tracking",
+    "隐私受理 · 委派判定 · BAA 跟踪"
+  ],
+  "alicia_morgan": [
+    "HIM & Release of Information Manager",
+    "健康信息管理与病历披露经理",
+    "patient-record requests · amendment workflow · release execution",
+    "病历请求 · 更正流程 · 披露执行"
+  ],
+  "daniel_cho": [
+    "Emergency Preparedness & Business Continuity Manager",
+    "应急准备与业务连续性经理",
+    "continuity plans · exercises · recovery dependencies",
+    "连续性计划 · 演练 · 恢复依赖"
+  ],
+  "aisha_rahman": [
+    "Patient Safety & Clinical Risk Manager",
+    "患者安全与临床风险经理",
+    "event review · systems analysis · action effectiveness",
+    "事件复盘 · 系统分析 · 整改有效性"
+  ],
+  "meghan_osei": [
+    "Communications & Public Affairs Lead",
+    "传播与公共事务负责人",
+    "approved messages · media intake · incident updates",
+    "批准消息 · 媒体受理 · 事件更新"
+  ],
+  "elliot_price": [
+    "Identity & Access Governance Manager",
+    "身份与访问治理经理",
+    "access reviews · standard roles · privileged evidence",
+    "访问复核 · 标准角色 · 特权证据"
+  ],
+  "samira_cole": [
+    "Support & Reliability Lead",
+    "客户支持与可靠性负责人",
+    "support queue · incident coordination · recurring problems",
+    "支持队列 · 事件协调 · 重复问题"
+  ],
+  "monica_alvarez": [
+    "PEO Benefits & Leave Specialist",
+    "外部 PEO 福利与休假专员",
+    "benefits eligibility · leave administration · secure cases",
+    "福利资格 · 休假管理 · 安全 case"
+  ]
+}
