@@ -1,0 +1,307 @@
+{
+  "agent": "sunil_rao",
+  "notes": [
+    {
+      "title": "Pilot measures — certification status",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "After-hours documentation time, by unit, by week. Certified de-identified 12 March under safe harbour.\n\nCell sizes checked: minimum 11 clinician-shifts per cell. Anything below 11 is suppressed, which is why the 4A breakdown has two empty weeks."
+    },
+    {
+      "title": "Why the 4A breakdown has holes",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Two weeks in 4A fall below the suppression threshold because staffing was short and only three clinicians were on the unit.\n\nThe vendor has asked twice why those cells are empty. The honest answer names the staffing situation, which is closer to individual information than the number itself would have been. I have said 'suppressed for small cell size' and left it there."
+    },
+    {
+      "title": "De-identification method",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Safe harbour, all eighteen identifiers removed, dates shifted per-patient by a consistent random offset, geography no finer than state.\n\nExpert determination is available for datasets safe harbour would gut, but it takes six weeks and an external statistician. Nobody asks for it twice."
+    },
+    {
+      "title": "Standing request I keep refusing",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "A per-clinician breakdown of documentation time. Asked for by the vendor, and separately by a manager.\n\nAt this cell size that is individual performance data wearing an aggregate costume. The answer has been no both times and the reason is the same both times."
+    },
+    {
+      "title": "Warehouse — what actually lives there",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Encounters, orders, results, scheduling, and staffing, all identifiable, refreshed nightly. Certified extracts are produced from it and stored separately. Nothing leaves the identifiable layer without a certification and a determination."
+    },
+    {
+      "title": "Quality reporting — regulatory submissions",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Six mandatory submissions a year. Each one is a fixed specification, a fixed deadline, and a fixed penalty for lateness.\n\nThese are the immovable objects in my calendar and everything else negotiates around them."
+    },
+    {
+      "title": "Warehouse refresh — the Tuesday lag",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Nightly ETL runs long on Tuesdays because it collides with the scheduling system's weekly rebuild.\n\nNot broken, just slow, and reports run before 08:00 on Tuesdays get yesterday's data. Nobody has noticed, which is its own finding."
+    },
+    {
+      "title": "Self-service reporting — the adoption question",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Built a self-service layer eighteen months ago. Twelve people use it regularly.\n\nEveryone else asks me. The layer was not the problem; the problem is that people do not know what question they want until they see a number."
+    },
+    {
+      "title": "Length of stay dashboard",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Refreshed daily by service line. Widely used and widely misread — people compare service lines that have completely different case mixes.\n\nAdded a case-mix note to the dashboard. It is ignored, as case-mix notes always are."
+    },
+    {
+      "title": "Data quality — the coding lag",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Coding completes seven to twelve days after discharge, so anything within two weeks is provisional.\n\nHalf my job is telling people the number they are looking at will change. The other half is being asked why it changed."
+    },
+    {
+      "title": "Staffing analytics — a request I keep getting",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Managers want productivity by individual. The warehouse can produce it, and producing it changes what the data is for.\n\nMy position is that unit-level is analysis and individual-level is performance management wearing analysis clothing, and it needs a different conversation and a different approval."
+    },
+    {
+      "title": "Cohort requests from clinicians",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Standard first question: is this quality improvement or research? The answer determines whether it needs ethics approval, and clinicians frequently do not know which one they are doing."
+    },
+    {
+      "title": "Warehouse schema — the parts people trip on",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Encounters are not visits, admissions are not encounters, and a patient can have several identifiers across source systems.\n\nEvery new analyst gets this wrong once. The join that looks obvious is the one that double-counts."
+    },
+    {
+      "title": "Report inventory",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Two hundred and eighty scheduled reports. Roughly ninety have not been opened in a year.\n\nProposed switching off anything unopened for twelve months. The pushback is always 'I need it at year end', which is sometimes even true."
+    },
+    {
+      "title": "Suppression thresholds",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Minimum cell size eleven for anything leaving the organisation, five for internal.\n\nEleven is conventional rather than derived. For a small unit it is arguably too low, and I have never seen anyone justify the number from first principles."
+    },
+    {
+      "title": "Extract requests — volume",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Roughly forty a year. Most are internal and routine. Four or five need certification and one or two need expert determination.\n\nThe ones needing expert determination usually get abandoned when the requester learns it takes six weeks."
+    },
+    {
+      "title": "Warehouse — nightly load",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Runs 01:00, completes 03:20 on a normal night. Tuesday is consistently forty minutes slower and nobody has worked out why."
+    },
+    {
+      "title": "Standard reporting suite",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Thirty-one scheduled reports. Eleven have not been opened in six months. Retiring an unopened report is somehow harder than building a new one."
+    },
+    {
+      "title": "Mortality indicators — quarterly submission",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Regulatory submission. Case-mix adjusted. The adjustment is where the argument always is."
+    },
+    {
+      "title": "Research extracts — process",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "IRB approval, a determination from Privacy, a de-identification method, then extraction. Researchers routinely start at step four and are surprised."
+    },
+    {
+      "title": "Small cell suppression — why eleven",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "The threshold is a judgement, not a standard. Eleven came from a previous employer and I have never re-derived it for this population, which I should."
+    },
+    {
+      "title": "Self-service analytics — the request",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Three departments want direct warehouse access. The answer is a governed semantic layer, which takes a year, or no, which takes a minute."
+    },
+    {
+      "title": "Staffing analytics",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Rostered versus worked hours by unit. Sensitive because it makes shortfalls visible, and useful for exactly that reason."
+    },
+    {
+      "title": "Why de-identification is not anonymisation",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Safe harbour removes eighteen identifiers. It does not guarantee nobody can re-identify anyone; it guarantees a defined standard was met. People hear the two words as synonyms and they are not."
+    },
+    {
+      "title": "Expert determination — what it costs",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Six weeks and an external statistician. Worth it roughly once a year, for a dataset safe harbour would render useless."
+    },
+    {
+      "title": "BI tool licence renewal",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Renews September. Forty named users, twenty-eight active. Right-sizing saves real money and generates real complaints."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Certify the April extract before the gate",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-04-20",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Answer the empty-cells question without naming the staffing",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-03-28",
+      "completed": false,
+      "content": "Third time asked. Suppression is the whole answer."
+    },
+    {
+      "title": "Decline the per-clinician breakdown, in writing this time",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-02",
+      "completed": false,
+      "content": "Asked twice by two different parties."
+    },
+    {
+      "title": "Review suppression threshold with the Privacy Officer",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-12",
+      "completed": false,
+      "content": "11 may be too low for a two-unit pilot."
+    },
+    {
+      "title": "Nightly refresh — investigate the Tuesday lag",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-04-05",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Fix or document the Tuesday ETL collision",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-05-10",
+      "completed": false,
+      "content": "Nobody has noticed, which is its own finding."
+    },
+    {
+      "title": "Switch off reports unopened for twelve months",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": "Ninety of two hundred and eighty."
+    },
+    {
+      "title": "Escalate the individual productivity request properly",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-25",
+      "completed": false,
+      "content": "Different conversation, different approval."
+    },
+    {
+      "title": "Justify the suppression threshold from first principles",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-06-15",
+      "completed": false,
+      "content": "Eleven is conventional, not derived."
+    },
+    {
+      "title": "Q2 regulatory submission",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": "Immovable."
+    },
+    {
+      "title": "Onboard the new analyst on the encounter/visit distinction",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-05-05",
+      "completed": false,
+      "content": "Everyone gets it wrong once."
+    },
+    {
+      "title": "Work out the Tuesday load lag",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Re-derive the suppression threshold for this population",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Retire the eleven unopened reports",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-05-31",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Semantic layer — scope it properly before saying no again",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-06-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Quarterly mortality submission",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": ""
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "principalId": "omar_hassan",
+  "handle": "omar_hassan",
+  "displayName": "Omar Hassan",
+  "teamRole": "techflow_ai",
+  "role": "Customer Success Manager at TechFlow AI",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT",
+    "note": null
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "techflow_ai"
+  },
+  "agentCard": {
+    "name": "Omar Hassan's agent",
+    "description": "Reports to Rachel Kim. Manages NPS scores, churn reduction, and QBR materials. Primary point of contact for existing customer relationships.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "support-desk",
+        "name": "support desk",
+        "description": "Ticket status, volume, and themes for an account",
+        "tags": [
+          "customer",
+          "support",
+          "techflow",
+          "tickets"
+        ],
+        "examples": [
+          "Ask Omar Hassan about support desk."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "account-health",
+        "name": "account health",
+        "description": "Health, risk, and renewal posture per account",
+        "tags": [
+          "customer",
+          "health",
+          "renewal",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Omar Hassan about account health."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "qbr",
+        "name": "QBR materials",
+        "description": "Quarterly business review content for an account",
+        "tags": [
+          "customer",
+          "qbr",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Omar Hassan about QBR materials."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "cannot-discount",
+      "type": "denies",
+      "action": "discount",
+      "description": "Cannot approve discount — route to whoever holds it."
+    },
+    {
+      "id": "cannot-contract-signature",
+      "type": "denies",
+      "action": "contract_signature",
+      "description": "Cannot approve contract signature — route to whoever holds it."
+    },
+    {
+      "id": "cannot-roadmap-commitment",
+      "type": "denies",
+      "action": "roadmap_commitment",
+      "description": "Cannot approve roadmap commitment — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

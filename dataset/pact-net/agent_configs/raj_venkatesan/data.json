@@ -1,0 +1,259 @@
+{
+  "agent": "raj_venkatesan",
+  "notes": [
+    {
+      "title": "Kestrel — third-party write certification, current requests",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "One open: a documentation vendor wanting write-back to the encounter note.\n\nStatus: specification not yet submitted. Typical certification is six to ten weeks from a complete submission, and submissions are rarely complete first time.\n\nThe integration engineer understands this. The third party appears not to."
+    },
+    {
+      "title": "Certification checklist — third-party write",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Eleven requirements. The ones that fail most often:\n- Provenance on every written object identifying the writing system\n- No write that bypasses the clinical decision support layer\n- Idempotency on retry\n- Documented behaviour when the interface is unavailable mid-transaction\n\nThe last one fails about half of first submissions."
+    },
+    {
+      "title": "What I cannot tell a third party",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Whether another health system solved the same problem, and how. It gets asked in every engagement and it is the single most valuable thing I know and the single most clearly not mine to give.\n\nI can point at the published specification. That is the whole of it."
+    },
+    {
+      "title": "Certification is not consulting",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "I check a submission against a specification. I do not design the submission.\n\nWhen a third party fails, the useful sentence is 'requirement seven is not satisfied' and not 'here is how to satisfy it'. The distinction is the same one an auditor draws and for the same reason."
+    },
+    {
+      "title": "Site allocation — spring",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "content": "Four client sites. Kestrel gets roughly one day a week. Anything that needs more than that has to be scheduled a month out."
+    },
+    {
+      "title": "Client portfolio",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Four health systems. Two in steady state, one mid-implementation, one in the long tail after go-live.\n\nThe mid-implementation one takes sixty percent of my time and the other three share the rest, which is normal and still feels wrong to the three."
+    },
+    {
+      "title": "Implementation phases",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Design, build, test, train, go-live, stabilise. Every client believes they will be faster at design and every client is not.\n\nDesign is where the time goes because design is where the arguments are."
+    },
+    {
+      "title": "Certification — volume",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Roughly twenty third-party certifications a year across my sites. About a third pass first submission.\n\nThe two-thirds fail on the same handful of requirements every time, which suggests the published specification is not as clear as we think."
+    },
+    {
+      "title": "Upgrade cycles",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Quarterly releases, annual major. Sites can defer one major and not two.\n\nDeferring is always tempting and always more expensive than doing it, and every site learns this once."
+    },
+    {
+      "title": "What clients ask that I cannot answer",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "How another site solved something. It is the most valuable thing I know and the most clearly not mine to give.\n\nI can point at the published specification and at the user community, where sites talk to each other directly, which is the correct route."
+    },
+    {
+      "title": "Roadmap questions",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Asked constantly, answerable only from what has been announced.\n\nThe honest answer is that I know things I cannot say and that I will not hint. Hinting is how a consultant loses a vendor's trust and a client's at the same time."
+    },
+    {
+      "title": "Training approach",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Train the trainer, then elbow support at go-live. Classroom alone does not survive contact with a live ward.\n\nSites that cut elbow support to save money spend it back in the stabilise phase."
+    },
+    {
+      "title": "Build quality — what I see",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Sites with a clinical informaticist who was a clinician build better than sites with an analyst who was not.\n\nThat is an observation across four sites and not a study, and it has been true every time."
+    },
+    {
+      "title": "Travel",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "content": "Two to three days a week on site across four clients. The rest remote.\n\nThe on-site days are worth several remote ones and cannot be replaced by more calls."
+    },
+    {
+      "title": "Escalation path — vendor side",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Consultant, engagement manager, product, engineering. Most things stop at product.\n\nA client who escalates past me without telling me makes the next conversation harder and does not make the answer faster."
+    },
+    {
+      "title": "Documentation the specification does not cover",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "There is a body of practical knowledge about this product that lives in consultants' heads and in the user community and not in any document.\n\nThe vendor knows this and has not solved it. Every enterprise software vendor has this note."
+    },
+    {
+      "title": "Site allocation",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "content": "Four client sites. Roughly one day a week each and one day for internal. Anything needing more is scheduled a month out."
+    },
+    {
+      "title": "The annual release",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Lands October across all clients. Eight weeks of build and test per site. It is the fixed point the whole year is planned around."
+    },
+    {
+      "title": "Certification volume",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Eleven third-party certifications in progress across the book. Roughly a third fail first submission, almost always on the unavailable-mid-transaction requirement."
+    },
+    {
+      "title": "Why the specification is public and the answers are not",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Anyone can read what a submission must satisfy. Nobody gets told how another site satisfied it. The first makes the process fair; the second is what keeps me able to work with all of them."
+    },
+    {
+      "title": "Implementation methodology",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Discovery, build, unit test, integrated test, dress rehearsal, go-live, stabilisation. Clients want to compress test and stabilisation. Those are the two that cannot compress."
+    },
+    {
+      "title": "Common client mistakes",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Underestimating build validation, treating training as a week-one event, and not resourcing stabilisation. Same three at every site."
+    },
+    {
+      "title": "Upgrade regression",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Every annual release breaks something in a client's local build. Which thing depends on how much they have customised, and the most customised site breaks the most."
+    },
+    {
+      "title": "Support boundaries",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Vendor support covers the released product. Local customisation, third-party interfaces, and integration are the client's, which is exactly where most incidents originate."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Chase the documentation vendor's specification submission",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-04-20",
+      "completed": false,
+      "content": "Nothing starts until it arrives complete."
+    },
+    {
+      "title": "Explain the six-to-ten-week reality to the third party",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-04-05",
+      "completed": false,
+      "content": "They are planning against weeks."
+    },
+    {
+      "title": "Decline the how-did-another-site-do-it question",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-03-30",
+      "completed": false,
+      "content": "Asked in every engagement."
+    },
+    {
+      "title": "Kestrel site day — first Tuesday",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-04-07",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Raise the first-submission failure pattern with product",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-30",
+      "completed": false,
+      "content": "Two-thirds fail on the same requirements. The spec is not clear."
+    },
+    {
+      "title": "Point the certification enquirer at the user community",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-15",
+      "completed": false,
+      "content": "The correct route for how-did-another-site questions."
+    },
+    {
+      "title": "Train-the-trainer schedule for the mid-implementation site",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-05-20",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Push back on the elbow-support cut",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": "They spend it back in stabilise."
+    },
+    {
+      "title": "October release — site readiness assessments",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Three certifications awaiting resubmission",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Regression scope for the most customised site",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-07-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Site day schedule for Q2",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": ""
+    }
+  ]
+}

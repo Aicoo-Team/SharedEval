@@ -1,0 +1,62 @@
+{
+  "agent": "wes_arnold",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "siem",
+      "access": "read_write"
+    },
+    {
+      "system": "vuln_scanner",
+      "access": "admin"
+    },
+    {
+      "system": "pentest_reports",
+      "access": "read"
+    },
+    {
+      "system": "vendor_questionnaires",
+      "access": "read_write"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "security_exception",
+    "risk_acceptance",
+    "phi_disclosure",
+    "it_spend",
+    "vendor_onboarding"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 ET",
+    "note": "Plus a rotating security on-call duty."
+  },
+  "segregation_of_duties": [
+    {
+      "control": "security_risk",
+      "role": "finder",
+      "counterparties": [
+        "farida_haddad"
+      ],
+      "note": "The finder never accepts the risk. Core control; do not collapse these two roles."
+    }
+  ]
+}

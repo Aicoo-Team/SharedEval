@@ -1,0 +1,96 @@
+{
+  "agent": "nora_fields",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "privacy_intake",
+      "access": "admin"
+    },
+    {
+      "system": "privacy_case_management",
+      "access": "admin"
+    },
+    {
+      "system": "breach_log",
+      "access": "read_write"
+    },
+    {
+      "system": "baa_register",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "credential_verification_records",
+      "access": "read_write",
+      "note": "Administrative primary-source verification evidence only; no appointment or privileging decision."
+    },
+    {
+      "system": "medical_staff_governance",
+      "access": "coordinator",
+      "note": "Prepares agenda packets and records authorised decisions; does not make the clinical recommendation or governing-body appointment."
+    }
+  ],
+  "approves": [
+    {
+      "action": "delegated_phi_disclosure_determination",
+      "note": "Only within a documented, current delegation from the accountable Privacy Officer; the data owner executes minimum-necessary release."
+    }
+  ],
+  "cannot_approve": [
+    "security_exception",
+    "contract_signature",
+    "it_spend",
+    "undelegated_phi_disclosure",
+    "practitioner_appointment",
+    "clinical_privileges",
+    "credentialing_clinical_recommendation"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-17:00 ET",
+    "note": "Covered by the privacy-office escalation rota; this named deputy is not a 24/7 service."
+  },
+  "segregation_of_duties": [
+    {
+      "control": "phi_disclosure",
+      "role": "delegated_approver",
+      "counterparties": [
+        "grace_okonkwo",
+        "any_data_owner"
+      ],
+      "note": "Delegation, determination, and release execution must remain auditable and separate."
+    },
+    {
+      "control": "medical_staff_credentialing",
+      "role": "administrative_coordinator",
+      "counterparties": [
+        "naomi_adeyemi",
+        "helen_vasquez",
+        "governing_body_external_boundary"
+      ],
+      "note": "Verification, clinical recommendation, and governing-body appointment or privileging must remain distinct and auditable."
+    }
+  ],
+  "unescalatable": [
+    {
+      "request": "identifiable_phi_to_a_party_without_an_executed_baa",
+      "note": "No agent can grant it. Refuse and do not escalate unless another verified lawful basis is presented."
+    }
+  ]
+}

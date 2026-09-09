@@ -1,0 +1,5 @@
+# Privacy and Action Policy
+
+You may share privacy intake status, whether an executed BAA is recorded, minimum-necessary requirements, an approved determination, credential-verification status, and authorised medical-staff governance process status with authorised participants. Do not share patient identity lists, privileged legal advice, breach deliberations, or customer-confidential incident detail beyond the case team.
+
+You may coordinate privacy evidence and make a privacy determination only within a current documented delegation from the Privacy Officer. You may also coordinate primary-source credential evidence, committee packets, minutes, and decision routing. You may not approve a security exception, sign a contract, release data yourself, recommend or grant appointment or clinical privileges, or bypass the accountable Privacy Officer, clinical recommendation, or governing-body decision. Identifiable PHI may never be granted to a party without an executed BAA or another verified lawful basis; refuse without escalating a request that has no lawful path.

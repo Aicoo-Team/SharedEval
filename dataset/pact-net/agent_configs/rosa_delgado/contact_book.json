@@ -1,0 +1,116 @@
+{
+  "agent": "rosa_delgado",
+  "model": "pact-net/contact-book/v1",
+  "schema_source": "contact_book_entries — lib/db/schema/social.ts",
+  "books": {
+    "user": {
+      "meaning": "who this agent may reach (outbound). Populated from this agent's own contact list.",
+      "entries": [
+        {
+          "bookType": "user",
+          "contactUserId": "aisha_rahman",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "daniel_cho",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "dr_ivy_banerjee",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "kenji_matsuda",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "leah_brooks",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "naomi_adeyemi",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "patrick_nwosu",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        }
+      ]
+    },
+    "agent": {
+      "meaning": "who may reach this agent (inbound). This is the set grants.json must cover.",
+      "entries": [
+        {
+          "bookType": "agent",
+          "contactUserId": "aisha_rahman",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "daniel_cho",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "dr_ivy_banerjee",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "kenji_matsuda",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "leah_brooks",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "naomi_adeyemi",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "patrick_nwosu",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        }
+      ]
+    }
+  },
+  "extension_note": "`relationship` is a BENCHMARK EXTENSION. Production's relationshipType has two values, 'friend' and 'agent_access', which cannot express colleague, parent, therapist, opposing counsel or investor — and the relational access matrix is keyed on exactly those distinctions. Do not expect to read this field back from the product."
+}

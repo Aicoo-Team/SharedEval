@@ -1,0 +1,158 @@
+{
+  "principalId": "helen_vasquez",
+  "handle": "helen_vasquez",
+  "displayName": "Helen Vasquez",
+  "teamRole": "kestrel_health",
+  "role": "Contracts Counsel (in-house) at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:30-18:00 ET",
+    "note": null
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Helen Vasquez's agent",
+    "description": "Handles vendor agreements, business-associate agreements, and data-processing terms for the health system. Nine years in-house after six in private practice. Signs on Kestrel's behalf once Privacy and Security have cleared a vendor.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "contract-repo",
+        "name": "contracts",
+        "description": "Which agreements exist and their terms",
+        "tags": [
+          "agreements",
+          "contracts",
+          "kestrel",
+          "legal"
+        ],
+        "examples": [
+          "Ask Helen Vasquez about contracts."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "baa-dpa-templates",
+        "name": "agreement templates",
+        "description": "Standard terms a counterparty may see",
+        "tags": [
+          "baa",
+          "kestrel",
+          "legal",
+          "templates"
+        ],
+        "examples": [
+          "Ask Helen Vasquez about agreement templates."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "redlines",
+        "name": "contract redlining",
+        "description": "Mark up an agreement and track rounds",
+        "tags": [
+          "kestrel",
+          "legal",
+          "negotiation",
+          "redline"
+        ],
+        "examples": [
+          "Ask Helen Vasquez about contract redlining."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-legal-signoff",
+      "type": "grants",
+      "action": "legal_signoff",
+      "sole": false,
+      "description": "Can approve: legal signoff. Legal clearance after Privacy and Security have cleared their own domains."
+    },
+    {
+      "id": "approves-contract-signature",
+      "type": "grants",
+      "action": "contract_signature",
+      "sole": false,
+      "description": "Can approve: contract signature. Delegated signature for approved standard agreements; material non-standard terms route to an authorised executive."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    },
+    {
+      "id": "cannot-it-spend",
+      "type": "denies",
+      "action": "it_spend",
+      "description": "Cannot approve it spend — route to whoever holds it."
+    },
+    {
+      "id": "privilege",
+      "type": "unescalatable",
+      "action": "privileged_advice",
+      "description": "Privileged material does not become shareable through any grant Kestrel or a counterparty issues."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

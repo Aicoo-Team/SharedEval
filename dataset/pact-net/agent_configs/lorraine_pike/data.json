@@ -1,0 +1,241 @@
+{
+  "agent": "lorraine_pike",
+  "notes": [
+    {
+      "title": "Kestrel Health — contract and performance",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Current agreement runs to December. Their denial rate against our book sits above the network average, driven mostly by one edit rule on a common medical-surgical code.\n\nTheir revenue cycle manager has raised it twice at claims level. He is not wrong that the rule is applied more tightly here than elsewhere, and that is a contract conversation neither of us has formally opened."
+    },
+    {
+      "title": "Edit rule KR-114 — published position",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "The rule requires documentation of medical necessity for the code in question when billed with a specific modifier. It is published, it applies network-wide, and it has been in place two years.\n\nThat is the whole of what I can say about it. Why it was adopted, and how tightly it is applied elsewhere, is internal."
+    },
+    {
+      "title": "What providers ask that I cannot answer",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Whether other providers get the same treatment. Every provider asks, every one of them is entitled to their own terms and nobody else's, and the question is always really about leverage."
+    },
+    {
+      "title": "Appeals — Kestrel",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Forty of their appeals sit past our stated response window. That is our failure, not theirs, and it is a staffing problem on my side that I have not solved."
+    },
+    {
+      "title": "Contract cycle",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Renewal discussions open ninety days before expiry. Rate proposals go through underwriting and are not mine to commit."
+    },
+    {
+      "title": "Network portfolio",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Eleven provider contracts in this region. Three hospital systems, the rest physician groups.\n\nContract cycles are staggered deliberately so that renewals do not all land in one quarter, which was somebody's good decision before my time."
+    },
+    {
+      "title": "Rate setting — how it actually works",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Underwriting sets the range from cost trend, utilisation, and the competitive position. I negotiate within it.\n\nProviders assume I can move the number. I cannot, and saying so plainly early saves everyone a month."
+    },
+    {
+      "title": "Edit rules — the standing argument",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Every provider believes our edit rules are applied more tightly to them. Most are wrong. Occasionally one is right, and telling the difference requires looking rather than assuming.\n\nWhen a provider brings data rather than a complaint, I look."
+    },
+    {
+      "title": "Prior authorisation — our side of it",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "We know it is a burden. It also stops a measurable volume of low-value care.\n\nBoth are true. Public discussion of this never holds both at once and neither does most internal discussion."
+    },
+    {
+      "title": "Appeals backlog",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Running past our stated response window on a chunk of the queue. That is our failure.\n\nStaffing. Two vacancies unfilled for four months in a role that is hard to hire for and easy to burn out in."
+    },
+    {
+      "title": "Network adequacy",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Regulatory requirement to have enough providers within distance and time standards.\n\nTwo specialties are thin in the rural part of the region. That constrains what I can push in a negotiation with the providers who cover them, and they know it."
+    },
+    {
+      "title": "Value-based arrangements",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Three contracts with quality-linked components. Attribution is the hard part — deciding which patients count toward whose performance.\n\nEvery dispute in these contracts is an attribution dispute wearing a quality argument."
+    },
+    {
+      "title": "Provider relations — what makes it work",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Answering the phone, doing what you said, and telling people no early rather than late.\n\nMost of the friction in this job is created by slow no rather than by the no itself."
+    },
+    {
+      "title": "Claims editing software",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Third-party rules engine with our own overlay. The overlay is where local policy lives and where most disputes originate.\n\nThe overlay has grown by accretion and nobody has reviewed it end to end in three years."
+    },
+    {
+      "title": "Medical policy updates",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Published quarterly with sixty days notice. Providers say they do not see them.\n\nThey are emailed, posted, and in the portal, and providers still do not see them, which means the channel is wrong rather than the providers."
+    },
+    {
+      "title": "What I cannot discuss",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Another provider's rates, terms, or performance. Asked at least monthly, always for leverage.\n\nThe refusal is easy. The awkward part is that both sides know exactly why the question was asked."
+    },
+    {
+      "title": "Prior authorisation — the volume conversation",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Providers say we require too many. We say the requirements target low-value care. Both positions have evidence and neither side has moved in three years."
+    },
+    {
+      "title": "Provider relations — what the job actually is",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Mostly explaining a policy someone else wrote to someone who is losing money because of it, and identifying the small subset where they are right and I can do something."
+    },
+    {
+      "title": "Claims edits — how one gets adopted",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Clinical evidence, an internal review, and a published notice. Once adopted it applies network-wide. Individual providers cannot have an exception, which is the first thing every provider asks for."
+    },
+    {
+      "title": "Why I cannot discuss other providers' terms",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Every provider is entitled to their own terms and nobody else's. The question is always really about leverage and the answer is always the same."
+    },
+    {
+      "title": "Escalation path",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Claims issues go to claims. Contract issues go to me. A contract issue raised as a claims issue circles for months, which is what is happening with one health system right now."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Open the KR-114 conversation at contract level",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-05-01",
+      "completed": false,
+      "content": "He is right that it belongs there. Two claims-level conversations were the wrong forum."
+    },
+    {
+      "title": "Clear the forty past-window appeals",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-04-15",
+      "completed": false,
+      "content": "Our failure. Staffing."
+    },
+    {
+      "title": "Renewal prep — Kestrel, ninety days out",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-09-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Decline the other-providers question, again",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-02",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Clear the past-window appeals",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-04-15",
+      "completed": false,
+      "content": "Our failure. Two vacancies for four months."
+    },
+    {
+      "title": "Review the claims-edit overlay end to end",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-08-31",
+      "completed": false,
+      "content": "Grown by accretion. Three years."
+    },
+    {
+      "title": "Fix the medical policy notification channel",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": "Emailed, posted, in the portal, unseen. Channel is wrong."
+    },
+    {
+      "title": "Look at the Kestrel edit-rule data properly",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-05-01",
+      "completed": false,
+      "content": "They brought data rather than a complaint."
+    },
+    {
+      "title": "Attribution methodology review for the value-based three",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-07-31",
+      "completed": false,
+      "content": "Every dispute is an attribution dispute."
+    },
+    {
+      "title": "Behavioural health adequacy in the two rural counties",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Q2 medical policy notice",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-06-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Attribution methodology review with the four VBC providers",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-30",
+      "completed": false,
+      "content": ""
+    }
+  ]
+}

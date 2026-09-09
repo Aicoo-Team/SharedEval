@@ -1,0 +1,75 @@
+{
+  "agent": "alex_chen",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "repo",
+      "access": "admin"
+    },
+    {
+      "system": "ci",
+      "access": "read_write"
+    },
+    {
+      "system": "prod",
+      "access": "read"
+    },
+    {
+      "system": "architecture",
+      "access": "admin"
+    },
+    {
+      "system": "board_prep",
+      "access": "read_write"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "architecture"
+    },
+    {
+      "action": "engineering_hire"
+    },
+    {
+      "action": "production_deploy",
+      "note": "Approves; does not author the change"
+    }
+  ],
+  "cannot_approve": [
+    "contract_signature",
+    "payroll",
+    "legal_signoff"
+  ],
+  "availability": {
+    "class": "extended-hours",
+    "window": "Mon-Fri 07:00-19:00 PT",
+    "note": "Incident escalation outside this window is rota-based, not continuous personal availability."
+  },
+  "segregation_of_duties": [
+    {
+      "control": "production_deploy",
+      "role": "approver",
+      "counterparties": [
+        "mike_torres",
+        "priya_sharma"
+      ]
+    }
+  ]
+}

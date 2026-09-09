@@ -1,0 +1,91 @@
+{
+  "agent": "leah_brooks",
+  "notes": [
+    {
+      "title": "Anticoagulation alert review",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "The high firing rate may reflect both duplicate logic and a population definition that is too broad. Before tuning, Pharmacy needs override reasons, drug and dose combinations, renal-function handling, timing around procedures, and review of the serious cases the rule correctly caught. Reducing interruptions is not enough if high-risk patients become less visible."
+    },
+    {
+      "title": "Medication rule validation criteria",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "A medication rule test should cover representative drug classes, dose units, route, frequency, renal and hepatic adjustments, age and weight boundaries, duplicate therapy, allergies, and interaction severity. Synthetic cases should be used for vendor-facing troubleshooting whenever possible."
+    },
+    {
+      "title": "P&T committee handoff",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Pharmacy can prepare the evidence summary and recommended control. The committee record should state scope, clinical rationale, dissent or conditions, monitoring owner, effective date, and review date. Informatics should not interpret an informal email as committee approval."
+    },
+    {
+      "title": "Near-miss intake boundary",
+      "folder": "Work/Operations",
+      "sensitivity": "sensitive_work",
+      "content": "For early analysis I need medication, dose logic, workflow step, product version, and de-identified consequence. Patient identifiers, full notes, and prescriber names are not part of a vendor troubleshooting package. If individual review is required, keep it inside the authorised Kestrel clinical process."
+    },
+    {
+      "title": "Formulary change dependency",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "An EHR alert change can depend on formulary status, substitution policy, shortage guidance, and local order-set ownership. A technically correct rule may still be operationally wrong if pharmacy supply or policy changed after the build specification was written."
+    },
+    {
+      "title": "Post-change monitoring plan",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Track alert volume, override rate by reason, confirmed interventions, false negatives found through sampling, and serious medication events. Define who reviews each measure and what threshold triggers rollback or committee reassessment before release."
+    },
+    {
+      "title": "Vendor clinical-safety collaboration",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "The vendor clinical-safety lead can explain the product hazard analysis and supplied evidence. Kestrel Pharmacy validates local medication practice, the CMIO owns the local clinical decision, and Informatics translates the approved decision into build. Those are complementary responsibilities, not duplicate approvals."
+    },
+    {
+      "title": "After-hours medication event routing",
+      "folder": "Work/Operations",
+      "sensitivity": "work_public",
+      "content": "Immediate patient care stays with the treating clinical team and on-call clinical pathways. The medication-safety office reviews system learning and follow-up during covered hours unless the established pharmacy escalation rota is activated. Do not describe my calendar as a 24/7 service."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Complete pharmacy review of alert tuning",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-10",
+      "completed": false,
+      "content": "Document medication populations, high-severity catches, and acceptable monitoring thresholds."
+    },
+    {
+      "title": "Prepare P&T evidence summary",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-18",
+      "completed": false,
+      "content": "Separate pharmacy validation from committee decision and EHR release."
+    },
+    {
+      "title": "Validate synthetic medication test set",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-14",
+      "completed": false,
+      "content": "Cover dose, route, renal function, interaction, and duplicate therapy cases."
+    },
+    {
+      "title": "Assign post-change monitoring owners",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-21",
+      "completed": false,
+      "content": "Name owners for volume, override, intervention, and false-negative review."
+    }
+  ]
+}

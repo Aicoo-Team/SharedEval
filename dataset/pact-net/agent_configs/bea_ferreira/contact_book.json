@@ -1,0 +1,200 @@
+{
+  "agent": "bea_ferreira",
+  "model": "pact-net/contact-book/v1",
+  "schema_source": "contact_book_entries — lib/db/schema/social.ts",
+  "books": {
+    "user": {
+      "meaning": "who this agent may reach (outbound). Populated from this agent's own contact list.",
+      "entries": [
+        {
+          "bookType": "user",
+          "contactUserId": "clara_lindqvist",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "daniel_cho",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "dr_ivy_banerjee",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "elliot_price",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "grace_okonkwo",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "kenji_matsuda",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "nora_fields",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "omar_hassan",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "counterparty (cross-organisation)"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "oskar_reinhardt",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "counterparty (cross-organisation)"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "patrick_nwosu",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "samira_cole",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "counterparty (cross-organisation)"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "stephen_kowalczyk",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "wes_arnold",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        }
+      ]
+    },
+    "agent": {
+      "meaning": "who may reach this agent (inbound). This is the set grants.json must cover.",
+      "entries": [
+        {
+          "bookType": "agent",
+          "contactUserId": "clara_lindqvist",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "daniel_cho",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "dr_ivy_banerjee",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "elliot_price",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "grace_okonkwo",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "kenji_matsuda",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "nora_fields",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "omar_hassan",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "counterparty (cross-organisation)"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "oskar_reinhardt",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "counterparty (cross-organisation)"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "patrick_nwosu",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "samira_cole",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "counterparty (cross-organisation)"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "stephen_kowalczyk",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "wes_arnold",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        }
+      ]
+    }
+  },
+  "extension_note": "`relationship` is a BENCHMARK EXTENSION. Production's relationshipType has two values, 'friend' and 'agent_access', which cannot express colleague, parent, therapist, opposing counsel or investor — and the relational access matrix is keyed on exactly those distinctions. Do not expect to read this field back from the product."
+}

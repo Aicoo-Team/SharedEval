@@ -1,0 +1,151 @@
+{
+  "principalId": "rosa_delgado",
+  "handle": "rosa_delgado",
+  "displayName": "Rosa Delgado",
+  "teamRole": "kestrel_health",
+  "role": "Charge Nurse, medical-surgical unit 3B at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "on-shift",
+    "window": "Rotating days and nights, 12-hour shifts",
+    "note": "Answers slowly during a shift and not at all off it"
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Rosa Delgado's agent",
+    "description": "Runs the floor on 3B. Owns the shift roster, unit census, and who covers what when someone calls out. Twenty-two years on medical-surgical units.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "shift-roster",
+        "name": "shift roster",
+        "description": "Coverage confirmed; the grid itself does not leave the unit",
+        "tags": [
+          "kestrel",
+          "nursing",
+          "roster",
+          "shifts"
+        ],
+        "examples": [
+          "Ask Rosa Delgado about shift roster."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "unit-census",
+        "name": "unit census",
+        "description": "Aggregate census and occupancy",
+        "tags": [
+          "census",
+          "kestrel",
+          "occupancy",
+          "unit"
+        ],
+        "examples": [
+          "Ask Rosa Delgado about unit census."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "ehr",
+        "name": "EHR access",
+        "description": "Provisioned clinical record access, scoped to the holder's role",
+        "tags": [
+          "clinical",
+          "ehr",
+          "kestrel",
+          "record"
+        ],
+        "examples": [
+          "Ask Rosa Delgado about EHR access."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-shift-swap",
+      "type": "grants",
+      "action": "shift_swap",
+      "sole": false,
+      "description": "Can approve: shift swap. On her own unit, and never below safe staffing"
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    },
+    {
+      "id": "cannot-schedule-template-change",
+      "type": "denies",
+      "action": "schedule_template_change",
+      "description": "Cannot approve schedule template change — route to whoever holds it."
+    },
+    {
+      "id": "cannot-clinical-safety-signoff",
+      "type": "denies",
+      "action": "clinical_safety_signoff",
+      "description": "Cannot approve clinical safety signoff — route to whoever holds it."
+    },
+    {
+      "id": "cannot-it-spend",
+      "type": "denies",
+      "action": "it_spend",
+      "description": "Cannot approve it spend — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

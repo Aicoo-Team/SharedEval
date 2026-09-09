@@ -1,0 +1,225 @@
+{
+  "version": "2026-09-02-reachability-and-smaller-clinical-profiles",
+  "description": "Curated scenario combinations for lower-cost PACT-Net runs. Generated membership is the exact requester/participant closure of the selected tasks; it is independent of the nested S/M/L default packs.",
+  "profiles": [
+    {
+      "id": "startup_delivery",
+      "label_en": "Startup product delivery",
+      "label_zh": "初创公司产品交付",
+      "description_en": "Engineering, product, deploy, support reliability, and customer incidents without loading unrelated healthcare governance or private-life roles.",
+      "description_zh": "覆盖工程、产品、部署、支持可靠性和客户事件，不加载无关医疗治理或私人角色。",
+      "scenarios": [
+        "deploy",
+        "product",
+        "service_reliability"
+      ]
+    },
+    {
+      "id": "trust_security",
+      "label_en": "Trust, security, and access",
+      "label_zh": "信任、安全与访问",
+      "description_en": "Vendor security, vulnerability lifecycle, audit, data release, and identity/access governance.",
+      "description_zh": "覆盖供应商安全、漏洞生命周期、审计、数据发布和身份/访问治理。",
+      "scenarios": [
+        "vendor_security",
+        "vulnerability_management",
+        "audit",
+        "data_governance",
+        "identity_access"
+      ]
+    },
+    {
+      "id": "contracts_procurement",
+      "label_en": "Contracts and procurement",
+      "label_zh": "合同与采购",
+      "description_en": "Cross-organisation contracting, BAA, subprocessor, purchasing, and vendor-release workflows.",
+      "description_zh": "覆盖跨组织合同、BAA、subprocessor、采购及 vendor 放行流程。",
+      "scenarios": [
+        "contract",
+        "procurement"
+      ]
+    },
+    {
+      "id": "people_operations",
+      "label_en": "People operations",
+      "label_zh": "人员运营",
+      "description_en": "Hiring, onboarding, role changes, offboarding, benefits, and leave administration.",
+      "description_zh": "覆盖招聘、入职、岗位变更、离职、福利和休假管理。",
+      "scenarios": [
+        "hiring",
+        "onboarding",
+        "benefits_admin",
+        "offboarding"
+      ]
+    },
+    {
+      "id": "finance_governance",
+      "label_en": "Finance and company governance",
+      "label_zh": "财务与公司治理",
+      "description_en": "Month-end, payment, board, investors, and controlled public publishing.",
+      "description_zh": "覆盖月度关账、付款、董事会、投资人和受控对外发布。",
+      "scenarios": [
+        "finance",
+        "board",
+        "publishing",
+        "payment_controls"
+      ]
+    },
+    {
+      "id": "clinical_safety",
+      "label_en": "Clinical safety and EHR change",
+      "label_zh": "临床安全与 EHR 变更",
+      "description_en": "Clinical governance, patient safety, EHR integration, medication and results safety, payer authorisation, formal grievances, medical-staff governance, and post-release clinical-AI monitoring without the full corporate and personal network.",
+      "description_zh": "覆盖临床治理、患者安全、EHR 集成、用药与结果安全、支付方授权、正式申诉、医务人员治理和临床 AI 上线后监测，不加载完整公司与私人网络。",
+      "scenarios": [
+        "clinical_governance",
+        "patient_safety",
+        "ehr_integration",
+        "clinical_ai_safety",
+        "medication_safety",
+        "results_management",
+        "revenue_cycle",
+        "patient_grievance",
+        "medical_staff_governance"
+      ]
+    },
+    {
+      "id": "clinical_core",
+      "label_en": "Clinical safety core",
+      "label_zh": "临床安全核心",
+      "description_en": "Patient safety, clinical governance, EHR integration, and clinical-AI monitoring without grievance, credentialing, payer, medication, or results modules.",
+      "description_zh": "覆盖患者安全、临床治理、EHR 集成和临床 AI 监测，不加载申诉、资质、支付方、用药或结果模块。",
+      "scenarios": [
+        "clinical_governance",
+        "patient_safety",
+        "ehr_integration",
+        "clinical_ai_safety"
+      ]
+    },
+    {
+      "id": "clinical_rights_governance",
+      "label_en": "Patient rights and medical-staff governance",
+      "label_zh": "患者权利与医务人员治理",
+      "description_en": "Formal grievance and medical-staff credentialing/privileging governance as a compact specialist set.",
+      "description_zh": "以紧凑专业集合覆盖正式患者申诉及医务人员资质/privileging 治理。",
+      "scenarios": [
+        "patient_grievance",
+        "medical_staff_governance"
+      ]
+    },
+    {
+      "id": "medication_results_payer",
+      "label_en": "Medication, results, and payer operations",
+      "label_zh": "用药、结果与支付方运营",
+      "description_en": "Medication recall/shortage, electronic results-routing, and payer-authorisation operations without the full clinical profile.",
+      "description_zh": "覆盖药品召回/短缺、电子结果路由和支付方授权运营，不加载完整临床 profile。",
+      "scenarios": [
+        "medication_safety",
+        "results_management",
+        "revenue_cycle"
+      ]
+    },
+    {
+      "id": "records_privacy",
+      "label_en": "Records and privacy",
+      "label_zh": "病历与隐私",
+      "description_en": "Health-information requests, record amendments, proxy access, data release, and privacy incidents.",
+      "description_zh": "覆盖健康信息请求、病历更正、proxy access、数据发布和隐私事件。",
+      "scenarios": [
+        "health_information_management",
+        "data_governance"
+      ],
+      "task_ids": [
+        "I-13",
+        "I-14"
+      ]
+    },
+    {
+      "id": "continuity_response",
+      "label_en": "Continuity and service response",
+      "label_zh": "连续性与服务响应",
+      "description_en": "Emergency preparedness, IT fallback, managed IT, and support/reliability incidents.",
+      "description_zh": "覆盖应急准备、IT fallback、外包 IT 和支持/可靠性事件。",
+      "scenarios": [
+        "emergency_preparedness",
+        "business_continuity",
+        "managed_it",
+        "service_reliability"
+      ]
+    },
+    {
+      "id": "communications_response",
+      "label_en": "Incident communications",
+      "label_zh": "事件传播",
+      "description_en": "Approved operational, patient, workforce, and media messages with privacy and clinical boundaries.",
+      "description_zh": "覆盖受批准的运营、患者、员工及媒体消息，并保留隐私和临床边界。",
+      "scenarios": [
+        "communications"
+      ],
+      "task_ids": [
+        "EP-02",
+        "I-13",
+        "I-14"
+      ]
+    },
+    {
+      "id": "private_life",
+      "label_en": "Private life and consent",
+      "label_zh": "私人生活与同意",
+      "description_en": "Family, partner, therapist, GP, and trainer tasks only; company agents appear only when a declared personal task needs them.",
+      "description_zh": "仅覆盖家人、伴侣、治疗师、家庭医生和教练任务；只有任务明确需要时才包含公司角色。",
+      "scenarios": [
+        "personal"
+      ]
+    }
+  ],
+  "promotion_options": [
+    {
+      "id": "small_lean_operations",
+      "target_pack": "S",
+      "agents": [
+        "elliot_price",
+        "samira_cole",
+        "monica_alvarez"
+      ],
+      "label_en": "Lean Small operations promotion",
+      "label_zh": "精简 Small 运营晋升",
+      "reason_en": "Adds recurring IAM, support/reliability, and PEO workflows that can run with the original Small principals.",
+      "reason_zh": "补充可与原 Small 角色共同运行的 IAM、支持/可靠性和 PEO 高频流程。",
+      "status": "recommendation_only"
+    },
+    {
+      "id": "small_plus_communications",
+      "target_pack": "S",
+      "agents": [
+        "elliot_price",
+        "samira_cole",
+        "monica_alvarez",
+        "meghan_osei"
+      ],
+      "label_en": "Small plus communications",
+      "label_zh": "Small 加传播",
+      "reason_en": "Adds incident/patient communications to the lean operational Small option.",
+      "reason_zh": "在精简 Small 运营方案上增加事件/患者传播。",
+      "status": "recommendation_only"
+    },
+    {
+      "id": "medium_health_operations",
+      "target_pack": "M",
+      "agents": [
+        "elliot_price",
+        "samira_cole",
+        "monica_alvarez",
+        "meghan_osei",
+        "alicia_morgan",
+        "daniel_cho",
+        "aisha_rahman"
+      ],
+      "label_en": "Medium health-operations promotion",
+      "label_zh": "Medium 医疗运营晋升",
+      "reason_en": "Recreates the broader 51-agent Medium only if repeated experiments require records, continuity, patient safety, communications, IAM, reliability, and PEO together.",
+      "reason_zh": "只有在重复实验确实需要病历、连续性、患者安全、传播、IAM、可靠性和 PEO 同时存在时，才恢复较大的 51 人 Medium。",
+      "status": "recommendation_only"
+    }
+  ]
+}

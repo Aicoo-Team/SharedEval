@@ -1,0 +1,53 @@
+{
+  "agent": "aisha_rahman",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "patient_safety_events",
+      "access": "admin"
+    },
+    {
+      "system": "corrective_action_register",
+      "access": "admin"
+    },
+    {
+      "system": "clinical_governance",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "patient_safety_action_closure",
+      "note": "May close a corrective action after evidence and effectiveness review; the accountable clinical owner approves any practice change."
+    }
+  ],
+  "cannot_approve": [
+    "bedside_treatment",
+    "ehr_release",
+    "phi_disclosure",
+    "disciplinary_action"
+  ],
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:00-17:00 ET; immediate patient care uses the clinical escalation chain",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "segregation_of_duties": []
+}

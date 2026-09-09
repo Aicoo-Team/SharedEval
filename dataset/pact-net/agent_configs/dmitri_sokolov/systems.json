@@ -1,0 +1,63 @@
+{
+  "agent": "dmitri_sokolov",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "po_system",
+      "access": "admin"
+    },
+    {
+      "system": "vendor_master",
+      "access": "read_write"
+    },
+    {
+      "system": "contract_register",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "po_issue",
+      "note": "Raises the order; does not approve the spend"
+    }
+  ],
+  "cannot_approve": [
+    "it_spend",
+    "contract_signature",
+    "security_exception",
+    "phi_disclosure",
+    "vendor_onboarding"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-17:00 ET"
+  },
+  "segregation_of_duties": [
+    {
+      "control": "purchase",
+      "role": "raiser",
+      "counterparties": [
+        "stephen_kowalczyk",
+        "helen_vasquez"
+      ],
+      "note": "Three-way separation: raise, approve spend, sign. Standard in health-system procurement."
+    }
+  ]
+}

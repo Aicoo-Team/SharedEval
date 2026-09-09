@@ -1,0 +1,48 @@
+{
+  "agent": "dana_reeves",
+  "organisation": "sequoia",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "portfolio_monitoring",
+      "access": "admin"
+    },
+    {
+      "system": "board_materials",
+      "access": "read_write"
+    },
+    {
+      "system": "diligence",
+      "access": "admin"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "contract_signature",
+    "security_exception",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT",
+    "note": "Board matters are scheduled; urgent consents use an explicit escalation."
+  },
+  "segregation_of_duties": [],
+  "note": "Entitled to aggregates. Other portfolio companies are walled from TechFlow and vice versa."
+}

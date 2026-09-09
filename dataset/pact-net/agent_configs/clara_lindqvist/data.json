@@ -1,0 +1,259 @@
+{
+  "agent": "clara_lindqvist",
+  "notes": [
+    {
+      "title": "Documentation pilot — interface status",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Read-only today. The pilot reads the encounter context and writes nothing to the record.\n\nWriting back is a different engagement entirely: it needs a specification, EHR vendor certification, a governance decision, and a test cycle in the sandbox. Nobody on the vendor side has understood that this is months, not weeks."
+    },
+    {
+      "title": "Why every write is certified by the EHR vendor",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Not our rule. The EHR vendor certifies third-party writes and without certification we lose support on anything that touches the affected module.\n\nSo the sequence is: specification, their certification, our governance, our sandbox, then production. A vendor who asks to skip a step is asking us to lose support."
+    },
+    {
+      "title": "Message logs — what is in them",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Every message in transit, in full, retained thirty days for troubleshooting.\n\nThat means the logs contain protected health information. I can tell anyone the volume, the error rate, and the failure class. I cannot show them a message and I cannot paste an error containing an identifier, which is most of the interesting ones."
+    },
+    {
+      "title": "Sandbox — synthetic data only",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "The integration sandbox runs on synthetic patients. Every party that has ever integrated here has asked at some point for 'just one real record to test against'. It has never been yes."
+    },
+    {
+      "title": "Interface inventory",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Forty-one live interfaces. Three in test. Two deprecated and still running because nobody has confirmed nothing depends on them, which is its own problem."
+    },
+    {
+      "title": "Interface inventory — the real picture",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Forty-one live. Fourteen are ADT feeds to downstream systems, nine are results, six are orders, the rest are assorted.\n\nTwo are deprecated and still running because nobody will confirm nothing depends on them. That confirmation is a two-week job nobody funds."
+    },
+    {
+      "title": "Error handling — the philosophy",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "A message that fails should stop and be visible, not retry silently forever.\n\nThe previous engine retried silently. We found a queue with four thousand messages in it that had been failing for a month."
+    },
+    {
+      "title": "HL7 versus FHIR",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Most of the estate is HL7 v2 and will be for years. New work is FHIR where the endpoint supports it, which is less often than the marketing suggests.\n\nAnyone who says they will replace an HL7 estate in a project has not seen one."
+    },
+    {
+      "title": "On-call — interface failures",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "content": "Rotating with two others. Roughly one call a fortnight, usually a downstream system rejecting messages after its own upgrade.\n\nThe pattern is always the same: someone upgrades, does not tell us, and the interface breaks at 2am."
+    },
+    {
+      "title": "Change notification — the process that does not work",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Every system owner is supposed to notify integration before an upgrade. Compliance is maybe 40%.\n\nThe 60% is where the on-call calls come from and everyone knows it and nothing changes."
+    },
+    {
+      "title": "Testing — what synthetic data cannot catch",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Synthetic data catches structure and misses reality. Real data has names with apostrophes, dates before 1920, and fields that are technically optional and always populated except when they are not.\n\nWe still test on synthetic, and we still find these in production."
+    },
+    {
+      "title": "Message volume",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "About 1.4 million a day. Ninety-nine point something percent succeed. The failures are the job."
+    },
+    {
+      "title": "Interface documentation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Every live interface has a specification document. Roughly a third are accurate.\n\nThe inaccurate ones drifted through small changes that seemed too minor to document, which is how all documentation dies."
+    },
+    {
+      "title": "Vendor certification — the honest view",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "It is a real control and it is also a commercial moat. Both things are true and saying only one of them is dishonest.\n\nThe certification does catch genuinely dangerous designs. It also takes six to ten weeks and costs money."
+    },
+    {
+      "title": "Legacy scheduling cluster — interface dependency",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Six interfaces depend on it. It runs an unsupported operating system.\n\nWhen it is replaced, all six need rebuilding. That work is not in anybody's plan and it is roughly a quarter of effort."
+    },
+    {
+      "title": "What integration actually is",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Ninety percent of it is agreeing what a field means. The technical part is the easy part.\n\nTwo systems can both have a field called 'discharge date' and mean different things, and nobody notices until a report is wrong."
+    },
+    {
+      "title": "Interface estate",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Forty-one live, three in test, two deprecated and still running. Lab, radiology, pharmacy, and the state immunisation registry are the ones that page someone."
+    },
+    {
+      "title": "HL7 versus FHIR — where we actually are",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Everything in production is HL7 v2. FHIR is on three read-only endpoints. Anyone who says the estate is FHIR has not looked."
+    },
+    {
+      "title": "The immunisation registry interface",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "State-mandated, badly specified, and the spec changes annually with three weeks' notice. It is the interface that consumes the most time for the least clinical value."
+    },
+    {
+      "title": "Deprecated interfaces",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Two still running because nobody will confirm nothing depends on them. Turning off an interface nobody claims is how you find out who was using it."
+    },
+    {
+      "title": "Testing — why synthetic only",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "The sandbox runs synthetic patients. Every partner asks for one real record eventually. The answer has never been yes and the workaround is building better synthetic cases, which nobody wants to fund."
+    },
+    {
+      "title": "Change windows",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Interface changes go in the Tuesday window or in an emergency. An emergency interface change at 03:00 is how a bad week starts."
+    },
+    {
+      "title": "Monitoring",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Queue depth and error rate alerting. No alerting on messages that succeed but carry wrong content, which is the failure that actually reaches a patient."
+    },
+    {
+      "title": "Why every third-party write is certified",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "The EHR vendor certifies them and we lose support on the affected module if we deploy an uncertified one. Not our rule and not negotiable."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Write-back specification for the pilot",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": "Needs the EHR vendor's certification checklist first."
+    },
+    {
+      "title": "Explain the certification sequence to the vendor, in writing",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-04-08",
+      "completed": false,
+      "content": "Third conversation. Months not weeks."
+    },
+    {
+      "title": "Decline the real-record test request",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-03-30",
+      "completed": false,
+      "content": "Synthetic only. No exceptions, and there never have been."
+    },
+    {
+      "title": "Confirm nothing depends on the two deprecated interfaces",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-05-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Error rate review — pilot interface",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-04-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Fix the change notification process or stop pretending",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": "40% compliance and every on-call call comes from the other 60%."
+    },
+    {
+      "title": "Audit specification accuracy across the estate",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-07-31",
+      "completed": false,
+      "content": "A third are accurate."
+    },
+    {
+      "title": "Cost the six interface rebuilds for the cluster replacement",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-06-15",
+      "completed": false,
+      "content": "Not in anybody's plan. A quarter of effort."
+    },
+    {
+      "title": "Add apostrophe and edge-case cases to the synthetic set",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-05-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Immunisation registry — this year's spec change",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Content-level monitoring — scope it",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Document the undocumented half",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-09-30",
+      "completed": false,
+      "content": ""
+    }
+  ]
+}

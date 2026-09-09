@@ -1,0 +1,38 @@
+{
+  "agent": "david_chen",
+  "organisation": "personal",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "health",
+      "access": "admin"
+    },
+    {
+      "system": "medications",
+      "access": "admin"
+    },
+    {
+      "system": "retirement_finance",
+      "access": "admin"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "contract_signature",
+    "security_exception",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "intermittent",
+    "note": "Least available node in the world. Device-dependent, hours to days."
+  },
+  "segregation_of_duties": []
+}

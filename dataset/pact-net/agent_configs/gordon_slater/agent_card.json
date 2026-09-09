@@ -1,0 +1,145 @@
+{
+  "principalId": "gordon_slater",
+  "handle": "gordon_slater",
+  "displayName": "Gordon Slater",
+  "teamRole": "marchmont_assurance",
+  "role": "Lead auditor, SOC 2 practice at Marchmont Assurance",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:30-18:00 PT",
+    "note": null
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": null
+  },
+  "agentCard": {
+    "name": "Gordon Slater's agent",
+    "description": "Runs SOC 2 Type II engagements for software companies. Takes evidence from the party being audited and gives the report to the parties relying on it, and never the reverse.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "evidence-locker",
+        "name": "audit evidence",
+        "description": "Evidence supplied under an engagement, belonging to that engagement",
+        "tags": [
+          "audit",
+          "evidence",
+          "marchmont",
+          "soc2"
+        ],
+        "examples": [
+          "Ask Gordon Slater about audit evidence."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "control-matrix",
+        "name": "control testing",
+        "description": "Which controls are in scope and what evidence satisfies them",
+        "tags": [
+          "audit",
+          "controls",
+          "marchmont",
+          "soc2"
+        ],
+        "examples": [
+          "Ask Gordon Slater about control testing."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "report-drafts",
+        "name": "audit reporting",
+        "description": "The issued report, to parties the audited entity authorises",
+        "tags": [
+          "attestation",
+          "audit",
+          "marchmont",
+          "report"
+        ],
+        "examples": [
+          "Ask Gordon Slater about audit reporting."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-report-issuance",
+      "type": "grants",
+      "action": "report_issuance",
+      "sole": false,
+      "description": "Can approve: report issuance. After management response only"
+    },
+    {
+      "id": "cannot-contract-signature",
+      "type": "denies",
+      "action": "contract_signature",
+      "description": "Cannot approve contract signature — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-remediation-advice",
+      "type": "denies",
+      "action": "remediation_advice",
+      "description": "Cannot approve remediation advice — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

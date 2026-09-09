@@ -1,3 +1,5 @@
+> Historical seed/migration document. It describes an earlier 25-agent stage and is not the current manifest. For the current 60-agent/166-task world, use `README.md`, `REVIEW.html`, `TASKS.html`, and the JSON source files.
+
 # PACT-Net World Design — "Nexus Valley"
 
 A self-contained world of 25 agents across a tech startup ecosystem. Not everyone knows everyone — the contact graph is realistic, with professional clusters, personal clusters, and sparse cross-cluster bridges.

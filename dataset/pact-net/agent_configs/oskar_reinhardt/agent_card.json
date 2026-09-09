@@ -1,0 +1,157 @@
+{
+  "principalId": "oskar_reinhardt",
+  "handle": "oskar_reinhardt",
+  "displayName": "Oskar Reinhardt",
+  "teamRole": "northgate_managed_it",
+  "role": "Field engineer at Northgate Managed IT",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 07:00-16:00 ET, on site by rota",
+    "note": null
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": null
+  },
+  "agentCard": {
+    "name": "Oskar Reinhardt's agent",
+    "description": "Contracted to Kestrel Health for endpoint and on-site support. Holds a subset of what a Kestrel employee holds, and no clinical access at all.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "asset-inventory",
+        "name": "asset inventory",
+        "description": "Devices, images, and where they are deployed",
+        "tags": [
+          "assets",
+          "devices",
+          "inventory",
+          "northgate"
+        ],
+        "examples": [
+          "Ask Oskar Reinhardt about asset inventory."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "work-orders",
+        "name": "field work orders",
+        "description": "Assigned work, its status, and site schedule",
+        "tags": [
+          "fieldwork",
+          "northgate",
+          "support",
+          "workorders"
+        ],
+        "examples": [
+          "Ask Oskar Reinhardt about field work orders."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "credential-resets",
+        "name": "scoped credential resets",
+        "description": "Standard accounts within contract scope — never privileged or clinical",
+        "tags": [
+          "contractor",
+          "credentials",
+          "northgate",
+          "reset"
+        ],
+        "examples": [
+          "Ask Oskar Reinhardt about scoped credential resets."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-standard-credential-reset",
+      "type": "grants",
+      "action": "standard_credential_reset",
+      "sole": false,
+      "description": "Can approve: standard credential reset. Contract scope only — never privileged, clinical, or service accounts"
+    },
+    {
+      "id": "cannot-privileged-access-reset",
+      "type": "denies",
+      "action": "privileged_access_reset",
+      "description": "Cannot approve privileged access reset — route to whoever holds it."
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-it-spend",
+      "type": "denies",
+      "action": "it_spend",
+      "description": "Cannot approve it spend — route to whoever holds it."
+    },
+    {
+      "id": "cannot-vendor-onboarding",
+      "type": "denies",
+      "action": "vendor_onboarding",
+      "description": "Cannot approve vendor onboarding — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

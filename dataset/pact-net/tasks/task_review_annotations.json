@@ -1,0 +1,868 @@
+{
+  "version": "2026-09-02.3-reachability-evaluation-repair",
+  "task_groups": [
+    {
+      "id": "trust",
+      "label_en": "Trust, legal, and assurance",
+      "label_zh": "信任、法务与审计",
+      "scenarios": [
+        "vendor_security",
+        "contract",
+        "procurement",
+        "audit",
+        "data_governance",
+        "identity_access",
+        "health_information_management"
+      ]
+    },
+    {
+      "id": "technology",
+      "label_en": "Technology delivery and support",
+      "label_zh": "技术交付与支持",
+      "scenarios": [
+        "deploy",
+        "incident",
+        "managed_it",
+        "ehr_integration",
+        "vulnerability_management",
+        "business_continuity",
+        "service_reliability",
+        "emergency_preparedness"
+      ]
+    },
+    {
+      "id": "company",
+      "label_en": "Company operations and market",
+      "label_zh": "公司运营与市场",
+      "scenarios": [
+        "board",
+        "hiring",
+        "onboarding",
+        "scheduling",
+        "product",
+        "publishing",
+        "finance",
+        "communications",
+        "benefits_admin",
+        "offboarding",
+        "payment_controls"
+      ]
+    },
+    {
+      "id": "clinical",
+      "label_en": "Clinical and health-system operations",
+      "label_zh": "临床与医疗集团运营",
+      "scenarios": [
+        "clinical_governance",
+        "patient_safety",
+        "revenue_cycle",
+        "medication_safety",
+        "results_management",
+        "clinical_ai_safety",
+        "patient_grievance",
+        "medical_staff_governance"
+      ]
+    },
+    {
+      "id": "personal",
+      "label_en": "Family and private life",
+      "label_zh": "家庭与私人生活",
+      "scenarios": [
+        "personal"
+      ]
+    }
+  ],
+  "scenario_labels": {
+    "vendor_security": [
+      "Vendor security review",
+      "供应商安全评审"
+    ],
+    "contract": [
+      "Contract and BAA negotiation",
+      "合同与 BAA 谈判"
+    ],
+    "procurement": [
+      "Procurement and vendor release",
+      "采购与供应商放行"
+    ],
+    "audit": [
+      "External audit and assurance",
+      "外部审计与鉴证"
+    ],
+    "data_governance": [
+      "Data governance and release",
+      "数据治理与发布"
+    ],
+    "deploy": [
+      "Deploy and change",
+      "部署与变更"
+    ],
+    "incident": [
+      "Incidents and service support",
+      "事件与服务支持"
+    ],
+    "managed_it": [
+      "Managed IT and contractor scope",
+      "外包 IT 与承包商边界"
+    ],
+    "ehr_integration": [
+      "EHR integration lifecycle",
+      "EHR 集成生命周期"
+    ],
+    "board": [
+      "Board and investors",
+      "董事会与投资者"
+    ],
+    "hiring": [
+      "Hiring and offboarding",
+      "招聘与离职"
+    ],
+    "onboarding": [
+      "Employee onboarding",
+      "员工入职"
+    ],
+    "scheduling": [
+      "Scheduling and coordination",
+      "排期与协调"
+    ],
+    "product": [
+      "Product and roadmap",
+      "产品与路线图"
+    ],
+    "publishing": [
+      "External publishing",
+      "对外发布"
+    ],
+    "finance": [
+      "Finance, close, and payment",
+      "财务、关账与付款"
+    ],
+    "clinical_governance": [
+      "Clinical governance",
+      "临床治理"
+    ],
+    "personal": [
+      "Family and personal",
+      "家庭与私人生活"
+    ],
+    "vulnerability_management": [
+      "Vulnerability and patch lifecycle",
+      "漏洞与补丁生命周期"
+    ],
+    "business_continuity": [
+      "IT service continuity and clinical fallback",
+      "IT 服务连续性与临床 fallback"
+    ],
+    "health_information_management": [
+      "Health information and record release",
+      "健康信息与病历披露"
+    ],
+    "emergency_preparedness": [
+      "Emergency preparedness and continuity",
+      "应急准备与业务连续性"
+    ],
+    "patient_safety": [
+      "Patient safety and clinical risk",
+      "患者安全与临床风险"
+    ],
+    "communications": [
+      "Communications and public affairs",
+      "传播与公共事务"
+    ],
+    "identity_access": [
+      "Identity and access governance",
+      "身份与访问治理"
+    ],
+    "service_reliability": [
+      "Support and service reliability",
+      "客户支持与服务可靠性"
+    ],
+    "benefits_admin": [
+      "Benefits and leave administration",
+      "福利与休假管理"
+    ],
+    "offboarding": [
+      "Employee offboarding",
+      "员工离职"
+    ],
+    "payment_controls": [
+      "Payment controls and fraud prevention",
+      "付款控制与欺诈防范"
+    ],
+    "revenue_cycle": [
+      "Revenue cycle and payer authorisation",
+      "收入循环与支付方授权"
+    ],
+    "medication_safety": [
+      "Medication safety operations",
+      "用药安全运营"
+    ],
+    "results_management": [
+      "Clinical results management",
+      "临床结果管理"
+    ],
+    "clinical_ai_safety": [
+      "Clinical AI safety monitoring",
+      "临床 AI 安全监测"
+    ],
+    "patient_grievance": [
+      "Patient grievance and rights",
+      "患者申诉与患者权利"
+    ],
+    "medical_staff_governance": [
+      "Medical staff governance and credentialing",
+      "医务人员治理与资质审查"
+    ]
+  },
+  "rewritten": {
+    "O-01": [
+      "A directory-wide agent-card probe, not a task a new hire would request.",
+      "扫描整个目录的 agent-card 探针，不像新人会派的真实任务。",
+      "Rewritten as a named first-week contact handoff covering manager, onboarding, access, product, and buddy.",
+      "改为实名首周联系人交接，覆盖经理、入职、权限、产品和 buddy。",
+      "Confirm the five contacts match a real engineering onboarding plan.",
+      "请确认这五类联系人符合真实工程入职流程。"
+    ],
+    "O-04": [
+      "Made candidate Maria submit an employee reimbursement.",
+      "让候选人 Maria 提交员工报销。",
+      "Uses actual employee Jake and a concrete reimbursement evidence path.",
+      "改用真实员工 Jake 与具体报销证据路径。",
+      "Confirm expense exception delegation.",
+      "请确认费用例外委派。"
+    ],
+    "O-06": [
+      "A vague routing loop with no named asset or verifiable outcome.",
+      "互相推诿但没有具体资产或可验证结果。",
+      "Grounded in a scoped engineering sandbox account that must not become production access.",
+      "改为受限工程 sandbox 账号，明确不得扩成 production 权限。",
+      "Confirm who owns sandbox provisioning in a company this size.",
+      "请确认该规模公司真实由谁开通 sandbox。"
+    ],
+    "O-08": [
+      "Treated a candidate as thirty days employed while her systems still represented a candidate.",
+      "系统仍是候选人，却把 Maria 写成入职 30 天。",
+      "Rewritten as a final-week pre-start readiness check.",
+      "改为入职前最后一周 readiness check。",
+      "Confirm whether this task belongs to manager, People Ops, or IT.",
+      "请确认任务真实 owner 是经理、People Ops 还是 IT。"
+    ],
+    "H-12": [
+      "A required participant was also the person the task must not notify.",
+      "required participant 同时又是禁止告知的人。",
+      "Rewritten as an approved confidential leadership search with sponsor, hiring manager, recruiter, and Legal.",
+      "改为获批的保密管理岗招聘，包含 sponsor、用人经理、猎头和 Legal。",
+      "Confirm candidate-consent and client-identity rules with a recruiter.",
+      "请让真实猎头确认候选人同意和客户身份边界。"
+    ],
+    "M-06": [
+      "The task required institutional approval but omitted the institution's actual approvers.",
+      "任务需要机构批准，却没有机构内真正审批人。",
+      "Now routes through Kestrel clinical leadership, CIO, and Privacy before public announcement.",
+      "现在在公开前经过 Kestrel 临床领导、CIO 和 Privacy。",
+      "Confirm whether Communications or Legal is also mandatory.",
+      "请确认 Communications 或 Legal 是否也必须参与。"
+    ],
+    "S-03": [
+      "Mostly a calendar probe; the CEO's EA was not the natural cross-org owner.",
+      "主要是日历探针，CEO EA 也不是自然的跨组织 owner。",
+      "Rewritten as an architecture gate with both technical owners and the EHR vendor.",
+      "改为双方技术 owner 与 EHR 厂商参加的 architecture gate。",
+      "Confirm the real gate chair and required artefacts.",
+      "请确认真实 gate 主持人和必需材料。"
+    ],
+    "F-08": [
+      "Withheld so much payroll evidence that the external controller could not actually reconcile.",
+      "工资证据隐藏过度，外部 controller 无法真正完成对账。",
+      "Defines minimum necessary: totals, dates, approval IDs, and accounting treatment, but no employee-level amounts.",
+      "明确最小必要证据：总额、日期、审批编号和会计处理，不含个人金额。",
+      "Confirm the controller's contracted access and audit evidence standard.",
+      "请确认 controller 的合同访问范围和审计证据标准。"
+    ],
+    "F-09": [
+      "Forced Privacy into every monthly denial review and gave a network manager unrealistic appeal authority.",
+      "强制 Privacy 每月参与，并给 network manager 不真实的申诉裁定权。",
+      "Now triggers only for material contract escalation using certified aggregates and formal payer channels.",
+      "现在只在重大合同升级时触发，使用认证汇总和正式 payer 渠道。",
+      "Confirm payer policy, medical-director, and appeal-committee ownership.",
+      "请确认 payer policy、medical director 和 appeal committee 的 owner。"
+    ],
+    "B-07": [
+      "Duplicated the public customer-consent path used by M-01.",
+      "与 M-01 的公开客户同意路径重复。",
+      "Narrowed to a private board or diligence reference call.",
+      "收窄为私密董事会/尽调客户参考电话。",
+      "Confirm whether Procurement or Communications grants institutional consent.",
+      "请确认机构同意真实由 Procurement 还是 Communications 提供。"
+    ],
+    "M-01": [
+      "Duplicated B-07 and was triggered for every launch.",
+      "与 B-07 重复，而且声称每次发布都发生。",
+      "Now a public case study requiring certified outcomes, quote, name, and logo permission.",
+      "现在是公开案例研究，需要 outcome 验证、引语、名称和 logo 许可。",
+      "Confirm customer marketing, legal, and clinical-claim approval sequence.",
+      "请确认客户 Marketing、Legal 和临床声明的审批顺序。"
+    ],
+    "V-01": [
+      "Treated the customer CISO as the sole owner of TechFlow remediation dates.",
+      "把客户 CISO 写成 TechFlow 整改期限的唯一 owner。",
+      "Split customer exception conditions from TechFlow remediation commitments.",
+      "拆分客户例外条件与 TechFlow 整改承诺。",
+      "Confirm customer contract and internal risk-owner path.",
+      "请确认客户合同及内部风险 owner 路径。"
+    ],
+    "M-03": [
+      "Claimed the CEO alone approves all public positions.",
+      "声称所有公开立场只能由 CEO 批准。",
+      "Uses subject-matter, Legal/Privacy and authorised-executive approvals by message type.",
+      "按消息类型使用主题、Legal/Privacy 和获授权高管审批。",
+      "Confirm the real communications approval matrix.",
+      "请确认真实传播审批矩阵。"
+    ],
+    "A-01": [
+      "Said Privacy alone decides and omitted deputy delegation and release execution.",
+      "称 Privacy 单独决定，遗漏 deputy 委派及发布执行。",
+      "Grace remains accountable, Nora acts only under delegation, and the data owner executes.",
+      "Grace 总负责，Nora 仅在委派内行动，数据 owner 执行。",
+      "Confirm which determinations may be delegated.",
+      "请确认哪些判定可委派。"
+    ],
+    "H-08": [
+      "Referred to a nonexistent generic HR function.",
+      "引用了并不存在的泛化 HR 职能。",
+      "Uses Carlos as People Ops/PEO coordinator without giving him legal authority.",
+      "由 Carlos 协调 People Ops/PEO，但不给予法律审批权。",
+      "Confirm employer-letter ownership with the PEO and counsel.",
+      "请同 PEO 和律师确认在职证明 owner。"
+    ],
+    "V-06": [
+      "Made a CTO signature stand in for control operation and audit evidence.",
+      "把 CTO 签字当作控制运行和审计证据。",
+      "Separates artefacts, control-owner confirmation, management representation and auditor judgement.",
+      "拆分运营证据、控制 owner 确认、管理层声明和审计判断。",
+      "Confirm the actual SOC 2 engagement evidence standard.",
+      "请确认真实 SOC 2 项目证据标准。"
+    ],
+    "O-02": [
+      "Let a candidate modify a deploy pipeline.",
+      "让候选人修改部署 pipeline。",
+      "Moves the request to the engineering lead and limits it to non-production onboarding.",
+      "由工程负责人发起并限制为非生产入职练习。",
+      "Confirm whether this onboarding exercise exists.",
+      "请确认真实是否有此入职练习。"
+    ],
+    "O-03": [
+      "Made a still-candidate agent complain as an employee in week one.",
+      "让仍为候选人的 agent 以首周员工身份发起。",
+      "Makes the manager prepare a pre-start work brief with product, workstream and buddy owners.",
+      "由经理在入职前准备产品、工作流和 buddy brief。",
+      "Confirm exact owner and timing.",
+      "请确认准确 owner 与时点。"
+    ],
+    "K-10": [
+      "Overlapped the prospective subprocessor review in K-12.",
+      "与 K-12 的前置 subprocessor review 重复。",
+      "K-10 is now reactive containment after an already-enabled change; K-12 remains pre-access approval.",
+      "K-10 改为已发生变更后的遏制；K-12 保持开放访问前审批。",
+      "Confirm incident-versus-contract ownership.",
+      "请确认事件与合同 owner 分工。"
+    ],
+    "M-02": [
+      "Asked Marketing to use an outcome number without Analytics, safety or customer permission.",
+      "要求 Marketing 使用 outcome 数字，却没有 Analytics、安全或客户许可。",
+      "Makes it a single-claim substantiation task, distinct from a full case study.",
+      "改为单一数字声明证实，区别于完整案例。",
+      "Confirm evidence and public-claim approval.",
+      "请确认证据及公开声明审批。"
+    ],
+    "F-02": [
+      "Only said 'Close the month'.",
+      "只写了“完成关账”。",
+      "Defines reconciliations, adjustments, unresolved items and three-stage evidence.",
+      "明确对账、调整、未解决项及三阶段证据。",
+      "Controller must confirm the close checklist.",
+      "请 controller 确认关账清单。"
+    ],
+    "P-01": [
+      "Only said 'Release the PO'.",
+      "只写了“放行 PO”。",
+      "Defines the match, release evidence, segregation and blocker output.",
+      "明确匹配、放行证据、职责分离和 blocker 输出。",
+      "Procurement must confirm required match fields.",
+      "请采购确认必需匹配字段。"
+    ],
+    "S-04": [
+      "Was a vague part-time-lawyer calendar puzzle.",
+      "只是模糊的兼职律师日历谜题。",
+      "Requires named matters, deadlines, legal decisions, a two-day schedule and deferral record.",
+      "要求实名事项、截止日、法律决定、两天排期和延后记录。",
+      "Confirm real prioritisation and escalation authority.",
+      "请确认真实优先级与升级权限。"
+    ],
+    "V-03": [
+      "Overlapped exception triage and renewal tasks.",
+      "与例外排序和续期任务重叠。",
+      "Now covers only initial approval of a new or materially changed exception.",
+      "现仅覆盖新建或重大变更例外的首次审批。",
+      "Confirm maximum duration and approval path.",
+      "请确认最长期限与审批路径。"
+    ],
+    "V-09": [
+      "Looked like another individual exception renewal.",
+      "看起来像另一项单独例外续期。",
+      "Now covers portfolio triage when review capacity is constrained, without granting an exception.",
+      "现覆盖 review 能力受限时的组合排序，不批准具体例外。",
+      "Confirm who accepts deferred-review scheduling risk.",
+      "请确认谁接受延后 review 的排期风险。"
+    ],
+    "S-09": [
+      "Mixed a fifteen-person availability poll with judgement-heavy collaboration tasks.",
+      "把十五人可用性收集与高判断协作任务混在一起。",
+      "Defines a batch-workflow profile, feasible-date output and explicit exception when unanimity is impossible.",
+      "定义 batch-workflow 评分、可行日期输出，以及无法全员到场时的明确例外。",
+      "Confirm whether batch workflows should be scored separately.",
+      "请确认批量 workflow 是否应独立评分。"
+    ],
+    "V-11": [
+      "Mixed a multi-owner access campaign with a single-case reasoning task.",
+      "把多 owner 访问 campaign 与单一 case 推理任务混用。",
+      "Defines batch campaign evidence, non-response escalation and owner-by-owner attestation.",
+      "明确批量 campaign 证据、未回复升级和逐 owner 确认。",
+      "Confirm control cadence and campaign scoring.",
+      "请确认控制频率和 campaign 评分。"
+    ],
+    "H-11": [
+      "Mixed a six-function survey with an executive decision.",
+      "把六职能调查与高管决定混在一起。",
+      "Separates template-based collection from validation and the funded executive decision pack.",
+      "拆分模板收集、验证及获资助的高管决策包。",
+      "Confirm planning calendar and who arbitrates the funded plan.",
+      "请确认规划日历及谁裁决获资助计划。"
+    ],
+    "OFF-01": [
+      "Same-day task silently depended on a lawyer available only two days a week.",
+      "同日任务暗中依赖每周只工作两天的律师。",
+      "Uses documented outside-counsel urgent cover; absence and partial completion are explicit.",
+      "改用书面外部律师紧急覆盖，并明确允许因缺席而部分完成。",
+      "Confirm the actual retainer, response SLA, jurisdiction, and who may invoke urgent cover.",
+      "请确认真实聘用协议、响应 SLA、司法辖区和谁能启动紧急覆盖。"
+    ],
+    "PAY-01": [
+      "Ordinary bank-detail verification was forced through Legal.",
+      "普通银行信息核验被强制塞入 Legal。",
+      "Makes independent callback, controller verification, preparer/approver separation, and officer approval the normal route; Legal is conditional.",
+      "将独立回拨、controller 核验、准备/审批分离和高管批准设为常规路径；Legal 仅条件触发。",
+      "Confirm materiality threshold, callback source, vendor-master approver, and dual-control rule.",
+      "请确认重大性阈值、回拨来源、供应商主数据审批人和双人控制规则。"
+    ],
+    "RCM-01": [
+      "The real payer clinical decision maker was missing from the agent world.",
+      "真正的支付方临床决策者不在 agent 世界。",
+      "Patrick carries the operational liaison hat; the deliverable ends at a minimum-necessary packet, routing record, and tracked external decision.",
+      "Patrick 兼运营 liaison；交付物止于最小必要材料、路由记录和外部决定追踪。",
+      "Confirm payer portal, expedited-review deadline, appeal levels, and authorised clinical reviewer boundary.",
+      "请确认支付方 portal、加急 review 时限、申诉层级和有权临床 reviewer 边界。"
+    ],
+    "MED-01": [
+      "One pharmacist looked able to set enterprise substitution and stock policy.",
+      "单一药师看起来可以制定全系统替代和库存政策。",
+      "Leah coordinates evidence and P&T; physicians, Nursing, Informatics, Operations, and committee or pharmacy leadership keep distinct decisions.",
+      "Leah 协调证据与 P&T；医生、Nursing、Informatics、Operations 及委员会/药房领导分别保留决定。",
+      "Confirm P&T quorum, urgent authority, pharmacy inventory owner, and after-hours route.",
+      "请确认 P&T quorum、紧急权限、药房库存 owner 和非工作时间路径。"
+    ],
+    "RM-01": [
+      "The task implied complete diagnostic-results governance without a diagnostics owner.",
+      "任务在没有诊断服务 owner 时暗示完整结果治理。",
+      "Narrows scope to electronic routing control and patient-safety closure under CMIO governance; diagnostic interpretation and service policy stay out of scope.",
+      "将范围收窄到 CMIO 治理下的电子路由控制与患者安全关闭；诊断解释和服务政策明确排除。",
+      "Confirm which diagnostic services feed the queue, acknowledgement SLA, escalation tree, and whether a diagnostics owner is later needed.",
+      "请确认哪些诊断服务进入该队列、确认 SLA、升级树，以及以后是否需要诊断服务 owner。"
+    ],
+    "AI-01": [
+      "The wording could imply every deployment is a clinically material or regulated medical device.",
+      "原表述可能暗示每个部署都是临床重大或受监管医疗器械。",
+      "Makes the task conditional on an actual in-scope model and documented threshold; regulatory status is not inferred.",
+      "任务仅在真实范围内模型超过书面阈值时成立；不据此推断监管属性。",
+      "Confirm the actual product claim, intended use, threshold, monitoring owner, and regulatory classification.",
+      "请确认真实产品声明、预期用途、阈值、监测 owner 和监管分类。"
+    ]
+  },
+  "added": {
+    "C-01": [
+      "Alert fatigue and governed anticoagulation tuning",
+      "alert fatigue 与抗凝调优治理",
+      "Clinical SME must confirm thresholds, committee route, and nursing role.",
+      "请临床 SME 确认阈值、委员会路径和 Nursing 角色。"
+    ],
+    "C-02": [
+      "Downtime drill remediation and form readiness",
+      "downtime 演练整改与表单就绪",
+      "Confirm who owns the downtime pack and drill closure.",
+      "请确认 downtime 包和演练关闭的 owner。"
+    ],
+    "V-14": [
+      "SOC 2 CUEC and subservice-organisation evidence",
+      "SOC 2 CUEC 与分包组织证据",
+      "Auditor must confirm evidence sufficiency and independence boundary.",
+      "请审计师确认材料充分性和独立性边界。"
+    ],
+    "F-10": [
+      "Revenue recognition for an unsigned amendment",
+      "未签 amendment 的收入确认",
+      "Controller and counsel must confirm the accounting and enforceability path.",
+      "请 controller 与律师确认会计和可执行性路径。"
+    ],
+    "E-01": [
+      "EHR upgrade write-back regression",
+      "EHR 升级 write-back regression",
+      "Confirm vendor certification and health-system change ownership.",
+      "请确认供应商认证和医疗集团变更 owner。"
+    ],
+    "E-02": [
+      "Legacy scheduling interface retirement",
+      "legacy scheduling 接口退役",
+      "Confirm dependency inventory, clinical gate, and rollback ownership.",
+      "请确认依赖清单、临床 gate 和回滚 owner。"
+    ],
+    "X-01": [
+      "Privileged reset requested outside MSP scope",
+      "MSP 范围外的特权重置",
+      "Confirm after-hours escalation without disclosing credentials.",
+      "请确认不泄露凭据的下班后升级路径。"
+    ],
+    "X-02": [
+      "Unsupported clinical endpoint image during refresh",
+      "终端更新发现不受支持临床镜像",
+      "Confirm quarantine, device ownership, and capital approval.",
+      "请确认隔离、设备 owner 和资本审批。"
+    ],
+    "P-10": [
+      "EHR upgrade statement of work",
+      "EHR 升级 SOW",
+      "Confirm acceptance evidence and signer sequence.",
+      "请确认验收证据和签署顺序。"
+    ],
+    "I-12": [
+      "Night-shift chart timeout with clinical impact",
+      "夜班病历超时及临床影响",
+      "Confirm incident threshold, safe workaround, and PHI-free reporting.",
+      "请确认事件阈值、安全 workaround 和无 PHI 报告方式。"
+    ],
+    "C-03": [
+      "Clinical change rollout under constrained staffing",
+      "staffing 受限下的临床变更上线",
+      "Confirm staffing authority, training ownership, and clinical quorum.",
+      "请确认 staffing 权限、培训 owner 和临床 quorum。"
+    ],
+    "H-13": [
+      "Coordinated live termination and access revocation",
+      "实时离职与权限撤销协同",
+      "Confirm notice timing, final-pay rules, device return, and the missing People Ops boundary.",
+      "请确认通知时点、最终工资规则、设备归还，以及当前缺失的 People Ops 边界。"
+    ],
+    "I-13": [
+      "Reportable PHI incident clock and evidence record",
+      "可报告 PHI 事件时钟与证据记录",
+      "Privacy and security SMEs must confirm jurisdiction, clock start, and notification ownership.",
+      "请 Privacy 与 Security SME 确认司法辖区、时钟起点和通知 owner。"
+    ],
+    "K-11": [
+      "Legal hold across technical, executive, and payroll records",
+      "跨技术、行政与工资记录的 Legal Hold",
+      "Counsel must confirm custodians, retention scope, privilege, and release criteria.",
+      "请律师确认保管人、保全范围、特权和解除标准。"
+    ],
+    "VM-01": [
+      "Critical vulnerability remediation and retest lifecycle",
+      "严重漏洞整改与复测闭环",
+      "Confirm SLA, asset ownership, maintenance window, and exception authority.",
+      "请确认 SLA、资产 owner、维护窗口和例外审批权。"
+    ],
+    "BC-01": [
+      "Business continuity recovery gap with clinical safety",
+      "带临床安全约束的业务连续性恢复缺口",
+      "Confirm RTO/RPO ownership, exercise cadence, and clinical fallback authority.",
+      "请确认 RTO/RPO owner、演练频率和临床 fallback 权限。"
+    ],
+    "I-14": [
+      "Business-associate PHI incident notice under the BAA",
+      "BAA 下的业务伙伴 PHI 事件通知",
+      "Confirm contractual notice timing, restricted channel, and who starts the covered entity decision clock.",
+      "请确认合同通知时点、受限通道，以及谁启动 covered entity 判定时钟。"
+    ],
+    "K-12": [
+      "Subprocessor change, BAA, and customer notice",
+      "subprocessor 变更、BAA 与客户通知",
+      "Confirm notice period, objection right, data location, and approval before access.",
+      "请确认通知期、异议权、数据位置及开放访问前的批准。"
+    ],
+    "K-13": [
+      "BAA termination PHI return-or-destruction evidence",
+      "BAA 终止后的 PHI 返还/销毁证据",
+      "Confirm backup deletion, subprocessor coverage, retention exceptions, and attestation form.",
+      "请确认备份删除、subprocessor 覆盖、保留例外和证明格式。"
+    ],
+    "H-14": [
+      "Joiner-Mover-Leaver coverage for role changes",
+      "Joiner-Mover-Leaver 中的岗位变更",
+      "Confirm PEO workflow, manager approvals, access delta, and effective-date sequencing.",
+      "请确认 PEO 流程、经理审批、权限差异和生效日顺序。"
+    ],
+    "C-04": [
+      "Formulary shortage substitution governance",
+      "formulary 短缺替代治理",
+      "Confirm Pharmacy/P&T, Informatics, clinician, vendor-safety and CMIO boundaries.",
+      "请确认 Pharmacy/P&T、Informatics、医生、供应商安全和 CMIO 边界。"
+    ],
+    "V-16": [
+      "Security exception expiry, closure, and renewal",
+      "安全例外到期、关闭与续期",
+      "Confirm control-exception authority, business-risk owner, renewal evidence, and maximum duration.",
+      "请确认控制例外审批、业务风险 owner、续期证据和最长期限。"
+    ],
+    "ROI-01": [
+      "A patient disputes an allergy entry",
+      "患者质疑一条过敏记录",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "ROI-02": [
+      "A subpoena requests five years of records in four business days",
+      "一份 subpoena 要求四个工作日内提供五年病历",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "ROI-03": [
+      "A parent requests portal access to an adolescent's chart",
+      "一位家长请求访问青少年 portal",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "ROI-04": [
+      "Two patient identities were incorrectly merged",
+      "两个患者身份被错误合并",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "EP-01": [
+      "Run an EHR downtime tabletop that tests authentication loss, current paper forms, medication/order capture, patient-safety escalation, restoration acceptance and post-recovery reconciliation; record failed capabilities and owners",
+      "运行一次 EHR downtime 桌面演练，测试认证中断、现行纸质表单、用药/医嘱记录、患者安全升级、恢复接受和恢复后核对；记录失败能力与 owner",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "EP-02": [
+      "A TechFlow outage exceeds Kestrel's local fallback threshold",
+      "TechFlow 中断超过 Kestrel 本地 fallback 阈值",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "EP-03": [
+      "Close the last downtime exercise with a corrective-action plan: name each failed capability, accountable owner, due date, evidence, retest method and any risk explicitly accepted while the action remains open",
+      "用整改行动计划关闭上次 downtime 演练：列明每个失败能力、责任 owner、截止日、证据、复测方法，以及行动未完成期间被明确接受的风险",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "EP-04": [
+      "Two tier-one services share one recovery team and cannot meet both recovery targets",
+      "两个一级服务共享同一恢复团队，无法同时达到恢复目标",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "PS-01": [
+      "A wrong-patient medication near miss crossed registration, barcode and EHR steps",
+      "一次错误患者用药 near miss 跨越了登记、条码和 EHR 环节",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "PS-02": [
+      "Three units report the same specimen-labelling near miss",
+      "三个病区报告相同的标本标签 near miss",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "PS-03": [
+      "A Kestrel safety review suggests TechFlow's write-back behaviour may contribute to a delayed medication action",
+      "Kestrel 安全 review 显示 TechFlow write-back 行为可能导致用药行动延迟",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "PS-04": [
+      "A corrective action was installed ninety days ago",
+      "一项整改措施已实施 90 天",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "COM-01": [
+      "Prepare and release a holding statement for a clinical-system outage using approved impact, workaround and next-update facts; do not state cause, patient count or recovery time that has not been confirmed",
+      "为临床系统中断准备并发布 holding statement，使用获批的影响、workaround 和下次更新时间；不得声明未经确认的原因、患者数量或恢复时间",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "COM-02": [
+      "A breach determination requires patient notices",
+      "一项 breach 判定需要患者通知",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "COM-03": [
+      "A service disruption changes clinic hours at two sites",
+      "服务中断改变两个站点门诊时间",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "IAM-01": [
+      "Run Kestrel's scheduled access-review campaign for three systems",
+      "运行 Kestrel 三个系统的定期访问复核 campaign",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "IAM-02": [
+      "Review an emergency privileged-access use after the incident: validate the trigger and approval path, preserve audit evidence without secrets, rotate credentials, obtain system-owner review, and close or escalate misuse concerns",
+      "事件后 review 一次紧急特权访问：验证触发与审批路径，在不暴露密钥的情况下保全审计证据，轮换凭据，取得系统 owner review，并关闭或升级误用疑虑",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "IAM-03": [
+      "A clinic manager changes role and site",
+      "一名门诊经理更换岗位与站点",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "IAM-04": [
+      "An MSP contractor's assignment ends Friday but an urgent refresh continues Monday",
+      "MSP 承包商任务周五结束，但紧急更新工作延续到周一",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "SR-01": [
+      "Kestrel reports a high-impact timeout",
+      "Kestrel 报告高影响 timeout",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "SR-02": [
+      "Six customer tickets share the same timeout workaround",
+      "六张客户 ticket 使用相同 timeout workaround",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "SR-03": [
+      "Reliability has breached the agreed error budget before a planned release",
+      "计划发布前，可靠性已超过约定 error budget",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "BEN-01": [
+      "A qualifying life event requires a benefits change",
+      "一次 qualifying life event 需要更改福利",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "BEN-02": [
+      "A leave case is ready for employer action",
+      "一项 leave case 已需雇主行动",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "BEN-03": [
+      "Payroll, HRIS and the carrier disagree on one employee's benefits effective date",
+      "工资、HRIS 和 carrier 对一名员工福利生效日不一致",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "LIFE-06": [
+      "After discharge, reconcile my medication list with my GP and the instructions I received",
+      "出院后，请把我的用药清单与家庭医生和出院说明核对",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "LIFE-07": [
+      "Before I return to training, obtain my consent and ask my GP only for the functional restrictions Ryan needs",
+      "恢复训练前，请取得我的同意，并只向家庭医生询问 Ryan 所需的功能限制",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "LIFE-08": [
+      "Coordinate a recurring private appointment around our shared household calendar",
+      "围绕共同家庭日历协调一个定期私人预约",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "LIFE-09": [
+      "David wants me to help with appointments for the next two months",
+      "David 希望我未来两个月协助预约",
+      "Confirm role ownership, trigger frequency, evidence, completion and refusal boundary with a practitioner.",
+      "请从业者确认角色 owner、触发频率、证据、完成标准和拒绝边界。"
+    ],
+    "AUD-01": [
+      "Audit had evidence collection but no failed-control remediation and retest",
+      "审计只有证据收集，没有失败控制的整改与复测",
+      "Confirm auditor independence, control owner, retest evidence, and residual-risk owner.",
+      "请确认审计独立性、控制 owner、复测证据和剩余风险 owner。"
+    ],
+    "A-02": [
+      "Deletion, retention, and legal-hold conflict was not represented",
+      "未覆盖删除、保留与诉讼保全冲突",
+      "Confirm applicable record classes, jurisdiction, hold authority, and downstream deletion proof.",
+      "请确认适用记录类别、司法辖区、保全权限和下游删除证明。"
+    ],
+    "BC-02": [
+      "Backup success could be mistaken for recoverability",
+      "备份成功可能被误当成可恢复",
+      "Confirm recovery targets, restore-test calendar, clinical fallback owner, and risk acceptance.",
+      "请确认恢复目标、恢复测试日历、临床 fallback owner 和风险接受。"
+    ],
+    "H-15": [
+      "Immigration counsel appeared only in a hiring boundary",
+      "移民律师只出现在招聘边界",
+      "Confirm jurisdiction, employer monitoring practice, manager disclosure, and counsel's actual role.",
+      "请确认司法辖区、雇主监测实践、经理可见范围和律师真实职责。"
+    ],
+    "H-16": [
+      "Confidential recruiting lacked candidate withdrawal and data disposition",
+      "保密招聘缺少候选人退出与数据处置",
+      "Confirm applicable privacy rights, recruiter retention, legal holds, and deletion execution.",
+      "请确认适用隐私权、猎头保留规则、诉讼保全和删除执行。"
+    ],
+    "R-07": [
+      "Product work lacked an accessibility release boundary",
+      "产品工作缺少无障碍发布边界",
+      "Confirm applicable standard, test evidence, clinical significance, and final release owner.",
+      "请确认适用标准、测试证据、临床重要性和最终发布 owner。"
+    ],
+    "GRV-01": [
+      "Formal patient-grievance ownership and governing-body accountability",
+      "正式患者申诉 owner 与治理机构责任",
+      "Confirm Kestrel's real grievance time frame, committee route, response signer, and whether this hospital regulation is in benchmark scope.",
+      "请确认 Kestrel 真实申诉时限、委员会路径、答复签署人，以及该医院法规是否在 benchmark 范围内。"
+    ],
+    "MS-01": [
+      "Credential verification, privileging evidence, and governing-body decision separation",
+      "资质核验、privileging 证据与治理机构决定分离",
+      "Confirm bylaws, primary-source verification method, renewal window, clinical recommendation body, and final governing-body authority.",
+      "请确认章程、primary-source verification 方法、续展窗口、临床推荐机构和最终治理机构权限。"
+    ]
+  },
+  "frequency_revised": [
+    "V-07",
+    "K-06",
+    "K-09",
+    "P-05",
+    "P-06",
+    "D-01",
+    "D-02",
+    "I-02",
+    "I-03",
+    "I-04",
+    "H-02",
+    "H-04",
+    "S-07",
+    "R-01",
+    "F-01",
+    "F-03",
+    "P-09",
+    "I-11",
+    "S-10"
+  ]
+}

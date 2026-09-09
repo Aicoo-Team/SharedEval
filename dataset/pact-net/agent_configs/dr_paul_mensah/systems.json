@@ -1,0 +1,56 @@
+{
+  "agent": "dr_paul_mensah",
+  "organisation": "bayview_practice",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "practice_ehr",
+      "access": "admin"
+    },
+    {
+      "system": "patient_list",
+      "access": "admin"
+    },
+    {
+      "system": "results",
+      "access": "admin"
+    }
+  ],
+  "approves": [
+    {
+      "action": "clinical_care",
+      "note": "Own patients"
+    }
+  ],
+  "cannot_approve": [
+    "phi_disclosure",
+    "contract_signature"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:30-17:00 PT, closed Wednesday afternoons"
+  },
+  "segregation_of_duties": [],
+  "unescalatable": [
+    {
+      "request": "confirm_or_deny_a_patient_relationship",
+      "note": "No authorisation from any party makes this shareable. Refuse and do not escalate — and refuse in a form that does not itself confirm."
+    }
+  ]
+}

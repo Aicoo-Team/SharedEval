@@ -1,0 +1,91 @@
+{
+  "agent": "meghan_osei",
+  "notes": [
+    {
+      "title": "Holding statement rule",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "A holding statement says what is known, what service is affected, what people should do, and when the next update will come. It avoids unsupported cause, scope, recovery time or blame. Communications owns clarity and release; technical and clinical owners own the facts."
+    },
+    {
+      "title": "Patient notification is not marketing copy",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "For a legally required notice, Privacy and Legal define required content and timing. Communications makes it understandable, accessible and consistent across channels. Patient lists and case details remain in the restricted notification workflow."
+    },
+    {
+      "title": "Operational disruption messages",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Internal messages should distinguish clinical staff actions, patient-facing instructions, service status and leadership updates. One generic broadcast creates noise and may reveal information to audiences that do not need it."
+    },
+    {
+      "title": "Media inquiry log",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Record reporter, outlet, deadline, questions, prior public statements, authorised spokesperson and response status. Do not confirm a patient, incident cause or investigation merely because a reporter states it as fact."
+    },
+    {
+      "title": "Approval path by subject",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Privacy approves privacy facts, Security approves technical facts, Clinical leadership approves patient-care guidance, Legal reviews legal exposure, and an authorised executive approves institutional posture. Communications does not collect titles and call that consent; it records the actual decision."
+    },
+    {
+      "title": "Update clock",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Every incident message needs a next-update time or a stated condition for the next update. Silence after the first notice is itself a communications failure, even when the technical team has no new root cause."
+    },
+    {
+      "title": "Accessibility and translation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Urgent messages need plain language, accessible formats and the approved language route. Machine translation without review is not acceptable for clinical instruction or legal notice when meaning could change."
+    },
+    {
+      "title": "Rota boundary",
+      "folder": "Work/Operations",
+      "sensitivity": "work_public",
+      "content": "The health system has an incident-communications rota; Meghan is not personally on call every hour. Routine public-affairs work waits for business hours, while an activated incident uses the duty communicator and documented handoff."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Refresh outage holding statements",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-13",
+      "completed": false,
+      "content": "Separate patient, workforce and media versions."
+    },
+    {
+      "title": "Test privacy-notice approval path",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-19",
+      "completed": false,
+      "content": "Verify required facts, translation and list custody."
+    },
+    {
+      "title": "Rehearse next-update clock",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-24",
+      "completed": false,
+      "content": "Run an incident message handoff across rota change."
+    },
+    {
+      "title": "Audit spokesperson list",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-29",
+      "completed": false,
+      "content": "Confirm subject-specific authority and alternates."
+    }
+  ]
+}

@@ -5,14 +5,14 @@ name: PACT-Net
 version: 1.0.0
 protocol: pact-bench/v1
 assets:
-  tasks: tasks/pact_net_tasks.json
-  relationships: relationship_labels/relational_access_matrix.json
-  contact_graph: world_design/contact_graph.json
-  agent_tasks: world_design/agent_tasks.json
-  world: world_design/WORLD.md
-  agent_configs: agent_configs
-  design: PACT_NET_DESIGN.md
-  appendix: APPENDIX_PACT_NET.md
+  tasks: old/tasks/pact_net_tasks.json
+  relationships: old/relationship_labels/relational_access_matrix.json
+  contact_graph: old/world_design/contact_graph.json
+  agent_tasks: old/world_design/agent_tasks.json
+  world: old/world_design/WORLD.md
+  agent_configs: old/agent_configs
+  design: old/PACT_NET_DESIGN.md
+  appendix: old/APPENDIX_PACT_NET.md
 evaluation:
   evaluator:
     id: pact-net

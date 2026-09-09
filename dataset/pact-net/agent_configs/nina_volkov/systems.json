@@ -1,0 +1,55 @@
+{
+  "agent": "nina_volkov",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "cms",
+      "access": "admin"
+    },
+    {
+      "system": "campaigns",
+      "access": "admin"
+    },
+    {
+      "system": "press_list",
+      "access": "admin"
+    },
+    {
+      "system": "social",
+      "access": "admin"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "publish",
+      "note": "Externally visible and irreversible. Risk tier red."
+    }
+  ],
+  "cannot_approve": [
+    "contract_signature",
+    "roadmap_commitment"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT",
+    "note": "Campaign incidents may trigger a separate escalation."
+  },
+  "segregation_of_duties": []
+}

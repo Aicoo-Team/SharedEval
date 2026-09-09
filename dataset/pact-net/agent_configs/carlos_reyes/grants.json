@@ -1,0 +1,1025 @@
+{
+  "agent": "carlos_reyes",
+  "organisation": "techflow_ai",
+  "model": "pact-net/grants/v1",
+  "generated_by": "scripts/derive_grants.py",
+  "source_of_truth": "world_design/relational_access_matrix.json",
+  "warning": "DERIVED FILE — do not hand-edit. Correct the access matrix, or RELATIONSHIP_DEFAULTS / OVERRIDES in the generator, and re-run.",
+  "default": {
+    "notesAccess": {
+      "scope": "none",
+      "folderIds": [],
+      "access": "read"
+    },
+    "calendarAccess": {
+      "read": "none",
+      "write": false
+    },
+    "emailAccess": {
+      "read": false
+    },
+    "todoAccess": {
+      "read": false,
+      "write": false
+    },
+    "toolAccess": {
+      "allowedTools": []
+    },
+    "notifyOwner": true
+  },
+  "profiles": {
+    "structural_tight": {
+      "alex_chen": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "anita_krishnan": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "dana_reeves": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "elena_park": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "hannah_brix": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "marcus_webb": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "monica_alvarez": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "sarah_martinez": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      }
+    },
+    "structural_loose": {
+      "alex_chen": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "anita_krishnan": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "dana_reeves": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "elena_park": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "hannah_brix": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "marcus_webb": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "monica_alvarez": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "sarah_martinez": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      }
+    }
+  },
+  "grants": {
+    "alex_chen": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "anita_krishnan": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Shared"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "free_busy",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "external",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "P",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "dana_reeves": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "free_busy",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "external",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "B",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "elena_park": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "hannah_brix": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Shared"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "free_busy",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "external",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "P",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "marcus_webb": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "B",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "monica_alvarez": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Shared"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "free_busy",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "external",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "P",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "sarah_martinez": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    }
+  }
+}

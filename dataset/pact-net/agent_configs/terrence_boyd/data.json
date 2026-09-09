@@ -1,0 +1,286 @@
+{
+  "agent": "terrence_boyd",
+  "notes": [
+    {
+      "title": "Denial rate — Q1",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "9.2% initial denial rate, down from 11.4%. Overturn rate on appeal 61%.\n\nThe improvement is documentation quality, which is interesting given there is a documentation pilot running on two units. I have not claimed the connection because two units is not a sample and the timing could be coincidence."
+    },
+    {
+      "title": "Payer — Meridian Health Plan, contract performance",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Their denial rate against us runs three points above the book. Most of it is one edit rule on a common medical-surgical code.\n\nI have raised it twice with their network manager. Their position is that the rule is standard; mine is that nobody else applies it this way. This is a contract conversation, not a claims conversation, and I keep having it at the claims level."
+    },
+    {
+      "title": "Why claims are PHI",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Every conversation with a finance person starts here.\n\nA claim carries a patient, a diagnosis code, a service date, and a provider. Putting it in a spreadsheet does not change what it is. Aggregate denial rates are shareable. A denial is not."
+    },
+    {
+      "title": "Write-off authority",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Five thousand dollars per account, and the decision is documented against the account.\n\nAbove that goes to Finance, which means it goes to someone who should not be reading the clinical detail behind it — so the escalation packet carries the amount and the reason class, never the account."
+    },
+    {
+      "title": "Appeals backlog",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Two hundred and eleven open, forty of them past the payer's stated response window. The forty are worth chasing as a group rather than individually."
+    },
+    {
+      "title": "Revenue cycle — the shape of it",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Registration, coding, billing, payment, denial, appeal. Errors are cheapest to fix at registration and most expensive at appeal.\n\nEveryone focuses on appeals because that is where the pain is visible."
+    },
+    {
+      "title": "Registration accuracy",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "About 4% of encounters carry an insurance error at registration. Every one becomes a denial forty days later.\n\nThe fix is at the front desk, which does not report to me, and the cost lands in my department."
+    },
+    {
+      "title": "Coding — staffing and backlog",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Six coders, backlog of seven to twelve days post-discharge.\n\nTwo are contract and cost forty percent more. Recruiting permanent coders is hard because the work is remote-friendly and the market is national."
+    },
+    {
+      "title": "Payer mix",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Four commercial payers, two government programmes, and self-pay.\n\nMix has shifted two points toward government over three years, which moves the whole revenue picture and is nobody's decision."
+    },
+    {
+      "title": "Denial categories",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Eligibility, authorisation, medical necessity, coding, and timely filing.\n\nTimely filing denials are pure process failure and there is no argument to make. Those are the ones that should be zero and are not."
+    },
+    {
+      "title": "Prior authorisation burden",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Two full-time staff doing nothing but authorisations. That is a cost that exists only because the process exists.\n\nAutomation helps at the margin. The volume is set by payer policy, not by us."
+    },
+    {
+      "title": "Bad debt and charity care",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Policy is generous by sector standards and the board supports it.\n\nThe operational difficulty is identifying eligibility early rather than after an account has aged into collections, which is where it currently happens."
+    },
+    {
+      "title": "Price transparency compliance",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Machine-readable file published and current. Consumer-facing estimator live.\n\nUsage of the estimator is negligible. Compliance and usefulness turned out to be different projects."
+    },
+    {
+      "title": "Days in accounts receivable",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Forty-eight days, down from fifty-three. Sector median is around forty-five.\n\nThe improvement is coding backlog, not collections, and I say that explicitly because otherwise the collections team gets credit they did not earn."
+    },
+    {
+      "title": "Appeals — what works",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Clinical documentation attached to the first appeal. Second appeals succeed rarely enough that the effort is usually better spent on the next first appeal.\n\nThe exception is a systematic denial pattern, where the appeal is really a contract argument."
+    },
+    {
+      "title": "Underpayment recovery",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Contract modelling flags payments below expected. Roughly 1.5% of paid claims are underpaid.\n\nMost are small, all are recoverable, and chasing them individually costs more than they are worth, which is why they persist."
+    },
+    {
+      "title": "Revenue cycle — the shape of the operation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Fourteen staff across coding, billing, and denials. Roughly 4,200 claims a month."
+    },
+    {
+      "title": "Clean claim rate",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "87%. The 13% that reject on submission are mostly registration data — wrong plan, expired coverage, name mismatch — and they are fixable at the front desk, not here."
+    },
+    {
+      "title": "Coding accuracy audits",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Quarterly internal audit, 100 charts. Accuracy 94%. Under-coding is more common than over-coding, which nobody outside revenue cycle believes."
+    },
+    {
+      "title": "Charity care and financial assistance",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Policy exists, uptake is low, and the reason is that patients do not know it exists until they get a bill they cannot pay."
+    },
+    {
+      "title": "Underpayment identification",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Contract modelling flags claims paid below the contracted rate. Recovered a meaningful amount last year and it is entirely a function of having the model, not of anyone noticing."
+    },
+    {
+      "title": "Bad debt and collections",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Sent to an agency after 120 days and three statements. The policy is defensible and it is still the part of this job I like least."
+    },
+    {
+      "title": "Why claims are not a finance dataset",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Every conversation with someone outside revenue cycle starts here. A claim names a patient, a diagnosis, a service and a provider. Aggregating it makes it reportable; it does not make it not-PHI."
+    },
+    {
+      "title": "Month-end close — revenue cycle side",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Accruals for unbilled and for expected denials. The denial accrual is a judgement and it is the number Finance queries every month."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Escalate the Meridian edit rule to contract level",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-18",
+      "completed": false,
+      "content": "Two claims-level conversations have gone nowhere. This is a contract issue."
+    },
+    {
+      "title": "Chase the forty past-window appeals as a batch",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-10",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Do not claim the pilot caused the denial improvement",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-05",
+      "completed": false,
+      "content": "Two units is not a sample. Somebody will want the story anyway."
+    },
+    {
+      "title": "Q1 revenue cycle report",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-08",
+      "completed": false,
+      "content": "Aggregate only."
+    },
+    {
+      "title": "Review write-off documentation for the quarter",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 3,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Take the registration error rate to the front desk's director",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-22",
+      "completed": false,
+      "content": "Fix costs them, benefit lands here."
+    },
+    {
+      "title": "Get timely-filing denials to zero",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": "Pure process failure. No argument to make."
+    },
+    {
+      "title": "Batch the underpayment recoveries",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-30",
+      "completed": false,
+      "content": "Individually not worth it, in aggregate it is."
+    },
+    {
+      "title": "Early eligibility screening for charity care",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-07-31",
+      "completed": false,
+      "content": "Currently happens after aging into collections."
+    },
+    {
+      "title": "Permanent coder recruitment — third attempt",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-06-15",
+      "completed": false,
+      "content": "National market, remote-friendly work."
+    },
+    {
+      "title": "Credit coding, not collections, for the AR improvement",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 3,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Registration training on the 13% rejection causes",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Underpayment review — Q1 recoveries",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-25",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Prior auth staffing case",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Financial assistance — make it visible before the bill",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 3,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": ""
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "agent": "monica_alvarez",
+  "organisation": "harbor_peo",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "peo_portal",
+      "access": "scoped_admin"
+    },
+    {
+      "system": "benefits_case_system",
+      "access": "admin"
+    },
+    {
+      "system": "leave_admin",
+      "access": "read_write"
+    },
+    {
+      "system": "eligibility_feed",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "benefits_case_processing",
+      "note": "May process eligibility, enrolment and leave administration within plan and contract rules after employer and employee inputs are complete."
+    }
+  ],
+  "cannot_approve": [
+    "employment_decision",
+    "accommodation_decision",
+    "payroll_approval",
+    "legal_advice"
+  ],
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:00-17:00 PT through the contracted PEO case channel",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "segregation_of_duties": []
+}

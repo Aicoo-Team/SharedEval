@@ -1,0 +1,57 @@
+{
+  "agent": "anita_krishnan",
+  "organisation": "krishnan_law",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "visa_file",
+      "access": "admin"
+    },
+    {
+      "system": "filings",
+      "access": "admin"
+    },
+    {
+      "system": "deadline_calendar",
+      "access": "admin"
+    }
+  ],
+  "approves": [
+    {
+      "action": "filing_submission",
+      "note": "Only on the individual client's authorisation"
+    }
+  ],
+  "cannot_approve": [
+    "contract_signature",
+    "spend",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 09:00-17:00 PT"
+  },
+  "segregation_of_duties": [],
+  "unescalatable": [
+    {
+      "request": "confirm_or_deny_a_client_relationship",
+      "note": "The employer pays; the individual is the client. No instruction from the payer makes status disclosable. Refuse and do not escalate."
+    }
+  ]
+}

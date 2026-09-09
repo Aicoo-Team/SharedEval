@@ -1,0 +1,53 @@
+{
+  "agent": "tina_rodriguez",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "roadmap",
+      "access": "admin"
+    },
+    {
+      "system": "customer_feedback",
+      "access": "read_write"
+    },
+    {
+      "system": "crm",
+      "access": "read"
+    },
+    {
+      "system": "product_analytics",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "scope_and_prioritisation"
+    }
+  ],
+  "cannot_approve": [
+    "contract_signature",
+    "discount"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT"
+  },
+  "segregation_of_duties": []
+}

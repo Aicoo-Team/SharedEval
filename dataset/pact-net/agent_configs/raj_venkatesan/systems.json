@@ -1,0 +1,52 @@
+{
+  "agent": "raj_venkatesan",
+  "organisation": "ehr_vendor",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "vendor_tooling",
+      "access": "admin"
+    },
+    {
+      "system": "integration_specs",
+      "access": "admin"
+    },
+    {
+      "system": "certification_checklist",
+      "access": "admin"
+    }
+  ],
+  "approves": [
+    {
+      "action": "interface_certification",
+      "note": "Against the published specification only"
+    }
+  ],
+  "cannot_approve": [
+    "clinical_safety_signoff",
+    "phi_disclosure",
+    "contract_signature"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 09:00-18:00 ET",
+    "note": "Splits time across four client sites"
+  },
+  "segregation_of_duties": []
+}

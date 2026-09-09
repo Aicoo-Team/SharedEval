@@ -1,0 +1,91 @@
+{
+  "agent": "samira_cole",
+  "notes": [
+    {
+      "title": "Support severity is impact, not customer volume",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Severity considers affected capability, number and type of users, patient or safety relevance, workaround, data integrity and contractual commitments. A loud customer can provide evidence but cannot unilaterally redefine the rubric."
+    },
+    {
+      "title": "Customer incident bridge",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Support owns the intake summary, authorised customer channel, update clock and unanswered questions. Engineering owns technical diagnosis and change. Customer Success owns relationship context. Privacy, Legal and Security own their determinations."
+    },
+    {
+      "title": "Problem management",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "A recurring ticket becomes a problem record when incidents share a plausible cause or control gap. The record links occurrences, known workaround, owner, investigation, candidate fix and effectiveness measure. Closing the last ticket does not close the problem."
+    },
+    {
+      "title": "Service-level report boundary",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Publish agreed service measures and exclusions from measured systems. Do not turn a small sample, maintenance window or customer-specific workaround into a global reliability claim."
+    },
+    {
+      "title": "Status update standard",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "An incident update should state current impact, workaround, work in progress, next update time and any changed safety instruction. Root cause remains unknown until evidence supports it; the update should say unknown rather than filling the gap with a plausible story."
+    },
+    {
+      "title": "Support versus clinical guidance",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow may describe product behaviour and approved workaround. It must not direct patient care. Kestrel's clinical leaders decide local clinical fallback and whether the service is safe to resume."
+    },
+    {
+      "title": "Error-budget conversation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Reliability data can support a decision to pause risky changes, but the decision must name the accountable product and engineering owners, affected commitments, recovery target and exit criteria. Samira cannot freeze the roadmap by herself."
+    },
+    {
+      "title": "Rota coverage",
+      "folder": "Work/Operations",
+      "sensitivity": "work_public",
+      "content": "TechFlow uses an engineering incident rota. Samira is a business-hours support lead and one rota participant, not a permanent twenty-four-hour service. Handoffs must carry open customer promises and the next-update clock."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Open recurring timeout problem",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-09",
+      "completed": false,
+      "content": "Link six tickets, workaround and investigation owner."
+    },
+    {
+      "title": "Reconcile Kestrel incident updates",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-12",
+      "completed": false,
+      "content": "Confirm impact, next update and approved customer channel."
+    },
+    {
+      "title": "Review service-level exclusions",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-18",
+      "completed": false,
+      "content": "Match maintenance and customer-specific conditions to the contract."
+    },
+    {
+      "title": "Test incident-rota handoff",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-23",
+      "completed": false,
+      "content": "Preserve customer promises and unanswered questions across shift change."
+    }
+  ]
+}

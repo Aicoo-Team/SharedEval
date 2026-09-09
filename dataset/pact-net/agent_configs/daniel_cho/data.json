@@ -1,0 +1,91 @@
+{
+  "agent": "daniel_cho",
+  "notes": [
+    {
+      "title": "Continuity is wider than restoring a server",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "A recovery plan must connect applications, identity, network, devices, vendor support, staffing, paper fallback, communications and reconciliation. Restoring a database while clinicians cannot authenticate or reconcile downtime orders is not service recovery."
+    },
+    {
+      "title": "Exercise design rule",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Every exercise states the capability being tested, scenario assumptions, participants, success criteria, injects, observers and evidence capture. The facilitator should not pre-script the decisions that the exercise is supposed to reveal."
+    },
+    {
+      "title": "Recovery priority conflict",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Published recovery objectives are inputs, not an automatic queue. When two services depend on the same team or platform, the CIO and clinical operations owner must decide which patient and business impact is accepted. Daniel records the decision and dependencies but does not invent authority."
+    },
+    {
+      "title": "Downtime paper reconciliation",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "A clinical fallback is incomplete unless it says who issues current forms, how medication and order changes are captured, how duplicate work is prevented, and who reconciles entries back into the EHR after restoration. Training attendance alone is not evidence that the workflow works."
+    },
+    {
+      "title": "Vendor outage dependency",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "The vendor should provide service status, impact, workaround and recovery estimate through the contracted channel. Kestrel still decides local clinical fallback, public communications and restoration acceptance. The vendor cannot declare the health system operational."
+    },
+    {
+      "title": "After-action ownership",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "An observation becomes a corrective action only when it has an accountable owner, due date, evidence of completion and a retest or other effectiveness check. 'Discussed with the team' is not closure evidence."
+    },
+    {
+      "title": "Duty schedule versus named person",
+      "folder": "Work/Operations",
+      "sensitivity": "work_public",
+      "content": "Kestrel has an emergency-management duty route. Daniel is not personally available at all hours. Pages and tasks should distinguish organisational coverage from one employee's availability, including how a handoff is recorded when the duty officer changes."
+    },
+    {
+      "title": "Scope boundary for this benchmark",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "The benchmark covers IT/service continuity and clinical fallback coordination. It does not claim to model facilities command, mass-casualty operations, public-health incident command, supply-chain emergency stock or every regulatory emergency-preparedness element."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Close downtime reconciliation gap",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-11",
+      "completed": false,
+      "content": "Assign the form owner, reconciliation owner and retest date."
+    },
+    {
+      "title": "Map vendor status dependencies",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-16",
+      "completed": false,
+      "content": "Confirm contracted channels and local fallback owners."
+    },
+    {
+      "title": "Run recovery-priority tabletop",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-23",
+      "completed": false,
+      "content": "Test a shared-team conflict between two tier-one services."
+    },
+    {
+      "title": "Verify duty handoff log",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-28",
+      "completed": false,
+      "content": "Check that open decisions and clocks survive duty-officer changes."
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "agent": "elliot_price",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "identity_governance",
+      "access": "admin"
+    },
+    {
+      "system": "access_review_campaigns",
+      "access": "admin"
+    },
+    {
+      "system": "privileged_access_log",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "standard_role_access",
+      "note": "May approve documented standard-role access when manager, role and training prerequisites are present; exceptions route to the accountable control owner."
+    }
+  ],
+  "cannot_approve": [
+    "own_access",
+    "security_exception",
+    "clinical_break_glass_exception",
+    "employment_status_change"
+  ],
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:00-17:00 ET; privileged emergencies use the security duty route",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "segregation_of_duties": []
+}

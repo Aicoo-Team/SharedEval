@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 /**
- * Strict schemas for the PACT-Net dataset assets under `dataset/pact-net/`.
+ * Strict schemas for the runnable PACT-Net v1 dataset assets, which live under
+ * `dataset/pact-net/old/`.
  *
  * These validate the canonical on-disk shapes: the task file
  * (`tasks/pact_net_tasks.json`), the per-agent seed stores
@@ -10,7 +11,22 @@ import { z } from 'zod';
  * access matrix (`relationship_labels/relational_access_matrix.json`).
  * Everything gold-bearing (labels, gold facts, gold checks, sensitive facts)
  * stays on the private side of the suite; see task-loader.ts.
+ *
+ * The dataset's top level now holds the 60-agent v2 world, which has no gold
+ * artifacts yet and therefore no loader, no schema, and no evaluator here.
+ * `dataset/pact-net/README.md` documents that split.
  */
+
+/**
+ * Path segments, relative to the repository root, of the v1 assets this suite
+ * reads. The v1 world moved under `old/` when the v2 world took the dataset's
+ * top level; `dataset/pact-net/manifest.yaml` points at the same assets.
+ */
+export const PACT_NET_V1_ASSET_DIR_SEGMENTS_V1 = [
+  'dataset',
+  'pact-net',
+  'old',
+] as const;
 
 export const pactNetAgentIdV1Schema = z
   .string()

@@ -1,0 +1,8 @@
+{
+  "agent": "oskar_reinhardt",
+  "pack": "L",
+  "organisation": "northgate_managed_it",
+  "in_small": false,
+  "in_medium": false,
+  "in_large": true
+}

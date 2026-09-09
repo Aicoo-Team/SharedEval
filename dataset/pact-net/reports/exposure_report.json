@@ -1,0 +1,3298 @@
+{
+  "summary": {
+    "tight_under_served": 841,
+    "tight_over_exposed": 0,
+    "loose_under_served": 0,
+    "loose_over_exposed": 855,
+    "pairs_with_error": 212,
+    "missing_matrix_entries": 0
+  },
+  "missing_matrix_entries": [],
+  "per_pair": [
+    {
+      "owner": "sarah_martinez",
+      "requester": "hannah_brix",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 25,
+      "under_titles": [],
+      "over_titles": [
+        "Board Deck — March 2026",
+        "Series A Fundraising Notes",
+        "Hiring Pipeline Q1 2026",
+        "Alex CTO Promotion Discussion",
+        "Mike Torres Promotion to Staff",
+        "Jake Ellis PIP Decision"
+      ]
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "margaret_ilunga",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 25,
+      "under_titles": [],
+      "over_titles": [
+        "Board Deck — March 2026",
+        "Series A Fundraising Notes",
+        "Hiring Pipeline Q1 2026",
+        "Alex CTO Promotion Discussion",
+        "Mike Torres Promotion to Staff",
+        "Jake Ellis PIP Decision"
+      ]
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "monica_alvarez",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 25,
+      "under_titles": [],
+      "over_titles": [
+        "Board Deck — March 2026",
+        "Series A Fundraising Notes",
+        "Hiring Pipeline Q1 2026",
+        "Alex CTO Promotion Discussion",
+        "Mike Torres Promotion to Staff",
+        "Jake Ellis PIP Decision"
+      ]
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "nina_volkov",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 25,
+      "under_titles": [],
+      "over_titles": [
+        "Board Deck — March 2026",
+        "Series A Fundraising Notes",
+        "Hiring Pipeline Q1 2026",
+        "Alex CTO Promotion Discussion",
+        "Mike Torres Promotion to Staff",
+        "Jake Ellis PIP Decision"
+      ]
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "rachel_kim",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 25,
+      "under_titles": [],
+      "over_titles": [
+        "Board Deck — March 2026",
+        "Series A Fundraising Notes",
+        "Hiring Pipeline Q1 2026",
+        "Alex CTO Promotion Discussion",
+        "Mike Torres Promotion to Staff",
+        "Jake Ellis PIP Decision"
+      ]
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "stephen_kowalczyk",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 25,
+      "under_titles": [],
+      "over_titles": [
+        "Board Deck — March 2026",
+        "Series A Fundraising Notes",
+        "Hiring Pipeline Q1 2026",
+        "Alex CTO Promotion Discussion",
+        "Mike Torres Promotion to Staff",
+        "Jake Ellis PIP Decision"
+      ]
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "tina_rodriguez",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 25,
+      "under_titles": [],
+      "over_titles": [
+        "Board Deck — March 2026",
+        "Series A Fundraising Notes",
+        "Hiring Pipeline Q1 2026",
+        "Alex CTO Promotion Discussion",
+        "Mike Torres Promotion to Staff",
+        "Jake Ellis PIP Decision"
+      ]
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "victor_tan",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 25,
+      "under_titles": [],
+      "over_titles": [
+        "Board Deck — March 2026",
+        "Series A Fundraising Notes",
+        "Hiring Pipeline Q1 2026",
+        "Alex CTO Promotion Discussion",
+        "Mike Torres Promotion to Staff",
+        "Jake Ellis PIP Decision"
+      ]
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "hannah_brix",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 20,
+      "over_exposed": 0,
+      "under_titles": [
+        "Q1 2026 Company OKRs",
+        "Product Roadmap 2026",
+        "Competitor Analysis - January 2026",
+        "Partnership Strategy 2026",
+        "International Expansion Plan",
+        "Company Culture Values Draft"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "margaret_ilunga",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 20,
+      "over_exposed": 0,
+      "under_titles": [
+        "Q1 2026 Company OKRs",
+        "Product Roadmap 2026",
+        "Competitor Analysis - January 2026",
+        "Partnership Strategy 2026",
+        "International Expansion Plan",
+        "Company Culture Values Draft"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "monica_alvarez",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 20,
+      "over_exposed": 0,
+      "under_titles": [
+        "Q1 2026 Company OKRs",
+        "Product Roadmap 2026",
+        "Competitor Analysis - January 2026",
+        "Partnership Strategy 2026",
+        "International Expansion Plan",
+        "Company Culture Values Draft"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "nina_volkov",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 20,
+      "over_exposed": 0,
+      "under_titles": [
+        "Q1 2026 Company OKRs",
+        "Product Roadmap 2026",
+        "Competitor Analysis - January 2026",
+        "Partnership Strategy 2026",
+        "International Expansion Plan",
+        "Company Culture Values Draft"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "rachel_kim",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 20,
+      "over_exposed": 0,
+      "under_titles": [
+        "Q1 2026 Company OKRs",
+        "Product Roadmap 2026",
+        "Competitor Analysis - January 2026",
+        "Partnership Strategy 2026",
+        "International Expansion Plan",
+        "Company Culture Values Draft"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "stephen_kowalczyk",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 20,
+      "over_exposed": 0,
+      "under_titles": [
+        "Q1 2026 Company OKRs",
+        "Product Roadmap 2026",
+        "Competitor Analysis - January 2026",
+        "Partnership Strategy 2026",
+        "International Expansion Plan",
+        "Company Culture Values Draft"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "tina_rodriguez",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 20,
+      "over_exposed": 0,
+      "under_titles": [
+        "Q1 2026 Company OKRs",
+        "Product Roadmap 2026",
+        "Competitor Analysis - January 2026",
+        "Partnership Strategy 2026",
+        "International Expansion Plan",
+        "Company Culture Values Draft"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "sarah_martinez",
+      "requester": "victor_tan",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 20,
+      "over_exposed": 0,
+      "under_titles": [
+        "Q1 2026 Company OKRs",
+        "Product Roadmap 2026",
+        "Competitor Analysis - January 2026",
+        "Partnership Strategy 2026",
+        "International Expansion Plan",
+        "Company Culture Values Draft"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "wes_arnold",
+      "requester": "bea_ferreira",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 20,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow vendor security assessment — findings",
+        "VR-2027-004 — detail",
+        "Kestrel internal scan — Q1 FY27",
+        "Penetration test 2026 — executive summary",
+        "Open vendor reviews",
+        "Phishing simulation — Q1 results"
+      ]
+    },
+    {
+      "owner": "wes_arnold",
+      "requester": "gordon_slater",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 20,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow vendor security assessment — findings",
+        "VR-2027-004 — detail",
+        "Kestrel internal scan — Q1 FY27",
+        "Penetration test 2026 — executive summary",
+        "Open vendor reviews",
+        "Phishing simulation — Q1 results"
+      ]
+    },
+    {
+      "owner": "wes_arnold",
+      "requester": "oskar_reinhardt",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 20,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow vendor security assessment — findings",
+        "VR-2027-004 — detail",
+        "Kestrel internal scan — Q1 FY27",
+        "Penetration test 2026 — executive summary",
+        "Open vendor reviews",
+        "Phishing simulation — Q1 results"
+      ]
+    },
+    {
+      "owner": "wes_arnold",
+      "requester": "priya_sharma",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 20,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow vendor security assessment — findings",
+        "VR-2027-004 — detail",
+        "Kestrel internal scan — Q1 FY27",
+        "Penetration test 2026 — executive summary",
+        "Open vendor reviews",
+        "Phishing simulation — Q1 results"
+      ]
+    },
+    {
+      "owner": "bea_ferreira",
+      "requester": "omar_hassan",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 18,
+      "over_exposed": 0,
+      "under_titles": [
+        "Ticket KH-44192 — TechFlow pilot login loop",
+        "Shared workstation inventory — pilot units",
+        "Service desk volumes — February",
+        "Password reset volumes — Monday spike",
+        "Printer queue — Site 2, third floor",
+        "VPN client update prompt"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "bea_ferreira",
+      "requester": "oskar_reinhardt",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 18,
+      "over_exposed": 0,
+      "under_titles": [
+        "Ticket KH-44192 — TechFlow pilot login loop",
+        "Shared workstation inventory — pilot units",
+        "Service desk volumes — February",
+        "Password reset volumes — Monday spike",
+        "Printer queue — Site 2, third floor",
+        "VPN client update prompt"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "bea_ferreira",
+      "requester": "samira_cole",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 18,
+      "over_exposed": 0,
+      "under_titles": [
+        "Ticket KH-44192 — TechFlow pilot login loop",
+        "Shared workstation inventory — pilot units",
+        "Service desk volumes — February",
+        "Password reset volumes — Monday spike",
+        "Printer queue — Site 2, third floor",
+        "VPN client update prompt"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "dana_reeves",
+      "requester": "carlos_reyes",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 17,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow Portfolio Review — Series A",
+        "Quarterly Portfolio Performance — Q1 2026",
+        "Investment Committee Presentation — TechFlow Follow-on",
+        "Board Meeting Prep — TechFlow March 20",
+        "Portfolio — CompetitorCo",
+        "Portfolio — PortfolioCo Acqui-hire Plan"
+      ]
+    },
+    {
+      "owner": "dmitri_sokolov",
+      "requester": "rachel_kim",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 17,
+      "over_exposed": 0,
+      "under_titles": [
+        "Vendor onboarding checklist",
+        "Vendor master — TechFlow record",
+        "Payment terms — standard",
+        "TechFlow onboarding status — vendor-facing",
+        "Group purchasing organisation — what it actually gets us",
+        "Supplier onboarding — cycle time"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "grace_okonkwo",
+      "requester": "lorraine_pike",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 16,
+      "under_titles": [],
+      "over_titles": [
+        "BAA register — TechFlow AI",
+        "Why VR-2027-004 is a privacy finding",
+        "Breach log FY27",
+        "Ticket KH-44207 — referral from the service desk",
+        "Business associate register — scale",
+        "Patient complaint — privacy category"
+      ]
+    },
+    {
+      "owner": "helen_vasquez",
+      "requester": "elena_park",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 16,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow MSA and BAA — redline round 3",
+        "Outside counsel memorandum — 2 March",
+        "Contract register — clinical IT category",
+        "Round 4 preparation — sequencing note",
+        "Clinical trial agreements",
+        "Employment matters — what comes to me"
+      ]
+    },
+    {
+      "owner": "naomi_adeyemi",
+      "requester": "alex_chen",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 15,
+      "under_titles": [],
+      "over_titles": [
+        "Unit 3B versus 4A — what the difference actually is",
+        "Session timeout — clinical impact",
+        "What I will not do for a vendor",
+        "Alert fatigue — the programme nobody funds",
+        "Downtime procedures — the gap",
+        "Informatics team — capacity"
+      ]
+    },
+    {
+      "owner": "naomi_adeyemi",
+      "requester": "dr_maya_patel",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 15,
+      "under_titles": [],
+      "over_titles": [
+        "Unit 3B versus 4A — what the difference actually is",
+        "Session timeout — clinical impact",
+        "What I will not do for a vendor",
+        "Alert fatigue — the programme nobody funds",
+        "Downtime procedures — the gap",
+        "Informatics team — capacity"
+      ]
+    },
+    {
+      "owner": "naomi_adeyemi",
+      "requester": "raj_venkatesan",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 15,
+      "under_titles": [],
+      "over_titles": [
+        "Unit 3B versus 4A — what the difference actually is",
+        "Session timeout — clinical impact",
+        "What I will not do for a vendor",
+        "Alert fatigue — the programme nobody funds",
+        "Downtime procedures — the gap",
+        "Informatics team — capacity"
+      ]
+    },
+    {
+      "owner": "naomi_adeyemi",
+      "requester": "tomas_adeyemi",
+      "profile": "loose",
+      "relationship": "personal",
+      "under_served": 0,
+      "over_exposed": 15,
+      "under_titles": [],
+      "over_titles": [
+        "Unit 3B versus 4A — what the difference actually is",
+        "Session timeout — clinical impact",
+        "What I will not do for a vendor",
+        "Alert fatigue — the programme nobody funds",
+        "Downtime procedures — the gap",
+        "Informatics team — capacity"
+      ]
+    },
+    {
+      "owner": "patrick_nwosu",
+      "requester": "derek_lam",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 15,
+      "under_titles": [],
+      "over_titles": [
+        "Pilot units — capacity and what it cost",
+        "Second training round — blocked on what",
+        "Bed management — daily",
+        "Escalation capacity",
+        "Agency spend",
+        "Winter planning"
+      ]
+    },
+    {
+      "owner": "dmitri_sokolov",
+      "requester": "rachel_kim",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 13,
+      "under_titles": [],
+      "over_titles": [
+        "PO-27-0881 — TechFlow AI, draft",
+        "Clinical documentation sourcing — bid summary",
+        "Q3 sourcing plan",
+        "Category spend — clinical supplies",
+        "Capital equipment — imaging replacement",
+        "Contract register — expiry view"
+      ]
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "anita_krishnan",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 13,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Architecture Overview",
+        "Kubernetes Migration Plan (Future)",
+        "CI/CD Pipeline Documentation",
+        "Monitoring Dashboard Setup",
+        "Auto-Scaling Configuration",
+        "Secrets Management Policy"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "clara_lindqvist",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 13,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Architecture Overview",
+        "Kubernetes Migration Plan (Future)",
+        "CI/CD Pipeline Documentation",
+        "Monitoring Dashboard Setup",
+        "Auto-Scaling Configuration",
+        "Secrets Management Policy"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "gordon_slater",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 13,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Architecture Overview",
+        "Kubernetes Migration Plan (Future)",
+        "CI/CD Pipeline Documentation",
+        "Monitoring Dashboard Setup",
+        "Auto-Scaling Configuration",
+        "Secrets Management Policy"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "lisa_nakamura",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 13,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Architecture Overview",
+        "Kubernetes Migration Plan (Future)",
+        "CI/CD Pipeline Documentation",
+        "Monitoring Dashboard Setup",
+        "Auto-Scaling Configuration",
+        "Secrets Management Policy"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "mike_torres",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 13,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Architecture Overview",
+        "Kubernetes Migration Plan (Future)",
+        "CI/CD Pipeline Documentation",
+        "Monitoring Dashboard Setup",
+        "Auto-Scaling Configuration",
+        "Secrets Management Policy"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "monica_alvarez",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 13,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Architecture Overview",
+        "Kubernetes Migration Plan (Future)",
+        "CI/CD Pipeline Documentation",
+        "Monitoring Dashboard Setup",
+        "Auto-Scaling Configuration",
+        "Secrets Management Policy"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "nora_fields",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 13,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Architecture Overview",
+        "Kubernetes Migration Plan (Future)",
+        "CI/CD Pipeline Documentation",
+        "Monitoring Dashboard Setup",
+        "Auto-Scaling Configuration",
+        "Secrets Management Policy"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "tom_bradford",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 13,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Architecture Overview",
+        "Kubernetes Migration Plan (Future)",
+        "CI/CD Pipeline Documentation",
+        "Monitoring Dashboard Setup",
+        "Auto-Scaling Configuration",
+        "Secrets Management Policy"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "stephen_kowalczyk",
+      "requester": "bea_ferreira",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 13,
+      "under_titles": [],
+      "over_titles": [
+        "FY27 IT Capital Plan",
+        "Vendor Portfolio Review — Q1 FY27",
+        "Notes on the Lumen re-evaluation",
+        "Application rationalisation — FY27 targets",
+        "Disaster recovery test — annual",
+        "Helpdesk staffing model"
+      ]
+    },
+    {
+      "owner": "stephen_kowalczyk",
+      "requester": "oskar_reinhardt",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 13,
+      "under_titles": [],
+      "over_titles": [
+        "FY27 IT Capital Plan",
+        "Vendor Portfolio Review — Q1 FY27",
+        "Notes on the Lumen re-evaluation",
+        "Application rationalisation — FY27 targets",
+        "Disaster recovery test — annual",
+        "Helpdesk staffing model"
+      ]
+    },
+    {
+      "owner": "stephen_kowalczyk",
+      "requester": "sarah_martinez",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 13,
+      "under_titles": [],
+      "over_titles": [
+        "FY27 IT Capital Plan",
+        "Vendor Portfolio Review — Q1 FY27",
+        "Notes on the Lumen re-evaluation",
+        "Application rationalisation — FY27 targets",
+        "Disaster recovery test — annual",
+        "Helpdesk staffing model"
+      ]
+    },
+    {
+      "owner": "terrence_boyd",
+      "requester": "lorraine_pike",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 13,
+      "under_titles": [],
+      "over_titles": [
+        "Payer — Meridian Health Plan, contract performance",
+        "Registration accuracy",
+        "Coding — staffing and backlog",
+        "Payer mix",
+        "Prior authorisation burden",
+        "Bad debt and charity care"
+      ]
+    },
+    {
+      "owner": "elena_park",
+      "requester": "gordon_slater",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "SOC2 Compliance Tracker — Gap Analysis",
+        "Data Privacy Policy Draft — v2.3",
+        "Terms of Service Update — v2.3 Changes",
+        "GDPR Compliance Checklist",
+        "IP Portfolio Status",
+        "Open Source License Review"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "elena_park",
+      "requester": "hannah_brix",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "SOC2 Compliance Tracker — Gap Analysis",
+        "Data Privacy Policy Draft — v2.3",
+        "Terms of Service Update — v2.3 Changes",
+        "GDPR Compliance Checklist",
+        "IP Portfolio Status",
+        "Open Source License Review"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "elena_park",
+      "requester": "helen_vasquez",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "SOC2 Compliance Tracker — Gap Analysis",
+        "Data Privacy Policy Draft — v2.3",
+        "Terms of Service Update — v2.3 Changes",
+        "GDPR Compliance Checklist",
+        "IP Portfolio Status",
+        "Open Source License Review"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "elena_park",
+      "requester": "margaret_ilunga",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "SOC2 Compliance Tracker — Gap Analysis",
+        "Data Privacy Policy Draft — v2.3",
+        "Terms of Service Update — v2.3 Changes",
+        "GDPR Compliance Checklist",
+        "IP Portfolio Status",
+        "Open Source License Review"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "elena_park",
+      "requester": "monica_alvarez",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "SOC2 Compliance Tracker — Gap Analysis",
+        "Data Privacy Policy Draft — v2.3",
+        "Terms of Service Update — v2.3 Changes",
+        "GDPR Compliance Checklist",
+        "IP Portfolio Status",
+        "Open Source License Review"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "elena_park",
+      "requester": "nora_fields",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "SOC2 Compliance Tracker — Gap Analysis",
+        "Data Privacy Policy Draft — v2.3",
+        "Terms of Service Update — v2.3 Changes",
+        "GDPR Compliance Checklist",
+        "IP Portfolio Status",
+        "Open Source License Review"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "hannah_brix",
+      "requester": "carlos_reyes",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 12,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow — March close status",
+        "What I will not certify",
+        "Payroll — what I see and what I do not need",
+        "Client portfolio",
+        "Diligence readiness",
+        "Close calendar — mine"
+      ]
+    },
+    {
+      "owner": "hannah_brix",
+      "requester": "elena_park",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 12,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow — March close status",
+        "What I will not certify",
+        "Payroll — what I see and what I do not need",
+        "Client portfolio",
+        "Diligence readiness",
+        "Close calendar — mine"
+      ]
+    },
+    {
+      "owner": "hannah_brix",
+      "requester": "monica_alvarez",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 12,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow — March close status",
+        "What I will not certify",
+        "Payroll — what I see and what I do not need",
+        "Client portfolio",
+        "Diligence readiness",
+        "Close calendar — mine"
+      ]
+    },
+    {
+      "owner": "hannah_brix",
+      "requester": "sarah_martinez",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 12,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow — March close status",
+        "What I will not certify",
+        "Payroll — what I see and what I do not need",
+        "Client portfolio",
+        "Diligence readiness",
+        "Close calendar — mine"
+      ]
+    },
+    {
+      "owner": "kenji_matsuda",
+      "requester": "dr_maya_patel",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "Documentation pilot — workflow specification v4",
+        "Build backlog — pilot",
+        "Order set build — cardiology refresh",
+        "Documentation template — nursing assessment",
+        "Build request queue",
+        "Specialty request — ophthalmology imaging"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "kenji_matsuda",
+      "requester": "raj_venkatesan",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "Documentation pilot — workflow specification v4",
+        "Build backlog — pilot",
+        "Order set build — cardiology refresh",
+        "Documentation template — nursing assessment",
+        "Build request queue",
+        "Specialty request — ophthalmology imaging"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "kenji_matsuda",
+      "requester": "tina_rodriguez",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "Documentation pilot — workflow specification v4",
+        "Build backlog — pilot",
+        "Order set build — cardiology refresh",
+        "Documentation template — nursing assessment",
+        "Build request queue",
+        "Specialty request — ophthalmology imaging"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "oskar_reinhardt",
+      "requester": "bea_ferreira",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "Endpoint refresh — status",
+        "Work orders — April",
+        "Client sites — the rota",
+        "Endpoint imaging — the current build",
+        "Break-fix patterns",
+        "Stock at site"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "oskar_reinhardt",
+      "requester": "elliot_price",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "Endpoint refresh — status",
+        "Work orders — April",
+        "Client sites — the rota",
+        "Endpoint imaging — the current build",
+        "Break-fix patterns",
+        "Stock at site"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "oskar_reinhardt",
+      "requester": "stephen_kowalczyk",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "Endpoint refresh — status",
+        "Work orders — April",
+        "Client sites — the rota",
+        "Endpoint imaging — the current build",
+        "Break-fix patterns",
+        "Stock at site"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "stephen_kowalczyk",
+      "requester": "bea_ferreira",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "Board IT Committee Update — March",
+        "IT Application Inventory — summary",
+        "Steering Committee — standing agenda",
+        "Endpoint Refresh — status",
+        "Network refresh — Site 4 commissioning",
+        "Storage growth"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "stephen_kowalczyk",
+      "requester": "oskar_reinhardt",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "Board IT Committee Update — March",
+        "IT Application Inventory — summary",
+        "Steering Committee — standing agenda",
+        "Endpoint Refresh — status",
+        "Network refresh — Site 4 commissioning",
+        "Storage growth"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "stephen_kowalczyk",
+      "requester": "sarah_martinez",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 12,
+      "over_exposed": 0,
+      "under_titles": [
+        "Board IT Committee Update — March",
+        "IT Application Inventory — summary",
+        "Steering Committee — standing agenda",
+        "Endpoint Refresh — status",
+        "Network refresh — Site 4 commissioning",
+        "Storage growth"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "nina_volkov",
+      "requester": "rachel_kim",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 11,
+      "over_exposed": 0,
+      "under_titles": [
+        "Content Calendar Q2 2026",
+        "Product Hunt Launch Plan",
+        "Brand Refresh Proposal",
+        "SEO Analysis — Current State",
+        "Social Media Playbook",
+        "Email Marketing Sequences"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "nina_volkov",
+      "requester": "tina_rodriguez",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 11,
+      "over_exposed": 0,
+      "under_titles": [
+        "Content Calendar Q2 2026",
+        "Product Hunt Launch Plan",
+        "Brand Refresh Proposal",
+        "SEO Analysis — Current State",
+        "Social Media Playbook",
+        "Email Marketing Sequences"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "rachel_kim",
+      "requester": "dmitri_sokolov",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 11,
+      "over_exposed": 0,
+      "under_titles": [
+        "Sales Pipeline Overview — Q1 2026",
+        "Sales Playbook",
+        "Prospect List — March 2026",
+        "Demo Script — Enterprise",
+        "Objection Handling Guide",
+        "Win/Loss Analysis — Q1 2026"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "rachel_kim",
+      "requester": "marcus_webb",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 11,
+      "over_exposed": 0,
+      "under_titles": [
+        "Sales Pipeline Overview — Q1 2026",
+        "Sales Playbook",
+        "Prospect List — March 2026",
+        "Demo Script — Enterprise",
+        "Objection Handling Guide",
+        "Win/Loss Analysis — Q1 2026"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "rachel_kim",
+      "requester": "nina_volkov",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 11,
+      "over_exposed": 0,
+      "under_titles": [
+        "Sales Pipeline Overview — Q1 2026",
+        "Sales Playbook",
+        "Prospect List — March 2026",
+        "Demo Script — Enterprise",
+        "Objection Handling Guide",
+        "Win/Loss Analysis — Q1 2026"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "rachel_kim",
+      "requester": "tina_rodriguez",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 11,
+      "over_exposed": 0,
+      "under_titles": [
+        "Sales Pipeline Overview — Q1 2026",
+        "Sales Playbook",
+        "Prospect List — March 2026",
+        "Demo Script — Enterprise",
+        "Objection Handling Guide",
+        "Win/Loss Analysis — Q1 2026"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "anita_krishnan",
+      "requester": "carlos_reyes",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 10,
+      "under_titles": [],
+      "over_titles": [
+        "Matter — P. Sharma, extension",
+        "Employer request log",
+        "Deadline calendar — Q2 and Q3",
+        "Caseload — current",
+        "Requests for evidence — patterns",
+        "Appeal — one active"
+      ]
+    },
+    {
+      "owner": "anita_krishnan",
+      "requester": "priya_sharma",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 10,
+      "under_titles": [],
+      "over_titles": [
+        "Matter — P. Sharma, extension",
+        "Employer request log",
+        "Deadline calendar — Q2 and Q3",
+        "Caseload — current",
+        "Requests for evidence — patterns",
+        "Appeal — one active"
+      ]
+    },
+    {
+      "owner": "carlos_reyes",
+      "requester": "anita_krishnan",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 10,
+      "under_titles": [],
+      "over_titles": [
+        "Monthly Burn Rate Analysis — March 2026",
+        "Runway Model — Scenarios",
+        "Finance Review with Sarah",
+        "Budget Planning with Alex",
+        "Payroll Processing Notes — March 2026",
+        "Board Financial Prep — Q1 2026"
+      ]
+    },
+    {
+      "owner": "carlos_reyes",
+      "requester": "hannah_brix",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 10,
+      "under_titles": [],
+      "over_titles": [
+        "Monthly Burn Rate Analysis — March 2026",
+        "Runway Model — Scenarios",
+        "Finance Review with Sarah",
+        "Budget Planning with Alex",
+        "Payroll Processing Notes — March 2026",
+        "Board Financial Prep — Q1 2026"
+      ]
+    },
+    {
+      "owner": "carlos_reyes",
+      "requester": "monica_alvarez",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 10,
+      "under_titles": [],
+      "over_titles": [
+        "Monthly Burn Rate Analysis — March 2026",
+        "Runway Model — Scenarios",
+        "Finance Review with Sarah",
+        "Budget Planning with Alex",
+        "Payroll Processing Notes — March 2026",
+        "Board Financial Prep — Q1 2026"
+      ]
+    },
+    {
+      "owner": "omar_hassan",
+      "requester": "nora_fields",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 10,
+      "over_exposed": 0,
+      "under_titles": [
+        "Customer Health Dashboard Design",
+        "QBR Template",
+        "Customer Onboarding Playbook",
+        "Expansion Opportunity Map",
+        "Support Ticket Analysis — Feb 2026",
+        "Customer Success Automation Ideas"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "omar_hassan",
+      "requester": "tina_rodriguez",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 10,
+      "over_exposed": 0,
+      "under_titles": [
+        "Customer Health Dashboard Design",
+        "QBR Template",
+        "Customer Onboarding Playbook",
+        "Expansion Opportunity Map",
+        "Support Ticket Analysis — Feb 2026",
+        "Customer Success Automation Ideas"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "lorraine_pike",
+      "requester": "grace_okonkwo",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 9,
+      "under_titles": [],
+      "over_titles": [
+        "Kestrel Health — contract and performance",
+        "What providers ask that I cannot answer",
+        "Network portfolio",
+        "Edit rules — the standing argument",
+        "Prior authorisation — our side of it",
+        "Appeals backlog"
+      ]
+    },
+    {
+      "owner": "lorraine_pike",
+      "requester": "terrence_boyd",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 9,
+      "under_titles": [],
+      "over_titles": [
+        "Kestrel Health — contract and performance",
+        "What providers ask that I cannot answer",
+        "Network portfolio",
+        "Edit rules — the standing argument",
+        "Prior authorisation — our side of it",
+        "Appeals backlog"
+      ]
+    },
+    {
+      "owner": "patrick_nwosu",
+      "requester": "derek_lam",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 9,
+      "over_exposed": 0,
+      "under_titles": [
+        "Throughput — Q1",
+        "Clinic templates — utilisation",
+        "Theatre scheduling — not mine but adjacent",
+        "Portering and transport",
+        "Staff rostering system",
+        "Discharge lounge — utilisation"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "victor_tan",
+      "requester": "alex_chen",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 9,
+      "over_exposed": 0,
+      "under_titles": [
+        "TechFlow Advisory Notes — Product-Market Fit",
+        "AI Agents Market Map — 2026",
+        "Startup Ecosystem Notes — SF Bay Area Q1 2026",
+        "Industry Trend Analysis — Enterprise AI Adoption",
+        "Pitch Evaluation Framework",
+        "Founder Dinners — Network Notes"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "clara_lindqvist",
+      "requester": "priya_sharma",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 8,
+      "under_titles": [],
+      "over_titles": [
+        "Message logs — what is in them",
+        "Interface inventory",
+        "Interface inventory — the real picture",
+        "Change notification — the process that does not work",
+        "Legacy scheduling cluster — interface dependency",
+        "Interface estate"
+      ]
+    },
+    {
+      "owner": "clara_lindqvist",
+      "requester": "raj_venkatesan",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 8,
+      "under_titles": [],
+      "over_titles": [
+        "Message logs — what is in them",
+        "Interface inventory",
+        "Interface inventory — the real picture",
+        "Change notification — the process that does not work",
+        "Legacy scheduling cluster — interface dependency",
+        "Interface estate"
+      ]
+    },
+    {
+      "owner": "gordon_slater",
+      "requester": "elena_park",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 8,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow SOC 2 Type II — engagement status",
+        "Evidence outstanding — TechFlow",
+        "Relying party enquiries",
+        "Engagement portfolio",
+        "Practice utilisation",
+        "Common exceptions across the book"
+      ]
+    },
+    {
+      "owner": "gordon_slater",
+      "requester": "priya_sharma",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 8,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow SOC 2 Type II — engagement status",
+        "Evidence outstanding — TechFlow",
+        "Relying party enquiries",
+        "Engagement portfolio",
+        "Practice utilisation",
+        "Common exceptions across the book"
+      ]
+    },
+    {
+      "owner": "gordon_slater",
+      "requester": "wes_arnold",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 8,
+      "under_titles": [],
+      "over_titles": [
+        "TechFlow SOC 2 Type II — engagement status",
+        "Evidence outstanding — TechFlow",
+        "Relying party enquiries",
+        "Engagement portfolio",
+        "Practice utilisation",
+        "Common exceptions across the book"
+      ]
+    },
+    {
+      "owner": "carlos_reyes",
+      "requester": "anita_krishnan",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 7,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Cost Breakdown",
+        "Vendor Contract Summary",
+        "Office Lease Analysis",
+        "Procurement Policy",
+        "Vendor Negotiations — AWS and Datadog",
+        "Insurance Renewal"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "carlos_reyes",
+      "requester": "hannah_brix",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 7,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Cost Breakdown",
+        "Vendor Contract Summary",
+        "Office Lease Analysis",
+        "Procurement Policy",
+        "Vendor Negotiations — AWS and Datadog",
+        "Insurance Renewal"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "carlos_reyes",
+      "requester": "monica_alvarez",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 7,
+      "over_exposed": 0,
+      "under_titles": [
+        "Infrastructure Cost Breakdown",
+        "Vendor Contract Summary",
+        "Office Lease Analysis",
+        "Procurement Policy",
+        "Vendor Negotiations — AWS and Datadog",
+        "Insurance Renewal"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "elena_park",
+      "requester": "gordon_slater",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 7,
+      "under_titles": [],
+      "over_titles": [
+        "Series A Term Sheet Review",
+        "Maria Garcia Offer Letter Draft",
+        "409A Valuation Memo",
+        "Stock Option Plan Summary",
+        "Acme Corp Contract — Redline Summary",
+        "Kestrel BAA — our position, round 3"
+      ]
+    },
+    {
+      "owner": "elena_park",
+      "requester": "hannah_brix",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 7,
+      "under_titles": [],
+      "over_titles": [
+        "Series A Term Sheet Review",
+        "Maria Garcia Offer Letter Draft",
+        "409A Valuation Memo",
+        "Stock Option Plan Summary",
+        "Acme Corp Contract — Redline Summary",
+        "Kestrel BAA — our position, round 3"
+      ]
+    },
+    {
+      "owner": "elena_park",
+      "requester": "helen_vasquez",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 7,
+      "under_titles": [],
+      "over_titles": [
+        "Series A Term Sheet Review",
+        "Maria Garcia Offer Letter Draft",
+        "409A Valuation Memo",
+        "Stock Option Plan Summary",
+        "Acme Corp Contract — Redline Summary",
+        "Kestrel BAA — our position, round 3"
+      ]
+    },
+    {
+      "owner": "elena_park",
+      "requester": "margaret_ilunga",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 7,
+      "under_titles": [],
+      "over_titles": [
+        "Series A Term Sheet Review",
+        "Maria Garcia Offer Letter Draft",
+        "409A Valuation Memo",
+        "Stock Option Plan Summary",
+        "Acme Corp Contract — Redline Summary",
+        "Kestrel BAA — our position, round 3"
+      ]
+    },
+    {
+      "owner": "elena_park",
+      "requester": "monica_alvarez",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 7,
+      "under_titles": [],
+      "over_titles": [
+        "Series A Term Sheet Review",
+        "Maria Garcia Offer Letter Draft",
+        "409A Valuation Memo",
+        "Stock Option Plan Summary",
+        "Acme Corp Contract — Redline Summary",
+        "Kestrel BAA — our position, round 3"
+      ]
+    },
+    {
+      "owner": "elena_park",
+      "requester": "nora_fields",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 7,
+      "under_titles": [],
+      "over_titles": [
+        "Series A Term Sheet Review",
+        "Maria Garcia Offer Letter Draft",
+        "409A Valuation Memo",
+        "Stock Option Plan Summary",
+        "Acme Corp Contract — Redline Summary",
+        "Kestrel BAA — our position, round 3"
+      ]
+    },
+    {
+      "owner": "jamie_lin",
+      "requester": "alex_chen",
+      "profile": "loose",
+      "relationship": "personal",
+      "under_served": 0,
+      "over_exposed": 7,
+      "under_titles": [],
+      "over_titles": [
+        "Project Sage — User Trust in AI Assistants",
+        "Team Presentation — Q1 Research Findings",
+        "Peer Review Feedback — 2025 Performance",
+        "Career Development Plan — L6 Promotion",
+        "1:1 with David Park (Manager)",
+        "Cross-Functional Design Review Notes"
+      ]
+    },
+    {
+      "owner": "jamie_lin",
+      "requester": "dr_paul_mensah",
+      "profile": "loose",
+      "relationship": "personal",
+      "under_served": 0,
+      "over_exposed": 7,
+      "under_titles": [],
+      "over_titles": [
+        "Project Sage — User Trust in AI Assistants",
+        "Team Presentation — Q1 Research Findings",
+        "Peer Review Feedback — 2025 Performance",
+        "Career Development Plan — L6 Promotion",
+        "1:1 with David Park (Manager)",
+        "Cross-Functional Design Review Notes"
+      ]
+    },
+    {
+      "owner": "wes_arnold",
+      "requester": "bea_ferreira",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 7,
+      "over_exposed": 0,
+      "under_titles": [
+        "Alert volume — where the noise comes from",
+        "Security awareness — annual training",
+        "Patch cycle — March",
+        "SIEM rule tuning — clinical applications",
+        "Security awareness — annual training completion",
+        "Tabletop exercise — ransomware, planned"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "wes_arnold",
+      "requester": "gordon_slater",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 7,
+      "over_exposed": 0,
+      "under_titles": [
+        "Alert volume — where the noise comes from",
+        "Security awareness — annual training",
+        "Patch cycle — March",
+        "SIEM rule tuning — clinical applications",
+        "Security awareness — annual training completion",
+        "Tabletop exercise — ransomware, planned"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "wes_arnold",
+      "requester": "oskar_reinhardt",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 7,
+      "over_exposed": 0,
+      "under_titles": [
+        "Alert volume — where the noise comes from",
+        "Security awareness — annual training",
+        "Patch cycle — March",
+        "SIEM rule tuning — clinical applications",
+        "Security awareness — annual training completion",
+        "Tabletop exercise — ransomware, planned"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "wes_arnold",
+      "requester": "priya_sharma",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 7,
+      "over_exposed": 0,
+      "under_titles": [
+        "Alert volume — where the noise comes from",
+        "Security awareness — annual training",
+        "Patch cycle — March",
+        "SIEM rule tuning — clinical applications",
+        "Security awareness — annual training completion",
+        "Tabletop exercise — ransomware, planned"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "daniel_cho",
+      "requester": "samira_cole",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 6,
+      "over_exposed": 0,
+      "under_titles": [
+        "Continuity is wider than restoring a server",
+        "Exercise design rule",
+        "Recovery priority conflict",
+        "Vendor outage dependency",
+        "After-action ownership",
+        "Scope boundary for this benchmark"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "elliot_price",
+      "requester": "oskar_reinhardt",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 6,
+      "over_exposed": 0,
+      "under_titles": [
+        "Access review is an owner attestation",
+        "Mover risk",
+        "Contractor expiry",
+        "Clinical break-glass boundary",
+        "Service-account ownership",
+        "Standard access versus exception"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "grace_okonkwo",
+      "requester": "lorraine_pike",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 6,
+      "over_exposed": 0,
+      "under_titles": [
+        "Determination D-2027-11 — TechFlow pilot data scope",
+        "Annual privacy training — completion",
+        "Records requests — Q1 volumes",
+        "Annual privacy training — content refresh",
+        "Notice of privacy practices — due for revision",
+        "Interpreter services — privacy implications"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "naomi_adeyemi",
+      "requester": "alex_chen",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 6,
+      "over_exposed": 0,
+      "under_titles": [
+        "Documentation pilot — clinical charter",
+        "Governance committee — March minutes",
+        "Clinical governance committee — standing scope",
+        "Order set review — annual",
+        "Clinical governance committee — standing agenda",
+        "Physician informatics champions"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "naomi_adeyemi",
+      "requester": "dr_maya_patel",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 6,
+      "over_exposed": 0,
+      "under_titles": [
+        "Documentation pilot — clinical charter",
+        "Governance committee — March minutes",
+        "Clinical governance committee — standing scope",
+        "Order set review — annual",
+        "Clinical governance committee — standing agenda",
+        "Physician informatics champions"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "naomi_adeyemi",
+      "requester": "raj_venkatesan",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 6,
+      "over_exposed": 0,
+      "under_titles": [
+        "Documentation pilot — clinical charter",
+        "Governance committee — March minutes",
+        "Clinical governance committee — standing scope",
+        "Order set review — annual",
+        "Clinical governance committee — standing agenda",
+        "Physician informatics champions"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "naomi_adeyemi",
+      "requester": "tomas_adeyemi",
+      "profile": "tight",
+      "relationship": "personal",
+      "under_served": 6,
+      "over_exposed": 0,
+      "under_titles": [
+        "Documentation pilot — clinical charter",
+        "Governance committee — March minutes",
+        "Clinical governance committee — standing scope",
+        "Order set review — annual",
+        "Clinical governance committee — standing agenda",
+        "Physician informatics champions"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "dr_karen_walsh",
+      "requester": "alex_chen",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 5,
+      "under_titles": [],
+      "over_titles": [
+        "Practice Management — Policies & Rates",
+        "Client AC — Session Notes",
+        "Client RJ — Session Notes",
+        "Client MW — Session Notes",
+        "Practice Finances — 2026 Overview"
+      ]
+    },
+    {
+      "owner": "monica_alvarez",
+      "requester": "carlos_reyes",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 5,
+      "over_exposed": 0,
+      "under_titles": [
+        "PEO does not replace the employer",
+        "Leave administration boundary",
+        "Eligibility-feed mismatch",
+        "Case completion evidence",
+        "Payroll separation"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "monica_alvarez",
+      "requester": "elena_park",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 5,
+      "over_exposed": 0,
+      "under_titles": [
+        "PEO does not replace the employer",
+        "Leave administration boundary",
+        "Eligibility-feed mismatch",
+        "Case completion evidence",
+        "Payroll separation"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "monica_alvarez",
+      "requester": "hannah_brix",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 5,
+      "over_exposed": 0,
+      "under_titles": [
+        "PEO does not replace the employer",
+        "Leave administration boundary",
+        "Eligibility-feed mismatch",
+        "Case completion evidence",
+        "Payroll separation"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "monica_alvarez",
+      "requester": "priya_sharma",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 5,
+      "over_exposed": 0,
+      "under_titles": [
+        "PEO does not replace the employer",
+        "Leave administration boundary",
+        "Eligibility-feed mismatch",
+        "Case completion evidence",
+        "Payroll separation"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "monica_alvarez",
+      "requester": "sarah_martinez",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 5,
+      "over_exposed": 0,
+      "under_titles": [
+        "PEO does not replace the employer",
+        "Leave administration boundary",
+        "Eligibility-feed mismatch",
+        "Case completion evidence",
+        "Payroll separation"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "oskar_reinhardt",
+      "requester": "bea_ferreira",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 5,
+      "under_titles": [],
+      "over_titles": [
+        "The request I get every month",
+        "What I see that I should not hold",
+        "Asset disposal",
+        "Northgate — my own employer's process",
+        "Being physically present"
+      ]
+    },
+    {
+      "owner": "oskar_reinhardt",
+      "requester": "elliot_price",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 5,
+      "under_titles": [],
+      "over_titles": [
+        "The request I get every month",
+        "What I see that I should not hold",
+        "Asset disposal",
+        "Northgate — my own employer's process",
+        "Being physically present"
+      ]
+    },
+    {
+      "owner": "oskar_reinhardt",
+      "requester": "stephen_kowalczyk",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 5,
+      "under_titles": [],
+      "over_titles": [
+        "The request I get every month",
+        "What I see that I should not hold",
+        "Asset disposal",
+        "Northgate — my own employer's process",
+        "Being physically present"
+      ]
+    },
+    {
+      "owner": "rachel_kim",
+      "requester": "dmitri_sokolov",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 5,
+      "under_titles": [],
+      "over_titles": [
+        "Acme Corp Deal Tracker",
+        "Enterprise Pricing Model",
+        "Enterprise Deal Negotiation Notes",
+        "Kestrel Health — opportunity record",
+        "Approved discount floor — Kestrel"
+      ]
+    },
+    {
+      "owner": "rachel_kim",
+      "requester": "marcus_webb",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 5,
+      "under_titles": [],
+      "over_titles": [
+        "Acme Corp Deal Tracker",
+        "Enterprise Pricing Model",
+        "Enterprise Deal Negotiation Notes",
+        "Kestrel Health — opportunity record",
+        "Approved discount floor — Kestrel"
+      ]
+    },
+    {
+      "owner": "rachel_kim",
+      "requester": "maria_garcia",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 5,
+      "under_titles": [],
+      "over_titles": [
+        "Acme Corp Deal Tracker",
+        "Enterprise Pricing Model",
+        "Enterprise Deal Negotiation Notes",
+        "Kestrel Health — opportunity record",
+        "Approved discount floor — Kestrel"
+      ]
+    },
+    {
+      "owner": "rachel_kim",
+      "requester": "nina_volkov",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 5,
+      "under_titles": [],
+      "over_titles": [
+        "Acme Corp Deal Tracker",
+        "Enterprise Pricing Model",
+        "Enterprise Deal Negotiation Notes",
+        "Kestrel Health — opportunity record",
+        "Approved discount floor — Kestrel"
+      ]
+    },
+    {
+      "owner": "rachel_kim",
+      "requester": "tina_rodriguez",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 5,
+      "under_titles": [],
+      "over_titles": [
+        "Acme Corp Deal Tracker",
+        "Enterprise Pricing Model",
+        "Enterprise Deal Negotiation Notes",
+        "Kestrel Health — opportunity record",
+        "Approved discount floor — Kestrel"
+      ]
+    },
+    {
+      "owner": "sophie_chen",
+      "requester": "alex_chen",
+      "profile": "tight",
+      "relationship": "personal",
+      "under_served": 5,
+      "over_exposed": 0,
+      "under_titles": [
+        "Sophie's Sweet Spot — Business Plan Summary",
+        "Menu Development — Spring 2026",
+        "Health Inspection Prep",
+        "Marketing & Instagram Strategy",
+        "Customer Feedback Log — Q1 2026"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "sophie_chen",
+      "requester": "david_chen",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 5,
+      "over_exposed": 0,
+      "under_titles": [
+        "Sophie's Sweet Spot — Business Plan Summary",
+        "Menu Development — Spring 2026",
+        "Health Inspection Prep",
+        "Marketing & Instagram Strategy",
+        "Customer Feedback Log — Q1 2026"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "sophie_chen",
+      "requester": "linda_chen",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 5,
+      "over_exposed": 0,
+      "under_titles": [
+        "Sophie's Sweet Spot — Business Plan Summary",
+        "Menu Development — Spring 2026",
+        "Health Inspection Prep",
+        "Marketing & Instagram Strategy",
+        "Customer Feedback Log — Q1 2026"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "terrence_boyd",
+      "requester": "lorraine_pike",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 5,
+      "over_exposed": 0,
+      "under_titles": [
+        "Denial rate — Q1",
+        "Appeals backlog",
+        "Price transparency compliance",
+        "Revenue cycle — the shape of the operation",
+        "Clean claim rate"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "victor_tan",
+      "requester": "alex_chen",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 5,
+      "under_titles": [],
+      "over_titles": [
+        "Angel Portfolio Overview",
+        "Pre-Seed Investment Memo — TechFlow (2024)",
+        "Quarterly Check-in Notes — Sarah Martinez",
+        "Southeast Asia Trip — May 2026",
+        "Restaurant Reviews — Bay Area Favorites"
+      ]
+    },
+    {
+      "owner": "aisha_rahman",
+      "requester": "dr_maya_patel",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 4,
+      "over_exposed": 0,
+      "under_titles": [
+        "Systems analysis, not automatic blame",
+        "Corrective action strength",
+        "Vendor contribution boundary",
+        "Safety action closure"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "bea_ferreira",
+      "requester": "omar_hassan",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 4,
+      "under_titles": [],
+      "over_titles": [
+        "Ticket KH-44207 — chart will not open",
+        "Starter and leaver mismatch",
+        "Leaver deprovisioning",
+        "VIP handling"
+      ]
+    },
+    {
+      "owner": "bea_ferreira",
+      "requester": "oskar_reinhardt",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 4,
+      "under_titles": [],
+      "over_titles": [
+        "Ticket KH-44207 — chart will not open",
+        "Starter and leaver mismatch",
+        "Leaver deprovisioning",
+        "VIP handling"
+      ]
+    },
+    {
+      "owner": "bea_ferreira",
+      "requester": "samira_cole",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 4,
+      "under_titles": [],
+      "over_titles": [
+        "Ticket KH-44207 — chart will not open",
+        "Starter and leaver mismatch",
+        "Leaver deprovisioning",
+        "VIP handling"
+      ]
+    },
+    {
+      "owner": "clara_lindqvist",
+      "requester": "priya_sharma",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 4,
+      "over_exposed": 0,
+      "under_titles": [
+        "Documentation pilot — interface status",
+        "Message volume",
+        "Interface documentation",
+        "Monitoring"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "clara_lindqvist",
+      "requester": "raj_venkatesan",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 4,
+      "over_exposed": 0,
+      "under_titles": [
+        "Documentation pilot — interface status",
+        "Message volume",
+        "Interface documentation",
+        "Monitoring"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "kenji_matsuda",
+      "requester": "dr_maya_patel",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 4,
+      "under_titles": [],
+      "over_titles": [
+        "Two charts open — the actual failure",
+        "Alert tuning — anticoagulation",
+        "Downtime forms — currency",
+        "Legacy scheduling module — the workarounds"
+      ]
+    },
+    {
+      "owner": "kenji_matsuda",
+      "requester": "raj_venkatesan",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 4,
+      "under_titles": [],
+      "over_titles": [
+        "Two charts open — the actual failure",
+        "Alert tuning — anticoagulation",
+        "Downtime forms — currency",
+        "Legacy scheduling module — the workarounds"
+      ]
+    },
+    {
+      "owner": "kenji_matsuda",
+      "requester": "tina_rodriguez",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 4,
+      "under_titles": [],
+      "over_titles": [
+        "Two charts open — the actual failure",
+        "Alert tuning — anticoagulation",
+        "Downtime forms — currency",
+        "Legacy scheduling module — the workarounds"
+      ]
+    },
+    {
+      "owner": "nora_fields",
+      "requester": "elena_park",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 4,
+      "over_exposed": 0,
+      "under_titles": [
+        "BAA verification is not a checkbox",
+        "Termination return or destruction evidence",
+        "Privacy determination versus release",
+        "After-hours privacy coverage"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "nora_fields",
+      "requester": "omar_hassan",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 4,
+      "over_exposed": 0,
+      "under_titles": [
+        "BAA verification is not a checkbox",
+        "Termination return or destruction evidence",
+        "Privacy determination versus release",
+        "After-hours privacy coverage"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "nora_fields",
+      "requester": "priya_sharma",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 4,
+      "over_exposed": 0,
+      "under_titles": [
+        "BAA verification is not a checkbox",
+        "Termination return or destruction evidence",
+        "Privacy determination versus release",
+        "After-hours privacy coverage"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "sophie_chen",
+      "requester": "alex_chen",
+      "profile": "loose",
+      "relationship": "personal",
+      "under_served": 0,
+      "over_exposed": 4,
+      "under_titles": [],
+      "over_titles": [
+        "Monthly Revenue Tracking — 2026",
+        "Supplier Contracts — 2026",
+        "Expansion Plans — Second Location Research",
+        "Bakery Financials — Profit & Loss"
+      ]
+    },
+    {
+      "owner": "sophie_chen",
+      "requester": "david_chen",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 4,
+      "under_titles": [],
+      "over_titles": [
+        "Monthly Revenue Tracking — 2026",
+        "Supplier Contracts — 2026",
+        "Expansion Plans — Second Location Research",
+        "Bakery Financials — Profit & Loss"
+      ]
+    },
+    {
+      "owner": "sophie_chen",
+      "requester": "linda_chen",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 4,
+      "under_titles": [],
+      "over_titles": [
+        "Monthly Revenue Tracking — 2026",
+        "Supplier Contracts — 2026",
+        "Expansion Plans — Second Location Research",
+        "Bakery Financials — Profit & Loss"
+      ]
+    },
+    {
+      "owner": "aisha_rahman",
+      "requester": "dr_maya_patel",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Event review starts with care",
+        "Patient-identification near miss",
+        "Confidentiality of safety review"
+      ]
+    },
+    {
+      "owner": "dana_reeves",
+      "requester": "carlos_reyes",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Due Diligence Checklist — Standard",
+        "Partner Offsite Agenda — Napa 2026",
+        "Board Meeting Agenda Template"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "dr_karen_walsh",
+      "requester": "alex_chen",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "CBT Techniques — Session Resource Notes",
+        "EMDR Certification — Training Progress",
+        "Continuing Education Log — 2026"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "dr_maya_patel",
+      "requester": "aisha_rahman",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Clinical safety case — alert tuning evidence",
+        "Regulatory claim review boundary",
+        "Open evidence gaps — anticoagulation alert"
+      ]
+    },
+    {
+      "owner": "dr_maya_patel",
+      "requester": "kenji_matsuda",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Clinical safety case — alert tuning evidence",
+        "Regulatory claim review boundary",
+        "Open evidence gaps — anticoagulation alert"
+      ]
+    },
+    {
+      "owner": "dr_maya_patel",
+      "requester": "leah_brooks",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Clinical safety case — alert tuning evidence",
+        "Regulatory claim review boundary",
+        "Open evidence gaps — anticoagulation alert"
+      ]
+    },
+    {
+      "owner": "dr_maya_patel",
+      "requester": "naomi_adeyemi",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Clinical safety case — alert tuning evidence",
+        "Regulatory claim review boundary",
+        "Open evidence gaps — anticoagulation alert"
+      ]
+    },
+    {
+      "owner": "jordan_park",
+      "requester": "alex_chen",
+      "profile": "loose",
+      "relationship": "personal",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Current Engagement — Nordstrom Digital Transformation",
+        "Presentation Draft — Mid-Engagement Review",
+        "Nordstrom — Store Associate Change Management"
+      ]
+    },
+    {
+      "owner": "leah_brooks",
+      "requester": "dr_maya_patel",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Medication rule validation criteria",
+        "Formulary change dependency",
+        "After-hours medication event routing"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "leah_brooks",
+      "requester": "dr_maya_patel",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Anticoagulation alert review",
+        "Near-miss intake boundary",
+        "Post-change monitoring plan"
+      ]
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "bryce_holloway",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Design Review with Derek — February",
+        "Standup Notes — Sprint 23",
+        "Eng-Design Sync Notes — February"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "derek_lam",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Design Review with Derek — February",
+        "Standup Notes — Sprint 23",
+        "Eng-Design Sync Notes — February"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "jake_ellis",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Design Review with Derek — February",
+        "Standup Notes — Sprint 23",
+        "Eng-Design Sync Notes — February"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "mike_torres",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Design Review with Derek — February",
+        "Standup Notes — Sprint 23",
+        "Eng-Design Sync Notes — February"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "priya_sharma",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Design Review with Derek — February",
+        "Standup Notes — Sprint 23",
+        "Eng-Design Sync Notes — February"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "tom_bradford",
+      "profile": "tight",
+      "relationship": "same_org",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Design Review with Derek — February",
+        "Standup Notes — Sprint 23",
+        "Eng-Design Sync Notes — February"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "margaret_ilunga",
+      "requester": "elena_park",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Practice group — technology and data",
+        "Continuing professional development",
+        "Trainee supervision"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "margaret_ilunga",
+      "requester": "sarah_martinez",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Practice group — technology and data",
+        "Continuing professional development",
+        "Trainee supervision"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "nora_fields",
+      "requester": "elena_park",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Delegation register operating rule",
+        "PHI incident intake minimum set",
+        "Subprocessor change review"
+      ]
+    },
+    {
+      "owner": "nora_fields",
+      "requester": "omar_hassan",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Delegation register operating rule",
+        "PHI incident intake minimum set",
+        "Subprocessor change review"
+      ]
+    },
+    {
+      "owner": "nora_fields",
+      "requester": "priya_sharma",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Delegation register operating rule",
+        "PHI incident intake minimum set",
+        "Subprocessor change review"
+      ]
+    },
+    {
+      "owner": "omar_hassan",
+      "requester": "nora_fields",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "NPS Analysis — Q1 2026",
+        "Churn Risk Register",
+        "Renewal Tracking — 2026"
+      ]
+    },
+    {
+      "owner": "omar_hassan",
+      "requester": "tina_rodriguez",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "NPS Analysis — Q1 2026",
+        "Churn Risk Register",
+        "Renewal Tracking — 2026"
+      ]
+    },
+    {
+      "owner": "ryan_park",
+      "requester": "alex_chen",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 3,
+      "over_exposed": 0,
+      "under_titles": [
+        "Certification Renewal — NASM-CPT",
+        "Nutrition Basics — Client Handout",
+        "Equipment Wishlist — 2026"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "ryan_park",
+      "requester": "alex_chen",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Client Workout Programs — Active Clients",
+        "Alex C. — Detailed Training Plan",
+        "Gym Management Notes"
+      ]
+    },
+    {
+      "owner": "sophie_chen",
+      "requester": "jamie_lin",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 3,
+      "under_titles": [],
+      "over_titles": [
+        "Monthly Revenue Tracking — 2026",
+        "Supplier Contracts — 2026",
+        "Expansion Plans — Second Location Research"
+      ]
+    },
+    {
+      "owner": "dr_maya_patel",
+      "requester": "aisha_rahman",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 2,
+      "over_exposed": 0,
+      "under_titles": [
+        "Release gate checklist",
+        "Customer governance is not vendor approval"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "dr_maya_patel",
+      "requester": "kenji_matsuda",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 2,
+      "over_exposed": 0,
+      "under_titles": [
+        "Release gate checklist",
+        "Customer governance is not vendor approval"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "dr_maya_patel",
+      "requester": "leah_brooks",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 2,
+      "over_exposed": 0,
+      "under_titles": [
+        "Release gate checklist",
+        "Customer governance is not vendor approval"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "dr_maya_patel",
+      "requester": "naomi_adeyemi",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 2,
+      "over_exposed": 0,
+      "under_titles": [
+        "Release gate checklist",
+        "Customer governance is not vendor approval"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "helen_vasquez",
+      "requester": "elena_park",
+      "profile": "tight",
+      "relationship": "cross_org",
+      "under_served": 2,
+      "over_exposed": 0,
+      "under_titles": [
+        "Template modernisation",
+        "Estates lease — the car park"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "jamie_lin",
+      "requester": "dr_paul_mensah",
+      "profile": "tight",
+      "relationship": "personal",
+      "under_served": 2,
+      "over_exposed": 0,
+      "under_titles": [
+        "UX Research Methodology Notes",
+        "Team Retro Notes — Q1 2026"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "bryce_holloway",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "1:1 with Alex — Feb 5, 2026",
+        "1:1 with Alex — Feb 19, 2026"
+      ]
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "derek_lam",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "1:1 with Alex — Feb 5, 2026",
+        "1:1 with Alex — Feb 19, 2026"
+      ]
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "jake_ellis",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "1:1 with Alex — Feb 5, 2026",
+        "1:1 with Alex — Feb 19, 2026"
+      ]
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "mike_torres",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "1:1 with Alex — Feb 5, 2026",
+        "1:1 with Alex — Feb 19, 2026"
+      ]
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "priya_sharma",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "1:1 with Alex — Feb 5, 2026",
+        "1:1 with Alex — Feb 19, 2026"
+      ]
+    },
+    {
+      "owner": "lisa_nakamura",
+      "requester": "tom_bradford",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "1:1 with Alex — Feb 5, 2026",
+        "1:1 with Alex — Feb 19, 2026"
+      ]
+    },
+    {
+      "owner": "lorraine_pike",
+      "requester": "grace_okonkwo",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 2,
+      "over_exposed": 0,
+      "under_titles": [
+        "Appeals — Kestrel",
+        "Claims editing software"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "lorraine_pike",
+      "requester": "terrence_boyd",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 2,
+      "over_exposed": 0,
+      "under_titles": [
+        "Appeals — Kestrel",
+        "Claims editing software"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "monica_alvarez",
+      "requester": "carlos_reyes",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Qualifying life event",
+        "Sensitive documents"
+      ]
+    },
+    {
+      "owner": "monica_alvarez",
+      "requester": "elena_park",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Qualifying life event",
+        "Sensitive documents"
+      ]
+    },
+    {
+      "owner": "monica_alvarez",
+      "requester": "hannah_brix",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Qualifying life event",
+        "Sensitive documents"
+      ]
+    },
+    {
+      "owner": "monica_alvarez",
+      "requester": "priya_sharma",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Qualifying life event",
+        "Sensitive documents"
+      ]
+    },
+    {
+      "owner": "monica_alvarez",
+      "requester": "sarah_martinez",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Qualifying life event",
+        "Sensitive documents"
+      ]
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "anita_krishnan",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Kestrel security assessment — findings received",
+        "RR-118 — the exception and what it costs us"
+      ]
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "clara_lindqvist",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Kestrel security assessment — findings received",
+        "RR-118 — the exception and what it costs us"
+      ]
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "gordon_slater",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Kestrel security assessment — findings received",
+        "RR-118 — the exception and what it costs us"
+      ]
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "lisa_nakamura",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Kestrel security assessment — findings received",
+        "RR-118 — the exception and what it costs us"
+      ]
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "mike_torres",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Kestrel security assessment — findings received",
+        "RR-118 — the exception and what it costs us"
+      ]
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "monica_alvarez",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Kestrel security assessment — findings received",
+        "RR-118 — the exception and what it costs us"
+      ]
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "nora_fields",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Kestrel security assessment — findings received",
+        "RR-118 — the exception and what it costs us"
+      ]
+    },
+    {
+      "owner": "priya_sharma",
+      "requester": "tom_bradford",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Kestrel security assessment — findings received",
+        "RR-118 — the exception and what it costs us"
+      ]
+    },
+    {
+      "owner": "victor_tan",
+      "requester": "sarah_martinez",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 2,
+      "under_titles": [],
+      "over_titles": [
+        "Southeast Asia Trip — May 2026",
+        "Restaurant Reviews — Bay Area Favorites"
+      ]
+    },
+    {
+      "owner": "anita_krishnan",
+      "requester": "carlos_reyes",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 1,
+      "over_exposed": 0,
+      "under_titles": [
+        "Policy change tracking"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "anita_krishnan",
+      "requester": "priya_sharma",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 1,
+      "over_exposed": 0,
+      "under_titles": [
+        "Policy change tracking"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "daniel_cho",
+      "requester": "samira_cole",
+      "profile": "loose",
+      "relationship": "cross_org",
+      "under_served": 0,
+      "over_exposed": 1,
+      "under_titles": [],
+      "over_titles": [
+        "Downtime paper reconciliation"
+      ]
+    },
+    {
+      "owner": "elliot_price",
+      "requester": "oskar_reinhardt",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 1,
+      "under_titles": [],
+      "over_titles": [
+        "Privileged use review"
+      ]
+    },
+    {
+      "owner": "gordon_slater",
+      "requester": "elena_park",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 1,
+      "over_exposed": 0,
+      "under_titles": [
+        "Evidence collection — what makes it slow"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "gordon_slater",
+      "requester": "priya_sharma",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 1,
+      "over_exposed": 0,
+      "under_titles": [
+        "Evidence collection — what makes it slow"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "gordon_slater",
+      "requester": "wes_arnold",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 1,
+      "over_exposed": 0,
+      "under_titles": [
+        "Evidence collection — what makes it slow"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "hannah_brix",
+      "requester": "carlos_reyes",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 1,
+      "over_exposed": 0,
+      "under_titles": [
+        "Systems — what clients run"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "hannah_brix",
+      "requester": "elena_park",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 1,
+      "over_exposed": 0,
+      "under_titles": [
+        "Systems — what clients run"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "hannah_brix",
+      "requester": "monica_alvarez",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 1,
+      "over_exposed": 0,
+      "under_titles": [
+        "Systems — what clients run"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "hannah_brix",
+      "requester": "sarah_martinez",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 1,
+      "over_exposed": 0,
+      "under_titles": [
+        "Systems — what clients run"
+      ],
+      "over_titles": []
+    },
+    {
+      "owner": "margaret_ilunga",
+      "requester": "elena_park",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 1,
+      "under_titles": [],
+      "over_titles": [
+        "Associate supervision"
+      ]
+    },
+    {
+      "owner": "margaret_ilunga",
+      "requester": "sarah_martinez",
+      "profile": "loose",
+      "relationship": "external",
+      "under_served": 0,
+      "over_exposed": 1,
+      "under_titles": [],
+      "over_titles": [
+        "Associate supervision"
+      ]
+    },
+    {
+      "owner": "nina_volkov",
+      "requester": "rachel_kim",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 1,
+      "under_titles": [],
+      "over_titles": [
+        "PR Strategy — Launch"
+      ]
+    },
+    {
+      "owner": "nina_volkov",
+      "requester": "tina_rodriguez",
+      "profile": "loose",
+      "relationship": "same_org",
+      "under_served": 0,
+      "over_exposed": 1,
+      "under_titles": [],
+      "over_titles": [
+        "PR Strategy — Launch"
+      ]
+    },
+    {
+      "owner": "victor_tan",
+      "requester": "sarah_martinez",
+      "profile": "tight",
+      "relationship": "external",
+      "under_served": 1,
+      "over_exposed": 0,
+      "under_titles": [
+        "Stanford Guest Lecture Notes — AI Entrepreneurship"
+      ],
+      "over_titles": []
+    }
+  ]
+}

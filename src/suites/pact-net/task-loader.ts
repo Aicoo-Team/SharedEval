@@ -7,6 +7,7 @@ import {
   type PactTaskIntroV1,
 } from '../../contracts/benchmark.js';
 import {
+  PACT_NET_V1_ASSET_DIR_SEGMENTS_V1,
   pactNetBenchmarkV1Schema,
   pactNetContactGraphV1Schema,
   type PactNetActionV1,
@@ -115,7 +116,7 @@ export function loadPactNetTasksV1(
 ): LoadedPactNetTaskV1[] {
   validateOptions(options);
   const rootDir = options.rootDir ?? defaultRootDir();
-  const datasetRoot = join(rootDir, 'dataset', 'pact-net');
+  const datasetRoot = join(rootDir, ...PACT_NET_V1_ASSET_DIR_SEGMENTS_V1);
   const benchmark = pactNetBenchmarkV1Schema.parse(
     readJson(join(datasetRoot, 'tasks', 'pact_net_tasks.json')),
   );

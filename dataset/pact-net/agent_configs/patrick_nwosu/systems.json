@@ -1,0 +1,64 @@
+{
+  "agent": "patrick_nwosu",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "scheduling_templates",
+      "access": "admin"
+    },
+    {
+      "system": "throughput_dashboards",
+      "access": "admin"
+    },
+    {
+      "system": "staffing_plan",
+      "access": "read_write"
+    },
+    {
+      "system": "patient_grievance_cases",
+      "access": "coordinator",
+      "note": "Intake, time frames, routing, and response assembly only; governing-body accountability and clinical determinations remain separate."
+    },
+    {
+      "system": "payer_authorisation_tracker",
+      "access": "coordinator",
+      "note": "Tracks deadlines and routes minimum-necessary packets; no payer clinical determination authority."
+    }
+  ],
+  "approves": [
+    {
+      "action": "schedule_template_change",
+      "note": "Within an approved capacity plan"
+    }
+  ],
+  "cannot_approve": [
+    "clinical_safety_signoff",
+    "phi_disclosure",
+    "it_spend",
+    "shift_swap",
+    "patient_grievance_governing_body_final_response",
+    "payer_medical_necessity_determination"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 06:30-16:00 ET"
+  },
+  "segregation_of_duties": []
+}

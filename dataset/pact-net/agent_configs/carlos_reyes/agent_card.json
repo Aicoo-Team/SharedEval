@@ -1,0 +1,272 @@
+{
+  "principalId": "carlos_reyes",
+  "handle": "carlos_reyes",
+  "displayName": "Carlos Reyes",
+  "teamRole": "techflow_ai",
+  "role": "Finance, Operations & People Ops Manager at TechFlow AI",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT",
+    "note": "Longer hours during payroll and month-end close."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "techflow_ai"
+  },
+  "agentCard": {
+    "name": "Carlos Reyes's agent",
+    "description": "Manages payroll, burn rate, cap table, budget allocation, and vendor contracts. Responsible for financial planning and operational efficiency, and acts as the internal People Ops coordinator for the external PEO and benefits providers.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "ledger",
+        "name": "general ledger",
+        "description": "Spend, revenue, and how a number was derived",
+        "tags": [
+          "accounting",
+          "finance",
+          "ledger",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Carlos Reyes about general ledger."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "payroll",
+        "name": "payroll",
+        "description": "Payroll runs and totals — never individual figures",
+        "tags": [
+          "finance",
+          "hr",
+          "payroll",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Carlos Reyes about payroll."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "cap-table",
+        "name": "cap table",
+        "description": "Ownership, grants, and dilution",
+        "tags": [
+          "captable",
+          "equity",
+          "finance",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Carlos Reyes about cap table."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "ap-ar",
+        "name": "payables and receivables",
+        "description": "Invoice and payment status",
+        "tags": [
+          "finance",
+          "invoices",
+          "payments",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Carlos Reyes about payables and receivables."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "banking",
+        "name": "banking and cash",
+        "description": "Cash position and payment status",
+        "tags": [
+          "banking",
+          "cash",
+          "techflow",
+          "treasury"
+        ],
+        "examples": [
+          "Ask Carlos Reyes about banking and cash."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "hris",
+        "name": "employee lifecycle records",
+        "description": "Role, manager, status and effective-date records within People Ops scope",
+        "tags": [
+          "employee",
+          "hris",
+          "peopleops",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Carlos Reyes about employee lifecycle records."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "benefits-portal",
+        "name": "benefits administration",
+        "description": "Eligibility and enrolment process status — never another person's elections",
+        "tags": [
+          "benefits",
+          "enrolment",
+          "peopleops",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Carlos Reyes about benefits administration."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "peo-portal",
+        "name": "PEO coordination",
+        "description": "Employment-administration workflow with the external PEO",
+        "tags": [
+          "employment",
+          "peo",
+          "peopleops",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Carlos Reyes about PEO coordination."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "cannot-payroll-approval",
+      "type": "denies",
+      "action": "payroll_approval",
+      "description": "Cannot approve payroll approval — route to whoever holds it."
+    },
+    {
+      "id": "cannot-journal-approval",
+      "type": "denies",
+      "action": "journal_approval",
+      "description": "Cannot approve journal approval — route to whoever holds it."
+    },
+    {
+      "id": "cannot-contract-signature",
+      "type": "denies",
+      "action": "contract_signature",
+      "description": "Cannot approve contract signature — route to whoever holds it."
+    },
+    {
+      "id": "cannot-spend",
+      "type": "denies",
+      "action": "spend",
+      "description": "Cannot approve spend — route to whoever holds it."
+    },
+    {
+      "id": "cannot-own-vendor-master-change",
+      "type": "denies",
+      "action": "own_vendor_master_change",
+      "description": "Cannot approve own vendor master change — route to whoever holds it."
+    },
+    {
+      "id": "cannot-own-benefits-case",
+      "type": "denies",
+      "action": "own_benefits_case",
+      "description": "Cannot approve own benefits case — route to whoever holds it."
+    },
+    {
+      "id": "cannot-employment-discipline-or-termination-decision",
+      "type": "denies",
+      "action": "employment_discipline_or_termination_decision",
+      "description": "Cannot approve employment discipline or termination decision — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

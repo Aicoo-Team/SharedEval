@@ -1,0 +1,50 @@
+{
+  "agent": "tomas_adeyemi",
+  "organisation": "personal",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "household",
+      "access": "admin"
+    },
+    {
+      "system": "practice_projects",
+      "access": "read_write"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "project_management",
+      "access": "read_write"
+    },
+    {
+      "system": "cad_bim",
+      "access": "read_write"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "contract_signature",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "intermittent",
+    "note": "On site much of the week; responds in hours"
+  },
+  "segregation_of_duties": [],
+  "note": "A second personal cluster, so the world does not assume everything orbits one hub."
+}

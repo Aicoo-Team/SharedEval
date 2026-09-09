@@ -1,0 +1,247 @@
+{
+  "agent": "dr_paul_mensah",
+  "notes": [
+    {
+      "title": "Pre-marital health check — process",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Two people, two separate appointments, two separate records. Nothing from one appears in the other's notes and nothing is discussed jointly unless both explicitly ask in the room.\n\nCouples routinely expect a joint conversation and are surprised. It is worth saying at booking rather than in the room."
+    },
+    {
+      "title": "The enquiry I decline most often",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "A family member, usually well-meaning, asking whether someone has been in or what was said.\n\nThe refusal has to be shaped so it does not confirm. 'I cannot discuss my patients' tells them the person is a patient. 'I cannot help with that enquiry' does not."
+    },
+    {
+      "title": "Employer enquiries",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Occasionally an employer asks about fitness to work. Without written authorisation from the patient the answer is that I cannot respond to the enquiry, and I do not say why.\n\nWith authorisation the answer is a fitness statement and nothing behind it."
+    },
+    {
+      "title": "Appointment availability",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Bookable two weeks out. Wednesday afternoons closed. Same-day slots held back each morning for acute presentations.\n\nAvailability goes to the patient, not to whoever is arranging on their behalf."
+    },
+    {
+      "title": "Records requests",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Written authorisation from the patient, identity verified, and the record goes to the patient or to a named recipient they specify. No exceptions and no shortcuts for urgency."
+    },
+    {
+      "title": "Practice list",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Around 1,600 registered patients. Two partners, one salaried, one nurse practitioner.\n\nList size per clinician is above what anyone would design and roughly what every practice in the area carries."
+    },
+    {
+      "title": "Appointment model",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Bookable two weeks ahead, same-day slots held back each morning, closed Wednesday afternoons for admin and teaching.\n\nThe held-back slots go in the first fifteen minutes every morning, which tells you the model is under-provisioned."
+    },
+    {
+      "title": "Chronic disease reviews",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Annual recall for diabetes, hypertension, asthma, and a few others. Uptake around 78%.\n\nThe 22% who do not come are the ones the reviews would help most, which is true of every screening and recall programme ever run."
+    },
+    {
+      "title": "Referral patterns",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Waiting times vary enormously by specialty. Two are long enough that the referral decision is partly a decision about how long someone will wait.\n\nThat is not medicine and it is unavoidably part of the job."
+    },
+    {
+      "title": "Prescribing review",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Quarterly with the pharmacist. Polypharmacy in the over-75s is the standing item.\n\nDeprescribing takes a twenty-minute conversation and prescribing takes two, which is why the numbers go one direction."
+    },
+    {
+      "title": "Administrative load",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "content": "Results, letters, requests, and forms. Roughly two hours a day and none of it is in a consultation slot.\n\nWednesday afternoons exist for this and are not enough."
+    },
+    {
+      "title": "Duty of confidentiality — the boundaries",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "The relationship is with the patient. Not the family, not the employer, not whoever is paying.\n\nThe hardest version is a worried adult child. They mean well and the answer is still no, and the refusal has to be shaped so that it does not confirm."
+    },
+    {
+      "title": "Capacity and consent",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Assume capacity unless there is reason to doubt it, and assess for the specific decision rather than in general.\n\nFamilies frequently believe a diagnosis removes capacity. It does not, and that conversation comes up more often than any clinical one."
+    },
+    {
+      "title": "Records requests — process",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Written authorisation, identity verified, released to the patient or a named recipient.\n\nInsurers and employers ask directly with surprising frequency and are told to go through the patient."
+    },
+    {
+      "title": "Continuity",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Patients do better seeing the same clinician and the appointment model makes it harder every year.\n\nEvery general practice knows this and none of them has solved it under current list sizes."
+    },
+    {
+      "title": "Teaching",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "content": "One registrar. Tutorials Wednesday afternoons, which competes with the admin the afternoon exists for.\n\nTeaching wins, and the admin moves to the evening."
+    },
+    {
+      "title": "Repeat prescribing",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "The largest single administrative load. Most are routine; the ones that are not are the reason a human reviews every batch."
+    },
+    {
+      "title": "Results handling",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Results go to the patient, not to whoever booked the test or drove them there. This is the boundary most often tested by well-meaning family."
+    },
+    {
+      "title": "Pre-marital and pre-employment checks",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Two separate appointments, two separate records, nothing discussed jointly unless both people ask in the room. Worth saying at booking because couples always expect otherwise."
+    },
+    {
+      "title": "Safeguarding",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Two open concerns. This is the one area where information does move without consent, under a defined threshold, and the threshold is the whole of the judgement."
+    },
+    {
+      "title": "Practice finances",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Partnership. Income depends on list size and on quality indicators, which means clinical decisions and financial ones are entangled in a way nobody likes discussing."
+    },
+    {
+      "title": "Why the refusal has to be shaped carefully",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "'I cannot discuss my patients' tells the asker that the person is a patient. 'I cannot help with that enquiry' does not. The front desk gets this wrong and it is my fault for not scripting it."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Say the two-appointments thing at booking, not in the room",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-10",
+      "completed": false,
+      "content": "Couples are always surprised and it is avoidable."
+    },
+    {
+      "title": "Review the refusal wording with the front desk",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-05",
+      "completed": false,
+      "content": "'I cannot discuss my patients' confirms. Fix the script."
+    },
+    {
+      "title": "Same-day slot allocation review",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-05-01",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Chase the chronic disease non-attenders differently",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": "The 22% who would benefit most."
+    },
+    {
+      "title": "Deprescribing session with the pharmacist",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": "Twenty minutes versus two."
+    },
+    {
+      "title": "Fix the front desk refusal script",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-05",
+      "completed": false,
+      "content": "'I cannot discuss my patients' confirms. Shape it so it does not."
+    },
+    {
+      "title": "Review the same-day slot allocation",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-05-01",
+      "completed": false,
+      "content": "Gone in fifteen minutes every morning."
+    },
+    {
+      "title": "Registrar tutorial — Wednesday",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-16",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Rescript the front-desk refusal wording",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-05",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Chronic disease recall — chase the non-attenders",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-31",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Two safeguarding reviews",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-12",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Partnership accounts — quarterly",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "priority": 3,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": ""
+    }
+  ]
+}

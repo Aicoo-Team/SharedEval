@@ -1,0 +1,61 @@
+{
+  "agent": "lisa_nakamura",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "repo",
+      "access": "read_write"
+    },
+    {
+      "system": "design_system",
+      "access": "admin"
+    },
+    {
+      "system": "component_library",
+      "access": "admin"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "pr_review_merge",
+      "scope": "frontend",
+      "note": "May not merge own PRs"
+    }
+  ],
+  "cannot_approve": [
+    "production_deploy",
+    "contract_signature"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 09:00-18:00 PT"
+  },
+  "segregation_of_duties": [
+    {
+      "control": "code_change",
+      "role": "reviewer",
+      "counterparties": [
+        "tom_bradford",
+        "jake_ellis",
+        "mike_torres"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "agent": "naomi_adeyemi",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "clinical_governance",
+      "access": "admin"
+    },
+    {
+      "system": "pilot_charter",
+      "access": "admin"
+    },
+    {
+      "system": "committee_minutes",
+      "access": "admin"
+    },
+    {
+      "system": "ehr",
+      "access": "governance_view"
+    },
+    {
+      "system": "results_routing_governance",
+      "access": "governance_admin",
+      "note": "Owns electronic routing and acknowledgement governance, not diagnostic interpretation or diagnostic-service medical policy."
+    }
+  ],
+  "approves": [
+    {
+      "action": "clinical_safety_signoff",
+      "note": "Final clinical-safety signoff after Informatics, frontline workflow, operational readiness, and required committee evidence are complete."
+    }
+  ],
+  "cannot_approve": [
+    "phi_disclosure",
+    "security_exception",
+    "it_spend",
+    "contract_signature",
+    "practitioner_appointment",
+    "clinical_privileges",
+    "credential_primary_source_verification"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 ET",
+    "note": "Clinic Tue and Thu mornings — unreachable then"
+  },
+  "segregation_of_duties": []
+}

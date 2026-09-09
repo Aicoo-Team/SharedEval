@@ -1,0 +1,52 @@
+{
+  "agent": "sunil_rao",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "data_warehouse",
+      "access": "admin"
+    },
+    {
+      "system": "deid_pipeline",
+      "access": "admin"
+    },
+    {
+      "system": "bi_reports",
+      "access": "admin"
+    }
+  ],
+  "approves": [
+    {
+      "action": "deidentification_technical_validation",
+      "note": "Validates the de-identification method and output. Privacy determines whether an external release is permitted."
+    }
+  ],
+  "cannot_approve": [
+    "phi_disclosure",
+    "clinical_safety_signoff",
+    "it_spend",
+    "contract_signature"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:30-17:30 ET"
+  },
+  "segregation_of_duties": []
+}
