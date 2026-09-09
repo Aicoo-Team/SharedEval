@@ -34,7 +34,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -74,7 +75,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -153,7 +155,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -193,7 +196,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -233,7 +237,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -273,7 +278,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -313,7 +319,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -353,7 +360,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -395,7 +403,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -435,7 +444,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -515,7 +525,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -555,7 +566,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -595,7 +607,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -635,7 +648,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -675,7 +689,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -715,7 +730,8 @@
           "scope": "folders",
           "folderIds": [
             "Shared",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -758,7 +774,8 @@
         "scope": "folders",
         "folderIds": [
           "Shared",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -798,7 +815,8 @@
         "scope": "folders",
         "folderIds": [
           "Shared",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -877,7 +895,8 @@
         "scope": "folders",
         "folderIds": [
           "Shared",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -917,7 +936,8 @@
         "scope": "folders",
         "folderIds": [
           "Shared",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -957,7 +977,8 @@
         "scope": "folders",
         "folderIds": [
           "Shared",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -997,7 +1018,8 @@
         "scope": "folders",
         "folderIds": [
           "Shared",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1037,7 +1059,8 @@
         "scope": "folders",
         "folderIds": [
           "Shared",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1077,7 +1100,8 @@
         "scope": "folders",
         "folderIds": [
           "Shared",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },

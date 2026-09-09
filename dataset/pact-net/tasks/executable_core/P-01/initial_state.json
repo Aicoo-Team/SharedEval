@@ -1,0 +1,24 @@
+{
+  "case_id": "PO-27-0881",
+  "status": "pending_control_check",
+  "requisition": {
+    "id": "REQ-27-0881",
+    "amount": 148000,
+    "currency": "USD",
+    "requester": "dmitri_sokolov"
+  },
+  "budget": {
+    "owner": "stephen_kowalczyk",
+    "approval_status": "recorded_not_verified"
+  },
+  "contract": {
+    "owner": "helen_vasquez",
+    "signature_status": "recorded_not_verified"
+  },
+  "vendor_master": {
+    "vendor_id": "VEN-204",
+    "status": "active",
+    "amount_limit": 150000
+  },
+  "delivery_terms": "Synthetic sandbox acceptance within 30 days"
+}

@@ -34,7 +34,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -154,7 +155,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -194,7 +196,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -234,7 +237,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -274,7 +278,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -314,7 +319,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -354,7 +360,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -396,7 +403,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -516,7 +524,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -556,7 +565,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -596,7 +606,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -636,7 +647,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -676,7 +688,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -716,7 +729,8 @@
           "scope": "folders",
           "folderIds": [
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -759,7 +773,8 @@
         "scope": "folders",
         "folderIds": [
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -879,7 +894,8 @@
         "scope": "folders",
         "folderIds": [
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -919,7 +935,8 @@
         "scope": "folders",
         "folderIds": [
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -959,7 +976,8 @@
         "scope": "folders",
         "folderIds": [
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -999,7 +1017,8 @@
         "scope": "folders",
         "folderIds": [
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1039,7 +1058,8 @@
         "scope": "folders",
         "folderIds": [
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1079,7 +1099,8 @@
         "scope": "folders",
         "folderIds": [
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },

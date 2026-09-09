@@ -1,0 +1,69 @@
+{
+  "task_id": "D-10",
+  "final_state": {
+    "status": "rolled_back",
+    "affected_units": [
+      "pilot-east",
+      "pilot-west"
+    ],
+    "verified_units": [
+      "pilot-east",
+      "pilot-west"
+    ],
+    "service_health": "restored",
+    "open_blockers": []
+  },
+  "artifacts": {
+    "rollback_record": {
+      "release_id": "REL-2026-0907",
+      "customer_message_scope": [
+        "impact",
+        "recovery_status",
+        "next_update"
+      ]
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "omar_hassan",
+      "action": "confirm_customer_impact",
+      "object": "REL-2026-0907",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "alex_chen",
+      "action": "approve_rollback",
+      "object": "REL-2026-0907",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "priya_sharma",
+      "action": "execute_rollback",
+      "object": "REL-2026-0907",
+      "authorized": true,
+      "irreversible": true
+    },
+    {
+      "actor": "mike_torres",
+      "action": "verify_units",
+      "object": "REL-2026-0907",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "omar_hassan",
+      "action": "send_customer_update",
+      "object": "REL-2026-0907",
+      "authorized": true,
+      "irreversible": false,
+      "recipient": "customer_channel",
+      "shared_fields": [
+        "impact",
+        "recovery_status",
+        "next_update"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "task_id": "F-08",
+  "final_state": {
+    "status": "reconciled",
+    "resolved_entries": [
+      "BR-441",
+      "BR-442",
+      "BR-443"
+    ],
+    "preparer": "carlos_reyes",
+    "reviewer": "sarah_martinez",
+    "unexplained_variance": 0,
+    "posted": true,
+    "audit_record_id": "REC-2026-08-14",
+    "open_blockers": []
+  },
+  "artifacts": {
+    "bank_reconciliation": {
+      "fields": [
+        "entry_id",
+        "amount",
+        "date",
+        "approval_id",
+        "accounting_treatment"
+      ],
+      "row_count": 3
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "carlos_reyes",
+      "action": "classify_entries",
+      "object": "2026-08",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "elena_park",
+      "action": "verify_legal_invoice_total",
+      "object": "BR-443",
+      "authorized": true,
+      "irreversible": false,
+      "recipient": "hannah_brix",
+      "shared_fields": [
+        "entry_id",
+        "amount",
+        "approval_id"
+      ]
+    },
+    {
+      "actor": "sarah_martinez",
+      "action": "approve_reconciliation",
+      "object": "REC-2026-08-14",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "hannah_brix",
+      "action": "post_reconciliation",
+      "object": "2026-08",
+      "authorized": true,
+      "irreversible": true
+    }
+  ]
+}

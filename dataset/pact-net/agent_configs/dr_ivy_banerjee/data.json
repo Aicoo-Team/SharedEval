@@ -162,6 +162,18 @@
       "folder": "Work/Projects",
       "sensitivity": "work_public",
       "content": "Fewer steps to find. Nothing suggested before I have decided. Nothing written that I did not approve. In that order."
+    },
+    {
+      "title": "Allergy amendment — clinical review",
+      "folder": "Work/Restricted",
+      "sensitivity": "sensitive_work",
+      "content": "The amendment case contains the patient's identity and disputed allergy entry. HIM may route the exact entry to the responsible clinician; Privacy receives only the minimum facts needed for a disclosure determination and does not need the clinical detail by default."
+    },
+    {
+      "title": "Payer authorisation — minimum necessary packet",
+      "folder": "Work/Restricted",
+      "sensitivity": "sensitive_work",
+      "content": "The chart contains unrelated chart history and claim-level data beyond the authorisation purpose. The expedited payer packet includes only the clinical and coverage evidence needed for this treatment decision."
     }
   ],
   "todos": [

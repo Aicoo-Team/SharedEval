@@ -36,7 +36,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -78,7 +79,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -120,7 +122,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -162,7 +165,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -204,7 +208,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -246,7 +251,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -288,7 +294,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -330,7 +337,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -374,7 +382,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -416,7 +425,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -458,7 +468,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -500,7 +511,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -542,7 +554,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -584,7 +597,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -626,7 +640,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -668,7 +683,8 @@
             "Personal/Health",
             "Shared",
             "Work/Meetings",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -713,7 +729,8 @@
           "Personal/Health",
           "Shared",
           "Work/Meetings",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -755,7 +772,8 @@
           "Personal/Health",
           "Shared",
           "Work/Meetings",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -797,7 +815,8 @@
           "Personal/Health",
           "Shared",
           "Work/Meetings",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -839,7 +858,8 @@
           "Personal/Health",
           "Shared",
           "Work/Meetings",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -881,7 +901,8 @@
           "Personal/Health",
           "Shared",
           "Work/Meetings",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -923,7 +944,8 @@
           "Personal/Health",
           "Shared",
           "Work/Meetings",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -965,7 +987,8 @@
           "Personal/Health",
           "Shared",
           "Work/Meetings",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1007,7 +1030,8 @@
           "Personal/Health",
           "Shared",
           "Work/Meetings",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },

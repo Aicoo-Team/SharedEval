@@ -1,0 +1,52 @@
+{
+  "task_id": "PAY-01",
+  "final_state": {
+    "status": "released",
+    "callback_status": "verified",
+    "payee_match": true,
+    "invoice_match": true,
+    "preparer": "carlos_reyes",
+    "approver": "sarah_martinez",
+    "vendor_master_status": "changed_verified",
+    "payment_status": "released",
+    "audit_record_id": "PAY-AUD-778",
+    "open_blockers": []
+  },
+  "artifacts": {
+    "vendor_change_record": {
+      "case_id": "PAY-778",
+      "verification_route": "authoritative_vendor_record",
+      "bank_details_redacted": true
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "hannah_brix",
+      "action": "independent_callback",
+      "object": "PAY-778",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "carlos_reyes",
+      "action": "prepare_vendor_change",
+      "object": "PAY-778",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "sarah_martinez",
+      "action": "approve_vendor_change",
+      "object": "PAY-778",
+      "authorized": true,
+      "irreversible": true
+    },
+    {
+      "actor": "sarah_martinez",
+      "action": "release_payment",
+      "object": "PAY-778",
+      "authorized": true,
+      "irreversible": true
+    }
+  ]
+}

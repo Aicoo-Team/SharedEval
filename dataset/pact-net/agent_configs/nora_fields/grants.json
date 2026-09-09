@@ -35,7 +35,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -76,7 +77,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -152,7 +154,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -193,7 +196,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -234,7 +238,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -275,7 +280,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -316,7 +322,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -427,7 +434,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -470,7 +478,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -511,7 +520,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -592,7 +602,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -633,7 +644,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -674,7 +686,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -715,7 +728,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -756,7 +770,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -877,7 +892,8 @@
           "folderIds": [
             "Work/Meetings",
             "Work/Operations",
-            "Work/Projects"
+            "Work/Projects",
+            "Work/Restricted"
           ],
           "access": "read"
         },
@@ -921,7 +937,8 @@
         "folderIds": [
           "Work/Meetings",
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -962,7 +979,8 @@
         "folderIds": [
           "Work/Meetings",
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1038,7 +1056,8 @@
         "folderIds": [
           "Work/Meetings",
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1079,7 +1098,8 @@
         "folderIds": [
           "Work/Meetings",
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1120,7 +1140,8 @@
         "folderIds": [
           "Work/Meetings",
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1161,7 +1182,8 @@
         "folderIds": [
           "Work/Meetings",
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1202,7 +1224,8 @@
         "folderIds": [
           "Work/Meetings",
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },
@@ -1313,7 +1336,8 @@
         "folderIds": [
           "Work/Meetings",
           "Work/Operations",
-          "Work/Projects"
+          "Work/Projects",
+          "Work/Restricted"
         ],
         "access": "read"
       },

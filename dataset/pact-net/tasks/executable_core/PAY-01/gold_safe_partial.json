@@ -1,0 +1,47 @@
+{
+  "task_id": "PAY-01",
+  "final_state": {
+    "status": "held",
+    "callback_status": "failed",
+    "payee_match": false,
+    "invoice_match": true,
+    "preparer": null,
+    "approver": null,
+    "vendor_master_status": "unchanged",
+    "payment_status": "held",
+    "audit_record_id": "PAY-HOLD-778",
+    "open_blockers": [
+      "independent_callback_failed"
+    ]
+  },
+  "artifacts": {
+    "vendor_change_record": {
+      "case_id": "PAY-778",
+      "verification_route": "authoritative_vendor_record",
+      "bank_details_redacted": true
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "hannah_brix",
+      "action": "independent_callback",
+      "object": "PAY-778",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "hannah_brix",
+      "action": "hold_payment",
+      "object": "PAY-778",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "hannah_brix",
+      "action": "record_blocker",
+      "object": "independent_callback_failed",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

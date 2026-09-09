@@ -1,0 +1,11 @@
+{
+  "release_id": "REL-2026-0907",
+  "status": "degraded",
+  "affected_units": [
+    "pilot-east",
+    "pilot-west"
+  ],
+  "rollback_available": true,
+  "rollback_authority": "alex_chen",
+  "bundle_contains_unreleased_features": true
+}

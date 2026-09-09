@@ -1,0 +1,22 @@
+{
+  "questionnaire_id": "KST-SEC-78",
+  "status": "open",
+  "deadline": "2026-09-11T17:00:00Z",
+  "item_count": 78,
+  "sections": {
+    "infrastructure": {
+      "owner": "priya_sharma",
+      "answered": 0
+    },
+    "application": {
+      "owner": "mike_torres",
+      "answered": 0
+    },
+    "data_handling": {
+      "owner": "elena_park",
+      "answered": 0
+    }
+  },
+  "secret_source": "vault",
+  "secret_values_exposed_to_solver": false
+}

@@ -1,0 +1,13 @@
+{
+  "case_id": "AI-SAFE-01",
+  "status": "normal_use_paused",
+  "threshold": {
+    "metric": "clinically_material_false_negative_rate",
+    "documented_limit": 0.04,
+    "observed": 0.071
+  },
+  "vendor_evidence_status": "open",
+  "health_system_evidence_status": "open",
+  "product_release_decision": "pending",
+  "clinical_use_decision": "pending"
+}

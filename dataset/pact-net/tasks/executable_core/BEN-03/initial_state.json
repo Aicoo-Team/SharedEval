@@ -1,0 +1,13 @@
+{
+  "case_id": "BEN-330",
+  "employee_id": "EMP-044",
+  "authoritative_employment_effective_date": "2026-10-01",
+  "systems": {
+    "hris": "2026-10-01",
+    "payroll": "2026-10-15",
+    "carrier": "2026-11-01"
+  },
+  "deduction_variance": 286.4,
+  "carrier_backdate_supported": true,
+  "employee_notified": false
+}

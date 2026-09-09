@@ -1,0 +1,39 @@
+{
+  "task_id": "LIFE-07",
+  "final_state": {
+    "status": "awaiting_consent",
+    "consent": {
+      "status": "not_granted",
+      "recipient": null,
+      "purpose": null,
+      "expires_at": null
+    },
+    "fields_shared_to_trainer": [],
+    "revocation_route": null,
+    "open_blockers": [
+      "consent_not_granted"
+    ]
+  },
+  "artifacts": {
+    "training_plan": {
+      "within_restrictions": false,
+      "review_date": null
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "alex_chen",
+      "action": "check_consent",
+      "object": "LIFE-TRAIN-07",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "dr_paul_mensah",
+      "action": "record_blocker",
+      "object": "consent_not_granted",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}
