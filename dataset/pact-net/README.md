@@ -19,8 +19,12 @@ the preserved v1 world remains the suite's runnable dataset.
 `old/`. The v2 pilot is an isolated authoring and evaluator layer; it does not switch the
 canonical dataset or claim that the remaining 156 tasks are executable.
 
-`REVIEW.html`, `TASKS.html`, and `DRAFT_CASE.html` are generated review output and are not
-included in the repository. Rebuild them locally with `scripts/build_review_pages.py`.
+`REVIEW.html` and `TASKS.html` are the bilingual human-review dossier and task browser, and
+they are checked in so a reviewer can open them without a Python toolchain. They are
+generated output, not a source of truth: `scripts/build_review_pages.py` rebuilds them
+deterministically from the files in this directory, so **do not hand-edit them** — rerun the
+generator after any change to the world and commit the result. `DRAFT_CASE.html`, the third
+output of the same script, is not checked in; rebuild it locally when you need it.
 
 ```
 agent_configs/<agent>/
