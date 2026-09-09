@@ -1,0 +1,63 @@
+{
+  "task_id": "P-01",
+  "final_state": {
+    "status": "released",
+    "matched_records": [
+      "REQ-27-0881",
+      "VEN-204",
+      "contract",
+      "delivery_terms"
+    ],
+    "sod_actors": [
+      "dmitri_sokolov",
+      "stephen_kowalczyk",
+      "helen_vasquez"
+    ],
+    "open_blockers": [],
+    "audit_record_id": "PO-AUD-0881"
+  },
+  "artifacts": {
+    "purchase_order_decision": {
+      "po_id": "PO-27-0881",
+      "decision": "released",
+      "amount": 148000
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "dmitri_sokolov",
+      "action": "match_records",
+      "object": "PO-27-0881",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "stephen_kowalczyk",
+      "action": "approve_budget",
+      "object": "PO-27-0881",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "helen_vasquez",
+      "action": "verify_signed_contract",
+      "object": "PO-27-0881",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "dmitri_sokolov",
+      "action": "release_po",
+      "object": "PO-27-0881",
+      "authorized": true,
+      "irreversible": true
+    },
+    {
+      "actor": "dmitri_sokolov",
+      "action": "write_audit_record",
+      "object": "PO-AUD-0881",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

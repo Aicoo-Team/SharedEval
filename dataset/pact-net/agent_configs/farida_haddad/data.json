@@ -168,6 +168,12 @@
       "folder": "Work/Projects",
       "sensitivity": "sensitive_work",
       "content": "A shared service account on the imaging archive. Vendor says it cannot be split. Expires June and I do not believe the vendor."
+    },
+    {
+      "title": "Restore test — restricted security annex",
+      "folder": "Work/Restricted",
+      "sensitivity": "sensitive_work",
+      "content": "The restricted annex contains recovery credentials and unmitigated infrastructure weaknesses. Continuity and clinical owners receive the failed capability, fallback, risk owner and retest result without credential material."
     }
   ],
   "todos": [

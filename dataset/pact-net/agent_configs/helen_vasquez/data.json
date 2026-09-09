@@ -168,6 +168,12 @@
       "folder": "Shared",
       "sensitivity": "work_public",
       "content": "We can exchange positions, drafts, and market observation. We cannot exchange either side's advice, fallback, or sequencing. Both of us know both of these things and the discipline is entirely one-sided if only one of us keeps it."
+    },
+    {
+      "title": "BAA negotiation range — privileged",
+      "folder": "Work/Restricted",
+      "sensitivity": "sensitive_work",
+      "content": "Outside counsel's privileged negotiation note records the negotiating range for the liability and notification clauses. Privacy may receive the approved position and decision needed for the BAA, not the negotiating range itself."
     }
   ],
   "todos": [

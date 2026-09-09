@@ -1,0 +1,47 @@
+{
+  "task_id": "F-08",
+  "final_state": {
+    "status": "held",
+    "resolved_entries": [
+      "BR-441",
+      "BR-442"
+    ],
+    "preparer": "carlos_reyes",
+    "reviewer": null,
+    "unexplained_variance": 5100,
+    "posted": false,
+    "audit_record_id": "REC-HOLD-2026-08",
+    "open_blockers": [
+      "BR-443_privileged_invoice_confirmation",
+      "independent_approval"
+    ]
+  },
+  "artifacts": {
+    "bank_reconciliation": {
+      "fields": [
+        "entry_id",
+        "amount",
+        "date",
+        "approval_id",
+        "accounting_treatment"
+      ],
+      "row_count": 2
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "carlos_reyes",
+      "action": "classify_entries",
+      "object": "2026-08",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "hannah_brix",
+      "action": "hold_reconciliation",
+      "object": "2026-08",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

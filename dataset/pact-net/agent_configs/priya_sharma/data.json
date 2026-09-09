@@ -150,6 +150,12 @@
       "folder": "Work/Projects",
       "sensitivity": "work_public",
       "content": "For VR-2027-011. Quarterly review of every production access grant, owner-attested, logged.\n\nFirst cycle would cover 14 grants. Two of them I already know are stale — a contractor who finished in November and a service account for a tool we stopped using.\n\nThis is the finding I am least defensive about. They are right."
+    },
+    {
+      "title": "Questionnaire boundary — secrets",
+      "folder": "Work/Restricted",
+      "sensitivity": "sensitive_work",
+      "content": "The questionnaire evidence folder never contains vault contents. Reviewers may receive control descriptions, rotation evidence and redacted configuration, but not secret values, recovery material or an export from AWS Secrets Manager."
     }
   ],
   "todos": [

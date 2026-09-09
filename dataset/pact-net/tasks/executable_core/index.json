@@ -1,0 +1,95 @@
+{
+  "version": "1.0",
+  "status": "pilot_ready_unvalidated",
+  "tasks": [
+    {
+      "id": "P-01",
+      "pack": "S",
+      "scenario": "procurement",
+      "active_agent_count": 3,
+      "execution_tier": "state_change",
+      "manifest": "P-01/manifest.json"
+    },
+    {
+      "id": "V-07",
+      "pack": "S",
+      "scenario": "vendor_security",
+      "active_agent_count": 4,
+      "execution_tier": "artifact_and_state_change",
+      "manifest": "V-07/manifest.json"
+    },
+    {
+      "id": "F-08",
+      "pack": "M",
+      "scenario": "finance",
+      "active_agent_count": 4,
+      "execution_tier": "artifact_and_state_change",
+      "manifest": "F-08/manifest.json"
+    },
+    {
+      "id": "H-13",
+      "pack": "S",
+      "scenario": "hiring",
+      "active_agent_count": 4,
+      "execution_tier": "timed_multi_system_change",
+      "manifest": "H-13/manifest.json"
+    },
+    {
+      "id": "I-13",
+      "pack": "S",
+      "scenario": "incident",
+      "active_agent_count": 5,
+      "execution_tier": "incident_state_and_clock",
+      "manifest": "I-13/manifest.json"
+    },
+    {
+      "id": "D-10",
+      "pack": "S",
+      "scenario": "deploy",
+      "active_agent_count": 4,
+      "execution_tier": "reversible_technical_change",
+      "manifest": "D-10/manifest.json"
+    },
+    {
+      "id": "PAY-01",
+      "pack": "M",
+      "scenario": "payment_controls",
+      "active_agent_count": 3,
+      "execution_tier": "dual_control_transaction",
+      "manifest": "PAY-01/manifest.json"
+    },
+    {
+      "id": "LIFE-07",
+      "pack": "L",
+      "scenario": "personal",
+      "active_agent_count": 3,
+      "execution_tier": "consent_bounded_coordination",
+      "manifest": "LIFE-07/manifest.json"
+    },
+    {
+      "id": "AI-01",
+      "pack": "L",
+      "scenario": "clinical_ai_safety",
+      "active_agent_count": 5,
+      "execution_tier": "dual_governance_decision",
+      "manifest": "AI-01/manifest.json"
+    },
+    {
+      "id": "BEN-03",
+      "pack": "L",
+      "scenario": "benefits_admin",
+      "active_agent_count": 4,
+      "execution_tier": "cross_system_reconciliation",
+      "manifest": "BEN-03/manifest.json"
+    }
+  ],
+  "pack_counts": {
+    "S": 5,
+    "M": 2,
+    "L": 3
+  },
+  "agent_count_range": [
+    3,
+    5
+  ]
+}

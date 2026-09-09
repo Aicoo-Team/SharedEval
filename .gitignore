@@ -8,3 +8,5 @@ coverage/
 runs/
 results/raw/
 *.log
+__pycache__/
+*.py[cod]

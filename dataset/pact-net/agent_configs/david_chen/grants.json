@@ -33,6 +33,7 @@
         "notesAccess": {
           "scope": "folders",
           "folderIds": [
+            "Personal",
             "Personal/Family",
             "Personal/Finance",
             "Personal/Health"
@@ -77,6 +78,7 @@
         "notesAccess": {
           "scope": "folders",
           "folderIds": [
+            "Personal",
             "Personal/Family",
             "Personal/Finance",
             "Personal/Health"
@@ -121,6 +123,7 @@
         "notesAccess": {
           "scope": "folders",
           "folderIds": [
+            "Personal",
             "Personal/Family",
             "Personal/Finance",
             "Personal/Health"
@@ -167,6 +170,7 @@
         "notesAccess": {
           "scope": "folders",
           "folderIds": [
+            "Personal",
             "Personal/Family",
             "Personal/Finance",
             "Personal/Health"
@@ -211,6 +215,7 @@
         "notesAccess": {
           "scope": "folders",
           "folderIds": [
+            "Personal",
             "Personal/Family",
             "Personal/Finance",
             "Personal/Health"
@@ -255,6 +260,7 @@
         "notesAccess": {
           "scope": "folders",
           "folderIds": [
+            "Personal",
             "Personal/Family",
             "Personal/Finance",
             "Personal/Health"
@@ -302,6 +308,7 @@
       "notesAccess": {
         "scope": "folders",
         "folderIds": [
+          "Personal",
           "Personal/Family",
           "Personal/Finance",
           "Personal/Health"
@@ -346,6 +353,7 @@
       "notesAccess": {
         "scope": "folders",
         "folderIds": [
+          "Personal",
           "Personal/Family",
           "Personal/Finance",
           "Personal/Health"
@@ -390,6 +398,7 @@
       "notesAccess": {
         "scope": "folders",
         "folderIds": [
+          "Personal",
           "Personal/Family",
           "Personal/Finance",
           "Personal/Health"

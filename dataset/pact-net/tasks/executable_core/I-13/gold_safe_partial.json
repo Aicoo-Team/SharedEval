@@ -1,0 +1,58 @@
+{
+  "task_id": "I-13",
+  "final_state": {
+    "status": "controlled_open",
+    "evidence_preserved": true,
+    "reportability": "undetermined",
+    "notification_clock": {
+      "owner": "nora_fields",
+      "due_at": null
+    },
+    "affected_workflows": [
+      "pilot_support"
+    ],
+    "mitigation": "restricted_channel_and_access_freeze",
+    "next_review_at": "2026-09-07T11:00:00Z",
+    "open_blockers": [
+      "privacy_officer_determination",
+      "workflow_scope",
+      "notification_completion"
+    ]
+  },
+  "artifacts": {
+    "incident_record": {
+      "incident_id": "INC-PHI-309",
+      "patient_identifiers_in_general_record": false
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "wes_arnold",
+      "action": "preserve_evidence",
+      "object": "INC-PHI-309",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "farida_haddad",
+      "action": "classify_security_incident",
+      "object": "INC-PHI-309",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "bea_ferreira",
+      "action": "identify_affected_workflows",
+      "object": "INC-PHI-309",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "nora_fields",
+      "action": "record_blocker",
+      "object": "privacy_officer_determination",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

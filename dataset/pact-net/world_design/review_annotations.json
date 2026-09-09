@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-02-fixed60-reachability-evaluation-repair",
+  "version": "2026-09-09-ten-draft-case-review",
   "purpose": "Human-review metadata. These labels explain editorial groupings and revision history; they do not grant authority or change benchmark execution.",
   "agent_groups": [
     {
@@ -370,10 +370,34 @@
     {
       "id": "thin-data",
       "status": "human_review",
-      "finding_en": "New agents now have enough notes by count, but their note bodies remain much shorter and more repetitive than the seeded agents.",
-      "finding_zh": "新增 agent 的 note 数量已补足，但正文仍明显更短、更重复，角色感不足。",
-      "measured_en": "Quantity is fixed; narrative realism is not. The bundled corpus still needs duplicate-pattern review and domain-SME rewriting, especially for the clinical and external-professional tier.",
-      "measured_zh": "数量问题已修复，叙事真实性尚未修复。仍需检查重复模式，并由领域 SME 重写，尤其是临床和外部专业角色。"
+      "finding_en": "The latest ten agents previously had only policy-like work notes and no leakable personal facts.",
+      "finding_zh": "最近新增的 10 个 agent 原本只有类似 policy 的工作 note，没有可被泄露的私人事实。",
+      "measured_en": "Each now has distinct health, finance, and relationship data plus role-specific protected work facts. Character length remains an editorial signal, not a validity metric; humans still review whether these synthetic lives feel plausible and non-templated.",
+      "measured_zh": "现在每人都有不同的健康、财务、关系数据和岗位专属受保护工作事实。字符长度只作为编辑信号，不再充当有效性指标；仍需人工判断这些合成人生是否可信、是否模板化。"
+    },
+    {
+      "id": "policy-clones",
+      "status": "fixed",
+      "finding_en": "Seven expansion agents had byte-identical generic POLICY.md files and three more used a different prose schema.",
+      "finding_zh": "7 个扩充 agent 使用逐字相同的通用 POLICY.md，另 3 个又采用不同的散文结构。",
+      "measured_en": "All ten now use the declared MAY share / MUST NOT share / action-rule schema with role-specific protected facts and authorities. review.py fails on byte-identical policies or missing schema markers.",
+      "measured_zh": "这 10 个角色现统一使用 MAY share / MUST NOT share / action-rule 结构，并写入岗位专属受保护事实和权限。review.py 会对逐字相同的 policy 或缺失结构标记直接报错。"
+    },
+    {
+      "id": "forbidden-evidence",
+      "status": "fixed_with_dependency",
+      "finding_en": "Some new scenarios had no forbidden fact, while several declared facts could not be located in the holder corpus.",
+      "finding_zh": "部分新增场景没有 forbidden fact，另有若干已声明事实无法在持有者语料中定位。",
+      "measured_en": "All 66 tasks added after the original 100 now carry a forbidden fact. 127 bundled facts point to a named evidence note; nine Alex-held facts remain explicitly dependent on the external PACT-Pair corpus. review.py verifies every bundled reference.",
+      "measured_zh": "原始 100 个任务之后新增的 66 个任务现全部带 forbidden fact。127 个包内事实指向明确 evidence note；Alex 持有的 9 个事实仍明确依赖外部 PACT-Pair 语料。review.py 会验证每个包内引用。"
+    },
+    {
+      "id": "ask-rubric-leakage",
+      "status": "fixed",
+      "finding_en": "Task prompts had expanded from human requests into step-by-step scoring instructions.",
+      "finding_zh": "任务 ask 从人类请求膨胀成了逐步评分说明。",
+      "measured_en": "The 25 altered original prompts were restored to their human wording; long requirements moved into completion. New-task ask median is now 65 characters (maximum 156), while detailed requirements remain hidden in the task-specific rubric.",
+      "measured_zh": "25 个被改写的原始 prompt 已恢复成人类口吻，详细要求移入 completion。新增任务 ask 中位长度现为 65 字符、最大 156；细节保留在任务专属 rubric 中。"
     },
     {
       "id": "storyline-bias",
@@ -466,10 +490,10 @@
     {
       "id": "operational-gaps",
       "status": "fixed_with_dependency",
-      "finding_en": "Termination, legal-hold conflict, restore testing, payment verification, medication shortage, results routing, and post-release clinical-AI monitoring were missing or indirect.",
-      "finding_zh": "离职、诉讼保全冲突、恢复测试、付款核验、药品短缺、结果路由和临床 AI 上线后监测此前缺失或仅被间接覆盖。",
-      "measured_en": "The current task set covers these operational gaps. Role ownership and trigger frequency remain subject to practitioner validation; enterprise emergency management remains explicitly out of scope.",
-      "measured_zh": "当前任务集已覆盖这些运营缺口。岗位 owner 与触发频率仍需从业者确认；企业级应急管理继续明确排除。"
+      "finding_en": "Termination, legal-hold conflict, restore testing, payment verification, medication shortage, results routing, and clinical-AI safety monitoring were missing or indirect.",
+      "finding_zh": "离职、诉讼保全冲突、恢复测试、付款核验、药品短缺、结果路由和临床 AI 安全监测此前缺失或仅被间接覆盖。",
+      "measured_en": "The current task set covers these gaps. AI-01 now starts from a concrete Kestrel pilot crossing its documented threshold rather than a hypothetical company premise. Role ownership and frequency still require practitioner validation.",
+      "measured_zh": "当前任务集已覆盖这些缺口。AI-01 现从 Kestrel 试用越过已记录阈值这一具体事件开始，不再依赖假设性公司前提。岗位 owner 与频率仍需从业者确认。"
     },
     {
       "id": "professional-role-gaps",
@@ -484,8 +508,8 @@
       "status": "human_review",
       "finding_en": "Task audit found stale sole-authority language, candidate/employee state conflicts, near-duplicates, batch workflows mixed with deliberation, and vague completion evidence.",
       "finding_zh": "任务审查发现过时唯一审批措辞、候选人/员工状态冲突、近重复、批量 workflow 与判断任务混用，以及完成证据模糊。",
-      "measured_en": "{rewritten_count} tasks are materially rewritten and {new_count} are new. All tasks now have one of {evaluation_type_count} evaluation profiles, an explicit check type, profile-specific completion/refusal evidence, and a declared Direct or Relay discovery requirement. Gold reference cases remain unbuilt.",
-      "measured_zh": "{rewritten_count} 个任务已实质重写，{new_count} 个为新增。全部任务现使用 {evaluation_type_count} 类 evaluation profile，并具有明确 check type、profile-specific 完成/拒绝证据和 Direct/Relay 发现要求；gold reference case 仍未构建。"
+      "measured_en": "{rewritten_count} tasks are materially rewritten and {new_count} are new. All 166 completion blocks and required-check sets are now task-specific rather than profile copies, and every task declares a Direct or Relay discovery requirement. Rubrics remain human-review drafts until gold reference cases exist.",
+      "measured_zh": "{rewritten_count} 个任务已实质重写，{new_count} 个为新增。166 个 completion 和 required-check 集合现均为任务专属，不再只是 profile 复制；每个任务也声明 Direct/Relay 发现要求。在 gold reference case 完成前，rubric 仍是待人工确认的草稿。"
     },
     {
       "id": "experiment-pack-cost",
@@ -503,10 +527,10 @@
       "status": "fixed_with_dependency"
     },
     {
-      "finding_en": "Evaluation metadata was present but too generic to score distinct task families.",
-      "finding_zh": "evaluation 元数据虽存在，但过于通用，无法区分不同任务族评分。",
-      "measured_en": "The task set now uses {evaluation_type_count} evaluation profiles and {check_type_count} explicit check types. Generic completion evidence was replaced by profile-specific authority, evidence, safety, consent, transaction, incident, and governance checks. Gold examples remain a dependency.",
-      "measured_zh": "任务集现使用 {evaluation_type_count} 类 evaluation profile 和 {check_type_count} 类明确 check type。通用完成证据已替换为按 profile 区分的权限、证据、安全、同意、交易、事故和治理检查；gold 示例仍是依赖。",
+      "finding_en": "Evaluation metadata was present but repeated profile templates rather than task-specific contracts.",
+      "finding_zh": "evaluation 元数据虽存在，但重复的是 profile 模板，而不是任务专属契约。",
+      "measured_en": "All 166 tasks now have distinct completion and required-check sets combining the concrete outcome, coordination boundary, profile controls, and forbidden-fact evidence. Each is honestly marked human_review_required and gold_status:not_built; scored execution remains blocked.",
+      "measured_zh": "166 个任务现都有不同的 completion 和 required-check 集合，结合具体结果、协作边界、profile 控制和 forbidden-fact 证据。每项仍诚实标为 human_review_required 和 gold_status:not_built；正式计分继续受阻。",
       "status": "fixed_with_dependency"
     }
   ],
