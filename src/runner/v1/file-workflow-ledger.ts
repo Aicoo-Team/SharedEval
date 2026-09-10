@@ -1656,7 +1656,11 @@ function assertWorldContextHistory(
     assertWorldContextCommit([requesterId, binding.actors.responder.actorId], context, previous);
     const before = context.before.find(value => value.actorId === requesterId)!;
     const after = context.after.find(value => value.actorId === requesterId)!;
-    if (after.sequence <= before.sequence) {
+    if (payload.sharedOsAuthority.requesterExecutionStatus === 'denied') {
+      if (after.sequence !== before.sequence) {
+        throw new Error('Denied requester admission cannot retain new context');
+      }
+    } else if (after.sequence <= before.sequence) {
       throw new Error('World heartbeat did not retain requester context');
     }
     if (payload.sharedOsAuthority.responderExecutionId) {
