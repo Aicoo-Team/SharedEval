@@ -1,5 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type {
+  ActorContextMessage,
+  ActorContextStore,
+} from '../../src/runner/context/actor-context.js';
+import { openActorContextStore } from '../../src/runner/context/actor-context-store.js';
 import type {
   SoTurnDriver,
   SoToolDefinition,
@@ -1113,4 +1121,218 @@ test('a model that keeps batching fails with its own code, not a generic one', a
   );
   // Bounded: it re-asks a fixed number of times and then reports.
   assert.equal(requests.length, MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 + 1);
+});
+
+function contextPort(options: { failAppend?: number; failFinish?: boolean; failBegin?: boolean } = {}) {
+  const messages: ActorContextMessage[] = [];
+  const finishes: string[] = [];
+  let appends = 0;
+  const store: ActorContextStore = {
+    async beginTurn({ input }) {
+      if (options.failBegin) throw new Error('journal open failed');
+      const priorMessages = structuredClone(messages);
+      messages.push(structuredClone(input));
+      return {
+        priorMessages,
+        inputHash: 'test-input-hash',
+        async append(batch) {
+          appends += 1;
+          if (options.failAppend === appends) throw new Error('journal write failed');
+          messages.push(...structuredClone(batch));
+        },
+        async finish(status) {
+          if (options.failFinish) throw new Error('journal finish failed');
+          finishes.push(status);
+        },
+      };
+    },
+    async getFrontier() { return { sequence: 0, hash: 'test-frontier' }; },
+    async close() {},
+  };
+  return { store, messages, finishes };
+}
+
+test('actor context replays tool arguments, results, corrections, final content and refusal with fresh tools', async () => {
+  const context = contextPort();
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    actorContext: { store: context.store, actorId: 'requester', maxContextBytes: 100_000 },
+    fetch: scriptedFetch([
+      completion({ content: 'parallel plan', tool_calls: parallelBatch }),
+      completion({ content: null, tool_calls: [parallelBatch[0]!] }),
+      completion({ content: '  remembered answer  ', reasoning_details: [{ type: 'reasoning.text', text: 'saved thought' }] }),
+      completion({ refusal: '  remembered refusal  ' }),
+      completion({ content: 'third answer' }),
+    ], requests),
+  });
+  const first = await driver.open(turnRequest(), neverAbort());
+  const call = await first.next({ type: 'start' }, neverAbort());
+  assert.equal(call.type, 'tool_call');
+  assert.equal((await first.next({ type: 'tool_result', result: {
+    callId: call.type === 'tool_call' ? call.call.id : '',
+    tool: 'files.read', status: 'succeeded', output: { content: 'prior AGENT bytes' },
+    completedAt: '2026-08-26T00:00:01.000Z',
+  } }, neverAbort())).type, 'complete');
+  await first.close?.('succeeded', neverAbort());
+
+  const second = await driver.open(turnRequest({ executionId: 'execution-2', tools: [messageRequestTool] }), neverAbort());
+  assert.equal((await second.next({ type: 'start' }, neverAbort())).type, 'complete');
+  const outgoing = requests[3]!.body;
+  assert.equal(outgoing.messages.filter(message => message.role === 'user').length, 2);
+  assert.match(String(outgoing.messages.at(-1)?.content), /all four successful reads are required in this turn/);
+  assert.equal(outgoing.tools?.length, 1);
+  assert.match(JSON.stringify(outgoing.tools), /"name":"messages.request"/);
+  assert.equal(outgoing.messages.filter(message => message.content === PARALLEL_TOOL_CALL_DENIAL_V1).length, 2);
+  assert.ok(outgoing.messages.some(message => String(JSON.stringify(message.tool_calls)).includes('AGENT.md')));
+  assert.ok(outgoing.messages.some(message => String(message.content).includes('prior AGENT bytes')));
+  assert.ok(outgoing.messages.some(message => message.content === '  remembered answer  '));
+  assert.ok(outgoing.messages.some(message => String(JSON.stringify(message.reasoning_details)).includes('saved thought')));
+  await second.close?.('denied', neverAbort());
+  const third = await driver.open(turnRequest({ executionId: 'execution-3' }), neverAbort());
+  await third.next({ type: 'start' }, neverAbort());
+  assert.ok(requests[4]!.body.messages.some(message => message.content === '  remembered refusal  '));
+  await third.close?.('succeeded', neverAbort());
+  await driver.assertActorContextSettled();
+  assert.deepEqual(context.finishes, ['succeeded', 'succeeded', 'succeeded']);
+  assert.doesNotMatch(JSON.stringify(context.messages), /unit-test-key|Authorization|x-request-id/);
+});
+
+test('actor context rejects another actor before opening its journal', async () => {
+  const context = contextPort();
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(), environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    actorContext: { store: context.store, actorId: 'responder', maxContextBytes: 100_000 },
+    fetch: scriptedFetch([], requests),
+  });
+  await assert.rejects(driver.open(turnRequest(), neverAbort()), /actor/i);
+  assert.equal(context.messages.length, 0);
+  assert.equal(requests.length, 0);
+});
+
+test('actor context budget blocks the next provider request after a large tool result', async () => {
+  const context = contextPort();
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(), environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    actorContext: { store: context.store, actorId: 'requester', maxContextBytes: 2_000 },
+    fetch: scriptedFetch([completion({ content: null, tool_calls: [parallelBatch[0]!] })], requests),
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+  const call = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(call.type, 'tool_call');
+  const result = await session.next({ type: 'tool_result', result: {
+    callId: call.type === 'tool_call' ? call.call.id : '', tool: 'files.read',
+    status: 'succeeded', output: { content: 'x'.repeat(3_000) },
+    completedAt: '2026-08-26T00:00:01.000Z',
+  } }, neverAbort());
+  assert.equal(result.type, 'fail');
+  assert.match(JSON.stringify(result), /context_budget_exhausted/);
+  assert.equal(requests.length, 1);
+  assert.ok(context.messages.some(message => String(message.content).includes('x'.repeat(3_000))));
+  await session.close?.('failed', neverAbort());
+  await assert.rejects(driver.assertActorContextSettled(), /context_budget_exhausted/);
+});
+
+test('actor context write failure prevents tool dispatch and any later provider request', async () => {
+  const context = contextPort({ failAppend: 1 });
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(), environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    actorContext: { store: context.store, actorId: 'requester', maxContextBytes: 100_000 },
+    fetch: scriptedFetch([completion({ content: null, tool_calls: [parallelBatch[0]!] })], requests),
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+  assert.equal((await session.next({ type: 'start' }, neverAbort())).type, 'fail');
+  assert.equal((await session.next({ type: 'start' }, neverAbort())).type, 'fail');
+  assert.equal(requests.length, 1);
+  await session.close?.('failed', neverAbort());
+  await assert.rejects(driver.assertActorContextSettled(), /journal write failed/);
+  await assert.rejects(driver.open(turnRequest({ executionId: 'execution-2' }), neverAbort()), /journal write failed/);
+});
+
+test('actor context close failure remains visible after runtime swallows it', async () => {
+  const context = contextPort({ failFinish: true });
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(), environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    actorContext: { store: context.store, actorId: 'requester', maxContextBytes: 100_000 },
+    fetch: scriptedFetch([completion({ content: 'done' })], []),
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+  await session.next({ type: 'start' }, neverAbort());
+  await assert.rejects(async () => session.close?.('succeeded', neverAbort()), /journal finish failed/);
+  await assert.rejects(driver.assertActorContextSettled(), /journal finish failed/);
+});
+
+test('actor context begin failure poisons later opens even if storage recovers', async () => {
+  const options = { failBegin: true };
+  const context = contextPort(options);
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(), environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    actorContext: { store: context.store, actorId: 'requester', maxContextBytes: 100_000 },
+    fetch: scriptedFetch([], requests),
+  });
+  await assert.rejects(driver.open(turnRequest(), neverAbort()), /journal open failed/);
+  options.failBegin = false;
+  await assert.rejects(driver.open(turnRequest({ executionId: 'execution-2' }), neverAbort()), /journal open failed/);
+  await assert.rejects(driver.assertActorContextSettled(), /journal open failed/);
+  assert.equal(requests.length, 0);
+});
+
+test('actor context cold reopen preserves protocol pairs and permits provider call IDs from older turns', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'file-driver-context-'));
+  const storeOptions = { directory, worldId: 'world-a', bindingDigest: 'a'.repeat(64), actorIds: ['requester'], maxContextBytes: 100_000 };
+  let store = await openActorContextStore(storeOptions);
+  const requests: ProviderRequest[] = [];
+  const makeDriver = (responses: Response[]) => createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(), environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    actorContext: { store, actorId: 'requester', maxContextBytes: 100_000 },
+    fetch: scriptedFetch(responses, requests),
+  });
+  const resultFor = (id: string) => ({ type: 'tool_result' as const, result: {
+    callId: id, tool: 'files.read', status: 'succeeded' as const,
+    output: { content: 'durable memory' }, completedAt: '2026-08-26T00:00:01.000Z',
+  } });
+  try {
+    const firstDriver = makeDriver([
+      completion({ content: null, tool_calls: parallelBatch }),
+      completion({ content: null, tool_calls: [parallelBatch[0]!] }),
+      completion({ content: 'durable final' }),
+    ]);
+    const first = await firstDriver.open(turnRequest(), neverAbort());
+    const call = await first.next({ type: 'start' }, neverAbort());
+    assert.equal(call.type, 'tool_call', JSON.stringify(call));
+    if (call.type !== 'tool_call') throw new Error('Expected call');
+    await first.next(resultFor(call.call.id), neverAbort());
+    await first.close?.('succeeded', neverAbort());
+    await firstDriver.assertActorContextSettled();
+    await store.close();
+    store = await openActorContextStore(storeOptions);
+    const secondDriver = makeDriver([
+      completion({ content: null, tool_calls: [parallelBatch[0]!] }),
+      completion({ refusal: 'cold refusal' }),
+    ]);
+    const second = await secondDriver.open(turnRequest({ executionId: 'execution-2' }), neverAbort());
+    const nextCall = await second.next({ type: 'start' }, neverAbort());
+    assert.equal(nextCall.type, 'tool_call', JSON.stringify(nextCall));
+    if (nextCall.type !== 'tool_call') throw new Error('Expected call');
+    const wire = requests[3]!.body.messages as ActorContextMessage[];
+    assert.ok(wire.some(message => message.content === 'durable final'));
+    const priorCalls = wire.flatMap(message => message.role === 'assistant' ? message.tool_calls ?? [] : []);
+    const priorResults = wire.filter(message => message.role === 'tool');
+    assert.equal(new Set(priorCalls.map(call => call.id)).size, 3);
+    assert.ok(priorCalls.every(call => call.id !== 'batched-call-1' && call.id !== 'batched-call-2'));
+    assert.deepEqual(priorResults.map(message => message.tool_call_id), priorCalls.map(call => call.id));
+    await second.next(resultFor(nextCall.call.id), neverAbort());
+    const currentCall = (requests[4]!.body.messages as ActorContextMessage[]).at(-2);
+    assert.equal(currentCall?.role === 'assistant' ? currentCall.tool_calls?.[0]?.id : undefined, 'batched-call-1');
+    await second.close?.('denied', neverAbort());
+    await secondDriver.assertActorContextSettled();
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });

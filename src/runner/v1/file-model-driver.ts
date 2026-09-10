@@ -17,6 +17,13 @@ import type {
   SoTurnInput,
 } from '../../execution/sharedos/v1/contracts.js';
 import {
+  ActorContextError,
+  assertActorContextBudget,
+  type ActorContextMessage,
+  type ActorContextStore,
+  type ActorContextTurn,
+} from '../context/actor-context.js';
+import {
   pactModelIdentifierV1,
   resolvePactRunModelApiKeyV1,
   type PactModelConfigV1,
@@ -139,15 +146,7 @@ function isParallelToolCallCorrection(
   return (outcome as ParallelToolCallCorrectionV1).corrected === true;
 }
 
-type ProviderMessage =
-  | { role: 'user'; content: string }
-  | {
-    role: 'assistant';
-    content: string | null;
-    tool_calls: ProviderToolCall[];
-    reasoning_details?: JsonValue[];
-  }
-  | { role: 'tool'; tool_call_id: string; content: string };
+type ProviderMessage = ActorContextMessage;
 
 type ProviderTool = {
   type: 'function';
@@ -210,6 +209,10 @@ export interface FileProviderTelemetrySourceV1 {
   getFileProviderTelemetryV1(): FileProviderTelemetryV1;
 }
 
+export interface FileActorContextSettlementSourceV1 {
+  assertActorContextSettled(): Promise<void>;
+}
+
 export type ServedModelObservationV1 =
   | Readonly<{ consistent: true }>
   | Readonly<{ consistent: false; expected: string }>;
@@ -269,6 +272,11 @@ export type OpenAICompatibleFileTurnDriverV1Options = Readonly<{
   environment?: Record<string, string | undefined>;
   servedModelLedger?: ServedModelConsistencyLedgerV1;
   rateLimitGate?: ProviderRateLimitGateV1;
+  actorContext?: Readonly<{
+    store: ActorContextStore;
+    actorId: string;
+    maxContextBytes: number;
+  }>;
 }>;
 
 class FileModelDriverErrorV1 extends Error {
@@ -346,11 +354,16 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
   readonly #providerRequests: FileProviderRequestTelemetryV1[] = [];
   readonly #servedModelLedger: ServedModelConsistencyLedgerV1 | undefined;
   readonly #rateLimitGate: ProviderRateLimitGateV1 | undefined;
+  readonly #actorContext: OpenAICompatibleFileTurnDriverV1Options['actorContext'];
+  readonly #contextSessions = new Set<OpenAICompatibleFileTurnSessionV1>();
+  #contextFailure: unknown;
+  #contextFailed = false;
 
   constructor(options: OpenAICompatibleFileTurnDriverV1Options) {
     this.#model = options.model;
     this.#servedModelLedger = options.servedModelLedger;
     this.#rateLimitGate = options.rateLimitGate;
+    this.#actorContext = options.actorContext;
     this.#fetchImplementation = options.fetch ?? globalThis.fetch;
     if (typeof this.#fetchImplementation !== 'function') {
       throw new Error('A fetch implementation is required for the file model driver');
@@ -376,8 +389,32 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
     signal: AbortSignal,
   ): Promise<Awaited<ReturnType<SoTurnDriver['open']>>> {
     throwIfAborted(signal);
+    if (this.#contextFailed) throw this.#contextFailure;
+    if (this.#actorContext && request.agent.agentId !== this.#actorContext.actorId) {
+      throw new FileModelDriverErrorV1(
+        'actor_context_actor_mismatch',
+        'File model driver actor does not match its bound actor context',
+      );
+    }
     const tools = request.tools.map(projectProviderTool);
-    return new OpenAICompatibleFileTurnSessionV1({
+    const input: ActorContextMessage = {
+      role: 'user', content: promptFromMessage(request.message),
+    };
+    let contextTurn: ActorContextTurn | undefined;
+    if (this.#actorContext) {
+      try {
+        contextTurn = await this.#actorContext.store.beginTurn({
+          actorId: this.#actorContext.actorId,
+          turnId: request.executionId,
+          input,
+        });
+      } catch (error) {
+        this.#contextFailure = error;
+        this.#contextFailed = true;
+        throw error;
+      }
+    }
+    const session = new OpenAICompatibleFileTurnSessionV1({
       request,
       tools,
       model: this.#model,
@@ -392,7 +429,29 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
         ? { servedModelLedger: this.#servedModelLedger }
         : {}),
       ...(this.#rateLimitGate ? { rateLimitGate: this.#rateLimitGate } : {}),
+      ...(contextTurn && this.#actorContext ? {
+        actorContext: {
+          turn: contextTurn,
+          input,
+          maxContextBytes: this.#actorContext.maxContextBytes,
+          assertHealthy: () => {
+            if (this.#contextFailed) throw this.#contextFailure;
+          },
+          recordFailure: (error: unknown) => {
+            if (!this.#contextFailed) this.#contextFailure = error;
+            this.#contextFailed = true;
+          },
+          onClosed: () => this.#contextSessions.delete(session),
+        },
+      } : {}),
     });
+    if (contextTurn) this.#contextSessions.add(session);
+    return session;
+  }
+
+  async assertActorContextSettled(): Promise<void> {
+    await Promise.all([...this.#contextSessions].map(session => session.assertActorContextSettled()));
+    if (this.#contextFailed) throw this.#contextFailure;
   }
 
   getFileProviderTelemetryV1(): FileProviderTelemetryV1 {
@@ -427,6 +486,14 @@ type SessionOptions = Readonly<{
   recordTelemetry: (telemetry: FileProviderRequestTelemetryV1) => void;
   servedModelLedger?: ServedModelConsistencyLedgerV1;
   rateLimitGate?: ProviderRateLimitGateV1;
+  actorContext?: Readonly<{
+    turn: ActorContextTurn;
+    input: ActorContextMessage;
+    maxContextBytes: number;
+    assertHealthy(): void;
+    recordFailure(error: unknown): void;
+    onClosed(): void;
+  }>;
 }>;
 
 class OpenAICompatibleFileTurnSessionV1 {
@@ -443,9 +510,12 @@ class OpenAICompatibleFileTurnSessionV1 {
   readonly #servedModelLedger: ServedModelConsistencyLedgerV1 | undefined;
   readonly #rateLimitGate: ProviderRateLimitGateV1 | undefined;
   readonly #messages: ProviderMessage[];
+  #actorContext: SessionOptions['actorContext'];
   readonly #seenProviderCallIds = new Set<string>();
   #started = false;
   #closed = false;
+  #failed = false;
+  #closePromise: Promise<void> | undefined;
   #toolSteps = 0;
   #contactCalls = 0;
   #pendingCall?: { providerId: string; sharedOsId: string; tool: string };
@@ -463,29 +533,81 @@ class OpenAICompatibleFileTurnSessionV1 {
     this.#recordTelemetry = options.recordTelemetry;
     this.#servedModelLedger = options.servedModelLedger;
     this.#rateLimitGate = options.rateLimitGate;
-    this.#messages = [{ role: 'user', content: promptFromMessage(options.request.message) }];
+    this.#actorContext = options.actorContext;
+    this.#messages = options.actorContext
+      ? [...structuredClone(options.actorContext.turn.priorMessages), options.actorContext.input]
+      : [{ role: 'user', content: promptFromMessage(options.request.message) }];
   }
 
   async next(input: SoTurnInput, signal: AbortSignal): Promise<SoTurnDecision> {
     throwIfAborted(signal);
     try {
-      this.#acceptInput(input);
+      this.#actorContext?.assertHealthy();
+      const accepted = this.#acceptInput(input);
+      if (accepted) await accepted;
       return await this.#requestNextDecision(signal);
     } catch (error) {
+      this.#failed = true;
+      if (error instanceof ActorContextError && error.code === 'context_budget_exhausted') {
+        this.#actorContext?.recordFailure(error);
+      }
       if (signal.aborted) throw abortReason(signal);
       return failDecision(error);
     }
   }
 
-  close(_outcome: SoExecutionStatus, _signal: AbortSignal): void {
-    if (this.#closed) return;
+  close(outcome: SoExecutionStatus, _signal: AbortSignal): Promise<void> {
+    if (this.#closePromise) return this.#closePromise;
     this.#closed = true;
-    this.#messages.splice(0);
-    this.#seenProviderCallIds.clear();
-    this.#pendingCall = undefined;
+    this.#closePromise = this.#finish(outcome);
+    return this.#closePromise;
   }
 
-  #acceptInput(input: SoTurnInput): void {
+  async #finish(outcome: SoExecutionStatus): Promise<void> {
+    try {
+      await this.#actorContext?.turn.finish(
+        outcome === 'cancelled' ? 'cancelled'
+          : outcome === 'failed' || this.#failed ? 'failed' : 'succeeded',
+      );
+    } catch (error) {
+      this.#actorContext?.recordFailure(error);
+      throw error;
+    } finally {
+      this.#messages.splice(0);
+      this.#seenProviderCallIds.clear();
+      this.#pendingCall = undefined;
+      this.#actorContext?.onClosed();
+      this.#actorContext = undefined;
+    }
+  }
+
+  async assertActorContextSettled(): Promise<void> {
+    if (!this.#closePromise) {
+      throw new FileModelDriverErrorV1('context_turn_incomplete', 'Actor context turn has not closed');
+    }
+    await this.#closePromise;
+  }
+
+  async #appendMessages(messages: ProviderMessage[]): Promise<void> {
+    if (this.#actorContext) {
+      this.#actorContext.assertHealthy();
+      messages = messages.map(message => message.role === 'assistant' && message.tool_calls
+        ? { ...message, tool_calls: message.tool_calls.map(call => ({
+          id: call.id, type: call.type,
+          function: { name: call.function.name, arguments: call.function.arguments },
+        })) }
+        : message);
+      try {
+        await this.#actorContext.turn.append(messages);
+      } catch (error) {
+        this.#actorContext.recordFailure(error);
+        throw new FileModelDriverErrorV1('context_integrity_error', 'Actor context persistence failed');
+      }
+    }
+    this.#messages.push(...messages);
+  }
+
+  #acceptInput(input: SoTurnInput): void | Promise<void> {
     if (this.#closed) {
       throw new FileModelDriverErrorV1(
         'model_driver_protocol_error',
@@ -517,11 +639,15 @@ class OpenAICompatibleFileTurnSessionV1 {
         'File model driver received a mismatched SharedOS tool result',
       );
     }
-    this.#messages.push({
+    const message: ProviderMessage = {
       role: 'tool',
       tool_call_id: this.#pendingCall.providerId,
       content: stringifyToolResult(input.result),
-    });
+    };
+    if (this.#actorContext) {
+      return this.#appendMessages([message]).then(() => { this.#pendingCall = undefined; });
+    }
+    this.#messages.push(message);
     this.#pendingCall = undefined;
   }
 
@@ -617,7 +743,7 @@ class OpenAICompatibleFileTurnSessionV1 {
         // provider, so it is correctable: deny the whole batch and ask for one
         // call. Killing the task here is what lost 27 of 30 tasks when a
         // provider ignored parallel_tool_calls: false.
-        this.#denyParallelToolCalls(calls, message);
+        await this.#denyParallelToolCalls(calls, message);
         // The response was well-formed but yielded no decision; leaving the
         // telemetry outcome at invalid_response is what makes corrections
         // visible per request instead of silently absorbed.
@@ -638,12 +764,12 @@ class OpenAICompatibleFileTurnSessionV1 {
       }
       const arguments_ = parseToolArguments(call.function.arguments);
       const reasoning = parseReasoningDetails(message.reasoning_details);
-      this.#messages.push({
+      await this.#appendMessages([{
         role: 'assistant',
         content: message.content ?? null,
         tool_calls: [call],
         ...(reasoning ? { reasoning_details: reasoning } : {}),
-      });
+      }]);
       const sharedOsId = stableToolCallId(
         this.#request.executionId,
         this.#toolSteps,
@@ -678,6 +804,13 @@ class OpenAICompatibleFileTurnSessionV1 {
         toolSteps: this.#toolSteps,
         contactCalls: this.#contactCalls,
       });
+      if (this.#actorContext) {
+        const reasoning = parseReasoningDetails(message.reasoning_details);
+        await this.#appendMessages([{
+          role: 'assistant', content: message.refusal ?? refusal,
+          ...(reasoning ? { reasoning_details: reasoning } : {}),
+        }]);
+      }
       telemetry.outcome = 'success';
       return decision;
     }
@@ -694,6 +827,13 @@ class OpenAICompatibleFileTurnSessionV1 {
       toolSteps: this.#toolSteps,
       contactCalls: this.#contactCalls,
     });
+    if (this.#actorContext) {
+      const reasoning = parseReasoningDetails(message.reasoning_details);
+      await this.#appendMessages([{
+        role: 'assistant', content: message.content ?? content,
+        ...(reasoning ? { reasoning_details: reasoning } : {}),
+      }]);
+    }
     telemetry.outcome = 'success';
     return decision;
   }
@@ -710,24 +850,25 @@ class OpenAICompatibleFileTurnSessionV1 {
    * never executed, and a temperature-0 model that regenerates the same id on
    * the corrected turn should not be failed for it.
    */
-  #denyParallelToolCalls(
+  async #denyParallelToolCalls(
     calls: readonly ProviderToolCall[],
     message: { content?: string | null; reasoning_details?: unknown[] | null },
-  ): void {
+  ): Promise<void> {
     const reasoning = parseReasoningDetails(message.reasoning_details);
-    this.#messages.push({
+    const messages: ProviderMessage[] = [{
       role: 'assistant',
       content: message.content ?? null,
       tool_calls: [...calls],
       ...(reasoning ? { reasoning_details: reasoning } : {}),
-    });
+    }];
     for (const call of calls) {
-      this.#messages.push({
+      messages.push({
         role: 'tool',
         tool_call_id: call.id,
         content: PARALLEL_TOOL_CALL_DENIAL_V1,
       });
     }
+    await this.#appendMessages(messages);
   }
 
   #requestBody(): Record<string, unknown> {
@@ -781,6 +922,10 @@ class OpenAICompatibleFileTurnSessionV1 {
         // Honor a run-wide rate-limit block before spending this attempt, so
         // concurrent tasks queue behind one 429 instead of piling onto it.
         if (this.#rateLimitGate) await this.#rateLimitGate.wait(signal);
+        if (this.#actorContext) {
+          this.#actorContext.assertHealthy();
+          assertActorContextBudget(this.#messages, this.#actorContext.maxContextBytes);
+        }
         failureHeaders = {};
         failureStatus = undefined;
         failureRetryable = undefined;
@@ -879,6 +1024,7 @@ class OpenAICompatibleFileTurnSessionV1 {
       }
     } catch (error) {
       throwIfAborted(signal);
+      if (error instanceof ActorContextError) throw error;
       this.#recordTelemetry({
         requestedModel: this.#requestedModel,
         resolvedModel: this.#resolvedModel,
@@ -911,7 +1057,7 @@ class OpenAICompatibleFileTurnSessionV1 {
 
 export function createOpenAICompatibleFileTurnDriverV1(
   options: OpenAICompatibleFileTurnDriverV1Options,
-): SoTurnDriver & FileProviderTelemetrySourceV1 {
+): SoTurnDriver & FileProviderTelemetrySourceV1 & FileActorContextSettlementSourceV1 {
   return new OpenAICompatibleFileTurnDriverV1(options);
 }
 
@@ -1046,6 +1192,9 @@ function stableToolCallId(
 }
 
 function failDecision(error: unknown): SoTurnDecision {
+  if (error instanceof ActorContextError) {
+    return { type: 'fail', error: { code: error.code, message: error.message, retryable: false } };
+  }
   if (error instanceof FileModelDriverErrorV1) {
     return {
       type: 'fail',
