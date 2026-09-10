@@ -573,10 +573,11 @@ test('rejects conflicting failure authority and symlinked failure destinations',
   await t.test('contradictory stage and code', async t => {
     const fixture = await opened(t, 'failure-stage-code');
     const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+    const bindingDigest = sha256('binding:failure-stage-code');
     await assert.rejects(
       writeFileWorkflowFailureV1({
         runDirectory: fixture.runDirectory,
-        bindingDigest: sha256('binding:failure-stage-code'),
+        bindingDigest,
         start: startFor(payload),
         failure: {
           stage: 'context_settlement',
@@ -584,6 +585,27 @@ test('rejects conflicting failure authority and symlinked failure destinations',
         },
       }),
       /stage|code|failure/i,
+    );
+    await writeFile(
+      join(fixture.runDirectory, 'execution-status.json'),
+      `${canonicalTestJson({
+        apiVersion: 'sharedeval-file-execution-status/v1',
+        bindingDigest,
+        runId: payload.event.runId,
+        eventId: payload.event.eventId,
+        tick: payload.event.tick,
+        inputDigest: payload.inputDigest,
+        executionStatus: 'indeterminate_external_operation',
+        evaluationStatus: 'incomplete',
+        failureStage: 'context_settlement',
+        failureCode: 'ledger_commit_failed',
+        failureRecordDigest: sha256('failure-record'),
+      })}\n`,
+      'utf8',
+    );
+    await assert.rejects(
+      clearFileWorkflowFailureStatusV1({ runDirectory: fixture.runDirectory, bindingDigest }),
+      /malformed|stage|code/i,
     );
     await fixture.store.close();
   });

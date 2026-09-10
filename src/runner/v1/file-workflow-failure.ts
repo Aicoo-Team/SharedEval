@@ -86,7 +86,15 @@ export const fileWorkflowFailureRecordV1Schema = z.object({
   executionStatus: z.literal('indeterminate_external_operation'),
   evaluationStatus: z.literal('incomplete'),
   failureDigest: sha256Schema,
-}).strict();
+}).strict().superRefine((record, context) => {
+  if (!validFailureCodes(record.stage).has(record.code)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['code'],
+      message: 'failure code does not match its stage',
+    });
+  }
+});
 
 export const fileWorkflowExecutionStatusV1Schema = z.object({
   apiVersion: z.literal('sharedeval-file-execution-status/v1'),
@@ -100,7 +108,15 @@ export const fileWorkflowExecutionStatusV1Schema = z.object({
   failureStage: fileWorkflowFailureStageV1Schema,
   failureCode: fileWorkflowFailureCodeV1Schema,
   failureRecordDigest: sha256Schema,
-}).strict();
+}).strict().superRefine((status, context) => {
+  if (!validFailureCodes(status.failureStage).has(status.failureCode)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['failureCode'],
+      message: 'failure code does not match its stage',
+    });
+  }
+});
 
 export type FileWorkflowFailureRecordV1 = z.infer<
   typeof fileWorkflowFailureRecordV1Schema
