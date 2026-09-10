@@ -11,11 +11,13 @@ import {
   type RunSharedevalProductionV1Options,
   type SharedevalProductionRunV1,
 } from './sharedeval-production.js';
+import { computeSharedevalWorldHashV1 } from './sharedeval-world-hash.js';
 import { resolveWorkflow, type ResolvedSharedevalWorkflowV1 } from './workflow.js';
 
 export type SharedevalCliOptionsV1 = SharedevalCliOverridesV1 & Readonly<{
   configPath: string;
   check: boolean;
+  worldHash: boolean;
   runId?: string;
   workflow: ResolvedSharedevalWorkflowV1;
 }>;
@@ -24,12 +26,14 @@ export type SharedevalCliDependenciesV1 = Readonly<{
   runProduction?: (
     input: RunSharedevalProductionV1Options,
   ) => Promise<SharedevalProductionRunV1>;
+  computeWorldHash?: typeof computeSharedevalWorldHashV1;
   writeOutput?: (source: string) => void;
 }>;
 
 export function parseSharedevalCliArgumentsV1(argv: readonly string[]): SharedevalCliOptionsV1 {
   let configPath: string | undefined;
   let check = false;
+  let worldHash = false;
   let mode: 'multi' | 'single' | undefined;
   let runId: string | undefined;
   let maxTicks: number | undefined;
@@ -47,6 +51,10 @@ export function parseSharedevalCliArgumentsV1(argv: readonly string[]): Sharedev
     }
     if (argument === '--check') {
       check = true;
+      continue;
+    }
+    if (argument === '--world-hash') {
+      worldHash = true;
       continue;
     }
     if (argument === '--run-id') {
@@ -112,6 +120,7 @@ export function parseSharedevalCliArgumentsV1(argv: readonly string[]): Sharedev
   return Object.freeze({
     configPath,
     check,
+    worldHash,
     ...(runId === undefined ? {} : { runId }),
     ...(taskIds.length === 0 ? {} : { taskIds }),
     ...(maxTicks === undefined ? {} : { maxTicks }),
@@ -132,6 +141,13 @@ export async function mainSharedevalV1(
   }
   const effective = applySharedevalOverridesV1(config, options.workflow, options);
   const writeOutput = dependencies.writeOutput ?? (source => process.stdout.write(source));
+  if (options.worldHash) {
+    const hash = (dependencies.computeWorldHash ?? computeSharedevalWorldHashV1)({
+      config: effective,
+    });
+    writeOutput(`${JSON.stringify(hash, null, 2)}\n`);
+    return 0;
+  }
   if (options.check) {
     writeOutput(`${JSON.stringify({
       valid: true,
@@ -193,7 +209,7 @@ function parseRunId(value: string): string {
 }
 
 function usage(): string {
-  return 'Usage: npm run sharedeval -- [multi|single] --config <sharedeval-run.yaml> --run-id <id> [--task <id>|--tasks <id,...>] [--max-ticks <count>] [--check]\n';
+  return 'Usage: npm run sharedeval -- [multi|single] --config <sharedeval-run.yaml> --run-id <id> [--task <id>|--tasks <id,...>] [--max-ticks <count>] [--check] [--world-hash]\n';
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
