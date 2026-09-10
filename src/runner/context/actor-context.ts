@@ -5,7 +5,7 @@ export type ActorContextMessage =
   | { role: 'user'; content: string }
   | { role: 'assistant'; content: string | null; tool_calls?: Array<{
     id: string; type: 'function'; function: { name: string; arguments: string };
-  }>; reasoning_details?: JsonValue[] }
+  }>; reasoning_details?: JsonValue[]; refusal?: string }
   | { role: 'tool'; tool_call_id: string; content: string };
 
 export type ActorContextStatus = 'succeeded' | 'failed' | 'cancelled';
@@ -46,6 +46,7 @@ export const actorContextMessageSchema: z.ZodType<ActorContextMessage> = z.discr
       function: z.object({ name: z.string().min(1), arguments: z.string() }).strict(),
     }).strict()).optional(),
     reasoning_details: z.array(jsonValueSchema).optional(),
+    refusal: z.string().optional(),
   }).strict(),
   z.object({ role: z.literal('tool'), tool_call_id: z.string().min(1), content: z.string() }).strict(),
 ]);

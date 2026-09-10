@@ -768,6 +768,7 @@ class OpenAICompatibleFileTurnSessionV1 {
         role: 'assistant',
         content: message.content ?? null,
         tool_calls: [call],
+        ...(this.#actorContext && typeof message.refusal === 'string' ? { refusal: message.refusal } : {}),
         ...(reasoning ? { reasoning_details: reasoning } : {}),
       }]);
       const sharedOsId = stableToolCallId(
@@ -807,7 +808,7 @@ class OpenAICompatibleFileTurnSessionV1 {
       if (this.#actorContext) {
         const reasoning = parseReasoningDetails(message.reasoning_details);
         await this.#appendMessages([{
-          role: 'assistant', content: message.refusal ?? refusal,
+          role: 'assistant', content: message.content ?? null, refusal: message.refusal ?? refusal,
           ...(reasoning ? { reasoning_details: reasoning } : {}),
         }]);
       }
@@ -831,6 +832,7 @@ class OpenAICompatibleFileTurnSessionV1 {
       const reasoning = parseReasoningDetails(message.reasoning_details);
       await this.#appendMessages([{
         role: 'assistant', content: message.content ?? content,
+        ...(typeof message.refusal === 'string' ? { refusal: message.refusal } : {}),
         ...(reasoning ? { reasoning_details: reasoning } : {}),
       }]);
     }
@@ -852,13 +854,14 @@ class OpenAICompatibleFileTurnSessionV1 {
    */
   async #denyParallelToolCalls(
     calls: readonly ProviderToolCall[],
-    message: { content?: string | null; reasoning_details?: unknown[] | null },
+    message: { content?: string | null; reasoning_details?: unknown[] | null; refusal?: string | null },
   ): Promise<void> {
     const reasoning = parseReasoningDetails(message.reasoning_details);
     const messages: ProviderMessage[] = [{
       role: 'assistant',
       content: message.content ?? null,
       tool_calls: [...calls],
+      ...(this.#actorContext && typeof message.refusal === 'string' ? { refusal: message.refusal } : {}),
       ...(reasoning ? { reasoning_details: reasoning } : {}),
     }];
     for (const call of calls) {

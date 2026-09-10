@@ -1160,8 +1160,8 @@ test('actor context replays tool arguments, results, corrections, final content 
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
     actorContext: { store: context.store, actorId: 'requester', maxContextBytes: 100_000 },
     fetch: scriptedFetch([
-      completion({ content: 'parallel plan', tool_calls: parallelBatch }),
-      completion({ content: null, tool_calls: [parallelBatch[0]!] }),
+      completion({ content: 'parallel plan', refusal: 'parallel refusal', tool_calls: parallelBatch }),
+      completion({ content: null, refusal: 'tool refusal', tool_calls: [parallelBatch[0]!] }),
       completion({ content: '  remembered answer  ', reasoning_details: [{ type: 'reasoning.text', text: 'saved thought' }] }),
       completion({ refusal: '  remembered refusal  ' }),
       completion({ content: 'third answer' }),
@@ -1188,11 +1188,14 @@ test('actor context replays tool arguments, results, corrections, final content 
   assert.ok(outgoing.messages.some(message => String(JSON.stringify(message.tool_calls)).includes('AGENT.md')));
   assert.ok(outgoing.messages.some(message => String(message.content).includes('prior AGENT bytes')));
   assert.ok(outgoing.messages.some(message => message.content === '  remembered answer  '));
+  assert.ok(outgoing.messages.some(message => message.refusal === 'parallel refusal'));
+  assert.ok(outgoing.messages.some(message => message.refusal === 'tool refusal'));
   assert.ok(outgoing.messages.some(message => String(JSON.stringify(message.reasoning_details)).includes('saved thought')));
   await second.close?.('denied', neverAbort());
   const third = await driver.open(turnRequest({ executionId: 'execution-3' }), neverAbort());
   await third.next({ type: 'start' }, neverAbort());
-  assert.ok(requests[4]!.body.messages.some(message => message.content === '  remembered refusal  '));
+  assert.ok(requests[4]!.body.messages.some(message => message.content === null
+    && message.refusal === '  remembered refusal  '));
   await third.close?.('succeeded', neverAbort());
   await driver.assertActorContextSettled();
   assert.deepEqual(context.finishes, ['succeeded', 'succeeded', 'succeeded']);
@@ -1330,6 +1333,43 @@ test('actor context cold reopen preserves protocol pairs and permits provider ca
     const currentCall = (requests[4]!.body.messages as ActorContextMessage[]).at(-2);
     assert.equal(currentCall?.role === 'assistant' ? currentCall.tool_calls?.[0]?.id : undefined, 'batched-call-1');
     await second.close?.('denied', neverAbort());
+    await secondDriver.assertActorContextSettled();
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('actor context cold reopen preserves both assistant content and refusal as separate fields', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'file-driver-refusal-'));
+  const options = { directory, worldId: 'refusal-world', bindingDigest: 'a'.repeat(64),
+    actorIds: ['requester'], maxContextBytes: 100_000 };
+  let store = await openActorContextStore(options);
+  const requests: ProviderRequest[] = [];
+  const makeDriver = (response: Response) => createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(), environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    actorContext: { store, actorId: 'requester', maxContextBytes: 100_000 },
+    fetch: scriptedFetch([response], requests),
+  });
+  try {
+    const firstDriver = makeDriver(completion({ content: '  visible answer portion  ',
+      refusal: '  withheld private portion  ',
+      reasoning_details: [{ type: 'reasoning.text', text: 'why this is partial' }] }));
+    const first = await firstDriver.open(turnRequest(), neverAbort());
+    const decision = await first.next({ type: 'start' }, neverAbort());
+    assert.equal(decision.type, 'complete');
+    await first.close?.('denied', neverAbort());
+    await firstDriver.assertActorContextSettled();
+    await store.close();
+    store = await openActorContextStore(options);
+    const secondDriver = makeDriver(completion({ content: 'next answer' }));
+    const second = await secondDriver.open(turnRequest({ executionId: 'execution-2' }), neverAbort());
+    await second.next({ type: 'start' }, neverAbort());
+    assert.deepEqual(requests[1]!.body.messages.find(message => message.role === 'assistant'), {
+      role: 'assistant', content: '  visible answer portion  ', refusal: '  withheld private portion  ',
+      reasoning_details: [{ type: 'reasoning.text', text: 'why this is partial' }],
+    });
+    await second.close?.('succeeded', neverAbort());
     await secondDriver.assertActorContextSettled();
   } finally {
     await store.close();
