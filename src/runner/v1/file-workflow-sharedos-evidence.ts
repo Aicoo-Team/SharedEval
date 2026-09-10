@@ -244,6 +244,7 @@ function projectFileWorkflowSharedOsEvidenceCore(
     assertOrdinaryDeniedTurn(input, source.auditEvents);
   }
   const catalogs = assertAdmittedToolCatalogs(input, binding, source.auditEvents, admissions);
+  assertSuccessfulCatalogTools(source.auditEvents, catalogs);
 
   const operations = validateFileOperations(input, binding, source.auditEvents, admissions);
   const memory = deriveMemoryEvidence(operations, binding);
@@ -544,22 +545,27 @@ function assertAdmittedToolCatalogs(
     }
     const visibleTools = parseVisibleTools(catalog.event);
     if (actorId === binding.actors.requester.actorId) {
-      if (!sameStringSet(visibleTools, ['files.read', 'files.replace', 'messages.request'])) {
+      if ([...visibleTools].some(tool => resolvePactPairSharedOsToolBindingV1(tool))) {
+        throw new Error(
+          'Requester SharedOS catalog exposes a non-canonical PACT tool restricted to responder',
+        );
+      }
+      if ([...visibleTools].some(tool => (
+        tool !== 'files.read'
+        && tool !== 'files.replace'
+        && tool !== 'messages.request'
+      ))) {
         throw new Error('Requester SharedOS tool catalog has a non-canonical visible tool set');
       }
     } else {
-      if (
-        !visibleTools.has('files.read')
-        || !visibleTools.has('files.replace')
-        || visibleTools.has('messages.request')
-      ) {
-        throw new Error('Responder SharedOS tool catalog lacks its canonical file boundary');
-      }
       const taskKind = input.native.contact
         ? binding.selectedTasks.find(task => task.taskId === input.native.contact!.taskId)?.kind
         : undefined;
       for (const tool of visibleTools) {
         if (tool === 'files.read' || tool === 'files.replace') continue;
+        if (tool === 'messages.request') {
+          throw new Error('Responder SharedOS tool catalog cannot expose messages.request');
+        }
         const pactBinding = resolvePactPairSharedOsToolBindingV1(tool);
         if (!pactBinding || (taskKind === 'qa' && pactBinding.action !== 'read')) {
           throw new Error('Responder SharedOS tool catalog exposes a non-canonical PACT tool');
@@ -576,6 +582,26 @@ function assertAdmittedToolCatalogs(
     throw new Error('SharedOS audit contains a tool catalog outside an admitted phase');
   }
   return catalogs;
+}
+
+function assertSuccessfulCatalogTools(
+  events: readonly NativeAuditEvent[],
+  catalogs: ReadonlyMap<string, AdmittedToolCatalog>,
+): void {
+  for (const event of events) {
+    if (
+      event.type !== 'tool.invoked'
+      || event.outcome !== 'succeeded'
+      || typeof event.tool !== 'string'
+      || (!event.tool.startsWith('files.') && !event.tool.startsWith('messages.'))
+    ) continue;
+    if (
+      event.actor.kind !== 'agent'
+      || !catalogs.get(event.actor.agentId)?.visibleTools.has(event.tool)
+    ) {
+      throw new Error('Successful file or message tool invocation is absent from its actor catalog');
+    }
+  }
 }
 
 function parseVisibleTools(event: NativeAuditEvent): ReadonlySet<string> {
@@ -1668,10 +1694,6 @@ function isAgent(address: NativeAddress | undefined, actorId: string): boolean {
 
 function isAgentIn(address: NativeAddress | undefined, actorIds: ReadonlySet<string>): boolean {
   return address?.kind === 'agent' && actorIds.has(address.agentId);
-}
-
-function sameStringSet(actual: ReadonlySet<string>, expected: readonly string[]): boolean {
-  return actual.size === expected.length && expected.every(value => actual.has(value));
 }
 
 function indexed(events: readonly NativeAuditEvent[]) {
