@@ -8,6 +8,7 @@ import {
   safeRelativePathSchema,
 } from '../../contracts/json.js';
 import { pactModelConfigV1Schema } from './model-config.js';
+import { worldProfileSchema } from '../world/profile.js';
 import {
   PACT_PAIR_GRADING_MODES_V1,
   PACT_PAIR_POLICIES_V1,
@@ -19,6 +20,7 @@ import type {
 } from './workflow.js';
 
 export const SHAREDEVAL_RUN_CONFIG_API_VERSION_V1 = 'sharedeval-run/v1' as const;
+export const SHAREDEVAL_RUN_CONFIG_API_VERSION_V2 = 'sharedeval-run/v2' as const;
 export const MAX_SHAREDEVAL_RUN_CONFIG_BYTES_V1 = 256 * 1_024;
 export const MAX_SHAREDEVAL_TICKS_V1 = 10_000;
 export const MIN_SHAREDEVAL_TOOL_CALLS_V1 = 6;
@@ -56,38 +58,51 @@ export const sharedevalWorkflowV1Schema = z
     multiTurn: sharedevalMultiTurnV1Schema.optional(),
   })
   .strict()
-  .superRefine((workflow, context) => {
-    if (workflow.mode === 'multi' && (workflow.taskConcurrency ?? 1) > 1) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['taskConcurrency'],
-        message: 'taskConcurrency applies only to the single workflow',
-      });
-    }
-    if (!workflow.multiTurn) return;
-    if (workflow.mode !== 'multi') {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['multiTurn'],
-        message: 'multiTurn applies only to the multi workflow',
-      });
-      return;
-    }
-    if (workflow.multiTurn.phase2StartTick > workflow.multiTurn.finalizeTick) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['multiTurn', 'finalizeTick'],
-        message: 'finalizeTick must be at or after phase2StartTick',
-      });
-    }
-    if (workflow.multiTurn.finalizeTick > workflow.maxTicks) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['multiTurn', 'finalizeTick'],
-        message: 'finalizeTick must not exceed maxTicks',
-      });
-    }
-  });
+  .superRefine(validateWorkflow);
+
+function validateWorkflow(
+  workflow: { mode: 'multi' | 'single'; taskConcurrency?: number; maxTicks: number;
+    multiTurn?: SharedevalMultiTurnV1 },
+  context: z.RefinementCtx,
+) {
+  if (workflow.mode === 'multi' && (workflow.taskConcurrency ?? 1) > 1) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['taskConcurrency'],
+      message: 'taskConcurrency applies only to the single workflow',
+    });
+  }
+  if (!workflow.multiTurn) return;
+  if (workflow.mode !== 'multi') {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['multiTurn'],
+      message: 'multiTurn applies only to the multi workflow',
+    });
+    return;
+  }
+  if (workflow.multiTurn.phase2StartTick > workflow.multiTurn.finalizeTick) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['multiTurn', 'finalizeTick'],
+      message: 'finalizeTick must be at or after phase2StartTick',
+    });
+  }
+  if (workflow.multiTurn.finalizeTick > workflow.maxTicks) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['multiTurn', 'finalizeTick'],
+      message: 'finalizeTick must not exceed maxTicks',
+    });
+  }
+}
+
+export const sharedevalWorkflowV2Schema = sharedevalWorkflowV1Schema.innerType()
+  .extend({
+    mode: z.enum(['multi', 'single']).default('multi'),
+    world: worldProfileSchema.default({}),
+  })
+  .superRefine(validateWorkflow);
 
 export const sharedevalTaskSelectionV1Schema = z
   .object({
@@ -181,7 +196,14 @@ export const sharedevalRunConfigV1Schema = z
   .strict();
 
 export type SharedevalRunConfigV1 = z.infer<typeof sharedevalRunConfigV1Schema>;
-export type ResolvedSharedevalRunConfigV1 = SharedevalRunConfigV1 & Readonly<{
+export const sharedevalRunConfigV2Schema = sharedevalRunConfigV1Schema.extend({
+  apiVersion: z.literal(SHAREDEVAL_RUN_CONFIG_API_VERSION_V2),
+  workflow: sharedevalWorkflowV2Schema,
+});
+export type SharedevalRunConfigV2 = z.infer<typeof sharedevalRunConfigV2Schema>;
+export type SharedevalRunConfig = (SharedevalRunConfigV1 | SharedevalRunConfigV2)
+  & Readonly<{ workflow: SharedevalWorkflowV1 }>;
+export type ResolvedSharedevalRunConfigV1 = SharedevalRunConfig & Readonly<{
   sourcePath: string;
   rootDir: string;
 }>;
@@ -189,13 +211,21 @@ export type SharedevalCliOverridesV1 = Readonly<{
   taskIds?: string[];
   maxTicks?: number;
 }>;
-export type EffectiveSharedevalRunConfigV1 = SharedevalRunConfigV1 & Readonly<{
-  workflow: SharedevalWorkflowV1 & { id: ResolvedSharedevalWorkflowV1['id'] };
+export type EffectiveSharedevalRunConfigV1 = Omit<SharedevalRunConfig, 'workflow'> & Readonly<{
+  workflow: z.infer<typeof sharedevalWorkflowV1Schema> & SharedevalWorkflowV1
+    & { id: ResolvedSharedevalWorkflowV1['id'] };
   configDigest: string;
 }>;
 
 export function parseSharedevalRunConfigV1Yaml(source: string): SharedevalRunConfigV1 {
   return sharedevalRunConfigV1Schema.parse(inspectSharedevalRunConfigV1Yaml(source));
+}
+
+export function parseSharedevalRunConfigYaml(source: string): SharedevalRunConfig {
+  return z.discriminatedUnion('apiVersion', [
+    sharedevalRunConfigV1Schema,
+    sharedevalRunConfigV2Schema,
+  ]).parse(inspectSharedevalRunConfigV1Yaml(source));
 }
 
 /** Safely materializes one bounded YAML document before schema validation. */
@@ -231,14 +261,14 @@ export async function loadSharedevalRunConfigV1(
     throw new Error('Unable to read Sharedeval run configuration');
   }
   return {
-    ...parseSharedevalRunConfigV1Yaml(source),
+    ...parseSharedevalRunConfigYaml(source),
     sourcePath,
     rootDir: path.dirname(sourcePath),
   };
 }
 
 export function applySharedevalOverridesV1(
-  config: SharedevalRunConfigV1,
+  config: SharedevalRunConfig,
   selectedWorkflow: ResolvedSharedevalWorkflowV1,
   overrides: SharedevalCliOverridesV1 = {},
 ): EffectiveSharedevalRunConfigV1 {
@@ -258,7 +288,9 @@ export function applySharedevalOverridesV1(
     ? { kind: config.benchmark.tasks.kind, ids: taskIds }
     : config.benchmark.tasks;
   const tasks = sharedevalTaskSelectionV1Schema.parse(selectedTasks);
-  const workflow = sharedevalWorkflowV1Schema.parse({
+  const workflowSchema = config.apiVersion === SHAREDEVAL_RUN_CONFIG_API_VERSION_V2
+    ? sharedevalWorkflowV2Schema : sharedevalWorkflowV1Schema;
+  const workflow = workflowSchema.parse({
     ...config.workflow,
     ...(overrides.maxTicks === undefined ? {} : { maxTicks: overrides.maxTicks }),
   });

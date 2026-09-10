@@ -203,6 +203,8 @@ export const fileWorkflowRunBindingV1Schema = z.object({
       maxToolCalls: positiveSafeIntegerSchema,
     }).strict(),
     initialActionSha256: sha256Schema,
+    world: worldProfileSchema.optional(),
+    configurationDigest: sha256Schema.optional(),
     // Multi-turn probe gate: absent for every pre-existing run so committed
     // bindings and their digests are unchanged; the ledger keys every relaxed
     // multi-turn check off this field, never off runtime options.
@@ -949,6 +951,7 @@ const fileWorkflowSharedOsHeartbeatAuthorityV1Schema =
 
 export const fileWorkflowHeartbeatPayloadV1Schema = z.object({
   inputDigest: sha256Schema,
+  worldContext: worldContextCommitSchema.optional(),
   event: z.object({
     eventId: opaqueIdSchema,
     runId: opaqueIdSchema,
@@ -1597,3 +1600,4 @@ function validatePlainJsonInput(
   }
   seen.delete(value);
 }
+import { worldProfileSchema, worldContextCommitSchema } from '../world/profile.js';

@@ -1,6 +1,10 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
+import { join } from 'node:path';
+import { ActorContextError } from '../../runner/context/actor-context.js';
+import { openWorldSession, type WorldSession } from '../../runner/world/session.js';
+import { worldProfileSchema, type WorldProfile } from '../../runner/world/profile.js';
 import {
   sha256JsonV1,
   stableIdV1,
@@ -117,6 +121,8 @@ export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   tasks: readonly LoadedPactPairTaskV1[];
   maxTicks: number;
   multiTurn?: FileDrivenPairMultiTurnV1;
+  world?: WorldProfile;
+  configurationDigest?: string;
   budget: FileDrivenPairBudgetV1;
   pactWorkspace: PactPairWorkspaceV1;
   storeRoot: string;
@@ -380,6 +386,7 @@ export async function runOneFileDrivenPairSessionV1(
     options.sessionIndex,
   ]);
 
+  let worldSession: WorldSession | undefined;
   let sharedOsSession;
   try {
     sharedOsSession = await options.createSharedOsSession({
@@ -395,7 +402,16 @@ export async function runOneFileDrivenPairSessionV1(
       tasks: options.tasks,
       pactWorkspace: options.pactWorkspace,
       storeRoot: options.storeRoot,
-      createDriver: options.createDriver,
+      createDriver: options.world ? input => {
+        if (!worldSession) throw new ActorContextError('context_integrity_error');
+        const driver = options.createDriver({
+          ...input, actorContext: worldSession.actorContext(input.actorId),
+        });
+        if (typeof driver.assertActorContextSettled !== 'function') {
+          throw new ActorContextError('context_integrity_error');
+        }
+        return driver;
+      } : options.createDriver,
     });
   } catch {
     throw new FileDrivenPairSessionPreparationErrorV1();
@@ -463,6 +479,20 @@ export async function runOneFileDrivenPairSessionV1(
     let records = [...await ledger.readRecords()];
     state = hydrateCommittedRecords({ binding, records, tasks: options.tasks });
     if (!state.quarantined) {
+      if (options.world) {
+        worldSession = await openWorldSession({
+          directory: join(options.storeRoot, '.sharedeval-actor-context'),
+          worldId: namespaceId,
+          bindingDigest: sha256JsonV1(binding as unknown as JsonValue),
+          actorIds: [options.requester.actorId, options.responder.actorId],
+          profile: options.world,
+        });
+        const last = records.at(-1)?.payload;
+        const expected = last && !isFileWorkflowQuarantinePayloadV1(last)
+          ? last.worldContext?.after : undefined;
+        if (records.length > 0 && !expected) throw new ActorContextError('context_integrity_error');
+        await worldSession.assertCommittedFrontiers(expected);
+      }
       restoreCommittedPactPairState(
         options.pactWorkspace,
         state.actionSnapshots,
@@ -485,6 +515,7 @@ export async function runOneFileDrivenPairSessionV1(
         requesterWorkspace.snapshot(options.requester.actorId),
         responderWorkspace.snapshot(options.responder.actorId),
       ]);
+      const contextBefore = await worldSession?.frontiers();
       const inputDigest = sha256JsonV1([
         'heartbeat-input',
         namespaceId,
@@ -493,6 +524,7 @@ export async function runOneFileDrivenPairSessionV1(
         responderBefore.final as unknown as JsonValue,
         sha256JsonV1(options.pactWorkspace.snapshot() as unknown as JsonValue),
         [...state.terminalTaskIds],
+        ...(contextBefore ? [contextBefore as unknown as JsonValue] : []),
       ]);
       const eventId = stableIdV1('heartbeat', [
         'heartbeat',
@@ -553,6 +585,9 @@ export async function runOneFileDrivenPairSessionV1(
               contacts: stateBeforeTurn.contactAuthorities,
             },
             terminalOutcomes: planned.terminalOutcomes,
+            ...(worldSession && contextBefore ? { worldContext: {
+              before: contextBefore, after: await worldSession.frontiers(),
+            } } : {}),
             ...(planned.stopReason ? { sessionStopReason: planned.stopReason } : {}),
           });
         },
@@ -604,6 +639,11 @@ export async function runOneFileDrivenPairSessionV1(
 
   try {
     await sharedOsSession.close();
+  } catch (error) {
+    failures.push(error);
+  }
+  try {
+    await worldSession?.close();
   } catch (error) {
     failures.push(error);
   }
@@ -855,6 +895,9 @@ function buildRunBinding(input: {
       maxTicks: input.options.maxTicks,
       budget: structuredClone(input.options.budget),
       initialActionSha256: input.initialActionSha256,
+      ...(input.options.world ? { world: structuredClone(input.options.world) } : {}),
+      ...(input.options.configurationDigest
+        ? { configurationDigest: input.options.configurationDigest } : {}),
       ...(input.options.multiTurn
         ? { multiTurn: structuredClone(input.options.multiTurn) }
         : {}),
@@ -1455,6 +1498,11 @@ function combinedFailure(failures: readonly unknown[], message: string): unknown
 }
 
 function validateSessionOptions(options: RunOneFileDrivenPairSessionV1Options): void {
+  if (options.world) worldProfileSchema.parse(options.world);
+  if (options.configurationDigest !== undefined
+    && (!options.world || !/^[a-f0-9]{64}$/.test(options.configurationDigest))) {
+    throw new Error('World configuration digest is invalid');
+  }
   if (!['files-multi', 'files-single'].includes(options.workflowId)) {
     throw new Error('File-driven PACT-Pair workflow ID is invalid');
   }

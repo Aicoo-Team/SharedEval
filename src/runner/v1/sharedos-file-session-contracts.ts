@@ -12,6 +12,11 @@ import type { FileReadReceiptV1, FileWorkspacePortV1 } from './file-workspace.js
 import type { LoadedPactPairTaskV1 } from '../../suites/pact-pair/task-loader.js';
 import type { PactPairWorkspaceV1 } from '../../suites/pact-pair/workspace.js';
 import type { SharedOsFileOperationReceiptV1 } from './sharedos-file-provider.js';
+import type { WorldActorContext } from '../world/session.js';
+
+export type FileSessionDriverV1 = SoTurnDriver & FileProviderTelemetrySourceV1 & {
+  assertActorContextSettled?(): Promise<void>;
+};
 
 export const SHAREDEVAL_PACT_PAIR_PURPOSE_V1 = 'sharedeval:pact-pair' as const;
 export const SHAREDEVAL_SERVICE_ADDRESS_V1 = Object.freeze({
@@ -97,7 +102,8 @@ export type CreateSharedOsFileSessionV1Options = Readonly<{
   createDriver(input: Readonly<{
     actorId: string;
     role: 'requester' | 'responder';
-  }>): SoTurnDriver & FileProviderTelemetrySourceV1;
+    actorContext?: WorldActorContext;
+  }>): FileSessionDriverV1;
 }>;
 
 export interface SharedOsFileSessionV1 {

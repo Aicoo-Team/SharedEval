@@ -1,3 +1,5 @@
+import type { WorldProfile } from '../world/profile.js';
+
 export type SharedevalWorkflowIdV1 = 'files-multi' | 'files-single';
 
 export type SharedevalWorkflowV1 = Readonly<{
@@ -7,6 +9,8 @@ export type SharedevalWorkflowV1 = Readonly<{
   stopWhen: 'all-terminal';
   /** Single-mode tasks processed at once; absent means 1 (serial). */
   taskConcurrency?: number;
+  /** Present only in the versioned persistent-world profile. */
+  world?: WorldProfile;
 }>;
 
 export type ResolvedSharedevalWorkflowV1 = SharedevalWorkflowV1 & Readonly<{
