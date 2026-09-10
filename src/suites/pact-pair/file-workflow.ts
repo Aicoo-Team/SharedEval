@@ -46,6 +46,8 @@ import {
   type FileWorkflowHeartbeatTerminalOutcomeV1,
 } from '../../runner/v1/file-workflow-heartbeat.js';
 import { runFileWorkflowHeartbeatV1 } from '../../runner/v1/file-workflow-recovery.js';
+import { writeFileWorkflowFailureV1, clearFileWorkflowFailureStatusV1,
+  type FileWorkflowFailureStageV1 } from '../../runner/v1/file-workflow-failure.js';
 import {
   projectFileWorkflowRetainedSharedOsEvidenceV1,
   projectFileWorkflowSharedOsEvidenceV1,
@@ -542,9 +544,19 @@ export async function runOneFileDrivenPairSessionV1(
         traceId,
       } as const;
       const stateBeforeTurn = state;
+      let executionStage: FileWorkflowFailureStageV1 = 'sharedos_execution';
       const heartbeat = await runFileWorkflowHeartbeatV1({
         ledger,
         start: { event, inputDigest },
+        executionStage: () => executionStage,
+        onFailure: async failure => {
+          await writeFileWorkflowFailureV1({
+            runDirectory: options.storeRoot,
+            bindingDigest: sha256JsonV1(binding as unknown as JsonValue),
+            start: { event, inputDigest },
+            failure,
+          });
+        },
         execute: async () => {
           const actionBefore = options.pactWorkspace.snapshot();
           const turn = await sharedOsSession.runRequesterTurn({
@@ -558,6 +570,7 @@ export async function runOneFileDrivenPairSessionV1(
           const contactedTask = turn.contact
             ? options.tasks.find(task => task.taskId === turn.contact!.taskId)
             : undefined;
+          executionStage = 'evidence_projection';
           const native = projectFileWorkflowSharedOsEvidenceV1({
             binding,
             event,
@@ -566,6 +579,7 @@ export async function runOneFileDrivenPairSessionV1(
               ? { actionSnapshot: { before: actionBefore, after: actionAfter } }
               : {}),
           });
+          executionStage = 'heartbeat_planning';
           const planned = await planCommittedHeartbeat({
             binding,
             sessionId,
@@ -575,6 +589,9 @@ export async function runOneFileDrivenPairSessionV1(
             history: stateBeforeTurn,
             maxTicks: options.maxTicks,
           });
+          executionStage = 'context_settlement';
+          const contextAfter = await worldSession?.frontiers();
+          executionStage = 'heartbeat_planning';
           return buildFileWorkflowHeartbeatPayloadV1({
             binding,
             sessionId,
@@ -585,8 +602,8 @@ export async function runOneFileDrivenPairSessionV1(
               contacts: stateBeforeTurn.contactAuthorities,
             },
             terminalOutcomes: planned.terminalOutcomes,
-            ...(worldSession && contextBefore ? { worldContext: {
-              before: contextBefore, after: await worldSession.frontiers(),
+            ...(contextAfter && contextBefore ? { worldContext: {
+              before: contextBefore, after: contextAfter,
             } } : {}),
             ...(planned.stopReason ? { sessionStopReason: planned.stopReason } : {}),
           });
@@ -663,6 +680,10 @@ export async function runOneFileDrivenPairSessionV1(
             requester: bindingFileSet(finalSnapshots.requester.final.files),
             responder: bindingFileSet(finalSnapshots.responder.final.files),
           },
+      });
+      await clearFileWorkflowFailureStatusV1({
+        runDirectory: options.storeRoot,
+        bindingDigest: sha256JsonV1(binding as unknown as JsonValue),
       });
     } catch (error) {
       failures.push(error);
