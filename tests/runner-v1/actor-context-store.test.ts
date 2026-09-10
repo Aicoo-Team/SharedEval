@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, realpath, rm, symlink, unlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, realpath, rm, stat, symlink, unlink, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
+import { sha256JsonV1, type JsonValue } from '../../src/contracts/json.js';
 import { assertActorContextBudget, type ActorContextMessage } from '../../src/runner/context/actor-context.js';
 import { openActorContextStore } from '../../src/runner/context/actor-context-store.js';
 
@@ -328,5 +329,71 @@ test('requires a canonical SHA-256 binding digest before creating a manifest', a
     assert.equal((attempt.error as { code?: string } | undefined)?.code, 'context_integrity_error');
   }
   const store = await openActorContextStore(options);
+  await store.close();
+});
+
+test('hot validation detects same-size content tampering with preserved modification time', async t => {
+  const { options, directory } = await fixture(t);
+  const store = await openActorContextStore(options);
+  const turn = await store.beginTurn({ actorId: 'alice', turnId: 'one', input: input('original') });
+  await turn.append([reply('answer')]);
+  await turn.finish('succeeded');
+  const actor = join(directory, 'actors', createHash('sha256').update('alice').digest('hex'));
+  const path = join(actor, 'record-000000000001.json');
+  const before = await stat(path);
+  await writeFile(path, (await readFile(path, 'utf8')).replace('original', 'modified'));
+  await utimes(path, before.atime, before.mtime);
+  await assert.rejects(store.getFrontier('alice'), code('context_integrity_error'));
+  await store.close();
+});
+
+test('cold validation checks semantic input hashes even when a changed journal has a valid hash chain', async t => {
+  const { options, directory } = await fixture(t);
+  const store = await openActorContextStore(options);
+  const turn = await store.beginTurn({ actorId: 'alice', turnId: 'one', input: input('original') });
+  await turn.append([reply('answer')]);
+  await turn.finish('succeeded');
+  const actor = join(directory, 'actors', createHash('sha256').update('alice').digest('hex'));
+  const names = (await readdir(actor)).filter(name => name.startsWith('record-')).sort();
+  let previousHash: string | undefined;
+  let sequence = 0;
+  for (const name of names) {
+    const { hash: _oldHash, ...body } = JSON.parse(await readFile(join(actor, name), 'utf8'));
+    if (previousHash) body.previousHash = previousHash;
+    if (body.kind === 'begin') body.inputHash = 'b'.repeat(64);
+    previousHash = sha256JsonV1(body as JsonValue);
+    sequence = body.sequence;
+    await writeFile(join(actor, name), `${JSON.stringify({ ...body, hash: previousHash })}\n`);
+  }
+  await writeFile(join(actor, 'frontier.json'), `${JSON.stringify({ sequence, hash: previousHash })}\n`);
+  await assert.rejects(store.getFrontier('alice'), code('context_integrity_error'));
+  await store.close();
+  await assert.rejects(openActorContextStore(options), code('context_integrity_error'));
+});
+
+test('incremental hot state and full cold reconstruction produce identical history and input hashes', async t => {
+  const { options, directory } = await fixture(t);
+  let store = await openActorContextStore(options);
+  for (let index = 0; index < 8; index += 1) {
+    const turn = await store.beginTurn({ actorId: 'alice', turnId: `turn-${index}`, input: input(`question-${index}`) });
+    await turn.append([call, result, call, result, reply(`answer-${index}`)]);
+    await turn.finish(index % 2 ? 'failed' : 'succeeded');
+  }
+  const frontier = await store.getFrontier('alice');
+  await store.close();
+  store = await openActorContextStore(options);
+  assert.deepEqual(await store.getFrontier('alice'), frontier);
+  const next = await store.beginTurn({ actorId: 'alice', turnId: 'next', input: input('next') });
+  assert.equal(next.priorMessages.length, 48);
+  assert.equal(next.inputHash, sha256JsonV1([...next.priorMessages, input('next')] as JsonValue));
+  await next.finish('succeeded');
+  await store.close();
+  const actor = join(directory, 'actors', createHash('sha256').update('alice').digest('hex'));
+  const lastBegin = JSON.parse(await readFile(join(actor, 'record-000000000057.json'), 'utf8'));
+  assert.equal(lastBegin.inputHash, next.inputHash);
+  store = await openActorContextStore(options);
+  const after = await store.beginTurn({ actorId: 'alice', turnId: 'after', input: input('after') });
+  assert.deepEqual(after.priorMessages.slice(0, 48), next.priorMessages);
+  await after.finish('succeeded');
   await store.close();
 });

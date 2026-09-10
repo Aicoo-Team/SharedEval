@@ -155,7 +155,7 @@ export async function openActorContextStore(options: OpenActorContextStoreOption
       if (JSON.stringify((await readdir(actorRoot)).sort()) !== JSON.stringify(expectedNames)) integrity();
     }
 
-    async function readActor(actorId: string): Promise<ActorState> {
+    async function readActor(actorId: string, cached?: ActorState): Promise<ActorState> {
       const identity = actorIdentities.get(actorId);
       if (!identity) integrity();
       const path = join(actorRoot, actorName(actorId));
@@ -165,43 +165,49 @@ export async function openActorContextStore(options: OpenActorContextStoreOption
       const frontier = { sequence: 0, hash: hash([manifestHash, actorId]) };
       const turns: TurnState[] = [];
       const ids = new Set<string>();
-      for (const name of names.filter(name => name.startsWith('record-'))) {
-        const record = recordSchema.parse(await readJson(join(path, name)));
+      for await (const { name, record } of readActorRecords(path, names.filter(name => name.startsWith('record-')))) {
         const { hash: recordHash, ...body } = record;
         if (record.actorId !== actorId || record.sequence !== frontier.sequence + 1
           || name !== recordName(record.sequence) || record.previousHash !== frontier.hash || recordHash !== hash(body)) integrity();
-        const active = turns.at(-1);
-        if (record.kind === 'begin') {
-          if (ids.has(record.turnId) || (active && !active.status)) integrity();
-          const input = parseActorContextMessage(record.input);
-          pendingCalls([input]);
-          if (record.inputHash !== hash([...project(turns), input])) integrity();
-          ids.add(record.turnId);
-          turns.push({ turnId: record.turnId, inputHash: record.inputHash, messages: [input] });
-        } else {
-          if (!active || active.status || active.turnId !== record.turnId) integrity();
-          if (record.kind === 'message') {
-            const message = parseActorContextMessage(record.message);
-            pendingCalls([...active.messages, message]);
-            active.messages.push(message);
+        // The entire chain is still read and hashed on hot checks. An unchanged cached
+        // frontier proves these records already passed semantic validation.
+        if (!cached) {
+          const active = turns.at(-1);
+          if (record.kind === 'begin') {
+            if (ids.has(record.turnId) || (active && !active.status)) integrity();
+            const input = parseActorContextMessage(record.input);
+            pendingCalls([input]);
+            if (record.inputHash !== hash([...project(turns), input])) integrity();
+            ids.add(record.turnId);
+            turns.push({ turnId: record.turnId, inputHash: record.inputHash, messages: [input] });
           } else {
-            if (pendingCalls(active.messages).size) integrity();
-            active.status = record.status;
+            if (!active || active.status || active.turnId !== record.turnId) integrity();
+            if (record.kind === 'message') {
+              const message = parseActorContextMessage(record.message);
+              pendingCalls([...active.messages, message]);
+              active.messages.push(message);
+            } else {
+              if (pendingCalls(active.messages).size) integrity();
+              active.status = record.status;
+            }
           }
         }
         frontier.sequence = record.sequence;
         frontier.hash = recordHash;
       }
       if (hash(frontierSchema.parse(await readJson(join(path, 'frontier.json')))) !== hash(frontier)) integrity();
+      if (cached) {
+        if (cached.frontier.sequence !== frontier.sequence || cached.frontier.hash !== frontier.hash) integrity();
+        return cached;
+      }
       return { frontier, turns };
     }
 
     async function checkedActor(actorId: string): Promise<ActorState> {
       await guard();
-      const state = await readActor(actorId);
       const expected = states.get(actorId);
-      if (expected && hash(expected.frontier) !== hash(state.frontier)) integrity();
-      return state;
+      if (!expected) integrity();
+      return readActor(actorId, expected);
     }
 
     function serialized<T>(work: () => Promise<T>): Promise<T> {
@@ -225,7 +231,16 @@ export async function openActorContextStore(options: OpenActorContextStoreOption
         // An interrupted record/tip update is deliberately not auto-reconciled on reopen.
         const tip = { sequence: record.sequence, hash: record.hash };
         await replaceFrontier(path, tip);
-        states.set(actorId, await readActor(actorId));
+        // Callers validated this delta before publication; update the cache only
+        // after both record and tip are durable, without replaying the old prefix.
+        if (record.kind === 'begin') {
+          state.turns.push({ turnId, inputHash: record.inputHash, messages: [record.input] });
+        } else if (record.kind === 'message') {
+          state.turns.at(-1)!.messages.push(record.message);
+        } else {
+          state.turns.at(-1)!.status = record.status;
+        }
+        state.frontier = tip;
       } catch {
         poisoned = true;
         integrity();
@@ -293,6 +308,18 @@ export async function openActorContextStore(options: OpenActorContextStoreOption
 }
 
 function recordName(sequence: number): string { return `record-${String(sequence).padStart(12, '0')}.json`; }
+
+async function* readActorRecords(directory: string, names: readonly string[]) {
+  for (let offset = 0; offset < names.length; offset += 4) {
+    const batch = await Promise.allSettled(names.slice(offset, offset + 4).map(async name => ({
+      name, record: recordSchema.parse(await readJson(join(directory, name))),
+    })));
+    for (const entry of batch) {
+      if (entry.status === 'rejected') throw entry.reason;
+      yield entry.value;
+    }
+  }
+}
 
 async function canonicalOwnedDirectory(path: string): Promise<string> {
   try {
