@@ -101,7 +101,7 @@ export function buildPactPairSharedOsGrantManifestV1(
     resourceNamespace: 'files',
     resourcePath: ['MEMORY.md'],
     actions: ['replace'],
-    maxUses: input.maxTicks,
+    maxUses: input.maxTicks * input.maxToolCalls,
   }));
   grants.push(createGrant(input, {
     subjectId: input.requesterId,
@@ -140,7 +140,7 @@ export function buildPactPairSharedOsGrantManifestV1(
         resourceNamespace: 'files',
         resourcePath: ['MEMORY.md'],
         actions: ['replace'],
-        maxUses: perContact(1),
+        maxUses: perContact(input.maxToolCalls),
         responderTaskId: task.taskId,
       },
       {
