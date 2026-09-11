@@ -14,9 +14,10 @@ does not make a new benchmark-performance claim.
   mandatory world CI gate and its regression. Historical checks remain separate
   in the delivery record.
 - Bounded NET implementation: [PR 59](https://github.com/Aicoo-Team/SharedEval/pull/59),
-  stacked on PR 57. At initial head `5dc60fd`, independent native-required
-  `pnpm check` passed 810/810 and CLI success, held and restart paths were scored.
-  Final base/CI synchronization is recorded in the PR and delivery record.
+  head `a883f51cc573e87fb003fd39d5c40e138af5d2d5`, stacked on PR 57.
+  The final code also closes every domain mutation after its audit record and
+  checks audit closure before scoring; independent review found the ordering
+  defect after the initial 810/810 run. Exact evidence is in the delivery record.
 - That world branch requires SharedOS
   `3aa07e33999b656a10ace294fd4e41df8cbc318e`, runtime digest
   `4afb23d79851a83a48e25e968f04e45cefc81847b4a9963c62277b5c05862d5d`.
@@ -307,6 +308,21 @@ sanitized summaries. Raw actor journals, provider transcripts and private
 fixtures remain restricted even when generated from a benchmark.
 
 ## PR ownership and integration order
+
+The P-01 pilot demonstrates multiple actors and turns within one case. General
+NET Multi additionally needs multiple cases sharing a persistent world. Deliver
+that extension in three independently reviewable changes:
+
+| Follow-up | Scope | Completion gate |
+| --- | --- | --- |
+| Configurable assigned profile | Parameterize actor/case/topology/resource/grant profiles; retain explicit synthetic fixtures and the native driver seam | Two bounded profiles execute; unknown or mismatched actor, case and resource version fail at the proper boundary; P-01 regressions stay green |
+| Multiple cases in one world | Partition resource state by case; reuse actor journals, deterministic queue and checkpoint; add whole-world Single reset | A fresh process continues case B after A: Multi retains only authorized history/effects; Single does not; no approval reuse, duplicate action or private-history leak |
+| General NET CLI and evaluator integration | Add config check, execution, resume and separate scoring for registered cases; reuse generic provider seam while retaining PAIR behavior | One configuration completes check → two-case execution → cold resume → scoring through a scripted provider; missing runtime, invalid config and indeterminate effects fail closed |
+
+Each follow-up requires a fresh native-required `pnpm check`, fixed source/runtime
+identities and inspectable evidence. These scopes do not include discovery/relay
+experiments, a 166-task rollout, paid models or SharedOS changes. The supervisor
+owns this remaining implementation sequence and coordinates domain review.
 
 | Work | Owner | Review boundary |
 | --- | --- | --- |

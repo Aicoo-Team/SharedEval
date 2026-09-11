@@ -10,7 +10,7 @@ independent execution and remaining expansion gates. See the
 | PAIR persistent world | Draft [PR57](https://github.com/Aicoo-Team/SharedEval/pull/57) | Final owner head `4eede49a`; independent 789/789 at preceding `9c4d18a`; final delta only adds a CI gate/test |
 | NET runtime and scoring | Draft [PR59](https://github.com/Aicoo-Team/SharedEval/pull/59) | Native three-actor P-01, private journals, authorized effects and separate post-hoc evaluator; general NET CLI remains a later gate |
 | PAIR e2e | Independently reproduced | Required pinned SharedOS; Multi history continuity, Single reset, deny and failure lifecycle |
-| NET e2e | Independently reproduced | At `5dc60fd`, full 810/810 and success/held/cold-process CLI runs; subsequent CI-only base synchronization tracked in PR59 |
+| NET e2e | Independently reproduced after review fix | Final `a883f51`: full 814/814, success/held/cold-process CLI runs, and native adversarial audit-order denial |
 | Repository conventions | Draft [PR58](https://github.com/Aicoo-Team/SharedEval/pull/58) | AGENTS, CONTRIBUTING, PR template, architecture/validation conventions and `pnpm check`; green local and remote checks |
 | Real-provider e2e | Not run | Scripted native tests do not establish model quality, provider availability or spend |
 | General/practitioner-validated NET | Not accepted | Further tasks, topologies, resource evolution, domain-owner validation and experiment cells remain |
@@ -25,8 +25,9 @@ is not an acceptance signal.
 - Main: `dc5d482403bd5dfb38ab6af92db399d6cbea3121`.
 - PAIR PR57 base: `14463247af15641b1d4231537d7f263e5105a8e7` (PR53).
 - PAIR final owner head: `4eede49a83cf43da146664bd67c8c2c405aecc11`.
-- NET initially accepted code head: `5dc60fdc4d1c5df5a1eddaf61d35b017f8d81e66`,
-  based on `9c4d18a`; subsequent base/CI synchronization is recorded on PR59.
+- NET final code head: `a883f51cc573e87fb003fd39d5c40e138af5d2d5`, based on
+  PAIR `4eede49a`. Earlier tested `5dc60fd` and CI-only `c02e7fc` are historical
+  baselines; neither includes the later audit-order fix.
 - Governance tested code head: `a09b50c9b3495a120d30b0cf2e20a494de2ad323`,
   based on main; subsequent changes to this record and the plan are documentation.
 
@@ -61,7 +62,10 @@ passed both jobs at `9c4d18a`. Its ordinary test job had 780 passed and 9 native
 skips; the pinned mandatory job had 10/10. The final `4eede49a` adds a mandatory
 world continuity/failure lifecycle step and one YAML regression, closing that CI
 coverage gap. The owner reports 790/790 plus the separate 4/4 world gate at this
-head; its fresh remote result is recorded on PR57.
+head. Final Actions run [34631195720](https://github.com/Aicoo-Team/SharedEval/actions/runs/34631195720)
+passed: ordinary tests 781 passed / 9 native skipped; mandatory runtime 10/10
+and world 4/4, with zero native skips. The supervisor checked the final delta:
+only CI YAML and its regression changed from independently tested `9c4d18a`.
 
 ## Independently reproduced NET evidence
 
@@ -105,6 +109,42 @@ passed at `5dc60fd`: ordinary validation **781 passed / 29 native skipped**;
 mandatory pinned boundary **10/10**; native PAIR-world plus scored NET e2e
 **30/30**, with zero skips in both native steps. These are separate from the
 local full native 810/810 run.
+
+### Review-discovered audit-order defect and fix
+
+The NET room reviewer then tested the real replaceable provider seam with
+`write_audit_record` before `release_po`. At `5dc60fd`/`c02e7fc`, all tool records
+were authentic, but the result became released while its audit remained held;
+the original scorer still gave 1.0. The supervisor independently reproduced
+this exact failure. The earlier green suites and normal CLI runs did not cover
+this case, so they were not treated as final acceptance.
+
+Commits `22bf5fd` and `a883f51` close the gap. A persisted audit ends domain
+mutation; later release, matching, approval and another audit are rejected.
+Post-hoc projection also verifies audit status, final position and event count.
+Three new native regressions cover swapped finalization, an early audit followed
+by otherwise legal actions, and the real runtime-to-Python scoring path. They
+were observed failing before the fix and passing after it.
+
+The independent probe at `a883f51` now produces a held resource and held audit,
+with no release event, `terminal_success: false`, `full_completion: false` and
+partial score 0.375. The normal-order control remains released with score 1.0.
+This denial is a domain closure check after capability authorization, not a
+claim that the actor lacked its release grant. The published PR records the
+final full-check and Actions results for this fixed SHA.
+
+Final independent acceptance at **`a883f51`**: Node 24.18.0, Python 3 and required
+clean pinned SharedOS; `pnpm check` exited 0 with validation, type-check and
+**814/814 tests**, zero failed/cancelled/skipped, 66.91 seconds for tests.
+All three ordinary CLI rows above were rerun on this final SHA with the same
+turn/action/state/score results and no semantic change on repeated startup.
+The separate adversarial-order probe also exited 0 with the held result above.
+Final Actions run [34631865536](https://github.com/Aicoo-Team/SharedEval/actions/runs/34631865536)
+passed both jobs at this SHA, including mandatory native runtime, world continuity
+and scored NET regressions: ordinary tests 782 passed / 32 native skipped;
+mandatory native steps 10/10, 4/4 and 23/23, all with zero skips.
+The PR remains a draft for review; passing this pilot
+does not close the general NET or live-model gates.
 
 The pilot uses synthetic owner evidence and a scripted provider. P-01 has an
 empty forbidden-disclosure set: its safety pass does not establish task-level
