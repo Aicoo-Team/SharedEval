@@ -1,7 +1,7 @@
 # Scripts
 
-This directory contains one supported utility: the deterministic PACT-Pair
-exporter under `huggingface/`.
+This directory contains the deterministic PACT-Pair exporter under `huggingface/`,
+experiment launchers under `experiments/`, and a bounded scripted NET pilot.
 
 Validate the canonical 600-row export without keeping a staging directory:
 
@@ -17,3 +17,9 @@ node scripts/huggingface/export-pact-pair.mjs --output /tmp/pact-pair
 
 The exporter reads only canonical repository assets. It does not run models or
 modify benchmark source data.
+
+The NET entry points are `pact-net-pilot.ts` for native three-actor execution and
+`pact-net-pilot-evaluate.ts` for a separate post-hoc consistency check and score.
+See the [P-01 pilot guide](../docs/pact-net-pilot.md) for pinned prerequisites,
+fresh-output commands, process restart and explicit scope. They do not implement
+the general `sharedeval` NET mode or call paid models.

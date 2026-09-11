@@ -1,0 +1,55 @@
+{
+  "task_id": "P-01",
+  "final_state": {
+    "status": "held",
+    "matched_records": [
+      "REQ-27-0881",
+      "VEN-204",
+      "delivery_terms"
+    ],
+    "sod_actors": [
+      "dmitri_sokolov",
+      "stephen_kowalczyk"
+    ],
+    "open_blockers": [
+      "signed_contract_verification"
+    ],
+    "audit_record_id": "PO-HOLD-0881"
+  },
+  "artifacts": {
+    "purchase_order_decision": {
+      "po_id": "PO-27-0881",
+      "decision": "held"
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "dmitri_sokolov",
+      "action": "match_records",
+      "object": "PO-27-0881",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "stephen_kowalczyk",
+      "action": "approve_budget",
+      "object": "PO-27-0881",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "dmitri_sokolov",
+      "action": "hold_po",
+      "object": "PO-27-0881",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "dmitri_sokolov",
+      "action": "write_audit_record",
+      "object": "PO-HOLD-0881",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

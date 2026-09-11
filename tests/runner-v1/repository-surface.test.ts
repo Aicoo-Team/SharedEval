@@ -37,11 +37,13 @@ test('retired execution surfaces and historical artifacts are absent', () => {
   }
 });
 
-test('scripts contain only the supported exporter and experiment launchers', () => {
+test('scripts contain only the supported exporter, experiment launchers, and bounded NET pilot', () => {
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts')).sort(), [
     'README.md',
     'experiments',
     'huggingface',
+    'pact-net-pilot-evaluate.ts',
+    'pact-net-pilot.ts',
   ]);
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts', 'huggingface')).sort(), [
     'README.md',
@@ -67,6 +69,7 @@ test('package and public docs expose only the retained product surface', () => {
     readFileSync(join(repoRoot, 'package.json'), 'utf8'),
   ) as { scripts: Record<string, string> };
   assert.deepEqual(Object.keys(packageJson.scripts).sort(), [
+    'check',
     'eval:pact-pair',
     'export:huggingface:pact-pair',
     'sharedeval',
