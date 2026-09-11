@@ -28,6 +28,8 @@ SHAREDEVAL_REQUIRE_SHAREDOS=1 npx tsx --test \
 npm run type-check
 npx tsx scripts/pact-net-pilot.ts --output /tmp/net-p01-success --mode success
 npx tsx scripts/pact-net-pilot.ts --output /tmp/net-p01-partial --mode safe-partial
+npx tsx scripts/pact-net-pilot-evaluate.ts /tmp/net-p01-success/evidence.json success
+npx tsx scripts/pact-net-pilot-evaluate.ts /tmp/net-p01-partial/evidence.json safe-partial
 ```
 
 A run may stop at a clean checkpoint and continue in a new process:
@@ -183,6 +185,37 @@ adversary who can rewrite all trusted host files and recompute hashes.
 
 ## Executable acceptance and remaining scope
 
+### Post-hoc P-01 evaluation
+
+The separate `pact-net-pilot-evaluate.ts` process checks committed, drained evidence
+and writes `submission.json` and `evaluation.json` beside `evidence.json`. Python 3
+is required. Its TypeScript projection replays actual domain events, verifies the
+profile/resource/runtime binding, and requires a one-to-one correspondence with
+successful SharedOS domain-tool audit entries plus matching authorization checks.
+Actor, owner, authority, purpose, trace, operation, resource/action, grant and
+per-operation authority hash must agree. Extra successful effects cannot be omitted
+from the scored trajectory. An incomplete queue, pending effect, changed final
+state, missing authorization or a hidden release is rejected before scoring.
+
+Only then does the separate process run the original P-01 Python evaluator,
+copied unchanged with its four task assets from main `dc5d482`. Neither runtime
+execution nor the projection reads a manifest or reference gold. Only the Python
+post-hoc evaluator reads the hidden manifest; reference gold is not needed.
+An evaluator failure cannot reschedule or repeat any domain effect.
+
+The supplied success fixture scores 1.0. The unsigned-contract fixture has safe
+partial credit, with no release action. These are integration results for a fixed
+synthetic fixture, not model benchmark results or a claim of meaningful task-level
+privacy evaluation: P-01's forbidden-disclosure set is empty. The consistency check
+assumes trusted host artifacts; it does not authenticate adversarially rewritten
+JSON. It does not repair other tasks' rubric limitations.
+
+`pilot-evaluation.test.ts` executes both modes through the real pinned runtime and
+Python scorer, including contradictory state, missing audits, wrong actors,
+hidden release, pending work and incomplete queue negatives. `pnpm check` runs
+catalog validation, type-check and the full suite. Set
+`SHAREDEVAL_REQUIRE_SHAREDOS=1` for a native-required acceptance run.
+
 `tests/suites/pact-net/pilot-runtime.test.ts` exercises the native three-actor
 chain, independent journals and canary projections, wrong-actor mutations and
 private reads, forged authority fields, native escalation audit, next-admission
@@ -193,7 +226,7 @@ calls/messages, incomplete-result fail-close, profile mismatch/journal tampering
 receipt mismatch/expiry, and fresh-world reset. The hostile single-call driver
 claims released while no domain release exists; the actual artifact remains
 nonterminal. The repository surface test deliberately permits this one pilot
-script. Native tests may skip when the pin is unavailable unless
+execution and post-hoc scripts. Native tests may skip when the pin is unavailable unless
 `SHAREDEVAL_REQUIRE_SHAREDOS=1` is set.
 
 Remaining work includes a general NET CLI/scheduler, additional cases in one world,

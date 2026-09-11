@@ -42,6 +42,7 @@ test('scripts contain only the supported exporter, experiment launchers, and bou
     'README.md',
     'experiments',
     'huggingface',
+    'pact-net-pilot-evaluate.ts',
     'pact-net-pilot.ts',
   ]);
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts', 'huggingface')).sort(), [
@@ -68,6 +69,7 @@ test('package and public docs expose only the retained product surface', () => {
     readFileSync(join(repoRoot, 'package.json'), 'utf8'),
   ) as { scripts: Record<string, string> };
   assert.deepEqual(Object.keys(packageJson.scripts).sort(), [
+    'check',
     'eval:pact-pair',
     'export:huggingface:pact-pair',
     'sharedeval',
