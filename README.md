@@ -68,6 +68,8 @@ an unavailable or mismatched build fails before model spend.
 
 ## Documentation
 
+- [Contributing](CONTRIBUTING.md) and [engineering standard](docs/engineering.md)
+- [PAIR/NET execution plan](docs/multi-execution-plan.md) and [delivery acceptance](docs/delivery-status.md)
 - [Running SharedEval](docs/running.md)
 - [Architecture](docs/architecture.md)
 - [Datasets](docs/datasets.md)
