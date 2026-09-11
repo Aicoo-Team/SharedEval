@@ -48,3 +48,22 @@ test('CI validation and native-runtime checks use the verified Node 24 baseline'
     assert.equal(String(setups[0].with?.['node-version']), '24', job);
   }
 });
+
+test('CI requires native world continuity and failure-lifecycle conformance', () => {
+  const workflow = readWorkflow();
+  const stepSequence = workflow.getIn(['jobs', 'sharedos-loader', 'steps']);
+  assert.ok(isSeq(stepSequence));
+  const steps = stepSequence.toJSON() as {
+    run?: string;
+    env?: Record<string, string>;
+  }[];
+  const command = 'npm exec -- tsx --test tests/runner-v1/world-native-conformance.test.ts '
+    + 'tests/runner-v1/world-failure-lifecycle.test.ts';
+  const checks = steps.filter(step => step.run === command);
+  assert.equal(checks.length, 1);
+  assert.equal(checks[0].env?.SHAREDEVAL_REQUIRE_SHAREDOS, '1');
+  assert.equal(
+    checks[0].env?.SHAREDEVAL_SHAREDOS_DIR,
+    '${{ github.workspace }}/sharedos-repo',
+  );
+});

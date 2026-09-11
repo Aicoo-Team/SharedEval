@@ -98,3 +98,9 @@ jobs:
           SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
           SHAREDEVAL_REQUIRE_SHAREDOS: '1'
         run: npm run test:sharedos
+
+      - name: Verify native world continuity and failure lifecycle
+        env:
+          SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
+          SHAREDEVAL_REQUIRE_SHAREDOS: '1'
+        run: npm exec -- tsx --test tests/runner-v1/world-native-conformance.test.ts tests/runner-v1/world-failure-lifecycle.test.ts
