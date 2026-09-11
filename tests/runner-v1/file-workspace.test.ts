@@ -450,7 +450,7 @@ test('never publishes MEMORY after its deadline while all libuv workers are occu
     });
     const actorDir = actorDirectory(rootDir);
     const marker = join(actorDir, 'commits', 'commit-1.json');
-    const deadlineAtMs = Date.now() + 200;
+    const deadlineAtMs = Date.now() + 2_000;
     const replacement = workspace.replaceMemory({
       actorId: 'actor-1',
       expectedVersion: 0,
