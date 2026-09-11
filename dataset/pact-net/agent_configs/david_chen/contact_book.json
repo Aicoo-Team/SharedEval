@@ -25,7 +25,7 @@
           "contactUserId": "sophie_chen",
           "relationshipType": "friend",
           "pinned": false,
-          "relationship": "parent"
+          "relationship": "child"
         }
       ]
     },
@@ -51,7 +51,7 @@
           "contactUserId": "sophie_chen",
           "relationshipType": "friend",
           "pinned": false,
-          "relationship": "parent"
+          "relationship": "child"
         }
       ]
     }

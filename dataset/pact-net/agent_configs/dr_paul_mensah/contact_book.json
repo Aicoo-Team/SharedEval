@@ -11,7 +11,7 @@
           "contactUserId": "alex_chen",
           "relationshipType": "agent_access",
           "pinned": false,
-          "relationship": "counterparty (cross-organisation)"
+          "relationship": "patient"
         },
         {
           "bookType": "user",
@@ -30,7 +30,7 @@
           "contactUserId": "alex_chen",
           "relationshipType": "agent_access",
           "pinned": false,
-          "relationship": "counterparty (cross-organisation)"
+          "relationship": "patient"
         }
       ]
     }
