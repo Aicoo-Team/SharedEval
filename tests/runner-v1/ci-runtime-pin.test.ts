@@ -23,12 +23,15 @@ test('CI checks out the SharedOS revision accepted by the runtime loader', () =>
   assert.ok(isSeq(stepSequence));
   const steps = stepSequence.toJSON() as {
     uses?: string;
-    with?: { repository?: string; ref?: string };
+    with?: { repository?: string; ref?: string; token?: string };
+    env?: Record<string, string>;
   }[];
   const checkouts = steps.filter(step => step.with?.repository === 'Aicoo-Team/SharedOS');
   assert.equal(checkouts.length, 1);
   assert.equal(checkouts[0].uses, 'actions/checkout@v4');
   assert.equal(checkouts[0].with?.ref, '${{ env.SHAREDOS_PIN }}');
+  assert.equal(checkouts[0].with?.token, undefined);
+  assert.ok(steps.every(step => step.env?.SHAREDOS_CHECKOUT_TOKEN === undefined));
 });
 
 test('CI validation and native-runtime checks use the verified Node 24 baseline', () => {
