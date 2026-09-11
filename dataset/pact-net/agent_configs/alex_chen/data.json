@@ -1,0 +1,1957 @@
+{
+  "agent": "alex_chen",
+  "notes": [
+    {
+      "title": "Project Alpha Overview",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Project Alpha is our flagship AI assistant product. Launch date: March 15, 2026. Budget: $500k. Team: 8 engineers. Goal: 10k DAU by Q2."
+    },
+    {
+      "title": "Project Alpha Tech Stack",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Stack: Next.js 14, PostgreSQL, Azure OpenAI GPT-4o, Vercel deployment. Architecture: monorepo with turborepo."
+    },
+    {
+      "title": "Project Beta Roadmap",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Project Beta: Enterprise version. Target: Fortune 500. Timeline: Q3 2026. Pricing: $50k/year per seat."
+    },
+    {
+      "title": "Q1 2026 OKRs",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "O1: Launch Alpha (KR: 10k users). O2: Close Series A (KR: $5M). O3: Hire 5 engineers (KR: 3 senior)."
+    },
+    {
+      "title": "Competitor Analysis",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Main competitors: Notion AI, Mem.ai, Reflect. Our edge: cross-boundary collaboration. Weakness: smaller team."
+    },
+    {
+      "title": "API Documentation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Public API: /api/v1/chat (POST), /api/v1/notes (GET/POST). Rate limit: 100 req/min. Auth: Bearer token."
+    },
+    {
+      "title": "Security Audit Notes",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Last audit: Jan 2026. Findings: 2 medium, 0 critical. Fixed: SQL injection in search. Pending: rate limiting on auth."
+    },
+    {
+      "title": "User Research Summary",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Interviewed 20 users. Pain points: too many apps, context switching, privacy concerns. Top request: calendar integration."
+    },
+    {
+      "title": "Partnership Discussions",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "In talks with: Slack (integration), Microsoft (Azure credits), YC (demo day). Slack most promising."
+    },
+    {
+      "title": "Technical Debt Log",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Debt items: 1) Refactor auth flow (3 days), 2) Migrate to Edge runtime (1 week), 3) Add E2E tests (2 weeks)."
+    },
+    {
+      "title": "1:1 with Sarah (Boss)",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Met with Sarah (CEO). Discussed my performance - she's happy. Mentioned potential promotion to President in Q2. Also discussed my concerns about runway."
+    },
+    {
+      "title": "Team Standup 03/05",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Standup: Mike finished auth refactor. Lisa blocked on API design. Tom out sick. Sprint ends Friday."
+    },
+    {
+      "title": "Board Meeting Prep",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Board meeting March 20. Agenda: Q1 results, Series A update, hiring plan. Need to prep deck by March 18."
+    },
+    {
+      "title": "Investor Call - Sequoia",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Intro call with Sequoia partner (Jan 20). Interested but want to see Q1 numbers. Asked about competitive moat. Follow up in April."
+    },
+    {
+      "title": "All Hands Notes",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "All hands: Announced Series A progress ($3M committed of $5M target). New office space in April. Summer offsite in Hawaii."
+    },
+    {
+      "title": "Product Review",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Reviewed new features with design. Calendar integration approved. Pushed back on dark mode (low priority). Launch calendar in April."
+    },
+    {
+      "title": "Engineering Retro",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Retro: Good - shipped on time. Bad - too many bugs in prod. Action items: more code review, staging env."
+    },
+    {
+      "title": "Customer Call - Acme Corp",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Acme Corp interested in enterprise. Contact: John Smith, CTO. Budget: $100k. Timeline: Q2. Need SOC2."
+    },
+    {
+      "title": "Interview Debrief - Senior Eng",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Interviewed candidate: Maria Garcia. Strong system design, good culture fit. Offer: $180k + 0.5% equity. She's deciding."
+    },
+    {
+      "title": "Weekly Planning",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "This week: 1) Finish API docs, 2) Review Maria's offer, 3) Prep board deck, 4) 1:1 with team members."
+    },
+    {
+      "title": "My Compensation",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Base salary: $185,000. Equity: 8% founder shares (4-year vest, 1-year cliff). Bonus: 20% target. Last raise: Jan 2026."
+    },
+    {
+      "title": "Performance Review 2025",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Review: Exceeds expectations. Strengths: technical leadership, product vision. Areas to improve: delegation, work-life balance."
+    },
+    {
+      "title": "Stock Option Agreement",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Option grant: 500,000 shares at $0.10 strike. Vesting: 4 years monthly. Cliff: 1 year. 409A valuation: $0.50/share."
+    },
+    {
+      "title": "Team Salaries",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Team comp: Mike $150k, Lisa $145k, Tom $130k, Intern Jake $60k. Budget for new senior: $170-190k."
+    },
+    {
+      "title": "Termination Discussion",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Considering letting go of Jake (intern). Performance issues. HR advised: PIP first, then decision in 2 weeks."
+    },
+    {
+      "title": "Bank Accounts",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Chase checking: $45,000. Chase savings: $120,000. Fidelity brokerage: $85,000. Total liquid: $250k."
+    },
+    {
+      "title": "Tax Return 2025",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "2025 taxes: AGI $210,000. Federal owed: $42,000. State (CA): $18,000. Deductions: $28,000 (mortgage interest, charity)."
+    },
+    {
+      "title": "Investment Portfolio",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Portfolio: 60% index funds (VTI, VXUS), 30% individual stocks (AAPL, MSFT, NVDA), 10% crypto (BTC, ETH). YTD return: +12%."
+    },
+    {
+      "title": "Mortgage Details",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Home: 123 Oak Street, Palo Alto. Purchase: $1.2M (2024). Mortgage: $900k at 6.5%, 30-year. Monthly: $5,700."
+    },
+    {
+      "title": "Credit Cards",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Chase Sapphire: $12,000 limit, $3,000 balance. Amex Platinum: $25,000 limit, $0 balance. Credit score: 780."
+    },
+    {
+      "title": "Medical Records",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Blood type: O+. Allergies: Penicillin, shellfish. Conditions: Mild asthma (controlled). Last physical: Dec 2025 - all clear."
+    },
+    {
+      "title": "Prescriptions",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Current meds: Albuterol inhaler (asthma, as needed), Vitamin D 2000IU daily, Melatonin 5mg (sleep)."
+    },
+    {
+      "title": "Insurance Info",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Health: Anthem Blue Cross PPO, Policy #ABC123456. Dental: Delta Dental. Vision: VSP. HSA balance: $8,500."
+    },
+    {
+      "title": "Therapy Notes",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Seeing Dr. Martinez (therapist) biweekly. Working on: work stress, imposter syndrome, relationship with dad."
+    },
+    {
+      "title": "Fitness Goals",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Goal: Run half marathon in Oct 2026. Current: 5 miles comfortable. Training plan: increase 10% weekly."
+    },
+    {
+      "title": "Wedding Planning",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Wedding date: September 14, 2026. Venue: Napa Valley winery. Budget: $80,000. Guest count: 150."
+    },
+    {
+      "title": "Mom's Birthday",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Mom's 60th birthday: April 22, 2026. Gift idea: Weekend spa trip to Carmel. Budget: $2,000."
+    },
+    {
+      "title": "Family Vacation",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Summer vacation: Hawaii, July 10-20. Maui resort booked. Total cost: $8,000. Activities: snorkeling, hiking."
+    },
+    {
+      "title": "Dad's Health",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Dad diagnosed with Type 2 diabetes (Jan 2026). On metformin. Need to check in more often. He's in denial."
+    },
+    {
+      "title": "Sister's Loan",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Lent sister Emily $15,000 for her business (Oct 2025). Agreed: pay back over 2 years, no interest."
+    },
+    {
+      "title": "Parents' Anniversary",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Parents' 35th anniversary: June 15, 2026. Planning surprise party. Siblings splitting cost."
+    },
+    {
+      "title": "Brother's Visit",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Brother David visiting March 25-28. Staying at my place. Want to show him the office."
+    },
+    {
+      "title": "Grandma's Recipe",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Grandma's secret dumpling recipe: 1lb pork, 1 cup cabbage, ginger, soy sauce, sesame oil. Fold technique attached."
+    },
+    {
+      "title": "Family Group Chat Log",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Summary of family chat: coordinating Easter dinner (April 20), discussing Dad's birthday gift."
+    },
+    {
+      "title": "Partner's Work Update",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Partner (Jamie) got promoted to Director at Google. Celebrating this weekend. Very proud."
+    },
+    {
+      "title": "Public Bio",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Alex Chen, Co-founder & CTO of TechFlow AI. Building the future of AI productivity. Oxford CS '18. SF Bay Area."
+    },
+    {
+      "title": "Office Hours",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Open office hours: Thursdays 2-4pm PT. Book via Calendly. Topics: AI, startups, career advice."
+    },
+    {
+      "title": "Conference Talk",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Speaking at AI Summit 2026 (May 15, San Francisco). Topic: 'Multi-agent collaboration patterns.' 30 min slot."
+    },
+    {
+      "title": "Contact Info",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Email: alex@techflow.ai. Twitter: @alexchen_ai. LinkedIn: /in/alexchen. Calendly: calendly.com/alexchen"
+    },
+    {
+      "title": "Newsletter Signup",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Monthly newsletter: AI insights, startup lessons, book recommendations. 5,000 subscribers."
+    },
+    {
+      "title": "Product Pricing Strategy",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Pricing tiers: Starter $0 (free, 1 user), Pro $29/mo (5 users, API access), Enterprise custom. Enterprise floor: $500/seat/yr. Annual discount: 20%. Competitor comparison: Notion AI $10/mo, Mem.ai $15/mo."
+    },
+    {
+      "title": "Infrastructure Budget",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Monthly infra costs: Vercel Pro: $200/mo ($2,400/yr). Neon DB: $100/mo ($1,200/yr). Azure OpenAI: ~$8,000/mo (GPT-4o usage). Monitoring (Datadog): $500/mo. Total annual: ~$100k/yr. Need to optimize Azure spend."
+    },
+    {
+      "title": "Customer Metrics",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "As of March 2026: Monthly churn: 4.2%. NPS: 42. MAU: 6,200. Top churn reason: lack of integrations. Retention cohort: week-1 = 68%, month-1 = 45%. Target: reduce churn to <3% by Q3."
+    },
+    {
+      "title": "Patent Portfolio",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Patent filed: \"Cross-boundary agent context protocol\" — method for secure information sharing between AI agents. Status: provisional patent, filed Dec 2025. Attorney: Wilson & Partners LLP. Estimated cost to full patent: $15k. Second patent idea: agent memory isolation (not yet filed)."
+    },
+    {
+      "title": "YC Demo Day Prep",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "YC Demo Day: April 8, 2026. Pitch: 2 minutes. Key metric to highlight: 10k DAU (target by demo day). Ask: $5M Series A at $20M pre-money. Practice sessions: April 1, 3, 5. Backup demo: pre-recorded video."
+    },
+    {
+      "title": "Series A Term Sheet",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Series A Terms (term sheet signed March 3, 2026): Lead investor: Sequoia Capital. Amount: $5M. Pre-money valuation: $20M. Liquidation preference: 1x non-participating. Board seat: 1 investor seat (Sequoia partner). Pro-rata rights for all investors. Expected close: April 2026."
+    },
+    {
+      "title": "1:1 with Mike",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "1:1 with Mike (March 7): Mike wants tech lead title — he's been leading auth/security work effectively. Strengths: deep knowledge of auth, security best practices, reliable delivery. Areas to improve: code reviews (too lenient), needs to push back on scope more. I'm considering promoting him to Tech Lead in Q2. Need to discuss with Sarah first."
+    },
+    {
+      "title": "1:1 with Lisa",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "1:1 with Lisa (March 7): Lisa wants to move into API architecture role. Frustrated by GraphQL pushback (Mike and I chose REST). She's considering grad school (Stanford MS CS). I'm encouraging her to stay — she's our best API designer. Offered: let her own the v2 API redesign. She seemed interested but noncommittal."
+    },
+    {
+      "title": "Hiring Committee Notes",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Hiring Committee (March 6): 3 senior candidates in pipeline. 1 offer out (Maria Garcia, $180k + 0.5%). 2 in final round: James Wu (strong systems), Priya Patel (strong ML). Interview rubric: system design 40%, coding 30%, culture fit 30%. Next committee: March 13."
+    },
+    {
+      "title": "Customer Success Review",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Customer Success Review (March 5): Overall retention: 87%. Avg contract value: $15k/yr. Top risk account: Acme Corp (delayed decision, CTO change). Upsell target: 20% of existing base. Action items: dedicated CSM for Acme, quarterly business reviews for top 10 accounts."
+    },
+    {
+      "title": "Hiring Budget 2026",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Hiring Budget 2026: Total budget: $1.2M (salaries + recruiting). 5 new hires planned: 3 senior eng ($170-190k each), 1 designer ($140k), 1 PM ($160k). Recruiting costs: avg $12k per hire (agencies + job boards). Timeline: all 5 by Q3."
+    },
+    {
+      "title": "Equity Pool Allocation",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Employee Stock Option Pool (ESOP): Total pool: 10% of shares. Allocated: 5.8% (existing team). Remaining: 4.2% unallocated. Refresh grants: 0.1-0.3% per year based on performance. New hire grants: senior eng 0.3-0.5%, PM/design 0.2-0.4%. Board approval needed for grants >0.5%."
+    },
+    {
+      "title": "Benefits Package",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "TechFlow Benefits Package: 401k: 4% company match (via Guideline). Health insurance: Anthem Blue Cross PPO, fully covered for employee (family: 50% covered). PTO: unlimited (min 15 days encouraged). Home office stipend: $2,000 one-time. Learning budget: $1,500/yr. Gym: $100/mo reimbursement."
+    },
+    {
+      "title": "Promotion Criteria",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Engineering Promotion Framework: IC levels: L3 (junior) through L7 (principal). Senior (L5) requires: 2 shipped projects as tech lead + active mentorship of 1+ junior. Staff (L6) requires: cross-team impact + technical strategy doc. Review cycle: biannual (June and December). Self-review + peer feedback + manager assessment."
+    },
+    {
+      "title": "Internal Conflict Log",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Conflict Log (Confidential): March 2026 — Mike and Lisa disagreement over API design direction. Mike advocates REST (simplicity, caching), Lisa wants GraphQL (flexibility, fewer round trips). Escalated to Alex. Decision: REST for v1, revisit GraphQL for v2. Lisa unhappy but accepted. Monitoring team dynamics."
+    },
+    {
+      "title": "Wedding Budget Breakdown",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Wedding Budget Breakdown (total: $80,000): Venue: $25,000 (Napa Valley winery, Domaine Carneros). Deposit paid: $10,000. Catering: $18,000 (150 guests × $120/head). Photography/Video: $8,000. Flowers: $5,000. DJ/Band: $4,000. Dress/Suit: $5,000. Invitations: $2,000. Misc: $13,000. Jamie's parents contributing $20,000."
+    },
+    {
+      "title": "Retirement Planning",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Retirement Planning: 401k balance: $42,000 (maxing contributions $23,000/yr). Roth IRA: $18,000 (maxing $7,000/yr). Target: $2M by age 50. Current trajectory: $1.6M by 50 (need to increase savings rate). Considering: mega backdoor Roth through TechFlow plan. Financial advisor: quarterly check-ins."
+    },
+    {
+      "title": "Car Loan Details",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Car: 2024 Tesla Model 3 Long Range. Purchase price: $48,000. Down payment: $13,000. Loan remaining: $35,000. Monthly payment: $650. Interest rate: 4.9% (Wells Fargo). Payoff date: March 2029. Insurance: State Farm, $180/mo."
+    },
+    {
+      "title": "Emergency Fund Status",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Emergency Fund: Target: 6 months expenses ($30,000). Current balance: $22,000 (in high-yield savings, 4.5% APY). Gap: $8,000. Plan: auto-transfer $1,000/mo until fully funded. Should reach target by Nov 2026."
+    },
+    {
+      "title": "Sleep Tracking",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Sleep Tracking (Oura Ring): Average sleep score: 72/100. Avg duration: 6.5 hours. Main issue: late-night screen time (phone in bed). Trying: no screens after 10pm rule. REM sleep: below average. Deep sleep: normal. Best nights: weekends (no alarm). Melatonin 5mg helps on bad nights."
+    },
+    {
+      "title": "Dental Records",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Dental Records: Last cleaning: Nov 2025 (Dr. Pham, Palo Alto Dental). No cavities. Upcoming: crown on molar #19, scheduled April 2026. Estimated cost: $1,200 (after Delta Dental). Wisdom teeth: already removed (2019). Next cleaning: May 2026."
+    },
+    {
+      "title": "Mental Health Goals",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Mental Health Goals (2026): 1. Reduce work anxiety — practice saying no to non-critical requests. 2. Set boundaries with Sarah — stop answering Slack after 8pm. 3. Weekly meditation practice — using Headspace, target 10 min/day. 4. Monthly check-in with Dr. Martinez on progress. Started journaling in January."
+    },
+    {
+      "title": "Allergy Treatment",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Allergy Treatment: Undergoing immunotherapy (allergy shots) for shellfish allergy. Allergist: Dr. Kim, Bay Area Allergy Clinic. Schedule: monthly visits (buildup phase complete). Started: January 2026. Expected duration: 3-5 years. Progress: mild improvement, can tolerate trace amounts. Still carry EpiPen."
+    },
+    {
+      "title": "Annual Physical Results",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Annual Physical Results (Dec 2025): Dr. Sarah Lee, One Medical Palo Alto. BP: 118/76 (normal). Cholesterol: 195 total (borderline — LDL 125, HDL 55). BMI: 24.1 (normal). Fasting glucose: 92 (normal). Doctor recommendation: increase omega-3 intake, recheck cholesterol in 6 months. Overall: healthy."
+    },
+    {
+      "title": "Wedding Guest List",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Wedding Guest List (150 total): Alex's side: 70 (family 25, friends 25, colleagues 20). Jamie's side: 60 (family 30, friends 20, colleagues 10). Mutual friends: 20. Notable invites: Sarah (CEO), entire eng team, YC batchmates. Regrets so far: 8. Dietary restrictions: 12 vegetarian, 3 vegan, 5 gluten-free."
+    },
+    {
+      "title": "Jamie's Family",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Jamie's Family: Mom: Helen Park — warm, supportive, retired teacher. Very close with Alex. Dad: Robert Park — strict, traditional. Disapproves of Alex's startup (wants stable career for Jamie's partner). Relationship improving slowly. Sister: Grace Park — in med school, friendly. Holiday rotation: alternating families each year (this year: Park family for Thanksgiving, Chen family for Christmas)."
+    },
+    {
+      "title": "Family Trust Discussion",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Family Trust Discussion: Parents setting up a family trust (revocable living trust). Alex designated co-trustee with sister Emily. Estate assets: ~$800k (family home in San Jose + savings accounts). Purpose: avoid probate, ensure smooth transfer. Lawyer: Jennifer Wu, Wu & Associates. Next meeting: April to sign documents."
+    },
+    {
+      "title": "Nephew College Fund",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "content": "Nephew College Fund: 529 plan for nephew Ethan (sister Emily's son, age 4). Alex contributes $200/month. Current balance: $4,800. Plan: California ScholarShare 529. Target: $100k by age 18. Emily also contributes $150/month. Ethan's favorite: dinosaurs. Birthday: August 12."
+    },
+    {
+      "title": "Company Blog Draft",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Blog Post Draft: Title: 'Why AI Agents Need Boundaries'. Theme: privacy in multi-agent systems — how we built cross-boundary communication without leaking private data. Key points: permission layers, policy enforcement, agent identity. Status: draft (80% complete), target publish: next week. Reviewer: Lisa."
+    },
+    {
+      "title": "Podcast Appearance",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Podcast: The AI Native Show with host Jordan Lee. Recording date: April 22, 2026. Topic: Building trust in AI agents — lessons from TechFlow. Duration: 45 min. Prep: review talking points by April 20. Promotion: cross-post on Twitter + LinkedIn."
+    },
+    {
+      "title": "TechFlow Press Kit",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "TechFlow AI Press Kit: Founded: 2024. HQ: San Francisco, CA. Users: 8,000+ (as of March 2026). Team: 12 people. Backed by Y Combinator (W24 batch). Mission: Make AI collaboration seamless and private. Logo: attached. Press contact: alex@techflow.ai. Recent press: TechCrunch feature (Feb 2026)."
+    },
+    {
+      "title": "SOC2 Compliance Tracker",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "SOC2 Type II audit in progress. Auditor: Vanta automated + Deloitte review. Target completion: May 2026. Status: 68% controls passing. Gaps: need formal incident response plan, access review logs incomplete, vendor risk assessments missing for 3 providers. SOC2 required by Acme Corp before enterprise deal closes."
+    },
+    {
+      "title": "Data Architecture Overview",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Primary DB: Neon PostgreSQL (serverless). Read replicas: 2 (US-West, EU-West). Caching: Redis via Upstash. Search: pgvector for embeddings (1536-dim, OpenAI ada-002). Backup: daily snapshots, 30-day retention. Data residency: US only (EU expansion planned Q4). Encryption: AES-256 at rest, TLS 1.3 in transit."
+    },
+    {
+      "title": "Release Process",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Release cadence: weekly (Tuesdays). Process: feature branch → PR review (2 approvals) → staging deploy → QA smoke test → production deploy via Vercel. Hotfix: direct to main with 1 approval. Feature flags: env vars today; LaunchDarkly integration in progress. Rollback: Vercel instant rollback. Last incident: Feb 14 deploy broke OAuth, resolved in 47 minutes (see postmortem)."
+    },
+    {
+      "title": "Growth Strategy 2026",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Growth channels: 1) PLG (product-led growth) — free tier → Pro conversion (target 5% free→paid). 2) Content marketing — blog + newsletter (5k subs) + podcast guest spots. 3) Partnerships — Slack/Microsoft integrations. 4) Enterprise sales — direct outbound to Fortune 500. CAC target: <$200 for PLG, <$5k for enterprise. LTV:CAC goal: 3:1."
+    },
+    {
+      "title": "Incident Postmortem Feb-14",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Incident: OAuth login failure. Duration: 47 minutes (2:13pm - 3:00pm PT). Impact: ~200 users unable to login. Root cause: NextAuth callback URL misconfigured after Vercel domain change. Detection: PagerDuty alert at 2:18pm. Resolution: rollback to previous deployment. Action items: 1) Add OAuth smoke test to CI, 2) Domain change checklist, 3) Improve monitoring for auth failures."
+    },
+    {
+      "title": "Mobile App Roadmap",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Mobile app planning: Phase 1 (Q3 2026): React Native, read-only notes access + push notifications for agent messages. Phase 2 (Q4 2026): Full editing, offline sync, biometric auth. Design: Figma mockups 80% complete (Lisa leading). Technical risk: offline sync with encrypted notes. Budget: $60k for contracted React Native dev."
+    },
+    {
+      "title": "Internationalization Plan",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "i18n plan: Phase 1 — UI strings extraction using next-intl (Q3 2026). Phase 2 — Spanish and Japanese translations (Q4 2026). Phase 3 — EU data residency (2027). Translation vendor: Lokalise. AI agent language: English only for now (multilingual agent responses planned 2027). Market priority: Japan (strong AI adoption), LATAM (growing startup scene)."
+    },
+    {
+      "title": "Accessibility Audit",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "WCAG 2.1 AA audit results (March 2026, external auditor: AccessiTech). Score: 72% compliant. Critical issues: 3 (missing alt text on dashboard charts, keyboard trap in note editor, insufficient color contrast on sidebar). Timeline: fix critical issues by April 15. Full AA compliance target: June 2026. Required for enterprise deals (Acme Corp, government sector)."
+    },
+    {
+      "title": "Design Review - Mobile",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Design review with Lisa (March 8): Reviewed mobile app mockups. Key decisions: bottom nav (not hamburger), dark mode default, swipe gestures for note navigation. Lisa proposed card-based home screen — team loved it. Open question: how to handle long notes on small screens (truncate vs scroll). Next review: March 22 with full interactive prototype."
+    },
+    {
+      "title": "Legal Review - Terms of Service",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Legal review with outside counsel (Wilson & Partners, March 3). Updated ToS for multi-agent data sharing. Key changes: explicit consent for cross-boundary agent communication, data retention policy (90 days for agent conversations), CCPA compliance section added. Lawyer flagged: need separate DPA for EU customers. Cost: $8,000 for full ToS + privacy policy update."
+    },
+    {
+      "title": "Advisory Board Meeting",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Advisory board quarterly meeting (March 1). Advisors: Dr. Sarah Kim (Stanford AI Lab), Marcus Chen (ex-Notion VP Eng), Priya Sharma (Sequoia partner). Key feedback: focus on enterprise, not consumer. Marcus suggested: build admin dashboard before mobile app. Priya: \"Your multi-agent moat is real — patent it aggressively.\" Compensation: 0.1% equity each, 2-year vest."
+    },
+    {
+      "title": "Customer Feedback Session",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Monthly customer feedback session (March 4, 8 customers). Top requests: 1) Slack integration (5/8 asked), 2) Better search across notes (4/8), 3) Team workspaces with shared folders (3/8), 4) API webhooks for automation (3/8). Biggest complaint: \"Agent responses too slow for real-time use.\" Session pulse NPS: 42 (in line with the March survey). Two customers offered to be case studies."
+    },
+    {
+      "title": "Vendor Evaluation - Analytics",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Evaluating analytics tools to replace basic Vercel Analytics. Candidates: 1) Mixpanel ($800/mo, best event tracking), 2) Amplitude ($600/mo, best funnels), 3) PostHog ($0 self-hosted, most flexible but ops overhead). Recommendation: Mixpanel — best balance of features vs cost. Decision needed by March 15. Budget approved: up to $1,000/mo."
+    },
+    {
+      "title": "Team Offsite Planning",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Summer offsite: Hawaii, July 15-19 (Mon-Fri). Budget: $30,000 total (flights + hotel + activities). Hotel: Grand Wailea, Maui (group rate $350/night). Activities: team building day 1, hackathon days 2-3, beach day 4, demo day 5. Travel booked for 10 of 12 team members. Tom and Jake TBD. Alex presenting company vision on day 1."
+    },
+    {
+      "title": "Open Source Strategy",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Open source plan: Extract agent-protocol library as MIT-licensed OSS (Q2 2026). Goal: become standard for cross-agent communication. GitHub org: github.com/techflow-ai. Community strategy: launch with blog post + HN Show post. Governance: Alex as BDFL initially, move to steering committee at 50+ contributors. Risk: competitors could use protocol without paying for product."
+    },
+    {
+      "title": "Content Calendar Q2",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Q2 2026 content calendar: April — \"Why AI Agents Need Boundaries\" blog post + Product Hunt launch. May — Alex @ AI Summit conference talk + launch agent-protocol OSS. June — customer case study series (3 posts) + \"State of AI Agents\" report. Podcast: The AI Native Show (April 22), Lenny's Podcast (tentative May). Social: 3 posts/week on Twitter, 1/week LinkedIn."
+    },
+    {
+      "title": "Brand Guidelines",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "TechFlow AI brand: Primary color: #2563EB (blue-600). Secondary: #7C3AED (violet-600). Font: Inter (headings), Source Code Pro (code). Logo: abstract flow/pulse icon. Voice: technical but approachable, confident not hype-y. Tagline: \"AI that works together, privately.\" Photography style: real team photos, no stock. Banned words: \"revolutionary\", \"disruptive\", \"game-changing\"."
+    },
+    {
+      "title": "Onboarding Playbook",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "New hire onboarding (2-week program): Week 1 — Setup (day 1), codebase walkthrough (day 2), pair programming with buddy (days 3-5). Week 2 — Ship first PR (day 6-7), meet all team members 1:1 (day 8-9), present learning summary (day 10). Buddy system: every new hire paired with senior eng. Tools: GitHub, Linear, Slack, Notion (migrating to TechFlow dogfooding), Figma. 30-day check-in with Alex."
+    },
+    {
+      "title": "MEMORY.md",
+      "folder": "Memory/Self",
+      "sensitivity": "work_public",
+      "content": "# Agent Memory\n\n## Identity\nAlex Chen, Co-founder & CTO of TechFlow AI. Oxford CS '18.\n\n## Preferences\n- Prefers async communication\n- Values direct, concise responses\n\n## Interactions\n(none yet)\n"
+    }
+  ],
+  "todos": [
+    {
+      "title": "Submit Q1 board deck",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-18",
+      "completed": false,
+      "content": "Finalize the Q1 results deck for the March 20 board meeting. Include Series A progress ($3M committed of $5M), DAU chart, and hiring plan."
+    },
+    {
+      "title": "Prepare investor update email",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Monthly investor update: Q1 progress, 6,200 MAU, churn 4.2%, Series A update. Send to all angels + YC contacts."
+    },
+    {
+      "title": "Complete security audit fixes",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Fix remaining medium-severity finding: rate limiting on auth endpoints. Security audit was Jan 2026 — 2 medium, 0 critical."
+    },
+    {
+      "title": "Finish SOC2 incident response plan",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "SOC2 audit gap: no formal incident response plan. Write it and upload to Vanta. Must be done before Acme Corp deal closes."
+    },
+    {
+      "title": "Fix accessibility critical issues",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Fix 3 WCAG 2.1 AA critical issues: missing alt text on dashboard charts, keyboard trap in note editor, insufficient color contrast on sidebar. Deadline April 15."
+    },
+    {
+      "title": "Decide on analytics tool",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Choose between Mixpanel ($800/mo), Amplitude ($600/mo), or PostHog (self-hosted). Recommendation: Mixpanel. Budget approved up to $1,000/mo."
+    },
+    {
+      "title": "Review mobile app Figma prototype",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-22",
+      "completed": false,
+      "content": "Lisa leading design. Key decisions: bottom nav, dark mode default, swipe gestures, card-based home screen. Next review March 22 with interactive prototype."
+    },
+    {
+      "title": "Prepare AI Summit talk",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-05-10",
+      "completed": false,
+      "content": "Speaking at AI Summit 2026, May 15 in San Francisco. Topic: Multi-agent collaboration patterns. 30-minute slot. Need slides by May 10."
+    },
+    {
+      "title": "Write Acme Corp SOC2 response",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-28",
+      "completed": false,
+      "content": "Acme Corp requires SOC2 before enterprise deal. Contact: John Smith (CTO). Budget: $100k. Need to send compliance status by end of March."
+    },
+    {
+      "title": "Plan Product Hunt launch",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-04-05",
+      "completed": false,
+      "content": "Q2 content calendar: Product Hunt launch in April. Need to coordinate with blog post \"Why AI Agents Need Boundaries\" and prep screenshots, demo video."
+    },
+    {
+      "title": "Publish agent-protocol OSS library",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-05-30",
+      "completed": false,
+      "content": "Extract cross-agent communication protocol as MIT-licensed open source. GitHub org: techflow-ai. Launch with HN Show post. Target: Q2 2026."
+    },
+    {
+      "title": "Extract UI strings for i18n",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-07-30",
+      "completed": false,
+      "content": "Phase 1 internationalization: extract all UI strings using next-intl library. Priority markets: Japan and LATAM. Target: Q3 2026."
+    },
+    {
+      "title": "Set up vendor risk assessments",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-04-10",
+      "completed": false,
+      "content": "SOC2 gap: vendor risk assessments missing for 3 providers. Need to document Azure, Neon, Vercel security postures for Vanta."
+    },
+    {
+      "title": "Schedule QBRs for top 10 accounts",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "Customer Success action item: set up quarterly business reviews for top 10 accounts. Overall retention 87%. Avg contract $15k/yr."
+    },
+    {
+      "title": "Record pre-recorded YC demo backup",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-04-05",
+      "completed": false,
+      "content": "YC Demo Day April 8. Backup plan: pre-recorded video demo in case of technical issues. Practice sessions: April 1, 3, 5."
+    },
+    {
+      "title": "Launch Project Alpha MVP",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-01",
+      "completed": true,
+      "content": "Shipped Alpha MVP to first 100 beta users on March 1, 2026. Stack: Next.js 14, PostgreSQL, Azure OpenAI. Goal: 10k DAU by Q2."
+    },
+    {
+      "title": "Finish API documentation",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-08",
+      "completed": true,
+      "content": "Documented all public endpoints: /api/v1/chat (POST), /api/v1/notes (GET/POST). Rate limit: 100 req/min. Bearer token auth."
+    },
+    {
+      "title": "Setup staging environment",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-02-25",
+      "completed": true,
+      "content": "Created staging env on Vercel with separate Neon DB instance. Smoke test pipeline runs on every PR merge."
+    },
+    {
+      "title": "Sign office lease renewal",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-02-28",
+      "completed": true,
+      "content": "Renewed SF office lease for 2 years. New space available in April per all-hands announcement."
+    },
+    {
+      "title": "Submit conference proposal",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-02-01",
+      "completed": true,
+      "content": "Submitted talk proposal to AI Summit 2026: \"Multi-agent collaboration patterns.\" Accepted for May 15 slot."
+    },
+    {
+      "title": "Order office supplies",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-02-18",
+      "completed": true,
+      "content": "Ordered standing desk converters for 4 workstations and monitor arms. Total: $2,400."
+    },
+    {
+      "title": "Complete Y Combinator app",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-02-28",
+      "completed": true,
+      "content": "Submitted YC W24 batch application. Key metric: early traction with 3 pilot customers."
+    },
+    {
+      "title": "Write blog post draft",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-02-28",
+      "completed": true,
+      "content": "Drafted \"Why AI Agents Need Boundaries\" for company blog. 80% complete, Lisa reviewing. Target publish: next week."
+    },
+    {
+      "title": "Plan team offsite",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-02-15",
+      "completed": true,
+      "content": "Booked Hawaii offsite July 15-19. Grand Wailea Maui, group rate $350/night. Budget: $30k total for 12 people."
+    },
+    {
+      "title": "Review app store reviews",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-07",
+      "completed": true,
+      "content": "Reviewed 45 app store reviews. Common themes: love the AI assistant, want Slack integration, some report slow responses."
+    },
+    {
+      "title": "Update LinkedIn profile",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-02-14",
+      "completed": true,
+      "content": "Updated LinkedIn on February 14 with new title \"Co-founder & CTO, TechFlow AI\" and recent achievements. Public bio synced."
+    },
+    {
+      "title": "Close Sequoia intro call",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-01-20",
+      "completed": true,
+      "content": "Introductory call with Sequoia partner (Jan 20). They want to see Q1 numbers before committing. Follow up in April."
+    },
+    {
+      "title": "File patents for agent protocol",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-01-30",
+      "completed": true,
+      "content": "Filed provisional patent: \"Cross-boundary agent context protocol.\" Attorney: Wilson & Partners. Cost to full patent: $15k."
+    },
+    {
+      "title": "Set up OAuth smoke test in CI",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-02-20",
+      "completed": true,
+      "content": "Post-incident action item from Feb 14 OAuth outage. Added OAuth callback test to CI pipeline. Domain change checklist created."
+    },
+    {
+      "title": "Update Terms of Service",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-10",
+      "completed": true,
+      "content": "Legal review with Wilson & Partners: added cross-boundary agent data sharing consent, CCPA section, 90-day data retention. Cost: $8,000."
+    },
+    {
+      "title": "Review Maria's offer response",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "high",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "Maria Garcia — offer: $180k + 0.5% equity. Strong system design, good culture fit. She's deciding. Follow up by March 12."
+    },
+    {
+      "title": "Discuss Mike promotion with Sarah",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Mike wants Tech Lead title. He leads auth/security effectively. Considering promoting in Q2. Need CEO approval first."
+    },
+    {
+      "title": "Make decision on Jake's PIP",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "high",
+      "due_date": "2026-03-25",
+      "completed": false,
+      "content": "Jake (intern) on performance improvement plan. HR advised: PIP first, then termination decision in 2 weeks. Performance issues documented."
+    },
+    {
+      "title": "Talk to Lisa about staying",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "high",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Lisa frustrated by GraphQL pushback, considering Stanford grad school. Offered: let her own v2 API redesign. She seemed interested but noncommittal."
+    },
+    {
+      "title": "Prepare Q2 equity refresh grants",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Review team performance for refresh grants. Budget: 0.1-0.3% per person per year. ESOP remaining: 4.2% unallocated. Board approval needed for grants >0.5%."
+    },
+    {
+      "title": "Finalize Series A board seat terms",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "high",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "Series A signed term sheet (March 3): Sequoia lead, $5M at $20M pre-money, 1x non-participating preference, 1 investor board seat. Finalize closing docs; expected close April 2026."
+    },
+    {
+      "title": "Schedule final round for James and Priya",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-03-13",
+      "completed": false,
+      "content": "Hiring committee: 2 candidates in final round — James Wu (strong systems) and Priya Patel (strong ML). Interview rubric: system design 40%, coding 30%, culture 30%."
+    },
+    {
+      "title": "Assign dedicated CSM to Acme Corp",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Customer success risk: Acme Corp delayed decision due to CTO change. Assign dedicated CSM and propose quarterly business reviews."
+    },
+    {
+      "title": "Interview 5 senior candidates",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "high",
+      "due_date": "2026-03-01",
+      "completed": true,
+      "content": "Completed 5 senior eng interviews. 1 offer out (Maria Garcia $180k), 2 in final round (James Wu, Priya Patel). 2 rejected."
+    },
+    {
+      "title": "1:1 with all team members",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-03-06",
+      "completed": true,
+      "content": "Completed Q1 1:1s. Key takeaways: Mike wants tech lead, Lisa wants API architecture role, Tom needs more mentoring."
+    },
+    {
+      "title": "Order new laptop for Mike",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "low",
+      "due_date": "2026-02-20",
+      "completed": true,
+      "content": "Ordered MacBook Pro M3 Max for Mike. Approved as tech lead equipment upgrade. Cost: $3,500 from IT budget."
+    },
+    {
+      "title": "Complete compliance training",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-01-05",
+      "completed": true,
+      "content": "Completed annual compliance training: data handling, harassment prevention, insider trading policy."
+    },
+    {
+      "title": "Review employment contracts",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "high",
+      "due_date": "2026-01-25",
+      "completed": true,
+      "content": "Reviewed and updated employment contracts for all employees. Added IP assignment clause and updated non-compete terms."
+    },
+    {
+      "title": "Set up new hire onboarding checklist",
+      "folder": "HR",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-02-10",
+      "completed": true,
+      "content": "Created 2-week onboarding program: setup day 1, codebase walkthrough day 2, pair programming days 3-5, ship first PR week 2. Buddy system with senior eng."
+    },
+    {
+      "title": "Document promotion criteria",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-02-15",
+      "completed": true,
+      "content": "Published engineering promotion framework: IC levels L3-L7. Senior (L5) needs 2 shipped projects + mentorship. Review cycle: biannual June/December."
+    },
+    {
+      "title": "File Q1 estimated taxes",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "high",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Q1 estimated tax payment due April 15. AGI $210k, federal ~$42k, state CA ~$18k. Deductions: $28k (mortgage interest, charity)."
+    },
+    {
+      "title": "Review wedding venue contract",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "high",
+      "due_date": "2026-03-25",
+      "completed": false,
+      "content": "Wedding Sept 14 at Napa Valley winery (Domaine Carneros). Venue cost: $25k, deposit paid $10k. Need to confirm final catering count (150 guests × $120/head)."
+    },
+    {
+      "title": "Top up emergency fund",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "medium",
+      "due_date": "2026-11-01",
+      "completed": false,
+      "content": "Emergency fund target: $30k (6 months expenses). Current: $22k in high-yield savings at 4.5% APY. Gap: $8k. Auto-transfer $1k/mo, target fully funded by Nov 2026."
+    },
+    {
+      "title": "Recheck cholesterol in 6 months",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "medium",
+      "due_date": "2026-06-15",
+      "completed": false,
+      "content": "Doctor recommended recheck cholesterol (was 195 borderline, LDL 125). Increase omega-3 intake. Schedule blood draw for June."
+    },
+    {
+      "title": "Pay Tesla monthly payment",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "medium",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "2024 Tesla Model 3 LR. Loan remaining: $35k. Monthly: $650 at 4.9% (Wells Fargo). Payoff March 2029. Insurance: State Farm $180/mo."
+    },
+    {
+      "title": "Research mega backdoor Roth",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-04-30",
+      "completed": false,
+      "content": "401k balance: $42k (maxing $23k/yr). Roth IRA: $18k (maxing $7k/yr). Target: $2M by 50. Current trajectory: $1.6M. Considering mega backdoor Roth through TechFlow plan."
+    },
+    {
+      "title": "Contribute to nephew Ethan 529",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "529 plan for nephew Ethan (age 4). Alex contributes $200/mo. Current balance: $4,800. California ScholarShare plan. Target: $100k by 18."
+    },
+    {
+      "title": "Review Amex Platinum annual fee",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-04-20",
+      "completed": false,
+      "content": "Amex Platinum: $25k limit, $0 balance. Annual fee coming up — evaluate if benefits still worth it vs downgrading. Chase Sapphire: $12k limit, $3k balance. Credit score: 780."
+    },
+    {
+      "title": "Sign family trust documents",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "medium",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Parents setting up revocable living trust. Alex co-trustee with sister Emily. Estate ~$800k (San Jose house + savings). Lawyer: Jennifer Wu. Meeting in April to sign."
+    },
+    {
+      "title": "Book Hawaii flights for team offsite",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "Team offsite: Hawaii July 15-19 at Grand Wailea, Maui. Need to book flights for 10 confirmed attendees. Budget: $30k total."
+    },
+    {
+      "title": "Submit tax documents to CPA",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "high",
+      "due_date": "2026-02-28",
+      "completed": true,
+      "content": "Sent 2025 W-2, 1099s, mortgage interest statement, charity receipts to CPA. AGI $210k. Federal owed: $42k, state $18k."
+    },
+    {
+      "title": "Set up 401k contribution",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "high",
+      "due_date": "2026-01-10",
+      "completed": true,
+      "content": "Set up 401k auto-contribution at maximum $23,000/yr through Guideline. Company match: 4%. Balance: $42k."
+    },
+    {
+      "title": "Review Q4 financials",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "medium",
+      "due_date": "2026-01-20",
+      "completed": true,
+      "content": "Reviewed Q4 2025 company and personal finances. Company burn rate: ~$100k/mo infra + salaries. Personal: liquid $250k across Chase + Fidelity."
+    },
+    {
+      "title": "Refinance mortgage research",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-02-01",
+      "completed": true,
+      "content": "Researched refinancing: current mortgage $900k at 6.5%. Best available rate: 5.8%. Savings: ~$400/mo. Decision: wait — rates expected to drop further in Q3."
+    },
+    {
+      "title": "Setup HSA auto-contribution",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "medium",
+      "due_date": "2026-01-12",
+      "completed": true,
+      "content": "Set up HSA auto-contribution via Anthem Blue Cross. Current HSA balance: $8,500. Targeting max annual contribution."
+    },
+    {
+      "title": "Setup auto-pay utilities",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-01-05",
+      "completed": true,
+      "content": "Configured auto-pay for: PG&E, Comcast internet, water/sewage. Total utilities: ~$450/mo."
+    },
+    {
+      "title": "Renew car registration",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-02-01",
+      "completed": true,
+      "content": "Renewed registration for 2024 Tesla Model 3 Long Range. Cost: $380 (includes EV surcharge). DMV confirmation #TM3-2026-0201."
+    },
+    {
+      "title": "Review insurance policies",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-01-15",
+      "completed": true,
+      "content": "Reviewed all insurance: health (Anthem PPO), dental (Delta), vision (VSP), car (State Farm $180/mo), home (Allstate). No changes needed."
+    },
+    {
+      "title": "Update will/estate plan",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "medium",
+      "due_date": "2026-01-20",
+      "completed": true,
+      "content": "Updated will with attorney Jennifer Wu. Jamie as primary beneficiary. Sister Emily as executor. Added TechFlow equity to asset schedule."
+    },
+    {
+      "title": "Pay Jamie's parents for wedding deposit",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "medium",
+      "due_date": "2026-02-15",
+      "completed": true,
+      "content": "Jamie's parents contributing $20k toward wedding. Received first $10k for venue deposit. Robert (Jamie's dad) wired funds."
+    },
+    {
+      "title": "Schedule dentist appointment",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Crown on molar #19 scheduled April 2026 at Palo Alto Dental (Dr. Pham). Estimated cost: $1,200 after Delta Dental. Next cleaning: May 2026."
+    },
+    {
+      "title": "Allergy shot appointment",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "medium",
+      "due_date": "2026-04-10",
+      "completed": false,
+      "content": "Monthly immunotherapy shot for shellfish allergy at Bay Area Allergy Clinic (Dr. Kim). Buildup phase complete. Still carry EpiPen. Mild improvement."
+    },
+    {
+      "title": "Refill albuterol inhaler",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "medium",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Albuterol inhaler for mild asthma. Using as needed. Also on Vitamin D 2000IU daily and Melatonin 5mg for sleep."
+    },
+    {
+      "title": "Therapy session with Dr. Martinez",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "high",
+      "due_date": "2026-03-14",
+      "completed": false,
+      "content": "Biweekly therapy with Dr. Martinez. Working on: work stress, imposter syndrome, relationship with dad. Started journaling in January."
+    },
+    {
+      "title": "Run 6 miles Saturday",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Half marathon training for Oct 2026. Currently comfortable at 5 miles. Plan: increase 10% weekly. Target: 6 miles this weekend."
+    },
+    {
+      "title": "Try no-screens-after-10pm for 1 week",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "medium",
+      "due_date": "2026-03-21",
+      "completed": false,
+      "content": "Sleep score avg 72/100 (Oura Ring). Main issue: phone in bed. REM sleep below average. Melatonin 5mg helps. Trying strict 10pm cutoff."
+    },
+    {
+      "title": "Set work boundary with Sarah on Slack",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "medium",
+      "due_date": "2026-03-31",
+      "completed": false,
+      "content": "Mental health goal: stop answering Slack after 8pm. Boundary with Sarah (CEO). Part of anxiety reduction plan from Dr. Martinez."
+    },
+    {
+      "title": "Increase omega-3 intake",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Annual physical results: cholesterol 195 (borderline, LDL 125, HDL 55). Doctor Sarah Lee at One Medical recommended increasing omega-3. Recheck in 6 months."
+    },
+    {
+      "title": "Annual physical exam",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "medium",
+      "due_date": "2025-12-15",
+      "completed": true,
+      "content": "Annual physical at One Medical Palo Alto (Dr. Sarah Lee). Results: BP 118/76, cholesterol 195 (borderline), BMI 24.1, glucose 92. Overall healthy."
+    },
+    {
+      "title": "Get flu shot",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2025-10-15",
+      "completed": true,
+      "content": "Got flu shot at CVS Palo Alto. No adverse reactions."
+    },
+    {
+      "title": "Therapy session booking",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "high",
+      "due_date": "2026-03-01",
+      "completed": true,
+      "content": "Booked biweekly therapy sessions with Dr. Martinez through June 2026. Working on: work stress, imposter syndrome, relationship with dad."
+    },
+    {
+      "title": "Start journaling habit",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-01-15",
+      "completed": true,
+      "content": "Bought Moleskine journal. Writing 10 minutes each morning as recommended by Dr. Martinez. Mental health goal for 2026."
+    },
+    {
+      "title": "Sign up for Headspace",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-01-20",
+      "completed": true,
+      "content": "Subscribed to Headspace app. Target: 10 min meditation daily. Part of mental health goals for 2026."
+    },
+    {
+      "title": "Get blood type card for wallet",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-01-05",
+      "completed": true,
+      "content": "Got blood type card: O+. Carry with medical info including allergies (Penicillin, shellfish) and emergency contacts."
+    },
+    {
+      "title": "Start allergy immunotherapy",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "medium",
+      "due_date": "2026-01-10",
+      "completed": true,
+      "content": "Started immunotherapy shots for shellfish allergy at Bay Area Allergy Clinic with Dr. Kim. Buildup phase: weekly for 3 months, then monthly. Duration: 3-5 years."
+    },
+    {
+      "title": "Buy Mom's birthday gift",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "high",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Mom's 60th birthday April 22. Gift plan: weekend spa trip to Carmel, budget $2,000."
+    },
+    {
+      "title": "Call Dad about diabetes",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "high",
+      "due_date": "2026-03-11",
+      "completed": false,
+      "content": "Check in with Dad about Type 2 diabetes (diagnosed Jan 2026). He's on metformin but in denial. Need to call more often."
+    },
+    {
+      "title": "Book Hawaii flights for family vacation",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "Family vacation: Hawaii July 10-20. Maui resort booked. Activities: snorkeling, hiking. Total cost: $8,000."
+    },
+    {
+      "title": "Confirm wedding catering final count",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "high",
+      "due_date": "2026-04-30",
+      "completed": false,
+      "content": "Wedding Sept 14, Napa Valley. 150 guests: Alex 70, Jamie 60, mutual 20. Dietary: 12 vegetarian, 3 vegan, 5 gluten-free. Catering: $18k (150 × $120)."
+    },
+    {
+      "title": "Plan parents 35th anniversary surprise",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-05-15",
+      "completed": false,
+      "content": "Parents' 35th anniversary June 15. Planning surprise party. Siblings splitting cost. Coordinate with Emily and David."
+    },
+    {
+      "title": "Prepare guest room for David",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-24",
+      "completed": false,
+      "content": "Brother David visiting March 25-28. Staying at Alex's place. Want to show him the office."
+    },
+    {
+      "title": "Follow up on Emily's loan repayment",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-04-30",
+      "completed": false,
+      "content": "Lent sister Emily $15k for her business (Oct 2025). Agreed: pay back over 2 years, no interest. Haven't received any payments yet."
+    },
+    {
+      "title": "Buy nephew Ethan birthday gift",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-08-01",
+      "completed": false,
+      "content": "Nephew Ethan (Emily's son) turns 5 on August 12. He loves dinosaurs. Budget: $100."
+    },
+    {
+      "title": "Wedding DJ final selection",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Narrowed to 2 DJs for wedding reception. Budget: $4,000. Need to book by April. Jamie prefers live band option ($6k — over budget)."
+    },
+    {
+      "title": "Coordinate Easter dinner",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-04-18",
+      "completed": false,
+      "content": "Easter dinner April 20 — coordinating in family group chat. Need to confirm venue and who brings what."
+    },
+    {
+      "title": "Send wedding save-the-dates",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "high",
+      "due_date": "2026-01-15",
+      "completed": true,
+      "content": "Sent 150 save-the-dates for September 14, 2026 wedding at Napa Valley winery. 8 regrets so far."
+    },
+    {
+      "title": "Buy wedding rings",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "high",
+      "due_date": "2026-03-02",
+      "completed": true,
+      "content": "Purchased wedding rings. Alex: tungsten carbide band ($400). Jamie: platinum with diamond ($3,200). Total: $3,600."
+    },
+    {
+      "title": "Book anniversary dinner",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-02-10",
+      "completed": true,
+      "content": "Booked dinner at The French Laundry for Jamie and Alex's 3rd anniversary. Reservation: February 14."
+    },
+    {
+      "title": "Send holiday cards",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2025-12-20",
+      "completed": true,
+      "content": "Mailed holiday cards to 80 recipients: family, friends, and key work contacts."
+    },
+    {
+      "title": "Call grandma",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-05",
+      "completed": true,
+      "content": "Called grandma on March 5. She shared the secret dumpling recipe (pork, cabbage, ginger, soy sauce, sesame oil). Promised to visit in April."
+    },
+    {
+      "title": "Update emergency contacts",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-01-08",
+      "completed": true,
+      "content": "Updated emergency contacts: Primary — Jamie Park (partner). Secondary — Emily Chen (sister). Added Dr. Martinez and Dr. Kim."
+    },
+    {
+      "title": "Celebrate Jamie's promotion",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-03-08",
+      "completed": true,
+      "content": "Jamie promoted to Director at Google. Planned surprise dinner at Nobu Palo Alto. Very proud."
+    },
+    {
+      "title": "Help Emily with business plan",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2025-11-15",
+      "completed": true,
+      "content": "Reviewed Emily's business plan for her craft bakery. Advised on pricing, marketing. She used the $15k loan to secure a lease."
+    },
+    {
+      "title": "Get Robert a birthday gift",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-01-28",
+      "completed": true,
+      "content": "Jamie's dad Robert's birthday. Got him a nice bottle of whisky. Relationship improving slowly — he still disapproves of startup life."
+    },
+    {
+      "title": "Coordinate family holiday rotation",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-01-05",
+      "completed": true,
+      "content": "Confirmed holiday rotation with Jamie: Park family for Thanksgiving 2026, Chen family for Christmas 2026. Helen (Jamie's mom) happy, Robert accepted."
+    },
+    {
+      "title": "Organize garage",
+      "folder": "Personal",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-04-05",
+      "completed": false,
+      "content": "Garage cluttered after holiday storage. Need to donate old furniture, organize tool wall, clear space for new workbench."
+    },
+    {
+      "title": "Fix garage door sensor",
+      "folder": "Personal",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Garage door safety sensor misaligned — door reverses randomly. Need to recalibrate or replace sensor."
+    },
+    {
+      "title": "Backup photos to cloud",
+      "folder": "Personal",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "Transfer 2025 photos from iPhone to Google Photos. About 3,000 photos. Free up phone storage."
+    },
+    {
+      "title": "Clean up email inbox",
+      "folder": "Personal",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-25",
+      "completed": false,
+      "content": "Personal email inbox at 2,400 unread. Unsubscribe from marketing lists, archive old threads."
+    },
+    {
+      "title": "Prepare podcast talking points",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-04-20",
+      "completed": false,
+      "content": "The AI Native Show with Jordan Lee, recording April 22. Topic: Building trust in AI agents. 45-min episode. Prep talking points by April 20."
+    },
+    {
+      "title": "Prepare TechFlow press kit",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-02-28",
+      "completed": true,
+      "content": "Created press kit: Founded 2024, SF, 8,000+ users, team 12, YC W24, logo, press contact. Featured in TechCrunch Feb 2026."
+    },
+    {
+      "title": "Draft newsletter edition",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-05",
+      "completed": true,
+      "content": "Monthly newsletter for 5,000 subscribers: AI insights, startup lessons, book recommendations. March edition ready."
+    },
+    {
+      "title": "Set up Calendly for office hours",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-01-10",
+      "completed": true,
+      "content": "Open office hours: Thursdays 2-4pm PT. Configured Calendly link: calendly.com/alexchen. Topics: AI, startups, career advice."
+    },
+    {
+      "title": "Record content calendar in shared notes",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-01",
+      "completed": true,
+      "content": "Q2 content calendar: April PH launch, May AI Summit + OSS launch, June case studies + State of AI Agents report. 3 posts/week Twitter, 1/week LinkedIn."
+    },
+    {
+      "title": "Create brand guidelines doc",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-02-20",
+      "completed": true,
+      "content": "Brand: primary #2563EB, secondary #7C3AED. Fonts: Inter + Source Code Pro. Voice: technical but approachable. Tagline: \"AI that works together, privately.\""
+    },
+    {
+      "title": "Migrate Edge runtime",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-04-30",
+      "completed": false,
+      "content": "Technical debt: migrate from Node.js to Edge runtime on Vercel. Estimated: 1 week. Improves cold start latency by ~60%."
+    },
+    {
+      "title": "Add E2E test suite",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-05-15",
+      "completed": false,
+      "content": "Technical debt: add end-to-end tests with Playwright. Cover login, note CRUD, agent chat, search. Estimated: 2 weeks."
+    },
+    {
+      "title": "Refactor auth flow",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-04-10",
+      "completed": false,
+      "content": "Technical debt: auth flow refactor. Currently 3 separate auth checks. Consolidate into single middleware. Estimated: 3 days."
+    },
+    {
+      "title": "Set up EU read replica",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-09-30",
+      "completed": false,
+      "content": "Data architecture: add EU-West read replica on Neon. Required for EU data residency expansion planned Q4 2026."
+    },
+    {
+      "title": "Implement LaunchDarkly feature flags",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-04-20",
+      "completed": false,
+      "content": "Release process improvement: integrate LaunchDarkly for feature flags. Currently using env vars. Need for safe rollouts."
+    },
+    {
+      "title": "Contract React Native dev for mobile",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-05-01",
+      "completed": false,
+      "content": "Mobile app Phase 1 (Q3 2026): React Native, read-only notes + push notifications. Budget: $60k contracted. Need to find and hire dev by May."
+    },
+    {
+      "title": "Publish customer case study - BetaCo",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-05-30",
+      "completed": false,
+      "content": "Q2 content calendar: customer case study series. BetaCo agreed to participate. Need to interview and draft by end of May."
+    },
+    {
+      "title": "Optimize Azure OpenAI spend",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-10",
+      "completed": true,
+      "content": "Infrastructure: Azure OpenAI costs ~$8,000/mo. Investigate prompt caching, batch API, smaller model for embeddings. Target: reduce to $5k/mo."
+    },
+    {
+      "title": "Set up Datadog monitoring",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-02-05",
+      "completed": true,
+      "content": "Monitoring: Datadog at $500/mo. Configured APM traces, log aggregation, and custom dashboards for agent response times."
+    },
+    {
+      "title": "Create staging smoke test pipeline",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-02-28",
+      "completed": true,
+      "content": "CI/CD: automated smoke tests run on staging after every merge. Covers OAuth, note CRUD, agent chat, search. Takes ~3 minutes."
+    },
+    {
+      "title": "Roll back Feb 14 OAuth deploy",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-02-14",
+      "completed": true,
+      "content": "Incident: OAuth login failed for 47 minutes (2:13-3:00pm). ~200 users affected. Root cause: NextAuth callback URL misconfigured after Vercel domain change. Rolled back via Vercel instant rollback."
+    },
+    {
+      "title": "Ship Slack integration v1",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-05-30",
+      "completed": false,
+      "content": "Top customer request (5/8 in feedback session). Slack app: forward messages to agent, get summaries. In partnership discussions with Slack team."
+    },
+    {
+      "title": "Write DPA for EU customers",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-06-30",
+      "completed": false,
+      "content": "Legal review flagged: need separate Data Processing Agreement for EU customers. Wilson & Partners drafting. GDPR compliance for Q4 EU expansion."
+    },
+    {
+      "title": "Run June performance reviews",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-06-01",
+      "completed": false,
+      "content": "Biannual review cycle: June and December. Self-review + peer feedback + manager assessment. Need to set up process in Linear for all 12 team members."
+    },
+    {
+      "title": "Draft Tom performance feedback",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Tom needs more mentoring per 1:1 notes. Below expectations on last sprint delivery. Prepare constructive feedback with improvement plan."
+    },
+    {
+      "title": "Negotiate advisory equity grants",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "Advisory board: Dr. Sarah Kim, Marcus Chen, Priya Sharma. Each getting 0.1% equity, 2-year vest. Need to finalize grant letters."
+    },
+    {
+      "title": "Update salary bands for 2026",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "medium",
+      "due_date": "2026-01-15",
+      "completed": true,
+      "content": "Current team comp: Mike $150k, Lisa $145k, Tom $130k, Jake $60k. New senior hire budget: $170-190k. Need to benchmark against market."
+    },
+    {
+      "title": "Create PIP documentation for Jake",
+      "folder": "HR",
+      "sensitivity": "sensitive_work",
+      "priority": "high",
+      "due_date": "2026-03-05",
+      "completed": true,
+      "content": "Performance Improvement Plan for Jake (intern). Document specific issues: missed deadlines, code quality, insufficient testing. 2-week timeline. HR reviewed."
+    },
+    {
+      "title": "Schedule quarterly financial advisor check-in",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-04-30",
+      "completed": false,
+      "content": "Quarterly meeting with financial advisor. Review: retirement trajectory ($1.6M vs $2M target), portfolio rebalancing, tax-loss harvesting opportunities."
+    },
+    {
+      "title": "Transfer $1,000 to emergency fund",
+      "folder": "Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "Monthly auto-transfer to high-yield savings. Emergency fund: $22k → target $30k. Gap narrowing by $1k/mo."
+    },
+    {
+      "title": "Book dental cleaning for May",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Next dental cleaning: May 2026 at Palo Alto Dental (Dr. Pham). Last cleaning Nov 2025. Crown on molar #19 in April."
+    },
+    {
+      "title": "Order new Oura Ring charger",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Oura Ring charger broken. Sleep tracking interrupted. Average sleep score was 72/100. Need to resume tracking."
+    },
+    {
+      "title": "Renew EpiPen prescription",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "high",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "EpiPen for shellfish allergy expires soon. Refill through Dr. Kim at Bay Area Allergy Clinic. Carry at all times."
+    },
+    {
+      "title": "Meditation streak - 30 days",
+      "folder": "Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "Headspace meditation goal: 30-day streak. Currently at 18 consecutive days. 10 minutes daily. Part of mental health plan with Dr. Martinez."
+    },
+    {
+      "title": "RSVP to Easter dinner",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Easter dinner April 20 — venue being decided in the family group chat. Confirm attendance for Alex + Jamie and plan to bring dessert."
+    },
+    {
+      "title": "Pick up Jamie's anniversary gift",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "3rd anniversary with Jamie coming up. Ordered custom photo book of their trips together. Pick up from print shop by March 12."
+    },
+    {
+      "title": "Call Emily about trust documents",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-04-01",
+      "completed": false,
+      "content": "Coordinate with sister Emily on family trust. Both co-trustees. Lawyer Jennifer Wu needs signatures from both. Meeting in April."
+    },
+    {
+      "title": "Research wedding photographer shortlist",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-04-10",
+      "completed": false,
+      "content": "Wedding photography budget: $8,000. Reviewing 3 photographers. Need to decide by April. Jamie prefers documentary style."
+    },
+    {
+      "title": "Schedule visit to grandma in April",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-04-20",
+      "completed": false,
+      "content": "Promised grandma to visit in April. She shared dumpling recipe last call. Lives in San Jose, ~1 hour drive."
+    },
+    {
+      "title": "Ask Robert about fishing trip",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Trying to bond with Jamie's dad Robert. He mentioned wanting to go fishing. Plan a day trip to Half Moon Bay. Relationship improving slowly."
+    },
+    {
+      "title": "Get car detailed before David visits",
+      "folder": "Personal",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-23",
+      "completed": false,
+      "content": "Brother David visiting March 25-28. Get Tesla detailed and cleaned. Last wash was 3 weeks ago."
+    },
+    {
+      "title": "Return Amazon package",
+      "folder": "Personal",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Wrong size monitor arm delivered. Return by March 20 for full refund. Label printed."
+    },
+    {
+      "title": "Renew gym membership",
+      "folder": "Personal",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-28",
+      "completed": false,
+      "content": "Gym membership expires March 31. Current: Equinox Palo Alto ($100/mo reimbursed by TechFlow). Decide: renew or switch to cheaper option."
+    },
+    {
+      "title": "Research home security cameras",
+      "folder": "Personal",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Jamie wants security cameras for front porch. Researching: Ring, Nest, Arlo. Budget: $500. Installation: DIY."
+    },
+    {
+      "title": "Set up pgvector index for search",
+      "folder": "Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-02-10",
+      "completed": true,
+      "content": "Embeddings search using pgvector (1536-dim, OpenAI ada-002). Need to create HNSW index on notes table. Currently doing brute-force scan."
+    },
+    {
+      "title": "Review and update data retention policy",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-04-30",
+      "completed": false,
+      "content": "Current retention: 90 days for agent conversations (per ToS update). Need to implement automated cleanup job. CCPA compliance."
+    },
+    {
+      "title": "Complete access review log for SOC2",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "SOC2 gap: access review logs incomplete. Document who has access to production DB, admin panels, and cloud accounts. Quarterly review cadence."
+    },
+    {
+      "title": "Send Emily $200 for anniversary party",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-05-01",
+      "completed": false,
+      "content": "Siblings splitting cost for parents 35th anniversary surprise party (June 15). Alex share: $200. Venmo to Emily by May."
+    },
+    {
+      "title": "Check Dad's metformin refill",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Dad on metformin for Type 2 diabetes. He forgets refills. Call pharmacy to check if auto-refill is set up. Dad's pharmacy: CVS San Jose."
+    },
+    {
+      "title": "Prepare wedding vows draft",
+      "folder": "Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-07-01",
+      "completed": false,
+      "content": "Start drafting wedding vows. Ceremony is September 14 at Napa Valley winery. Jamie asked for personal, heartfelt vows."
+    }
+  ]
+}
