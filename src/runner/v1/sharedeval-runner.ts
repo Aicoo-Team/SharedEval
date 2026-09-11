@@ -3,6 +3,7 @@ import type {
   WorkspaceRegistryV1,
 } from './workspace-registry.js';
 import type { EffectiveSharedevalRunConfigV1 } from './sharedeval-config.js';
+import { worldProfileSchema } from '../world/profile.js';
 import type {
   CreateSharedOsFileSessionV1Options,
   SharedOsFileSessionFactoryV1,
@@ -79,6 +80,10 @@ export function runSharedevalPactPairFilesV1(
     responder: actor(options.responder),
     tasks: options.tasks,
     maxTicks: options.config.workflow.maxTicks,
+    ...(options.config.workflow.world ? {
+      world: options.config.workflow.world,
+      configurationDigest: options.config.configDigest,
+    } : {}),
     budget: {
       deadlineMs: options.config.budget.maxRuntimeMs,
       maxToolCalls: options.config.budget.maxToolCalls,
@@ -134,6 +139,11 @@ function validateRuntimeBoundary(
   options: RunSharedevalPactPairFilesV1Options,
 ): FileWorkflowHostRunProvenanceV1 {
   const workflow = options.config.workflow;
+  if (options.config.apiVersion === 'sharedeval-run/v2'
+    ? !workflow.world || !worldProfileSchema.safeParse(workflow.world).success
+    : workflow.world !== undefined) {
+    throw new Error('Sharedeval world profile does not match its configuration version');
+  }
   const validWorkflow = (
     workflow.protocol === 'files'
     && (

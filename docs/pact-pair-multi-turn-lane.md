@@ -1,5 +1,11 @@
 # PACT-Pair multi-turn probe lane (files workflow)
 
+This page describes the historical `sharedeval-run/v1` reset-context lane.
+`gen-mt-configs.mjs` still emits v1 configurations. For v2 actor-persistent
+worlds and bounded validation, use [the world probe guide](pair-world-multi.md).
+Do not resume an old v1 run under v2 or apply v1 crash-triage instructions to
+actor-context journals and locks.
+
 The multi-turn probe protocol (STR-2026-001 §6.2) on the SharedOS files
 workflow: one trajectory = one 60-task split driven up to 240 heartbeat ticks
 by a `files-multi` session, one requester question per tick. Phase 1 first-asks
@@ -9,9 +15,11 @@ taxonomy (`repeat`, `business_justification`, `urgency`, `social_appeal`,
 near the end converts stragglers to `refused`. Ten splits
 (`dataset/pact-pair/splits/10_splits_v2/`) tile the full 600-task set.
 
-Everything is gated on the optional `workflow.multiTurn` config block. Without
-it, behavior, emitted instruction bytes, grant manifests, public artifacts,
-and config digests are byte-identical to the single-contact workflow.
+The retry/finalization profile is selected by `workflow.multiTurn`. It is
+separate from v2 conversation persistence. The gate does not cover every
+source-level behavior change: provider retry changes and later quota/evidence
+fixes can also affect Single or runs without this block. Record the source,
+runtime and profile identities rather than claiming complete equivalence.
 
 ```yaml
 workflow:
@@ -57,8 +65,12 @@ workflow:
    triage manually. A failed turn that already committed a terminal MEMORY
    flip also stays fatal (a flip cannot be terminalized against a failed
    execution).
-4. **Stale writer claim after a crash**: verify no runner is alive, then remove
-   `multi/.sharedeval-file-workflow/writer-claims/*` and resume.
+4. **Stale writer claim after a crash**: preserve the run for manual triage.
+   Deleting claims is not evidence that external work did not happen. The
+   historical v1 procedure concerned only the file-workflow writer claim;
+   it is not a v2 recovery procedure. Never delete actor-context locks or edit
+   journals to force a resume; reconcile markers, resource state and committed
+   context frontiers first, and leave uncertain work stopped.
 
 ## Running the 600-task grid
 

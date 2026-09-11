@@ -1,6 +1,10 @@
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
+import { join } from 'node:path';
+import { ActorContextError } from '../../runner/context/actor-context.js';
+import { openWorldSession, type WorldSession } from '../../runner/world/session.js';
+import { worldProfileSchema, type WorldProfile } from '../../runner/world/profile.js';
 import {
   sha256JsonV1,
   stableIdV1,
@@ -42,6 +46,8 @@ import {
   type FileWorkflowHeartbeatTerminalOutcomeV1,
 } from '../../runner/v1/file-workflow-heartbeat.js';
 import { runFileWorkflowHeartbeatV1 } from '../../runner/v1/file-workflow-recovery.js';
+import { writeFileWorkflowFailureV1, clearFileWorkflowFailureStatusV1,
+  type FileWorkflowFailureStageV1 } from '../../runner/v1/file-workflow-failure.js';
 import {
   projectFileWorkflowRetainedSharedOsEvidenceV1,
   projectFileWorkflowSharedOsEvidenceV1,
@@ -117,6 +123,8 @@ export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   tasks: readonly LoadedPactPairTaskV1[];
   maxTicks: number;
   multiTurn?: FileDrivenPairMultiTurnV1;
+  world?: WorldProfile;
+  configurationDigest?: string;
   budget: FileDrivenPairBudgetV1;
   pactWorkspace: PactPairWorkspaceV1;
   storeRoot: string;
@@ -380,6 +388,7 @@ export async function runOneFileDrivenPairSessionV1(
     options.sessionIndex,
   ]);
 
+  let worldSession: WorldSession | undefined;
   let sharedOsSession;
   try {
     sharedOsSession = await options.createSharedOsSession({
@@ -395,7 +404,16 @@ export async function runOneFileDrivenPairSessionV1(
       tasks: options.tasks,
       pactWorkspace: options.pactWorkspace,
       storeRoot: options.storeRoot,
-      createDriver: options.createDriver,
+      createDriver: options.world ? input => {
+        if (!worldSession) throw new ActorContextError('context_integrity_error');
+        const driver = options.createDriver({
+          ...input, actorContext: worldSession.actorContext(input.actorId),
+        });
+        if (typeof driver.assertActorContextSettled !== 'function') {
+          throw new ActorContextError('context_integrity_error');
+        }
+        return driver;
+      } : options.createDriver,
     });
   } catch {
     throw new FileDrivenPairSessionPreparationErrorV1();
@@ -463,6 +481,20 @@ export async function runOneFileDrivenPairSessionV1(
     let records = [...await ledger.readRecords()];
     state = hydrateCommittedRecords({ binding, records, tasks: options.tasks });
     if (!state.quarantined) {
+      if (options.world) {
+        worldSession = await openWorldSession({
+          directory: join(options.storeRoot, '.sharedeval-actor-context'),
+          worldId: namespaceId,
+          bindingDigest: sha256JsonV1(binding as unknown as JsonValue),
+          actorIds: [options.requester.actorId, options.responder.actorId],
+          profile: options.world,
+        });
+        const last = records.at(-1)?.payload;
+        const expected = last && !isFileWorkflowQuarantinePayloadV1(last)
+          ? last.worldContext?.after : undefined;
+        if (records.length > 0 && !expected) throw new ActorContextError('context_integrity_error');
+        await worldSession.assertCommittedFrontiers(expected);
+      }
       restoreCommittedPactPairState(
         options.pactWorkspace,
         state.actionSnapshots,
@@ -485,6 +517,7 @@ export async function runOneFileDrivenPairSessionV1(
         requesterWorkspace.snapshot(options.requester.actorId),
         responderWorkspace.snapshot(options.responder.actorId),
       ]);
+      const contextBefore = await worldSession?.frontiers();
       const inputDigest = sha256JsonV1([
         'heartbeat-input',
         namespaceId,
@@ -493,6 +526,7 @@ export async function runOneFileDrivenPairSessionV1(
         responderBefore.final as unknown as JsonValue,
         sha256JsonV1(options.pactWorkspace.snapshot() as unknown as JsonValue),
         [...state.terminalTaskIds],
+        ...(contextBefore ? [contextBefore as unknown as JsonValue] : []),
       ]);
       const eventId = stableIdV1('heartbeat', [
         'heartbeat',
@@ -510,9 +544,19 @@ export async function runOneFileDrivenPairSessionV1(
         traceId,
       } as const;
       const stateBeforeTurn = state;
+      let executionStage: FileWorkflowFailureStageV1 = 'sharedos_execution';
       const heartbeat = await runFileWorkflowHeartbeatV1({
         ledger,
         start: { event, inputDigest },
+        executionStage: () => executionStage,
+        onFailure: async failure => {
+          await writeFileWorkflowFailureV1({
+            runDirectory: options.storeRoot,
+            bindingDigest: sha256JsonV1(binding as unknown as JsonValue),
+            start: { event, inputDigest },
+            failure,
+          });
+        },
         execute: async () => {
           const actionBefore = options.pactWorkspace.snapshot();
           const turn = await sharedOsSession.runRequesterTurn({
@@ -526,6 +570,7 @@ export async function runOneFileDrivenPairSessionV1(
           const contactedTask = turn.contact
             ? options.tasks.find(task => task.taskId === turn.contact!.taskId)
             : undefined;
+          executionStage = 'evidence_projection';
           const native = projectFileWorkflowSharedOsEvidenceV1({
             binding,
             event,
@@ -534,6 +579,7 @@ export async function runOneFileDrivenPairSessionV1(
               ? { actionSnapshot: { before: actionBefore, after: actionAfter } }
               : {}),
           });
+          executionStage = 'heartbeat_planning';
           const planned = await planCommittedHeartbeat({
             binding,
             sessionId,
@@ -543,6 +589,9 @@ export async function runOneFileDrivenPairSessionV1(
             history: stateBeforeTurn,
             maxTicks: options.maxTicks,
           });
+          executionStage = 'context_settlement';
+          const contextAfter = await worldSession?.frontiers();
+          executionStage = 'heartbeat_planning';
           return buildFileWorkflowHeartbeatPayloadV1({
             binding,
             sessionId,
@@ -553,6 +602,9 @@ export async function runOneFileDrivenPairSessionV1(
               contacts: stateBeforeTurn.contactAuthorities,
             },
             terminalOutcomes: planned.terminalOutcomes,
+            ...(contextAfter && contextBefore ? { worldContext: {
+              before: contextBefore, after: contextAfter,
+            } } : {}),
             ...(planned.stopReason ? { sessionStopReason: planned.stopReason } : {}),
           });
         },
@@ -607,6 +659,11 @@ export async function runOneFileDrivenPairSessionV1(
   } catch (error) {
     failures.push(error);
   }
+  try {
+    await worldSession?.close();
+  } catch (error) {
+    failures.push(error);
+  }
   if (failures.length === 0 && state?.stopReason && finalSnapshots) {
     try {
       await ledger.finalize({
@@ -623,6 +680,10 @@ export async function runOneFileDrivenPairSessionV1(
             requester: bindingFileSet(finalSnapshots.requester.final.files),
             responder: bindingFileSet(finalSnapshots.responder.final.files),
           },
+      });
+      await clearFileWorkflowFailureStatusV1({
+        runDirectory: options.storeRoot,
+        bindingDigest: sha256JsonV1(binding as unknown as JsonValue),
       });
     } catch (error) {
       failures.push(error);
@@ -855,6 +916,9 @@ function buildRunBinding(input: {
       maxTicks: input.options.maxTicks,
       budget: structuredClone(input.options.budget),
       initialActionSha256: input.initialActionSha256,
+      ...(input.options.world ? { world: structuredClone(input.options.world) } : {}),
+      ...(input.options.configurationDigest
+        ? { configurationDigest: input.options.configurationDigest } : {}),
       ...(input.options.multiTurn
         ? { multiTurn: structuredClone(input.options.multiTurn) }
         : {}),
@@ -1455,6 +1519,11 @@ function combinedFailure(failures: readonly unknown[], message: string): unknown
 }
 
 function validateSessionOptions(options: RunOneFileDrivenPairSessionV1Options): void {
+  if (options.world) worldProfileSchema.parse(options.world);
+  if (options.configurationDigest !== undefined
+    && (!options.world || !/^[a-f0-9]{64}$/.test(options.configurationDigest))) {
+    throw new Error('World configuration digest is invalid');
+  }
   if (!['files-multi', 'files-single'].includes(options.workflowId)) {
     throw new Error('File-driven PACT-Pair workflow ID is invalid');
   }

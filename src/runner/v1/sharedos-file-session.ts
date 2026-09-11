@@ -389,7 +389,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
 
   private async execute(input: Readonly<{
     kernel: SoKernel;
-    driver: SoTurnDriver & FileProviderTelemetrySourceV1;
+    driver: SoTurnDriver & FileProviderTelemetrySourceV1 & { assertActorContextSettled?(): Promise<void> };
     executionId: string;
     actorId: string;
     context: SoAccessContext;
@@ -423,7 +423,12 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
         timeoutMs: this.options.deadlineMs,
       },
     };
-    return await executor.execute(request, { signal: input.signal });
+    try {
+      return await executor.execute(request, { signal: input.signal });
+    } finally {
+      // Runtime cleanup must not hide a failed durable context publication.
+      await input.driver.assertActorContextSettled?.();
+    }
   }
 
   private context(

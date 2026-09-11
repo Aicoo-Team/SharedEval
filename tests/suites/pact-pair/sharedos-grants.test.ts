@@ -116,7 +116,7 @@ test('builds the exact root grant matrix with bounded uses', () => {
     ['files', 'AGENT.md', 'read', 24],
     ['files', 'HEARTBEAT.md', 'read', 24],
     ['files', 'MEMORY.md', 'read', 24],
-    ['files', 'MEMORY.md', 'replace', 3],
+    ['files', 'MEMORY.md', 'replace', 24],
     ['files', 'POLICY.md', 'read', 24],
     ['sharedos.execution', `agent/${REQUESTER_ID}`, 'invoke', 3],
     ['sharedos.messaging', `agent/${RESPONDER_ID}`, 'send', 3],
@@ -186,7 +186,7 @@ test('builds the exact root grant matrix with bounded uses', () => {
         ['files', 'AGENT.md', 'read', 8],
         ['files', 'HEARTBEAT.md', 'read', 8],
         ['files', 'MEMORY.md', 'read', 8],
-        ['files', 'MEMORY.md', 'replace', 1],
+        ['files', 'MEMORY.md', 'replace', 8],
         ['files', 'POLICY.md', 'read', 8],
         ['sharedos.execution', `agent/${RESPONDER_ID}`, 'invoke', 1],
         ['sharedos.messaging', `agent/${REQUESTER_ID}`, 'send', 1],
@@ -241,6 +241,55 @@ test('multiTurn scales contact-shaped use counts without changing grant identiti
   assert.throws(
     () => build({ multiTurn: { phase2StartTick: 2, finalizeTick: 4 } }),
     /phase2StartTick|maxTicks/,
+  );
+});
+
+test('budgets MEMORY replace attempts by the per-turn tool-call ceiling', () => {
+  const cases = [
+    {
+      name: 'single',
+      manifest: build({ maxTicks: 5, maxToolCalls: 8 }),
+      requesterMaxUses: 40,
+      responderMaxUses: 8,
+    },
+    {
+      name: 'multi',
+      manifest: build({
+        maxTicks: 5,
+        maxToolCalls: 8,
+        multiTurn: { phase2StartTick: 2, finalizeTick: 5 },
+      }),
+      requesterMaxUses: 40,
+      responderMaxUses: 40,
+    },
+  ] as const;
+
+  for (const row of cases) {
+    const requester = row.manifest.grants.filter(grant => (
+      grant.subject.kind === 'agent' && grant.subject.agentId === REQUESTER_ID
+    ));
+    assert.equal(
+      grantFor(requester, 'files', ['MEMORY.md'], ['replace']).constraints.maxUses,
+      row.requesterMaxUses,
+      row.name,
+    );
+    for (const set of row.manifest.responderGrantSets) {
+      assert.equal(
+        grantFor(
+          set.grantIds.map(id => row.manifest.grants.find(grant => grant.id === id)!),
+          'files',
+          ['MEMORY.md'],
+          ['replace'],
+        ).constraints.maxUses,
+        row.responderMaxUses,
+        `${row.name}:${set.taskId}`,
+      );
+    }
+  }
+
+  assert.notEqual(
+    digestGrants(cases[0].manifest.grants),
+    digestGrants(cases[1].manifest.grants),
   );
 });
 
@@ -433,4 +482,8 @@ function testCanonicalJson(value: unknown): string {
   return `{${entries.map(([key, entry]) => (
     `${JSON.stringify(key)}:${testCanonicalJson(entry)}`
   )).join(',')}}`;
+}
+
+function digestGrants(grants: readonly SoCapabilityGrant[]): string {
+  return createHash('sha256').update(testCanonicalJson(grants)).digest('hex');
 }

@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import {
   link,
+  mkdir,
   mkdtemp,
   readFile,
   readdir,
   rm,
+  symlink,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -13,8 +15,13 @@ import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 import {
   FileWorkflowHeartbeatMarkerAuthorityErrorV1,
+  indeterminateFileWorkflowHeartbeatResultV1,
   runFileWorkflowHeartbeatV1,
 } from '../../src/runner/v1/file-workflow-recovery.js';
+import {
+  clearFileWorkflowFailureStatusV1,
+  writeFileWorkflowFailureV1,
+} from '../../src/runner/v1/file-workflow-failure.js';
 import { openFileWorkflowLedgerV1 } from '../../src/runner/v1/file-workflow-ledger.js';
 import {
   binding,
@@ -220,6 +227,46 @@ test('sanitizes only malformed marker authority and prevents re-execution', asyn
   await fixture.store.close();
 });
 
+test('bounds public cause summaries to fixed allowlisted values', () => {
+  const sentinels = [
+    'PRIVATE_THROWN_STRING',
+    'PRIVATE_ERROR_NAME',
+    'PRIVATE_ERROR_CODE',
+    'PRIVATE_ERROR_CODE_FIELD',
+  ];
+  const named = new Error('PRIVATE_MESSAGE');
+  named.name = sentinels[1]!;
+  const coded = Object.assign(new Error('PRIVATE_MESSAGE'), { code: sentinels[2] });
+  const errorCoded = Object.assign(new Error('PRIVATE_MESSAGE'), {
+    errorCode: sentinels[3],
+  });
+  const throwingFields = Object.create(null, {
+    name: { get: () => { throw new Error('PRIVATE_NAME_GETTER'); } },
+    code: { get: () => { throw new Error('PRIVATE_CODE_GETTER'); } },
+    errorCode: { get: () => { throw new Error('PRIVATE_ERROR_CODE_GETTER'); } },
+  });
+
+  for (const cause of [
+    sentinels[0],
+    named,
+    coded,
+    errorCoded,
+    throwingFields,
+    `PRIVATE_OVERSIZED_${'x'.repeat(100_000)}`,
+  ]) {
+    const result = indeterminateFileWorkflowHeartbeatResultV1(cause);
+    assert.equal(result.causeSummary, 'unclassified_failure');
+    assert.ok(result.causeSummary.length <= 64);
+    assert.doesNotMatch(JSON.stringify(result), /PRIVATE|x{100}/);
+  }
+
+  assert.equal(
+    indeterminateFileWorkflowHeartbeatResultV1('heartbeat_payload_identity_diverged')
+      .causeSummary,
+    'heartbeat_payload_identity_diverged',
+  );
+});
+
 test('maps execute and callback validation failures to stable indeterminate after start', async t => {
   await t.test('malformed start', async t => {
     const fixture = await opened(t, 'malformed-start');
@@ -254,9 +301,10 @@ test('maps execute and callback validation failures to stable indeterminate afte
         throw new Error('PRIVATE_PROVIDER credential=SECRET');
       },
     });
-    // The failure identity survives as a sanitized summary; the raw message
-    // (which can carry provider credentials) never does.
-    assert.deepEqual(result, { ...indeterminate(), causeSummary: 'Error' });
+    assert.deepEqual(result, {
+      ...indeterminate(),
+      causeSummary: 'sharedos_execution_failed',
+    });
     assert.doesNotMatch(JSON.stringify(result), /SECRET|PRIVATE_PROVIDER/);
     assert.match(await readFile(markerPath(fixture.runDirectory, 1), 'utf8'), /markerDigest/);
     assert.deepEqual(await runFileWorkflowHeartbeatV1({
@@ -293,12 +341,401 @@ test('maps execute and callback validation failures to stable indeterminate afte
       });
       assert.deepEqual(result, {
         ...indeterminate(),
-        causeSummary: kind === 'malformed' ? 'ZodError' : 'heartbeat_payload_identity_diverged',
+        causeSummary: kind === 'malformed'
+          ? 'heartbeat_payload_invalid'
+          : 'heartbeat_payload_identity_diverged',
       });
       assert.equal(commitCalls, 0);
       await fixture.store.close();
     });
   }
+});
+
+test('reports typed execute failures without exposing or replacing the primary result', async t => {
+  const fixture = await opened(t, 'typed-execute-failure');
+  const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+  const notices: Array<{ stage: string; code: string }> = [];
+  let stage = 'context_settlement' as const;
+
+  const result = await runFileWorkflowHeartbeatV1({
+    ledger: fixture.store,
+    start: startFor(payload),
+    executionStage: () => stage,
+    onFailure: async failure => {
+      notices.push(failure);
+      throw new Error('PRIVATE_FAILURE_WRITER credential=SECRET');
+    },
+    execute: async () => {
+      throw new Error('PRIVATE_PROVIDER credential=SECRET');
+    },
+  });
+
+  assert.deepEqual(notices, [{
+    stage: 'context_settlement',
+    code: 'context_settlement_failed',
+  }]);
+  assert.deepEqual(result, {
+    ...indeterminate(),
+    causeSummary: 'context_settlement_failed',
+    diagnosticStatus: 'unavailable',
+  });
+  assert.doesNotMatch(JSON.stringify({ notices, result }), /PRIVATE|credential|SECRET/);
+  await fixture.store.close();
+});
+
+test('preserves only allowlisted context cause codes as context-settlement failures', async t => {
+  for (const code of [
+    'context_budget_exhausted',
+    'context_integrity_error',
+    'context_turn_incomplete',
+    'actor_context_actor_mismatch',
+  ] as const) {
+    await t.test(code, async t => {
+      const fixture = await opened(t, `typed-${code}`);
+      const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+      const notices: Array<{ stage: string; code: string }> = [];
+      const failure = Object.assign(new Error('PRIVATE_CONTEXT credential=SECRET'), { code });
+
+      const result = await runFileWorkflowHeartbeatV1({
+        ledger: fixture.store,
+        start: startFor(payload),
+        executionStage: () => 'sharedos_execution',
+        onFailure: async notice => { notices.push(notice); },
+        execute: async () => { throw failure; },
+      });
+
+      assert.deepEqual(notices, [{ stage: 'context_settlement', code }]);
+      assert.doesNotMatch(JSON.stringify(notices), /PRIVATE|credential|SECRET|Error/);
+      assert.deepEqual(result, { ...indeterminate(), causeSummary: code });
+      await fixture.store.close();
+    });
+  }
+});
+
+test('hostile failure fields cannot leak or replace the primary execute result', async t => {
+  for (const kind of ['string', 'name', 'code', 'errorCode', 'throwing-getters'] as const) {
+    await t.test(kind, async t => {
+      const fixture = await opened(t, `hostile-execute-${kind}`);
+      const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+      const failure = kind === 'string'
+        ? 'PRIVATE_THROWN_STRING'
+        : kind === 'throwing-getters'
+        ? Object.create(null, {
+          code: { get: () => { throw new Error('PRIVATE_CODE_GETTER'); } },
+          errorCode: { get: () => { throw new Error('PRIVATE_ERROR_CODE_GETTER'); } },
+          name: { get: () => { throw new Error('PRIVATE_NAME_GETTER'); } },
+        })
+        : Object.assign(new Error('PRIVATE_MESSAGE'), kind === 'name'
+          ? { name: 'PRIVATE_ERROR_NAME' }
+          : { [kind]: `PRIVATE_${kind.toUpperCase()}` });
+
+      const result = await runFileWorkflowHeartbeatV1({
+        ledger: fixture.store,
+        start: startFor(payload),
+        execute: async () => { throw failure; },
+      });
+
+      assert.deepEqual(result, {
+        ...indeterminate(),
+        causeSummary: 'sharedos_execution_failed',
+      });
+      assert.doesNotMatch(JSON.stringify(result), /PRIVATE|GETTER|MESSAGE/);
+      await fixture.store.close();
+    });
+  }
+});
+
+test('reports payload validation and identity failures with fixed cause codes', async t => {
+  for (const kind of ['invalid', 'identity'] as const) {
+    await t.test(kind, async t => {
+      const fixture = await opened(t, `typed-payload-${kind}`);
+      const payload: any = payloadFor(fixture, 1, 'PAIR-Q-1');
+      if (kind === 'invalid') delete payload.usage;
+      else payload.inputDigest = sha256('different-input');
+      const notices: Array<{ stage: string; code: string }> = [];
+
+      const result = await runFileWorkflowHeartbeatV1({
+        ledger: fixture.store,
+        start: startFor(payloadFor(fixture, 1, 'PAIR-Q-1')),
+        executionStage: () => 'heartbeat_planning',
+        onFailure: async failure => { notices.push(failure); },
+        execute: async () => payload,
+      });
+
+      assert.deepEqual(notices, [{
+        stage: 'heartbeat_planning',
+        code: kind === 'invalid'
+          ? 'heartbeat_payload_invalid'
+          : 'heartbeat_payload_identity_diverged',
+      }]);
+      assert.equal(result.kind, 'indeterminate_external_operation');
+      await fixture.store.close();
+    });
+  }
+});
+
+test('reports commit failures while preserving their existing propagation boundary', async t => {
+  await t.test('ordinary commit failure', async t => {
+    const fixture = await opened(t, 'typed-commit-failure');
+    const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+    const failure = new Error('PRIVATE_COMMIT_STORAGE credential=SECRET');
+    const notices: Array<{ stage: string; code: string }> = [];
+    await assert.rejects(
+      runFileWorkflowHeartbeatV1({
+        ledger: {
+          beginHeartbeat: value => fixture.store.beginHeartbeat(value),
+          commitHeartbeat: async () => { throw failure; },
+        },
+        start: startFor(payload),
+        onFailure: async notice => { notices.push(notice); },
+        execute: async () => payload,
+      }),
+      error => error === failure,
+    );
+    assert.deepEqual(notices, [{ stage: 'ledger_commit', code: 'ledger_commit_failed' }]);
+    await fixture.store.close();
+  });
+
+  await t.test('marker authority failure', async t => {
+    const fixture = await opened(t, 'typed-marker-failure');
+    const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+    const notices: Array<{ stage: string; code: string }> = [];
+    const result = await runFileWorkflowHeartbeatV1({
+      ledger: {
+        beginHeartbeat: value => fixture.store.beginHeartbeat(value),
+        commitHeartbeat: async () => {
+          throw new FileWorkflowHeartbeatMarkerAuthorityErrorV1();
+        },
+      },
+      start: startFor(payload),
+      onFailure: async notice => { notices.push(notice); },
+      execute: async () => payload,
+    });
+    assert.deepEqual(notices, [{
+      stage: 'ledger_commit',
+      code: 'marker_authority_indeterminate',
+    }]);
+    assert.deepEqual(result, indeterminate());
+    await fixture.store.close();
+  });
+});
+
+test('writes an immutable leak-free failure record and public incomplete status', async t => {
+  const fixture = await opened(t, 'failure-artifact');
+  const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+  const input = {
+    runDirectory: fixture.runDirectory,
+    bindingDigest: sha256('binding:failure-artifact'),
+    start: startFor(payload),
+    failure: {
+      stage: 'sharedos_execution' as const,
+      code: 'sharedos_execution_failed' as const,
+    },
+  };
+
+  const first = await writeFileWorkflowFailureV1(input);
+  const recordPath = failureRecordPath(fixture.runDirectory, 1);
+  const firstRecordBytes = await readFile(recordPath, 'utf8');
+  const firstStatusBytes = await readFile(
+    join(fixture.runDirectory, 'execution-status.json'),
+    'utf8',
+  );
+  const second = await writeFileWorkflowFailureV1(input);
+
+  assert.deepEqual(second, first);
+  assert.equal(await readFile(recordPath, 'utf8'), firstRecordBytes);
+  assert.equal(
+    await readFile(join(fixture.runDirectory, 'execution-status.json'), 'utf8'),
+    firstStatusBytes,
+  );
+  assert.deepEqual(JSON.parse(firstRecordBytes), first.record);
+  assert.deepEqual(JSON.parse(firstStatusBytes), first.status);
+  assert.equal(first.record.bindingDigest, input.bindingDigest);
+  assert.deepEqual(first.record.event, input.start.event);
+  assert.equal(first.record.inputDigest, input.start.inputDigest);
+  assert.equal(first.status.executionStatus, 'indeterminate_external_operation');
+  assert.equal(first.status.evaluationStatus, 'incomplete');
+  assert.doesNotMatch(`${firstRecordBytes}${firstStatusBytes}`, /error|PRIVATE|credential|SECRET/i);
+  await fixture.store.close();
+});
+
+test('recovers a missing status projection from the immutable failure record', async t => {
+  const fixture = await opened(t, 'failure-projection-recovery');
+  const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+  const input = {
+    runDirectory: fixture.runDirectory,
+    bindingDigest: sha256('binding:failure-projection-recovery'),
+    start: startFor(payload),
+    failure: {
+      stage: 'evidence_projection' as const,
+      code: 'evidence_projection_failed' as const,
+    },
+  };
+  await writeFileWorkflowFailureV1(input);
+  const recordBytes = await readFile(failureRecordPath(fixture.runDirectory, 1), 'utf8');
+  await rm(join(fixture.runDirectory, 'execution-status.json'));
+
+  await writeFileWorkflowFailureV1(input);
+
+  assert.equal(await readFile(failureRecordPath(fixture.runDirectory, 1), 'utf8'), recordBytes);
+  assert.equal(
+    JSON.parse(await readFile(join(fixture.runDirectory, 'execution-status.json'), 'utf8'))
+      .failureRecordDigest,
+    JSON.parse(recordBytes).failureDigest,
+  );
+  await fixture.store.close();
+});
+
+test('advances public failure status while retaining history and clears only matching status', async t => {
+  const fixture = await opened(t, 'failure-status-lifecycle');
+  const bindingDigest = sha256('binding:failure-status-lifecycle');
+  const firstPayload = payloadFor(fixture, 1, 'PAIR-Q-1');
+  const secondPayload = payloadFor(fixture, 2, 'PAIR-Q-1');
+  await writeFileWorkflowFailureV1({
+    runDirectory: fixture.runDirectory,
+    bindingDigest,
+    start: startFor(firstPayload),
+    failure: {
+      stage: 'sharedos_execution',
+      code: 'sharedos_execution_failed',
+    },
+  });
+  const firstRecord = await readFile(failureRecordPath(fixture.runDirectory, 1), 'utf8');
+
+  await writeFileWorkflowFailureV1({
+    runDirectory: fixture.runDirectory,
+    bindingDigest,
+    start: startFor(secondPayload),
+    failure: {
+      stage: 'heartbeat_planning',
+      code: 'heartbeat_planning_failed',
+    },
+  });
+
+  assert.equal(await readFile(failureRecordPath(fixture.runDirectory, 1), 'utf8'), firstRecord);
+  assert.equal(JSON.parse(
+    await readFile(failureRecordPath(fixture.runDirectory, 2), 'utf8'),
+  ).event.tick, 2);
+  assert.equal(JSON.parse(
+    await readFile(join(fixture.runDirectory, 'execution-status.json'), 'utf8'),
+  ).tick, 2);
+  await assert.rejects(
+    clearFileWorkflowFailureStatusV1({
+      runDirectory: fixture.runDirectory,
+      bindingDigest: sha256('foreign-binding'),
+    }),
+    /binding|status/i,
+  );
+
+  assert.equal(await clearFileWorkflowFailureStatusV1({
+    runDirectory: fixture.runDirectory,
+    bindingDigest,
+  }), true);
+  await assert.rejects(
+    readFile(join(fixture.runDirectory, 'execution-status.json'), 'utf8'),
+    { code: 'ENOENT' },
+  );
+  assert.deepEqual(await readdir(join(fixture.runDirectory, '.sharedeval-file-failures')), [
+    'failure-000000000001.json',
+    'failure-000000000002.json',
+  ]);
+  assert.equal(await clearFileWorkflowFailureStatusV1({
+    runDirectory: fixture.runDirectory,
+    bindingDigest,
+  }), false);
+  await fixture.store.close();
+});
+
+test('rejects conflicting failure authority and symlinked failure destinations', async t => {
+  await t.test('contradictory stage and code', async t => {
+    const fixture = await opened(t, 'failure-stage-code');
+    const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+    const bindingDigest = sha256('binding:failure-stage-code');
+    await assert.rejects(
+      writeFileWorkflowFailureV1({
+        runDirectory: fixture.runDirectory,
+        bindingDigest,
+        start: startFor(payload),
+        failure: {
+          stage: 'context_settlement',
+          code: 'ledger_commit_failed',
+        },
+      }),
+      /stage|code|failure/i,
+    );
+    await writeFile(
+      join(fixture.runDirectory, 'execution-status.json'),
+      `${canonicalTestJson({
+        apiVersion: 'sharedeval-file-execution-status/v1',
+        bindingDigest,
+        runId: payload.event.runId,
+        eventId: payload.event.eventId,
+        tick: payload.event.tick,
+        inputDigest: payload.inputDigest,
+        executionStatus: 'indeterminate_external_operation',
+        evaluationStatus: 'incomplete',
+        failureStage: 'context_settlement',
+        failureCode: 'ledger_commit_failed',
+        failureRecordDigest: sha256('failure-record'),
+      })}\n`,
+      'utf8',
+    );
+    await assert.rejects(
+      clearFileWorkflowFailureStatusV1({ runDirectory: fixture.runDirectory, bindingDigest }),
+      /malformed|stage|code/i,
+    );
+    await fixture.store.close();
+  });
+
+  await t.test('conflicting same tick', async t => {
+    const fixture = await opened(t, 'failure-conflict');
+    const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+    const base = {
+      runDirectory: fixture.runDirectory,
+      bindingDigest: sha256('binding:failure-conflict'),
+      start: startFor(payload),
+    };
+    await writeFileWorkflowFailureV1({
+      ...base,
+      failure: {
+        stage: 'sharedos_execution',
+        code: 'sharedos_execution_failed',
+      },
+    });
+    await assert.rejects(
+      writeFileWorkflowFailureV1({
+        ...base,
+        failure: {
+          stage: 'context_settlement',
+          code: 'context_settlement_failed',
+        },
+      }),
+      /conflicting|immutable|failure/i,
+    );
+    await fixture.store.close();
+  });
+
+  await t.test('symlinked failure lane', async t => {
+    const fixture = await opened(t, 'failure-symlink-lane');
+    const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+    const outside = join(fixture.runDirectory, 'outside');
+    await mkdir(outside);
+    await symlink(outside, join(fixture.runDirectory, '.sharedeval-file-failures'));
+    await assert.rejects(
+      writeFileWorkflowFailureV1({
+        runDirectory: fixture.runDirectory,
+        bindingDigest: sha256('binding:failure-symlink-lane'),
+        start: startFor(payload),
+        failure: {
+          stage: 'ledger_commit',
+          code: 'ledger_commit_failed',
+        },
+      }),
+      /directory|symlink|failure lane/i,
+    );
+    assert.deepEqual(await readdir(outside), []);
+    await fixture.store.close();
+  });
 });
 
 test('replays an exact committed heartbeat after finalization but rejects a new tick', async t => {
@@ -764,6 +1201,14 @@ function recordPath(runDirectory: string, sequence: number): string {
     '.sharedeval-file-workflow',
     'records',
     `record-${String(sequence).padStart(12, '0')}.json`,
+  );
+}
+
+function failureRecordPath(runDirectory: string, tick: number): string {
+  return join(
+    runDirectory,
+    '.sharedeval-file-failures',
+    `failure-${String(tick).padStart(12, '0')}.json`,
   );
 }
 

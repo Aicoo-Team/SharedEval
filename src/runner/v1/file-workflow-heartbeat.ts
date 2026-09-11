@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
+import type { WorldContextCommit } from '../world/profile.js';
 
 import { stableIdV1 } from '../../contracts/json.js';
 import {
@@ -47,6 +48,7 @@ export type BuildFileWorkflowHeartbeatPayloadV1Input = Readonly<{
   }>;
   terminalOutcomes: readonly FileWorkflowHeartbeatTerminalOutcomeV1[];
   sessionStopReason?: 'all_terminal' | 'tick_exhausted' | 'fatal_error';
+  worldContext?: WorldContextCommit;
 }>;
 
 /** Assemble scheduler-owned terminal/evaluation state around canonical native evidence. */
@@ -82,6 +84,7 @@ export function buildFileWorkflowHeartbeatPayloadV1(
   const currentContact = input.native.currentContact?.authority;
   const candidate = {
     inputDigest: input.heartbeat.inputDigest,
+    ...(input.worldContext ? { worldContext: structuredClone(input.worldContext) } : {}),
     event: {
       eventId: input.heartbeat.eventId,
       runId: binding.runId,

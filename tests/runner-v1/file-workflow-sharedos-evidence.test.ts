@@ -249,6 +249,57 @@ test('requires one phase-bound catalog before each admitted turn does tool work'
   );
 });
 
+test('accepts actor tool catalog subsets when every successful invocation remains listed', () => {
+  const input: any = nativeQaInput('projector-catalog-subset');
+  removeSuccessfulReplace(input, 'requester');
+  removeSuccessfulReplace(input, 'responder');
+
+  assert.doesNotThrow(() => projectFileWorkflowSharedOsEvidenceV1(input));
+});
+
+test('rejects successful file or message invocations absent from the actor catalog', () => {
+  for (const [name, actorId, tool] of [
+    ['requester replace', 'requester', 'files.replace'],
+    ['requester request', 'requester', 'messages.request'],
+    ['responder replace', 'responder', 'files.replace'],
+  ] as const) {
+    const input: any = nativeQaInput(`projector-unlisted-${name.replace(' ', '-')}`);
+    removeCatalogTool(input, actorId, tool);
+    refreshAudit(input);
+    assert.throws(
+      () => projectFileWorkflowSharedOsEvidenceV1(input),
+      /successful.*tool.*actor catalog|actor catalog.*successful.*tool/i,
+      name,
+    );
+  }
+});
+
+test('rejects illegal tools by actor and task even when the catalog advertises them', () => {
+  const requesterPact: any = nativeQaInput('projector-requester-pact');
+  appendPactPair(requesterPact, 'nested', 'search_notes', 'requester');
+  refreshAudit(requesterPact);
+  assert.throws(
+    () => projectFileWorkflowSharedOsEvidenceV1(requesterPact),
+    /PACT.*responder|responder.*PACT/i,
+  );
+
+  const responderRequest: any = nativeQaInput('projector-responder-request');
+  appendSuccessfulTool(responderRequest, 'responder', 'messages.request');
+  refreshAudit(responderRequest);
+  assert.throws(
+    () => projectFileWorkflowSharedOsEvidenceV1(responderRequest),
+    /responder.*messages\.request|messages\.request.*responder|message.*request.*requester/i,
+  );
+
+  const qaMutation: any = nativeQaInput('projector-qa-mutation');
+  appendPactPair(qaMutation, 'nested', 'edit_note');
+  refreshAudit(qaMutation);
+  assert.throws(
+    () => projectFileWorkflowSharedOsEvidenceV1(qaMutation),
+    /QA.*mutation|PACT.*responder admission|non-canonical PACT tool/i,
+  );
+});
+
 test('separates trusted router disposition from the real e6 request-tool partition', () => {
   const failed: any = nativeQaInput('projector-generic-router-failure');
   convertCompletedContactToFailed(failed, 'CONTACT_RESPONDER_FAILED');
@@ -889,39 +940,123 @@ function convertCompletedContactToFailed(input: any, errorCode: string): void {
   refreshAudit(input);
 }
 
+function removeSuccessfulReplace(
+  input: any,
+  actorId: 'requester' | 'responder',
+): void {
+  const operationsKey = actorId === 'requester'
+    ? 'requesterFileOperations'
+    : 'responderFileOperations';
+  const operations = input.turn.sourceEvidence[operationsKey];
+  const replace = operations.find((operation: any) => operation.action === 'replace');
+  assert.ok(replace);
+  input.turn.sourceEvidence[operationsKey] = operations.filter(
+    (operation: any) => operation !== replace,
+  );
+  input.turn.sourceEvidence.auditEvents = input.turn.sourceEvidence.auditEvents.filter(
+    (event: any) => event.operationId !== replace.operationId,
+  );
+  removeCatalogTool(input, actorId, 'files.replace');
+  if (actorId === 'requester') input.turn.decision.toolSteps -= 1;
+  refreshAudit(input);
+}
+
+function removeCatalogTool(
+  input: any,
+  actorId: 'requester' | 'responder',
+  tool: string,
+): void {
+  const catalog = input.turn.sourceEvidence.auditEvents.find((event: any) => (
+    event.type === 'tool.catalog.listed' && event.actor.agentId === actorId
+  ));
+  assert.ok(catalog);
+  catalog.metadata.visibleTools = catalog.metadata.visibleTools.filter(
+    (candidate: string) => candidate !== tool,
+  );
+}
+
+function appendSuccessfulTool(
+  input: any,
+  actorId: 'requester' | 'responder',
+  tool: string,
+): void {
+  const events = input.turn.sourceEvidence.auditEvents;
+  const admission = events.find((event: any) => (
+    event.type === 'authorization.checked'
+    && event.resource?.namespace === 'sharedos.execution'
+    && event.actor.agentId === actorId
+  ));
+  const catalog = events.find((event: any) => (
+    event.type === 'tool.catalog.listed' && event.actor.agentId === actorId
+  ));
+  assert.ok(admission);
+  assert.ok(catalog);
+  catalog.metadata.visibleTools.push(tool);
+  const operationId = `${actorId}-${tool}-operation`;
+  const grantId = `${actorId}-${tool}-grant`;
+  const resource = {
+    namespace: 'sharedos.messaging',
+    path: ['agent', 'requester'],
+    owner: structuredClone(admission.owner),
+  };
+  const pair = [{
+    ...structuredClone(admission),
+    resource,
+    action: 'send',
+    operationId,
+    grantId,
+  }, {
+    ...structuredClone(admission),
+    type: 'tool.invoked',
+    outcome: 'succeeded',
+    resource,
+    action: 'send',
+    operationId,
+    tool,
+    grantId,
+  }];
+  const replyResolutionIndex = events.findIndex((event: any) => (
+    event.type === 'authority.resolved'
+    && event.actor.agentId === 'responder'
+    && event.authorityHash !== admission.authorityHash
+  ));
+  events.splice(replyResolutionIndex, 0, ...pair);
+}
+
 function appendPactPair(
   input: any,
   position: 'before-admission' | 'nested' | 'after-request',
   tool: string,
+  actorId: 'requester' | 'responder' = 'responder',
 ): void {
   const events = input.turn.sourceEvidence.auditEvents;
-  const responderAdmissionIndex = events.findIndex((event: any) => (
+  const actorAdmissionIndex = events.findIndex((event: any) => (
     event.type === 'authorization.checked'
     && event.resource?.namespace === 'sharedos.execution'
-    && event.actor.agentId === 'responder'
+    && event.actor.agentId === actorId
   ));
-  const responderAdmission = events[responderAdmissionIndex];
-  const responderCatalog = events.find((event: any) => (
+  const actorAdmission = events[actorAdmissionIndex];
+  const actorCatalog = events.find((event: any) => (
     event.type === 'tool.catalog.listed'
-    && event.actor.agentId === 'responder'
+    && event.actor.agentId === actorId
   ));
-  responderCatalog.metadata.visibleTools.push(tool);
+  actorCatalog.metadata.visibleTools.push(tool);
   const operationId = `pact-operation-${position}-${tool}`;
   const grantId = `pact-grant-${position}-${tool}`;
   const context = {
     version: '1',
-    at: responderAdmission.at,
-    traceId: responderAdmission.traceId,
-    namespaceId: responderAdmission.namespaceId,
-    actor: structuredClone(responderAdmission.actor),
-    authority: structuredClone(responderAdmission.authority),
-    owner: structuredClone(responderAdmission.owner),
-    purpose: responderAdmission.purpose,
+    at: actorAdmission.at,
+    traceId: actorAdmission.traceId,
+    namespaceId: actorAdmission.namespaceId,
+    actor: structuredClone(actorAdmission.actor),
+    authority: structuredClone(actorAdmission.authority),
+    owner: structuredClone(actorAdmission.owner),
+    purpose: actorAdmission.purpose,
   };
   const resource = {
     namespace: 'pact-pair',
     path: ['task', input.turn.contact.taskId, 'notes'],
-    owner: structuredClone(responderAdmission.owner),
+    owner: structuredClone(actorAdmission.owner),
   };
   const pair = [{
     ...context,
@@ -931,7 +1066,7 @@ function appendPactPair(
     action: 'read',
     operationId,
     grantId,
-    authorityHash: responderAdmission.authorityHash,
+    authorityHash: actorAdmission.authorityHash,
     metadata: { consumed: true },
   }, {
     ...context,
@@ -944,13 +1079,19 @@ function appendPactPair(
     tool,
   }];
   const insertAt = position === 'before-admission'
-    ? responderAdmissionIndex - 1
+    ? actorAdmissionIndex - 1
     : position === 'after-request'
       ? events.length
-      : events.findIndex((event: any) => (
-        event.type === 'authority.resolved'
-        && event.actor.agentId === 'responder'
-        && event !== events[responderAdmissionIndex - 1]
-      ));
+      : actorId === 'requester'
+        ? events.findIndex((event: any) => (
+          event.type === 'authorization.checked'
+          && event.resource?.namespace === 'sharedos.messaging'
+          && event.actor.agentId === 'requester'
+        ))
+        : events.findIndex((event: any) => (
+          event.type === 'authority.resolved'
+          && event.actor.agentId === 'responder'
+          && event !== events[actorAdmissionIndex - 1]
+        ));
   events.splice(insertAt, 0, ...pair);
 }

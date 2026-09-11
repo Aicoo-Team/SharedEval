@@ -11,6 +11,7 @@ import {
 import { basename, dirname, join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
+import { assertWorldContextCommit, type WorldContextFrontiers } from '../world/profile.js';
 import {
   PACT_PAIR_METRIC_NAMES_V1,
   pactPairMetricContributionsV1,
@@ -939,6 +940,9 @@ function validatePayloadBinding(
     allowStrippedPrivateEvidence: false,
   },
 ): void {
+  if (Boolean(binding.scheduler.world) !== Boolean(payload.worldContext)) {
+    throw new Error('Heartbeat context protocol does not match its run binding');
+  }
   if (payload.event.runId !== binding.runId) {
     throw new Error('Heartbeat record carries a foreign run binding');
   }
@@ -1288,6 +1292,7 @@ function assertNextHeartbeatLinearity(
   payload: FileWorkflowHeartbeatPayloadV1,
   binding: FileWorkflowRunBindingV1,
 ): void {
+  assertWorldContextHistory([...records.map(record => record.payload), payload], binding);
   const expectedTick = records.length + 1;
   if (payload.event.tick !== expectedTick) {
     throw new Error(`Heartbeat tick history must be contiguous; expected ${expectedTick}`);
@@ -1573,6 +1578,7 @@ function assertLedgerLinearity(
   records: readonly FileWorkflowLedgerRecordV1[],
   binding: FileWorkflowRunBindingV1,
 ): void {
+  assertWorldContextHistory(records.map(record => record.payload), binding);
   const eventIds = new Set<string>();
   const traceIds = new Set<string>();
   const executionIds = new Set<string>();
@@ -1631,6 +1637,41 @@ function assertLedgerLinearity(
   }
   memoryCursorsAfter(records, binding);
   assertStopBoundary(records.map(record => record.payload), binding);
+}
+
+function assertWorldContextHistory(
+  payloads: readonly FileWorkflowLedgerPayloadV1[],
+  binding: FileWorkflowRunBindingV1,
+): void {
+  let previous: WorldContextFrontiers | undefined;
+  for (const payload of payloads) {
+    if (isFileWorkflowQuarantinePayloadV1(payload)) continue;
+    if (!binding.scheduler.world) {
+      if (payload.worldContext) throw new Error('Legacy binding cannot acquire world context');
+      continue;
+    }
+    const context = payload.worldContext;
+    if (!context) throw new Error('World heartbeat is missing context authority');
+    const requesterId = binding.actors.requester.actorId;
+    assertWorldContextCommit([requesterId, binding.actors.responder.actorId], context, previous);
+    const before = context.before.find(value => value.actorId === requesterId)!;
+    const after = context.after.find(value => value.actorId === requesterId)!;
+    if (payload.sharedOsAuthority.requesterExecutionStatus === 'denied') {
+      if (after.sequence !== before.sequence) {
+        throw new Error('Denied requester admission cannot retain new context');
+      }
+    } else if (after.sequence <= before.sequence) {
+      throw new Error('World heartbeat did not retain requester context');
+    }
+    if (payload.sharedOsAuthority.responderExecutionId) {
+      const responderId = binding.actors.responder.actorId;
+      if (context.after.find(value => value.actorId === responderId)!.sequence
+        <= context.before.find(value => value.actorId === responderId)!.sequence) {
+        throw new Error('World contact did not retain responder context');
+      }
+    }
+    previous = context.after;
+  }
 }
 
 function assertContactAuthorityHistory(

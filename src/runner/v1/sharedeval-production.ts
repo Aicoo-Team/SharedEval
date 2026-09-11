@@ -171,12 +171,13 @@ export async function runSharedevalProductionV1(
       references: responderReferences(options.config.benchmark.policy),
     },
     tasks,
-    createDriver: () => createDriver({
+    createDriver: input => createDriver({
       model: options.config.model,
       requestedModel: modelId,
       environment: driverEnvironment,
       servedModelLedger,
       rateLimitGate,
+      ...(input.actorContext ? { actorContext: input.actorContext } : {}),
     } satisfies OpenAICompatibleFileTurnDriverV1Options),
     createSharedOsSession,
     createSessionResources: input => ({

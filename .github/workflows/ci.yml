@@ -23,7 +23,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -57,18 +57,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      SHAREDOS_PIN: ac0f1bb210baa3ba4b7e0d0baaf2291bbe9ffd05
+      SHAREDOS_PIN: 3aa07e33999b656a10ace294fd4e41df8cbc318e
 
     steps:
-      - name: Require SharedOS checkout token
-        env:
-          SHAREDOS_CHECKOUT_TOKEN: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
-        run: |
-          if [ -z "$SHAREDOS_CHECKOUT_TOKEN" ]; then
-            echo "::error::SHAREDOS_CHECKOUT_TOKEN must read Aicoo-Team/SharedOS."
-            exit 1
-          fi
-
       - name: Check out repository
         uses: actions/checkout@v4
         with:
@@ -79,7 +70,6 @@ jobs:
         with:
           repository: Aicoo-Team/SharedOS
           ref: ${{ env.SHAREDOS_PIN }}
-          token: ${{ secrets.SHAREDOS_CHECKOUT_TOKEN }}
           path: sharedos-repo
           persist-credentials: false
 
@@ -91,7 +81,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
 
       - name: Install SharedEval dependencies
@@ -108,3 +98,9 @@ jobs:
           SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
           SHAREDEVAL_REQUIRE_SHAREDOS: '1'
         run: npm run test:sharedos
+
+      - name: Verify native world continuity and failure lifecycle
+        env:
+          SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
+          SHAREDEVAL_REQUIRE_SHAREDOS: '1'
+        run: npm exec -- tsx --test tests/runner-v1/world-native-conformance.test.ts tests/runner-v1/world-failure-lifecycle.test.ts
