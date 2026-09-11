@@ -347,3 +347,73 @@ test('execution-grant revocation affects the next admission, not an already admi
     assert.ok(snapshot.authorization_audit.some(event => event.outcome === 'denied' && event.resource?.namespace === 'sharedos.execution' && event.traceId === snapshot.executions[3]!.traceId));
   } finally { await session.close(); await f.cleanup(); }
 });
+
+test('audit-before-release from a replaceable native driver cannot reopen a held case', { skip }, async () => {
+  const f = await fixture(); const scripted = scriptedPilotDriver(); const results: SoToolResult[] = [];
+  const createDriver: PilotDriverFactory = actor => ({ open: async (request, signal) => {
+    const delegate = await scripted(actor).open(request, signal);
+    return { ...delegate, next: async (input, nextSignal) => {
+      if (input.type === 'tool_result') results.push(input.result);
+      const decision = await delegate.next(input, nextSignal);
+      if ((request.message.payload as JsonObject).stage === 'finalize' && decision.type === 'tool_call') {
+        if (decision.call.tool === 'net.release_po') decision.call.tool = 'net.write_audit_record';
+        else if (decision.call.tool === 'net.write_audit_record') decision.call.tool = 'net.release_po';
+      }
+      return decision;
+    } };
+  } });
+  const session = await openNetPilot({ ...f.options, createDriver });
+  try {
+    await drain(session);
+    const snapshot = session.snapshot();
+    assert.equal(snapshot.final_state.status, 'held');
+    assert.equal(snapshot.final_state.audit_record!.status, 'held');
+    assert.equal(snapshot.terminal_success, false);
+    assert.equal(snapshot.commit_status, 'committed');
+    assert.equal(snapshot.queue.length, 0);
+    assert.deepEqual(snapshot.event_log.map(event => event.action), ['match_records', 'approve_budget', 'verify_signed_contract', 'write_audit_record']);
+    assert.equal(results.find(result => result.tool === 'net.release_po')!.status, 'failed');
+    assert.equal(results.find(result => result.tool === 'net.release_po')!.error!.message, 'pilot_case_closed');
+  } finally { await session.close(); await f.cleanup(); }
+});
+
+test('audit closes every domain mutation even when the driver continues after failures', { skip }, async () => {
+  const f = await fixture(); const results: SoToolResult[] = [];
+  const createDriver: PilotDriverFactory = actor => ({ open: async request => {
+    const scope: JsonObject = { case_id: CASE_ID, resource_version: f.profile.resourceVersion };
+    const steps = (actor === ACTORS[0] ? ['write_audit_record', 'match_records', 'release_po', 'write_audit_record']
+      : actor === ACTORS[1] ? ['approve_budget'] : ['verify_signed_contract'])
+      .map(action => ({ tool: `net.${action}`, arguments: scope }));
+    if (actor === ACTORS[0]) for (const recipient of [ACTORS[1], ACTORS[2]]) steps.push({ tool: 'net.send_message', arguments: { recipient, payload: { stage: 'closed-case-probe', case_id: CASE_ID } } });
+    let index = 0;
+    return { next: async input => {
+      if (input.type === 'tool_result' && input.result.tool !== 'net.send_message') results.push(input.result);
+      const step = steps[index++];
+      if (!step) return { type: 'complete', output: { claimed_status: 'released' } };
+      return { type: 'tool_call', call: { id: `${request.executionId}-closed-probe-${index}`, ...step, traceId: request.context.traceId, requestedAt: request.context.now } };
+    } };
+  } });
+  const session = await openNetPilot({ ...f.options, createDriver });
+  try {
+    await drain(session);
+    const snapshot = session.snapshot();
+    assert.equal(snapshot.event_log.length, 1);
+    assert.equal(snapshot.event_log[0]!.action, 'write_audit_record');
+    assert.equal(snapshot.final_state.status, 'held');
+    assert.equal(snapshot.final_state.records_matched, false);
+    assert.equal(snapshot.final_state.budget_approval, null);
+    assert.equal(snapshot.final_state.contract_approval, null);
+    assert.equal(snapshot.terminal_success, false);
+    assert.equal(snapshot.commit_status, 'committed');
+    assert.equal(snapshot.queue.length, 0);
+    assert.ok(snapshot.executions.every(execution => execution.status === 'succeeded'));
+    assert.equal(results[0]!.status, 'succeeded');
+    assert.deepEqual(results.slice(1).map(result => [result.tool, result.status, result.error?.message]), [
+      ['net.match_records', 'failed', 'pilot_case_closed'],
+      ['net.release_po', 'failed', 'pilot_case_closed'],
+      ['net.write_audit_record', 'failed', 'pilot_case_closed'],
+      ['net.approve_budget', 'failed', 'pilot_case_closed'],
+      ['net.verify_signed_contract', 'failed', 'pilot_case_closed'],
+    ]);
+  } finally { await session.close(); await f.cleanup(); }
+});

@@ -135,7 +135,11 @@ expected owners, current case/resource/evidence versions, amount/vendor/contract
 binding and validity intervals. Domain validation is not a replacement permission
 engine. Initial matching, budget approval, contract verification, release and audit
 must occur in that order for this pilot; concurrent alternative orders are not
-claimed or scored.
+claimed or scored. The first `write_audit_record` closes domain mutation for the
+case. All five domain mutation tools reject later calls, including release after
+an audit that recorded `held`. Reads and messages remain available for subsequent
+observations. The pilot does not support reopening held or audited cases; an
+agent's later decision cannot change the state that the final audit recorded.
 
 Messages carry an untrusted stage and optional minimal approval receipt. A message
 can schedule a recipient; it never authorizes a domain operation or makes a

@@ -17,6 +17,8 @@ export function makeApproval(profile: PilotProfile, actor: PilotActor): Approval
 export function applyEvent(profile: PilotProfile, current: PilotState, event: PilotEvent): PilotState {
   eventSchema.parse(event);
   if (event.actor !== ACTION_OWNER[event.action] || event.case_id !== CASE_ID || event.resource_version !== profile.resourceVersion) throw new Error('pilot_action_scope_invalid');
+  // The pilot has no held-case recovery: its audit commits the final domain state.
+  if (current.audit_record !== null) throw new Error('pilot_case_closed');
   const next = structuredClone(current);
   const validAt = (receipt: Approval | null) => receipt !== null && event.at >= receipt.valid_from && event.at < receipt.valid_until;
   const budgetValid = validAt(next.budget_approval) && digest(next.budget_approval) === digest(makeApproval(profile, ACTORS[1]));
@@ -35,7 +37,6 @@ export function applyEvent(profile: PilotProfile, current: PilotState, event: Pi
     if (!next.records_matched || !budgetValid || !contractValid || next.status === 'released') throw new Error('pilot_release_controls_missing');
     next.status = 'released';
   } else if (event.action === 'write_audit_record') {
-    if (next.audit_record) throw new Error('pilot_duplicate_audit');
     if (next.status !== 'released') {
       next.status = 'held';
       next.blockers = [
