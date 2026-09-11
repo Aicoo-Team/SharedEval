@@ -48,6 +48,8 @@ test('native three-actor chain commits independent journals, receipts and action
     assert.equal(result.commit_status, 'committed');
     assert.equal(result.evidence_kind, 'scripted-native-runtime-pilot');
     assert.equal(result.processed.length, 8);
+    assert.equal(new Set(result.executions.map(execution => execution.executionId)).size, 8);
+    assert.equal(new Set(result.executions.map(execution => execution.traceId)).size, 8);
     assert.deepEqual(result.event_log.map(event => event.action), ['match_records', 'approve_budget', 'verify_signed_contract', 'release_po', 'write_audit_record']);
     assert.equal(result.final_state.budget_approval!.actor, ACTORS[1]);
     assert.equal(result.final_state.contract_approval!.actor, ACTORS[2]);
@@ -142,6 +144,8 @@ test('committed queue/frontiers restore in a fresh Node process without duplicat
     assert.equal(run(20).terminal_success, true);
     const after = JSON.parse(await readFile(join(f.directory, 'evidence.json'), 'utf8'));
     assert.equal(after.event_log.length, 5);
+    assert.equal(new Set(after.executions.map((execution: { executionId: string }) => execution.executionId)).size, 8);
+    assert.equal(new Set(after.executions.map((execution: { traceId: string }) => execution.traceId)).size, 8);
     assert.equal(run(20).turns, 8);
     const repeated = JSON.parse(await readFile(join(f.directory, 'evidence.json'), 'utf8'));
     assert.deepEqual(repeated, after);
@@ -228,13 +232,15 @@ test('duplicate domain calls commit once and duplicate message IDs deliver once'
 
 test('a new world starts with empty actor histories and unapproved state', { skip }, async () => {
   const first = await fixture(); const one = await openNetPilot(first.options);
-  try { await drain(one); } finally { await one.close(); await first.cleanup(); }
+  try { await drain(one); await one.revoke(ACTORS[0], 'match_records'); } finally { await one.close(); await first.cleanup(); }
   const second = await fixture(); const observations: DriverObservation[] = [];
   const two = await openNetPilot({ ...second.options, createDriver: scriptedPilotDriver(request => observations.push(request)) });
   try {
     assert.equal(two.snapshot().event_log.length, 0);
     assert.equal(two.snapshot().final_state.budget_approval, null);
     await two.runNext();
+    assert.equal(two.snapshot().event_log[0]!.action, 'match_records');
+    assert.equal(two.snapshot().revoked.length, 0);
     assert.equal((observations[0]!.state!.history as unknown[]).length, 1);
     assert.equal((observations[0]!.state!.public_state as JsonObject).status, 'pending_control_check');
   } finally { await two.close(); await second.cleanup(); }
@@ -289,4 +295,55 @@ test('overlapping revocations during a native turn publish ordered immutable che
     const { checksum, ...body } = JSON.parse(await readFile(join(f.directory, 'checkpoint.json'), 'utf8'));
     assert.equal(checksum, digest(body));
   } finally { await reopened?.close(); await f.cleanup(); }
+});
+
+test('native escalation retains the real kernel escalation audit through the strict port', { skip }, async () => {
+  const f = await fixture();
+  const reason = 'Synthetic P-01 approval needs a human decision';
+  const createDriver: PilotDriverFactory = () => ({ open: async () => ({ next: async () => ({ type: 'escalate', reason }) }) });
+  const session = await openNetPilot({ ...f.options, createDriver });
+  try {
+    const execution = await session.runNext();
+    assert.equal(execution!.status, 'escalated');
+    assert.ok(execution!.events.some(event => event.type === 'turn.escalated'));
+    const snapshot = session.snapshot();
+    const escalations = snapshot.authorization_audit.filter(event => event.type === 'escalation.requested');
+    assert.equal(escalations.length, 1);
+    assert.equal(escalations[0]!.outcome, 'escalated');
+    assert.equal(escalations[0]!.traceId, execution!.traceId);
+    assert.deepEqual(escalations[0]!.actor, { kind: 'agent', agentId: ACTORS[0] });
+    assert.equal(escalations[0]!.metadata!.detail, reason);
+    assert.equal(snapshot.commit_status, 'committed');
+    assert.equal(snapshot.terminal_success, false);
+    assert.equal(snapshot.event_log.length, 0);
+    assert.equal(snapshot.queue.length, 0);
+    assert.deepEqual(snapshot.revoked, []);
+  } finally { await session.close(); }
+  const reopened = await openNetPilot(f.options);
+  try { assert.equal(reopened.snapshot().executions[0]!.status, 'escalated'); }
+  finally { await reopened.close(); await f.cleanup(); }
+});
+
+test('execution-grant revocation affects the next admission, not an already admitted turn', { skip }, async () => {
+  const f = await fixture(); let session: NetPilotSession; let revoked = false;
+  const scripted = scriptedPilotDriver();
+  const createDriver: PilotDriverFactory = actor => ({ open: async (request, signal) => {
+    if (actor === ACTORS[0] && !revoked) {
+      revoked = true;
+      await session.revoke(actor, 'invoke');
+    }
+    return scripted(actor).open(request, signal);
+  } });
+  session = await openNetPilot({ ...f.options, createDriver });
+  try {
+    await drain(session);
+    const snapshot = session.snapshot();
+    assert.equal(snapshot.executions[0]!.status, 'succeeded');
+    assert.equal(snapshot.event_log[0]!.action, 'match_records');
+    assert.equal(snapshot.executions[3]!.status, 'denied');
+    assert.equal(snapshot.executions[3]!.executionId, 'turn-4-dmitri_sokolov');
+    assert.equal(snapshot.event_log.length, 3);
+    assert.equal(snapshot.terminal_success, false);
+    assert.ok(snapshot.authorization_audit.some(event => event.outcome === 'denied' && event.resource?.namespace === 'sharedos.execution' && event.traceId === snapshot.executions[3]!.traceId));
+  } finally { await session.close(); await f.cleanup(); }
 });

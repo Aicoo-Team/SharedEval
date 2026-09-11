@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { JsonObject, JsonValue } from '../../../contracts/json.js';
-import type { SoAccessContext, SoAddress, SoAuditEvent, SoCapabilityRequirement, SoExecutionResult, SoKernel, SoMessageEnvelope, SoToolCall, SoToolDefinition, SoToolResult, SoToolHandler, SoTurnDriver } from '../../../execution/sharedos/v1/contracts.js';
+import type { SoAccessContext, SoAddress, SoAuditEvent, SoCapabilityRequirement, SoExecutionResult, SoKernel, SoMessageEnvelope, SoToolCall, SoToolDefinition, SoToolResult, SoToolHandler, SoTurnDecision, SoTurnDriver } from '../../../execution/sharedos/v1/contracts.js';
 import { loadSharedOsModulesV1 } from '../../../execution/sharedos/v1/load-sharedos.js';
 import { openWorldSession, type WorldSession } from '../../../runner/world/session.js';
 import { worldContextFrontiersSchema, type WorldContextFrontiers } from '../../../runner/world/profile.js';
@@ -20,8 +20,19 @@ type NativeKernel = SoKernel & {
   admitTurn(context: SoAccessContext, agent: SoAddress, options?: { signal?: AbortSignal }): Promise<unknown>;
   listTools(context: SoAccessContext, options?: { signal?: AbortSignal }): Promise<readonly SoToolDefinition[]>;
   invokeTool(context: SoAccessContext, call: SoToolCall, options?: { signal?: AbortSignal }): Promise<SoToolResult>;
+  recordEscalation(context: SoAccessContext, reason: string, options?: { signal?: AbortSignal }): Promise<JsonObject>;
 };
-export type PilotDriverFactory = (actor: PilotActor) => SoTurnDriver;
+type BaseDriverSession = Awaited<ReturnType<SoTurnDriver['open']>>;
+// The verified pin supports escalate; the older shared loader declaration lacks
+// that decision variant. Keep this supplement local to the bounded pilot adapter.
+export type PilotTurnDriver = {
+  open(...args: Parameters<SoTurnDriver['open']>): Promise<Omit<BaseDriverSession, 'next'> & {
+    next(...args: Parameters<BaseDriverSession['next']>): Promise<SoTurnDecision | {
+      type: 'escalate'; reason: string; metadata?: JsonObject;
+    }>;
+  }>;
+};
+export type PilotDriverFactory = (actor: PilotActor) => PilotTurnDriver;
 export type PilotSessionOptions = { directory: string; runId: string; profile: PilotProfile; createDriver: PilotDriverFactory; sharedOsDir?: string };
 
 /** One host-owned local transaction per actor turn; uncertain turns are never replayed. */
@@ -77,6 +88,8 @@ export async function openNetPilot(options: PilotSessionOptions) {
     }
     if (!saved) await persist();
     const context = (actor: PilotActor, traceId: string): SoAccessContext => ({ namespaceId, actor: actorAddress(actor), authority: OWNER, owner: OWNER, purpose: PURPOSE, traceId, enabledToolNamespaces: [NAMESPACE], now: new Date().toISOString() });
+    // A private, freshly constructed kernel belongs to this session. It is never
+    // exposed, and no host path opens a turn-authority lease on it.
     const kernel = new loaded.modules.core.SharedOSKernel({
       grantSource: { load: async ctx => structuredClone(grantsFor(namespaceId, startedAt, checkpoint.revoked).filter(grant => digest(grant.subject) === digest(ctx.actor))) },
       audit: { record: async event => { checkpoint.audit.push(structuredClone(event)); } },
@@ -103,6 +116,7 @@ export async function openNetPilot(options: PilotSessionOptions) {
       registerTool: kernel.registerTool.bind(kernel), sendMessage: kernel.sendMessage.bind(kernel),
       admitTurn: kernel.admitTurn.bind(kernel), listTools: kernel.listTools.bind(kernel),
       invokeTool: kernel.invokeTool.bind(kernel),
+      recordEscalation: kernel.recordEscalation.bind(kernel),
     };
     const snapshot = () => {
       const committedState = replayEvents(profile, committedCheckpoint.events);
@@ -141,10 +155,13 @@ export async function openNetPilot(options: PilotSessionOptions) {
         checkpoint.pending = delivery.id;
         try {
           await persist(); // WAL marker is durable before any driver or local side effect.
+          // The committed delivery count advances exactly once per turn, including
+          // after reopen. Together with the private kernel this prevents lease reuse.
           const executionId = `turn-${checkpoint.processed.length + 1}-${delivery.actor}`;
           const ctx = context(delivery.actor, `trace-${executionId}`);
           const journal = journalDriver(world!, delivery.actor, executionId, createDriver(delivery.actor));
-          const executor = new loaded.modules.runtime.SharedOSExecutor(executorKernel, new loaded.modules.runtime.StandardRuntime(journal.driver));
+          const StandardRuntime = loaded.modules.runtime.StandardRuntime as new (driver: PilotTurnDriver) => unknown;
+          const executor = new loaded.modules.runtime.SharedOSExecutor(executorKernel, new StandardRuntime(journal.driver));
           const result = await executor.execute({ version: '1', executionId, agent: { kind: 'agent', agentId: delivery.actor }, context: ctx,
             message: { ...delivery.envelope, traceId: ctx.traceId }, tools: handlers.map(handler => handler.definition),
             state: { actor_view: privateProjection(profile, delivery.actor), public_state: publicState(state) },
@@ -181,10 +198,10 @@ function publicState(state: PilotState): JsonObject {
     records_matched: state.records_matched, budget_verified: state.budget_approval !== null,
     contract_verified: state.contract_approval !== null, budget_receipt: state.budget_approval, contract_receipt: state.contract_approval, blockers: state.blockers, audit_written: state.audit_record !== null };
 }
-function journalDriver(world: WorldSession, actor: PilotActor, turnId: string, delegate: SoTurnDriver) {
+function journalDriver(world: WorldSession, actor: PilotActor, turnId: string, delegate: PilotTurnDriver) {
   let opened = false;
   let finished = false;
-  const driver: SoTurnDriver = { open: async (request, signal) => {
+  const driver: PilotTurnDriver = { open: async (request, signal) => {
     const input = { role: 'user' as const, content: JSON.stringify({ message: request.message.payload, state: request.state }) };
     opened = true;
     const turn = await world.actorContext(actor).store.beginTurn({ actorId: actor, turnId, input });

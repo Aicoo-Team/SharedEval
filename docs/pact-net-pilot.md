@@ -90,15 +90,39 @@ full world state, grant objects, gold or another actor's private history.
 The included scripted driver uses exactly that provider seam.
 
 The pinned executor supports a minimal `TurnKernel` port. The adapter forwards
-`admitTurn`, `listTools`, and `invokeTool` as bound methods of the real kernel and
-omits optional `openTurnAuthority`. The latter would freeze a grant snapshot
+`admitTurn`, `listTools`, `invokeTool`, and `recordEscalation` as bound methods of
+the real kernel. It omits optional `openTurnAuthority`. The latter would freeze a grant snapshot
 until the next turn at this pin. Omitting it selects the documented per-operation
 resolution path, required here for revocation after discovery. The profile and binding explicitly record
 `authorityLifecycle: live-per-invocation` and adapter version `net-p01-native/v1`;
 the SharedOS SHA alone is insufficient to describe that host choice. No authorizer
 or capability matcher is duplicated. Every invocation reloads the host grant source;
 every delivery goes through real `kernel.sendMessage` authorization. Tests revoke
-a visible tool and a recipient scope before execution and observe denial.
+a visible tool and a recipient scope before execution and observe denial. The
+optional escalation port is retained: a native `escalate` driver decision produces
+both the executor's `turn.escalated` event and the real kernel's
+`escalation.requested` audit. It sends no human message and mints no grant. The
+neutral actor journal records its finished turn using the existing `failed`
+terminal category; the execution record preserves the precise `escalated` status.
+
+A new kernel is constructed privately inside each `openNetPilot` session; callers
+never receive it. No adapter path opens an authority lease, and the executor's
+port does not expose `openTurnAuthority`. Turn and trace IDs use the monotonically
+committed delivery count, including after a clean reopen; native tests verify
+uniqueness through fresh-process recovery and fresh-world grant isolation. There
+is no shared kernel or previously opened lease to supply a stale snapshot.
+
+`admitTurn` runs once per turn. Revoking an execution/invoke grant after admission
+does **not** cancel that admitted turn; the next admission is denied. Tool/message
+authority is reloaded when those individual operations execute. The native test
+covers this distinction rather than equating invocation-time tool revocation with
+mid-turn cancellation.
+
+The fixed fixture exposes only revocation of known grants. It has no API for
+adding grants, restoring revoked grants, delegation, or expanding resource scopes.
+Live authority widening is unsupported and untested. `maxUses` and a persistent usage store are not configured.
+The runtime's step/tool/time bounds apply per turn; they are not a persistent
+quota, token budget, or cross-process usage cap.
 
 Actor/owner/authority/purpose/trace are host-built access context, never tool
 arguments. Domain tool arguments accept only the fixed case and resource version;
@@ -161,7 +185,8 @@ adversary who can rewrite all trusted host files and recompute hashes.
 
 `tests/suites/pact-net/pilot-runtime.test.ts` exercises the native three-actor
 chain, independent journals and canary projections, wrong-actor mutations and
-private reads, forged authority fields, outside/revoked recipient scope, revocation
+private reads, forged authority fields, native escalation audit, next-admission
+execution-grant revocation, outside/revoked recipient scope, revocation
 after discovery, premature release, wrong case/version, current approver revocation,
 held safe-partial, fresh Node processes at two committed boundaries, duplicate
 calls/messages, incomplete-result fail-close, profile mismatch/journal tampering,
