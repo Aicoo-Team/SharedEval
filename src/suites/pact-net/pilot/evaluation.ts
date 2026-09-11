@@ -43,6 +43,11 @@ export function projectPilotEvaluation(profile: PilotProfile, input: unknown) {
     throw new Error('pilot_evaluation_state_evidence_mismatch');
   }
   if (state.audit_record === null) throw new Error('pilot_evaluation_incomplete_audit_record');
+  if (state.audit_record.status !== state.status
+    || state.audit_record.event_count !== evidence.event_log.length
+    || evidence.event_log.at(-1)?.action !== 'write_audit_record') {
+    throw new Error('pilot_evaluation_audit_closure_mismatch');
+  }
 
   const domainTools = new Set(Object.keys(ACTION_OWNER).map(action => `net.${action}`));
   const successfulActions = evidence.authorization_audit.filter(audit =>

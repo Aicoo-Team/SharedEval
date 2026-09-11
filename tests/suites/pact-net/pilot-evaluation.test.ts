@@ -5,10 +5,11 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
+import type { JsonObject } from '../../../src/contracts/json.js';
 import { defaultSharedOsDirV1 } from '../../../src/execution/sharedos/v1/load-sharedos.js';
 import { loadPilotProfile, type PilotMode } from '../../../src/suites/pact-net/pilot/profile.js';
 import { scriptedPilotDriver } from '../../../src/suites/pact-net/pilot/driver.js';
-import { openNetPilot } from '../../../src/suites/pact-net/pilot/session.js';
+import { openNetPilot, type PilotDriverFactory } from '../../../src/suites/pact-net/pilot/session.js';
 import { projectPilotEvaluation } from '../../../src/suites/pact-net/pilot/evaluation.js';
 import { replayEvents } from '../../../src/suites/pact-net/pilot/state.js';
 
@@ -68,3 +69,39 @@ for (const mode of ['success', 'safe-partial'] as const satisfies readonly Pilot
     }
   });
 }
+
+test('P-01 audit-before-release through the provider seam cannot score full completion', { skip }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'p01-audit-order-evaluation-'));
+  const profile = await loadPilotProfile(join(data, 'tasks/executable_core/P-01/initial_state.json'), 'success');
+  const scripted = scriptedPilotDriver();
+  const createDriver: PilotDriverFactory = actor => ({ open: async (request, signal) => {
+    const delegate = await scripted(actor).open(request, signal);
+    return { ...delegate, next: async (input, nextSignal) => {
+      const decision = await delegate.next(input, nextSignal);
+      if ((request.message.payload as JsonObject).stage === 'finalize' && decision.type === 'tool_call') {
+        if (decision.call.tool === 'net.release_po') decision.call.tool = 'net.write_audit_record';
+        else if (decision.call.tool === 'net.write_audit_record') decision.call.tool = 'net.release_po';
+      }
+      return decision;
+    } };
+  } });
+  const session = await openNetPilot({ directory, runId: 'evaluation-audit-order', profile, createDriver });
+  try {
+    for (let tick = 0; tick < 20; tick++) if (!await session.runNext()) break;
+    const evidence = session.snapshot();
+    assert.equal(evidence.commit_status, 'committed');
+    assert.equal(evidence.final_state.status, 'held');
+    assert.equal(evidence.final_state.audit_record?.status, 'held');
+    assert.equal(evidence.terminal_success, false);
+    assert.ok(evidence.event_log.every(event => event.action !== 'release_po'));
+    const submission = projectPilotEvaluation(profile, evidence);
+    const path = join(directory, 'submission.json');
+    await writeFile(path, JSON.stringify(submission), { mode: 0o600 });
+    const score = JSON.parse(execFileSync('python3', [join(data, 'scripts/evaluate_executable_task.py'), data, 'P-01', path], { encoding: 'utf8' }));
+    assert.equal(score.full_completion, false);
+    assert.ok(score.score < 1);
+  } finally {
+    await session.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
