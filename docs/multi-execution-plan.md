@@ -7,10 +7,16 @@ does not make a new benchmark-performance claim.
 ## Baselines and scope
 
 - SharedEval main: `dc5d482403bd5dfb38ab6af92db399d6cbea3121`.
-- PAIR world implementation reviewed initially at
-  `58461fd736d70f776d21082dbac67409bb329ca9`, stacked on PR 53
-  (`14463247af15641b1d4231537d7f263e5105a8e7`). Its published successor must
-  supply fresh evidence; the historical 780-test report is not a current check.
+- PAIR world implementation: [PR 57](https://github.com/Aicoo-Team/SharedEval/pull/57),
+  head `4eede49a83cf43da146664bd67c8c2c405aecc11`, stacked on PR 53
+  (`14463247af15641b1d4231537d7f263e5105a8e7`). Independent native-required
+  validation passed 789/789 at preceding `9c4d18a`; the final delta adds only a
+  mandatory world CI gate and its regression. Historical checks remain separate
+  in the delivery record.
+- Bounded NET implementation: [PR 59](https://github.com/Aicoo-Team/SharedEval/pull/59),
+  stacked on PR 57. At initial head `5dc60fd`, independent native-required
+  `pnpm check` passed 810/810 and CLI success, held and restart paths were scored.
+  Final base/CI synchronization is recorded in the PR and delivery record.
 - That world branch requires SharedOS
   `3aa07e33999b656a10ace294fd4e41df8cbc318e`, runtime digest
   `4afb23d79851a83a48e25e968f04e45cefc81847b4a9963c62277b5c05862d5d`.
@@ -165,10 +171,25 @@ both approvals. A wrong owner, premature release or revoked capability leaves
 the protected resource unchanged and records denial. Missing approval yields
 a truthful safe partial outcome, not a fabricated completion.
 
-The pilot's direct script and exact arguments belong in its implementation
-guide. Until that command has run and produced evidence, it is not an existing
-NET CLI. The main `sharedeval` CLI currently rejects `pact-net`; do not recommend
-changing the dataset name in a PAIR YAML as a runnable NET configuration.
+The bounded pilot runs on its implementation branch with the same SharedOS pin
+as PR 57, using Node 24 and Python 3. Use a fresh output directory for each mode:
+
+```bash
+SHAREDEVAL_REQUIRE_SHAREDOS=1 npx tsx scripts/pact-net-pilot.ts \
+  --output /tmp/net-p01-success --mode success
+npx tsx scripts/pact-net-pilot-evaluate.ts \
+  /tmp/net-p01-success/evidence.json success
+```
+
+Use `--mode safe-partial` and `safe-partial` respectively for the unsigned-contract
+fixture. Stop with `--max-turns 2`, then rerun the same execution command without
+that cap to test a clean process restart. The separate evaluator accepts only
+committed, drained evidence and matches actual effects to SharedOS authorization
+audit before invoking the original P-01 rubric. It never schedules more work.
+The implementation guide is `docs/pact-net-pilot.md` on the pilot branch.
+
+The main `sharedeval` CLI still rejects `pact-net`; changing the dataset name in a
+PAIR YAML does not select this pilot or create a general NET configuration.
 
 The subsequent general NET profile has this fixed lifecycle:
 
