@@ -51,10 +51,38 @@ output:
   saveTraces: true
 ```
 
-After extracting the YAML into a local configuration, run `--check` first and
-choose a new run ID. Use the pinned runtime and credential alias documented in
-[Running SharedEval](running.md). Raw conversation journals and traces contain
-private benchmark interactions; do not publish them as public result artifacts.
+The YAML above is also available as [pair-multi-v2.yaml](configs/pair-multi-v2.yaml).
+Two matching controls are [pair-single-v2.yaml](configs/pair-single-v2.yaml) and
+[pair-multi-v1.yaml](configs/pair-multi-v1.yaml). V2 Single has no retry profile
+and starts a separate world for each task; V1 Multi keeps reset-context semantics.
+
+From the repository root, validate all three without external calls:
+
+```bash
+npm run sharedeval -- --config docs/configs/pair-multi-v2.yaml --check
+npm run sharedeval -- single --config docs/configs/pair-single-v2.yaml --check
+npm run sharedeval -- --config docs/configs/pair-multi-v1.yaml --check
+```
+
+Use the pinned runtime and credential alias documented in
+[Running SharedEval](running.md). Once provider availability and spending limits
+are confirmed, run exactly one selected configuration with a fresh run ID:
+
+```bash
+npm run sharedeval -- --config docs/configs/pair-multi-v2.yaml --run-id pair-world-probe-01
+```
+
+Outputs are relative to the configuration directory, under `docs/configs/runs/`.
+Raw conversation journals and traces contain private benchmark interactions;
+do not publish them as public result artifacts. The tick/tool/token limits bound
+execution, not a currency budget. These examples have not been live-model tested.
+
+For repeatable native integration without paid model calls, use Node 24 and the
+pinned SharedOS checkout:
+
+```bash
+SHAREDEVAL_REQUIRE_SHAREDOS=1 npm exec -- tsx --test tests/runner-v1/world-native-conformance.test.ts tests/runner-v1/world-failure-lifecycle.test.ts
+```
 
 ## Acceptance Evidence
 
