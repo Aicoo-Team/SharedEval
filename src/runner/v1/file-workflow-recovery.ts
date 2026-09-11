@@ -61,10 +61,9 @@ type FileWorkflowHeartbeatIndeterminateResultV1 = Readonly<{
   errorCode: 'indeterminate_external_operation';
   diagnosticStatus?: 'unavailable';
   /**
-   * Sanitized description of the underlying failure, when one exists: an
-   * internal label, or an error's constructor name plus its enumerated
-   * code field. Never a raw error message — provider failures can carry
-   * credential-bearing text, and this result reaches public error surfaces.
+   * Fixed, allowlisted description of the underlying failure, when one exists.
+   * This result reaches public error surfaces, so arbitrary thrown values and
+   * their properties must never be reflected here.
    */
   causeSummary?: string;
 }>;
@@ -114,22 +113,26 @@ export async function runFileWorkflowHeartbeatV1(input: {
   } catch (error) {
     const contextFailure = contextFailureNotice(error);
     const stage = contextFailure?.stage ?? executionStage(input.executionStage);
-    const diagnosticAvailable = await notifyFailure(input.onFailure, contextFailure ?? {
+    const failure = contextFailure ?? {
       stage,
       code: stageFailureCode(stage),
-    });
-    return indeterminateFileWorkflowHeartbeatResultV1(error, diagnosticAvailable);
+    };
+    const diagnosticAvailable = await notifyFailure(input.onFailure, failure);
+    return indeterminateFileWorkflowHeartbeatResultV1(failure.code, diagnosticAvailable);
   }
 
   let payload: FileWorkflowHeartbeatPayloadV1;
   try {
     payload = fileWorkflowHeartbeatPayloadV1Schema.parse(unparsedPayload);
-  } catch (error) {
+  } catch {
     const diagnosticAvailable = await notifyFailure(input.onFailure, {
       stage: executionStage(input.executionStage),
       code: 'heartbeat_payload_invalid',
     });
-    return indeterminateFileWorkflowHeartbeatResultV1(error, diagnosticAvailable);
+    return indeterminateFileWorkflowHeartbeatResultV1(
+      'heartbeat_payload_invalid',
+      diagnosticAvailable,
+    );
   }
   if (
     !isDeepStrictEqual(payload.event, start.event)
@@ -169,8 +172,7 @@ export async function runFileWorkflowHeartbeatV1(input: {
 }
 
 function contextFailureNotice(error: unknown): FileWorkflowFailureNoticeV1 | undefined {
-  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined;
-  const code = (error as { code?: unknown }).code;
+  const code = safeStringProperty(error, 'code');
   if (
     code !== 'context_budget_exhausted'
     && code !== 'context_integrity_error'
@@ -178,6 +180,18 @@ function contextFailureNotice(error: unknown): FileWorkflowFailureNoticeV1 | und
     && code !== 'actor_context_actor_mismatch'
   ) return undefined;
   return { stage: 'context_settlement', code };
+}
+
+function safeStringProperty(value: unknown, key: string): string | undefined {
+  if ((typeof value !== 'object' && typeof value !== 'function') || value === null) {
+    return undefined;
+  }
+  try {
+    const field = Reflect.get(value, key);
+    return typeof field === 'string' ? field : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function executionStage(
@@ -229,22 +243,22 @@ export function indeterminateFileWorkflowHeartbeatResultV1(
   };
 }
 
-/**
- * Reduce a failure to leak-safe identity: an internal string label passes
- * through, an Error contributes its constructor name plus any enumerated
- * `code`/`errorCode` field, everything else only its type. Raw messages are
- * deliberately dropped — they can carry provider credentials.
- */
+const allowedCauseSummaries = new Set<string>([
+  'sharedos_execution_failed',
+  'context_settlement_failed',
+  'evidence_projection_failed',
+  'heartbeat_planning_failed',
+  'ledger_commit_failed',
+  'heartbeat_payload_invalid',
+  'heartbeat_payload_identity_diverged',
+  'context_budget_exhausted',
+  'context_integrity_error',
+  'context_turn_incomplete',
+  'actor_context_actor_mismatch',
+]);
+
 function sanitizedCauseSummary(cause: unknown): string {
-  if (typeof cause === 'string') return cause;
-  if (cause instanceof Error) {
-    const coded = cause as Error & { code?: unknown; errorCode?: unknown };
-    const code = typeof coded.code === 'string'
-      ? coded.code
-      : typeof coded.errorCode === 'string'
-        ? coded.errorCode
-        : undefined;
-    return code ? `${cause.name}:${code}` : cause.name;
-  }
-  return typeof cause;
+  return typeof cause === 'string' && allowedCauseSummaries.has(cause)
+    ? cause
+    : 'unclassified_failure';
 }

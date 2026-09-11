@@ -27,14 +27,27 @@ test('workflow records sanitized execution and projection failures without inven
     const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
     const factory = createFakeSharedOsFileSessionFactoryV1({ trace });
     try {
-      await assert.rejects(runPactPairFilesMultiV1({ ...options(root), createSharedOsSession: async input => {
-        const session = await factory(input);
-        return { ...session, runRequesterTurn: async turn => {
-          if (stage === 'sharedos_execution') throw new Error('PRIVATE_PROVIDER_TOKEN_SENTINEL');
-          const result = await session.runRequesterTurn(turn);
-          return { ...result, sourceEvidence: { ...result.sourceEvidence, auditEvents: [] } };
-        } };
-      } }));
+      await assert.rejects(
+        runPactPairFilesMultiV1({ ...options(root), createSharedOsSession: async input => {
+          const session = await factory(input);
+          return { ...session, runRequesterTurn: async turn => {
+            if (stage === 'sharedos_execution') {
+              const failure = new Error('PRIVATE_PROVIDER_TOKEN_SENTINEL');
+              failure.name = 'PRIVATE_PROVIDER_ERROR_NAME';
+              Object.assign(failure, { code: 'PRIVATE_PROVIDER_ERROR_CODE' });
+              throw failure;
+            }
+            const result = await session.runRequesterTurn(turn);
+            return { ...result, sourceEvidence: { ...result.sourceEvidence, auditEvents: [] } };
+          } };
+        } }),
+        error => {
+          assert.ok(error instanceof Error);
+          assert.match(error.message, new RegExp(`cause: ${stage}_failed`));
+          assert.doesNotMatch(error.message, /PRIVATE|TOKEN|ERROR_NAME|ERROR_CODE/);
+          return true;
+        },
+      );
       const status = await json(join(root, 'store', 'execution-status.json'));
       assert.equal(status.failureStage, stage);
       assert.equal(status.failureCode, `${stage}_failed`);

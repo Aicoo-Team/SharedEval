@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 import {
   FileWorkflowHeartbeatMarkerAuthorityErrorV1,
+  indeterminateFileWorkflowHeartbeatResultV1,
   runFileWorkflowHeartbeatV1,
 } from '../../src/runner/v1/file-workflow-recovery.js';
 import {
@@ -226,6 +227,46 @@ test('sanitizes only malformed marker authority and prevents re-execution', asyn
   await fixture.store.close();
 });
 
+test('bounds public cause summaries to fixed allowlisted values', () => {
+  const sentinels = [
+    'PRIVATE_THROWN_STRING',
+    'PRIVATE_ERROR_NAME',
+    'PRIVATE_ERROR_CODE',
+    'PRIVATE_ERROR_CODE_FIELD',
+  ];
+  const named = new Error('PRIVATE_MESSAGE');
+  named.name = sentinels[1]!;
+  const coded = Object.assign(new Error('PRIVATE_MESSAGE'), { code: sentinels[2] });
+  const errorCoded = Object.assign(new Error('PRIVATE_MESSAGE'), {
+    errorCode: sentinels[3],
+  });
+  const throwingFields = Object.create(null, {
+    name: { get: () => { throw new Error('PRIVATE_NAME_GETTER'); } },
+    code: { get: () => { throw new Error('PRIVATE_CODE_GETTER'); } },
+    errorCode: { get: () => { throw new Error('PRIVATE_ERROR_CODE_GETTER'); } },
+  });
+
+  for (const cause of [
+    sentinels[0],
+    named,
+    coded,
+    errorCoded,
+    throwingFields,
+    `PRIVATE_OVERSIZED_${'x'.repeat(100_000)}`,
+  ]) {
+    const result = indeterminateFileWorkflowHeartbeatResultV1(cause);
+    assert.equal(result.causeSummary, 'unclassified_failure');
+    assert.ok(result.causeSummary.length <= 64);
+    assert.doesNotMatch(JSON.stringify(result), /PRIVATE|x{100}/);
+  }
+
+  assert.equal(
+    indeterminateFileWorkflowHeartbeatResultV1('heartbeat_payload_identity_diverged')
+      .causeSummary,
+    'heartbeat_payload_identity_diverged',
+  );
+});
+
 test('maps execute and callback validation failures to stable indeterminate after start', async t => {
   await t.test('malformed start', async t => {
     const fixture = await opened(t, 'malformed-start');
@@ -260,9 +301,10 @@ test('maps execute and callback validation failures to stable indeterminate afte
         throw new Error('PRIVATE_PROVIDER credential=SECRET');
       },
     });
-    // The failure identity survives as a sanitized summary; the raw message
-    // (which can carry provider credentials) never does.
-    assert.deepEqual(result, { ...indeterminate(), causeSummary: 'Error' });
+    assert.deepEqual(result, {
+      ...indeterminate(),
+      causeSummary: 'sharedos_execution_failed',
+    });
     assert.doesNotMatch(JSON.stringify(result), /SECRET|PRIVATE_PROVIDER/);
     assert.match(await readFile(markerPath(fixture.runDirectory, 1), 'utf8'), /markerDigest/);
     assert.deepEqual(await runFileWorkflowHeartbeatV1({
@@ -299,7 +341,9 @@ test('maps execute and callback validation failures to stable indeterminate afte
       });
       assert.deepEqual(result, {
         ...indeterminate(),
-        causeSummary: kind === 'malformed' ? 'ZodError' : 'heartbeat_payload_identity_diverged',
+        causeSummary: kind === 'malformed'
+          ? 'heartbeat_payload_invalid'
+          : 'heartbeat_payload_identity_diverged',
       });
       assert.equal(commitCalls, 0);
       await fixture.store.close();
@@ -332,7 +376,7 @@ test('reports typed execute failures without exposing or replacing the primary r
   }]);
   assert.deepEqual(result, {
     ...indeterminate(),
-    causeSummary: 'Error',
+    causeSummary: 'context_settlement_failed',
     diagnosticStatus: 'unavailable',
   });
   assert.doesNotMatch(JSON.stringify({ notices, result }), /PRIVATE|credential|SECRET/);
@@ -362,7 +406,40 @@ test('preserves only allowlisted context cause codes as context-settlement failu
 
       assert.deepEqual(notices, [{ stage: 'context_settlement', code }]);
       assert.doesNotMatch(JSON.stringify(notices), /PRIVATE|credential|SECRET|Error/);
-      assert.equal(result.kind, 'indeterminate_external_operation');
+      assert.deepEqual(result, { ...indeterminate(), causeSummary: code });
+      await fixture.store.close();
+    });
+  }
+});
+
+test('hostile failure fields cannot leak or replace the primary execute result', async t => {
+  for (const kind of ['string', 'name', 'code', 'errorCode', 'throwing-getters'] as const) {
+    await t.test(kind, async t => {
+      const fixture = await opened(t, `hostile-execute-${kind}`);
+      const payload = payloadFor(fixture, 1, 'PAIR-Q-1');
+      const failure = kind === 'string'
+        ? 'PRIVATE_THROWN_STRING'
+        : kind === 'throwing-getters'
+        ? Object.create(null, {
+          code: { get: () => { throw new Error('PRIVATE_CODE_GETTER'); } },
+          errorCode: { get: () => { throw new Error('PRIVATE_ERROR_CODE_GETTER'); } },
+          name: { get: () => { throw new Error('PRIVATE_NAME_GETTER'); } },
+        })
+        : Object.assign(new Error('PRIVATE_MESSAGE'), kind === 'name'
+          ? { name: 'PRIVATE_ERROR_NAME' }
+          : { [kind]: `PRIVATE_${kind.toUpperCase()}` });
+
+      const result = await runFileWorkflowHeartbeatV1({
+        ledger: fixture.store,
+        start: startFor(payload),
+        execute: async () => { throw failure; },
+      });
+
+      assert.deepEqual(result, {
+        ...indeterminate(),
+        causeSummary: 'sharedos_execution_failed',
+      });
+      assert.doesNotMatch(JSON.stringify(result), /PRIVATE|GETTER|MESSAGE/);
       await fixture.store.close();
     });
   }
