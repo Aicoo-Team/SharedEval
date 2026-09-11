@@ -449,10 +449,41 @@ else:
                 fail(f"agent-set profile {profile['id']} is not the exact principal closure")
         print("agent sets:", "/".join(map(str, counts)), "S/M/L agents;", len(actual_agent_sets.get("profiles", [])), "curated profiles")
 
-large_first_roles = {"alicia_morgan", "daniel_cho", "aisha_rahman", "meghan_osei", "elliot_price", "samira_cole", "monica_alvarez"}
-for agent in sorted(large_first_roles):
-    if agent_pack.get(agent) != "L":
-        fail(f"{agent}: 60-agent expansion role must enter Large first, found {agent_pack.get(agent)}")
+# Every agent's role in the world is derived from the task set, never declared.
+# A hand-written list of names (this was a literal set of seven until 2026-09-12)
+# stops being true the moment an agent or a task is added, and nothing catches
+# the drift. These four rules read the same data the rest of the file does and
+# stay correct as the world grows.
+asks = collections.Counter(task["requester"] for task in tasks)
+answers = collections.Counter()
+for task in tasks:
+    answers.update(set(task["participants"]) - {task["requester"]})
+smallest_task_pack = {}
+for task in tasks:
+    for agent in {task["requester"], *task["participants"]}:
+        current = smallest_task_pack.get(agent)
+        if current is None or PACK_RANK[task["pack"]] < PACK_RANK[current]:
+            smallest_task_pack[agent] = task["pack"]
+
+
+def world_role(agent):
+    if asks[agent] and answers[agent]: return "principal"
+    if asks[agent]: return "requester_only"
+    if answers[agent]: return "responder_only"
+    return "unexercised"
+
+
+role_counts = collections.Counter(world_role(agent) for agent in agents)
+for agent in agents:
+    approves = len(L(agent, "systems.json").get("approves", []))
+    if world_role(agent) == "unexercised":
+        warn(f"{agent}: no task names it as requester or participant; it is graph ballast, not a principal")
+    elif answers[agent] == 0 and approves:
+        warn(f"{agent}: holds {approves} approval right(s) that no task consumes (asks {asks[agent]}, answers 0)")
+    declared, needed = agent_pack.get(agent), smallest_task_pack.get(agent)
+    if needed and PACK_RANK[declared] < PACK_RANK[needed]:
+        warn(f"{agent}: declared pack {declared} but the smallest task needing it is {needed}; it inflates {declared}")
+print("world roles:", ", ".join(f"{role}={count}" for role, count in sorted(role_counts.items())))
 
 signatures = collections.defaultdict(list)
 for agent in cg:
