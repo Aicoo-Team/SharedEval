@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -28,15 +29,36 @@ def get_path(value: Any, dotted: str) -> Any:
     return current
 
 
+def as_instant(value: Any) -> datetime | None:
+    """Parse an ISO-8601 instant, or return None. `not_empty` cannot tell a
+    deadline from the string "not-a-time"; a time field must parse as one."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
 def expected_matches(actual: Any, expected: Any) -> bool:
     if isinstance(expected, dict):
         if "one_of" in expected:
             return actual in expected["one_of"]
         if "contains_all" in expected:
             return isinstance(actual, list) and all(item in actual for item in expected["contains_all"])
+        if expected.get("timestamp") is True:
+            return as_instant(actual) is not None
         if expected.get("not_empty") is True:
             return actual not in (None, "", [], {})
     return actual == expected
+
+
+def same_value(left: Any, right: Any) -> bool:
+    """Equal as instants when both are times, otherwise equal as values."""
+    a, b = as_instant(left), as_instant(right)
+    if a is not None and b is not None:
+        return a == b
+    return left == right
 
 
 def event_matches(event: dict[str, Any], pattern: dict[str, Any]) -> bool:
@@ -53,6 +75,22 @@ def checkpoint_result(checkpoint: dict[str, Any], submission: dict[str, Any]) ->
     for pattern in checkpoint.get("event_requirements", []):
         if not any(event_matches(event, pattern) for event in trajectory):
             failures.append(f"missing event matching {pattern!r}")
+    # A checkpoint that grades a final-state field and the event that produced it
+    # separately accepts a trajectory that contradicts its own final state. Each
+    # entry below binds one state path to the matching events' own field.
+    for rule in checkpoint.get("consistency_requirements", []):
+        state_value = get_path(submission, rule["state"])
+        matched = [event for event in trajectory if event_matches(event, rule["event"])]
+        if not matched:
+            failures.append(f"no event matching {rule['event']!r} supports state {rule['state']}")
+            continue
+        for event in matched:
+            event_value = get_path(event, rule["field"])
+            if not same_value(event_value, state_value):
+                failures.append(
+                    f"state {rule['state']}={state_value!r} contradicts "
+                    f"{rule['event']!r}.{rule['field']}={event_value!r}"
+                )
     for sequence in checkpoint.get("event_sequences", []):
         cursor = -1
         for pattern in sequence:
