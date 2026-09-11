@@ -24,7 +24,6 @@ root = os.path.abspath(args.root)
 ac = os.path.join(root, "agent_configs")
 FAIL, WARN, BLOCK = [], [], []
 PACK_RANK = {"S": 1, "M": 2, "L": 3}
-TOPOLOGY_RE = re.compile(r"^A(?:→[B-Z])*(?:→\{[B-Z](?:,[B-Z])+\})?$")
 
 
 def fail(message): FAIL.append(message)
@@ -168,15 +167,8 @@ else:
         for agent in [requester] + participants:
             if agent in agent_pack and PACK_RANK[agent_pack[agent]] > PACK_RANK[pack]:
                 fail(f"{task_id}: {agent} is {agent_pack[agent]} but task pack is {pack}")
-        topology = task.get("topology", "")
-        if not TOPOLOGY_RE.fullmatch(topology):
-            fail(f"{task_id}: non-canonical topology {topology!r}")
-        else:
-            letters = re.findall(r"[A-Z]", topology)
-            if len(set(letters)) != len(letters):
-                fail(f"{task_id}: topology repeats a principal label")
-            if len(letters) - 1 != len(principals):
-                fail(f"{task_id}: topology has {len(letters)-1} principals but participants has {len(principals)}")
+        if "topology" in task:
+            fail(f"{task_id}: topology is derived from the principal set; remove the stored field")
         if not task.get("freq") or not task.get("freq_zh"):
             fail(f"{task_id}: missing bilingual frequency")
         claim = task.get("frequency_claim", {})

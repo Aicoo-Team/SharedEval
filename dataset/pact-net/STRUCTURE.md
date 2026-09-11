@@ -302,10 +302,12 @@ the procedure (budget approval, then privileged advice), not in the route. `M-02
 `star` while none of its three principals is directly reachable: three independent
 contributions, all of which need a relay to reach. Both combinations are legitimate.
 
-`topology` is **not** a third axis. Its value is a canonical restatement of
-`len(participants)` — two participants always render `A→{B,C}`, three always `A→{B,C,D}` —
-and `review.py` validates exactly that correspondence. It carries no structural information;
-read `tags` for procedure and `discovery_requirement` for routing.
+There is no third axis, and in particular no stored `topology` field. One existed until
+2026-09-12: its value was a canonical restatement of `len(participants)` — two participants
+always rendered `A→{B,C}`, three always `A→{B,C,D}` — so `review.py` was validating a
+tautology while readers reasonably took it for structure. The shape a task has is implied by
+its principal set and its contact edges, not declared; `review.py` now fails any task that
+reintroduces the field. Read `tags` for procedure and `discovery_requirement` for routing.
 
 `ask` should read the way a person asks. The requirements belong in `completion.must_include`
 and the check types in `evaluation_spec`; restating them inside the ask hands the model the

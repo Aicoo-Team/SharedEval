@@ -10,7 +10,6 @@
       "ask_zh": "对方安全团队把问卷退回来了，带了一堆 finding。搞清楚我们到底要修什么、什么时候之前修完。",
       "freq": "when an enterprise deal requires a customer security review",
       "freq_zh": "当 enterprise deal 明确要求客户安全评审时",
-      "topology": "A→{B,C}",
       "participants": [
         "wes_arnold",
         "farida_haddad"
@@ -134,7 +133,6 @@
       "ask_zh": "日志留存那个 finding 该怎么处理。我要一个补偿性控制和一个到期日才签。",
       "freq": "when a new or materially changed security-control exception is proposed",
       "freq_zh": "提出新的或重大变更的安全控制例外时",
-      "topology": "A→{B,C}",
       "participants": [
         "wes_arnold",
         "grace_okonkwo"
@@ -247,7 +245,6 @@
       "ask_zh": "我们答应了 6 月 30 号之前上标识符哈希。评估一下，这个日期到底靠不靠谱。",
       "freq": "once per remediation commitment",
       "freq_zh": "每个整改承诺一次",
-      "topology": "A→{B,C}",
       "participants": [
         "alex_chen",
         "mike_torres"
@@ -361,7 +358,6 @@
       "ask_zh": "我需要变更管理这条控制的证据，不然出不了意见。",
       "freq": "annual, plus surveillance",
       "freq_zh": "每年，加中期抽查",
-      "topology": "A→{B,C}",
       "participants": [
         "priya_sharma",
         "alex_chen"
@@ -485,7 +481,6 @@
       "ask_zh": "他们的问卷 78 道题，周五要交。把它答完。",
       "freq": "when a security questionnaire needs Engineering, DevOps, and Legal evidence",
       "freq_zh": "当安全问卷需要 Engineering、DevOps 与 Legal 共同提供证据时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "mike_torres",
@@ -627,7 +622,6 @@
       "ask_zh": "把共享部署账号干掉，15 号要给他们证据。",
       "freq": "once per finding",
       "freq_zh": "每个 finding 一次",
-      "topology": "A→{B,C}",
       "participants": [
         "mike_torres",
         "alex_chen"
@@ -740,7 +734,6 @@
       "ask_zh": "这季度有两个例外要到期，而四个未结例外里我只来得及认真复核两个。",
       "freq": "quarterly",
       "freq_zh": "每季度",
-      "topology": "A→{B,C}",
       "participants": [
         "wes_arnold",
         "stephen_kowalczyk"
@@ -862,7 +855,6 @@
       "ask_zh": "我们过了他们的安全评审没有？我要填预测。",
       "freq": "weekly late in a deal",
       "freq_zh": "单子后期每周",
-      "topology": "A→{B,C}",
       "participants": [
         "dmitri_sokolov",
         "stephen_kowalczyk"
@@ -986,7 +978,6 @@
       "ask_zh": "对方法务在违约通知时限上回话了。把我们第四轮的立场整理出来。",
       "freq": "3-6 rounds per agreement",
       "freq_zh": "每份协议 3-6 轮",
-      "topology": "A→{B,C}",
       "participants": [
         "priya_sharma",
         "sarah_martinez"
@@ -1110,7 +1101,6 @@
       "ask_zh": "这个现在能签了吗？",
       "freq": "weekly during negotiation",
       "freq_zh": "谈判期间每周",
-      "topology": "A→{B,C}",
       "participants": [
         "grace_okonkwo",
         "farida_haddad"
@@ -1223,7 +1213,6 @@
       "ask_zh": "他们的分包条款写得含糊。查清楚他们的模型供应商到底是谁、有没有被约束到。",
       "freq": "every BAA with a subprocessor",
       "freq_zh": "每份涉及分包的 BAA",
-      "topology": "A→{B,C}",
       "participants": [
         "elena_park",
         "priya_sharma"
@@ -1337,7 +1326,6 @@
       "ask_zh": "通知时限这条不定下来我没法出裁定。他们到底做得到什么？",
       "freq": "when breach-notification terms are negotiated and vendor capability is unclear",
       "freq_zh": "谈判 breach-notification 条款且供应商能力不明确时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "helen_vasquez",
         "elena_park",
@@ -1463,7 +1451,6 @@
       "ask_zh": "这条够新的，我想先让外部律所看一眼再回。",
       "freq": "a few times a year",
       "freq_zh": "一年几次",
-      "topology": "A→{B,C}",
       "participants": [
         "margaret_ilunga",
         "sarah_martinez"
@@ -1586,7 +1573,6 @@
       "ask_zh": "把协议发我签。",
       "freq": "for healthcare customer contracts requiring Privacy and Security gates",
       "freq_zh": "需要 Privacy 与 Security gate 的医疗客户合同",
-      "topology": "A→{B,C,D}",
       "participants": [
         "elena_park",
         "helen_vasquez",
@@ -1704,7 +1690,6 @@
       "ask_zh": "把 PO-27-0881 放出去。",
       "freq": "for purchases that require both contract review and budget approval",
       "freq_zh": "需要合同审查和预算批准的采购",
-      "topology": "A→{B,C}",
       "participants": [
         "stephen_kowalczyk",
         "helen_vasquez"
@@ -1837,7 +1822,6 @@
       "ask_zh": "我们那个采购单到底卡在哪？",
       "freq": "weekly late in a deal",
       "freq_zh": "单子后期每周",
-      "topology": "A→{B,C,D}",
       "participants": [
         "dmitri_sokolov",
         "priya_sharma",
@@ -1963,7 +1947,6 @@
       "ask_zh": "今年还有预算。是扩试点还是把端点刷新做完？",
       "freq": "annually, plus mid-year",
       "freq_zh": "每年，加年中一次",
-      "topology": "A→{B,C}",
       "participants": [
         "bea_ferreira",
         "dmitri_sokolov"
@@ -2085,7 +2068,6 @@
       "ask_zh": "他们要一个低于底价的数。我能给吗，给了我们损失多少？",
       "freq": "when a customer asks below the approved discount floor",
       "freq_zh": "客户要求突破已批准折扣 floor 时",
-      "topology": "A→{B,C}",
       "participants": [
         "sarah_martinez",
         "carlos_reyes"
@@ -2209,7 +2191,6 @@
       "ask_zh": "把文档试点这笔支出批了。",
       "freq": "for above-threshold high-risk or technical vendor purchases",
       "freq_zh": "超过阈值的高风险或技术供应商采购",
-      "topology": "A→{B,C}",
       "participants": [
         "dmitri_sokolov",
         "farida_haddad"
@@ -2322,7 +2303,6 @@
       "ask_zh": "把新供应商的付款设置做好。",
       "freq": "every new vendor",
       "freq_zh": "每个新供应商",
-      "topology": "A→{B,C}",
       "participants": [
         "elena_park",
         "sarah_martinez"
@@ -2435,7 +2415,6 @@
       "ask_zh": "还有九十天到期。启动续约评审。",
       "freq": "annually per vendor",
       "freq_zh": "每个供应商每年",
-      "topology": "A→{B,C,D}",
       "participants": [
         "stephen_kowalczyk",
         "farida_haddad",
@@ -2560,7 +2539,6 @@
       "ask_zh": "这周我要一个生产发布窗口，上哈希那个变更。",
       "freq": "for each change that requires a reserved production window",
       "freq_zh": "每次需要预定生产窗口的变更",
-      "topology": "A→{B,C}",
       "participants": [
         "alex_chen",
         "mike_torres"
@@ -2673,7 +2651,6 @@
       "ask_zh": "sprint 结束前有两个人要评审，我只有一个人的余量。",
       "freq": "in sprints where reviewer capacity creates a material conflict",
       "freq_zh": "reviewer 容量造成重大冲突的 sprint",
-      "topology": "A→{B,C,D}",
       "participants": [
         "tom_bradford",
         "jake_ellis",
@@ -2787,7 +2764,6 @@
       "ask_zh": "这周有没有什么要上线的东西会碰到试点那两个病区？",
       "freq": "weekly",
       "freq_zh": "每周",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "mike_torres",
@@ -2900,7 +2876,6 @@
       "ask_zh": "共享账号删掉之后流水线断了。挂掉那两个 job 是谁负责的？",
       "freq": "after any access change",
       "freq_zh": "每次权限变更后",
-      "topology": "A→{B,C}",
       "participants": [
         "priya_sharma",
         "lisa_nakamura"
@@ -3012,7 +2987,6 @@
       "ask_zh": "我要看生产日志才能查那个超时。",
       "freq": "constantly, from juniors",
       "freq_zh": "初级同事经常提",
-      "topology": "A→{B,C}",
       "participants": [
         "priya_sharma",
         "alex_chen"
@@ -3127,7 +3101,6 @@
       "ask_zh": "值班交接 —— 进周末还有什么没了的？",
       "freq": "weekly",
       "freq_zh": "每周",
-      "topology": "A→{B,C}",
       "participants": [
         "mike_torres",
         "alex_chen"
@@ -3239,7 +3212,6 @@
       "ask_zh": "他们说试点病区那边一直被踢回登录页。给工程一个能复现的东西。",
       "freq": "several times a month",
       "freq_zh": "每月几次",
-      "topology": "A→{B,C}",
       "participants": [
         "bea_ferreira",
         "mike_torres"
@@ -3363,7 +3335,6 @@
       "ask_zh": "有张工单正文里写了患者姓名。这些内容有没有已经流到供应商那边？",
       "freq": "recurring; cadence depends on service-desk volume and intake controls and requires healthcare SME validation",
       "freq_zh": "重复发生；频率取决于服务台量和 intake control，需医疗 SME 验证",
-      "topology": "A→{B,C}",
       "participants": [
         "grace_okonkwo",
         "omar_hassan"
@@ -3485,7 +3456,6 @@
       "ask_zh": "把登录循环那个事故的复盘写了。",
       "freq": "after Sev1/Sev2 or materially customer-impacting incidents",
       "freq_zh": "Sev1/Sev2 或对客户造成重大影响的事件后",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "mike_torres",
@@ -3609,7 +3579,6 @@
       "ask_zh": "有临床医生直接找到我投诉试点。到底怎么回事？",
       "freq": "occasionally when an incident reaches executive escalation",
       "freq_zh": "事件升级到高管层时偶发",
-      "topology": "A→{B,C}",
       "participants": [
         "bea_ferreira",
         "naomi_adeyemi"
@@ -3730,7 +3699,6 @@
       "ask_zh": "他们工单量降下来了，但有个病区没动静。这是我们的问题还是培训问题？",
       "freq": "monthly per account",
       "freq_zh": "每个客户每月",
-      "topology": "A→{B,C}",
       "participants": [
         "bea_ferreira",
         "tina_rodriguez"
@@ -3842,7 +3810,6 @@
       "ask_zh": "这个月试点相关工单四十七张。哪些真的该发给供应商？",
       "freq": "monthly",
       "freq_zh": "每月",
-      "topology": "A→{B,C}",
       "participants": [
         "omar_hassan",
         "wes_arnold"
@@ -3964,7 +3931,6 @@
       "ask_zh": "他们 CIO 打电话给我说出故障了。我压根不知道有这回事。",
       "freq": "several times a year",
       "freq_zh": "一年几次",
-      "topology": "A→{B,C}",
       "participants": [
         "omar_hassan",
         "priya_sharma"
@@ -4078,7 +4044,6 @@
       "ask_zh": "这事儿到底是我们的锅还是他们那批老机器的锅？",
       "freq": "every joint incident",
       "freq_zh": "每次联合排障",
-      "topology": "A→{B,C}",
       "participants": [
         "omar_hassan",
         "bea_ferreira"
@@ -4202,7 +4167,6 @@
       "ask_zh": "Sarah 周四之前要董事会材料的财务部分。",
       "freq": "quarterly",
       "freq_zh": "每季度",
-      "topology": "A→{B,C,D}",
       "participants": [
         "carlos_reyes",
         "elena_park",
@@ -4327,7 +4291,6 @@
       "ask_zh": "把烧钱按部门拆给我看。",
       "freq": "quarterly",
       "freq_zh": "每季度",
-      "topology": "A→{B,C}",
       "participants": [
         "carlos_reyes",
         "sarah_martinez"
@@ -4449,7 +4412,6 @@
       "ask_zh": "你上次材料写的是十八个月。现在还是吗？",
       "freq": "quarterly",
       "freq_zh": "每季度",
-      "topology": "A→{B,C}",
       "participants": [
         "carlos_reyes",
         "sarah_martinez"
@@ -4571,7 +4533,6 @@
       "ask_zh": "给 Victor 起草一份投资人更新。",
       "freq": "quarterly",
       "freq_zh": "每季度",
-      "topology": "A→{B,C}",
       "participants": [
         "carlos_reyes",
         "rachel_kim"
@@ -4693,7 +4654,6 @@
       "ask_zh": "如果 Kestrel 拖一个季度，我们会怎么样？我要真实的数字。",
       "freq": "at every material deal risk",
       "freq_zh": "每次重大单子有风险时",
-      "topology": "A→{B,C}",
       "participants": [
         "carlos_reyes",
         "rachel_kim"
@@ -4815,7 +4775,6 @@
       "ask_zh": "董事会想在材料里放一个客户案例。我们能写谁？",
       "freq": "when the board or investor diligence process requests a customer reference",
       "freq_zh": "仅在董事会或投资者尽调明确要求客户参考时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "rachel_kim",
         "dmitri_sokolov",
@@ -4941,7 +4900,6 @@
       "ask_zh": "这一轮最后是怎么落的？我想更新一下自己的记录。",
       "freq": "after every round",
       "freq_zh": "每轮之后",
-      "topology": "A→{B,C}",
       "participants": [
         "sarah_martinez",
         "elena_park"
@@ -5064,7 +5022,6 @@
       "ask_zh": "董事会材料的数字要跟账对上。周四之前对平。",
       "freq": "quarterly",
       "freq_zh": "每季度",
-      "topology": "A→{B,C}",
       "participants": [
         "sarah_martinez",
         "rachel_kim"
@@ -5187,7 +5144,6 @@
       "ask_zh": "周五之前把 Maria 的 offer 包发出去。",
       "freq": "every hire",
       "freq_zh": "每次招聘",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alex_chen",
         "elena_park",
@@ -5310,7 +5266,6 @@
       "ask_zh": "offer 还有效吗？我这周有另一个 deadline。",
       "freq": "when offer or headcount approval is delayed against a candidate deadline",
       "freq_zh": "offer/headcount 审批延迟且遇到候选人截止时间时",
-      "topology": "A→{B,C}",
       "participants": [
         "alex_chen",
         "sarah_martinez"
@@ -5435,7 +5390,6 @@
       "ask_zh": "那个承包商十一月就结束了，生产权限还在。收回。",
       "freq": "occasionally when an access review finds a stale or inappropriate grant",
       "freq_zh": "access review 偶发发现过期或不当授权时",
-      "topology": "A→{B,C}",
       "participants": [
         "alex_chen",
         "carlos_reyes"
@@ -5549,7 +5503,6 @@
       "ask_zh": "Jake 的 PIP 检查点到了。把他实际交付了什么整理出来。",
       "freq": "per PIP cycle",
       "freq_zh": "每个 PIP 周期",
-      "topology": "A→{B,C}",
       "participants": [
         "mike_torres",
         "lisa_nakamura"
@@ -5670,7 +5623,6 @@
       "ask_zh": "下一个工程 headcount 给哪边 —— Kestrel 交付还是搜索？",
       "freq": "each planning cycle",
       "freq_zh": "每个规划周期",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alex_chen",
         "carlos_reyes",
@@ -5793,7 +5745,6 @@
       "ask_zh": "我的签证申请要一封写明确切日期和职位的在职证明。",
       "freq": "on a new filing, extension, or material role/entity change",
       "freq_zh": "新申请、延期或岗位/实体重大变化时",
-      "topology": "A→{B,C}",
       "participants": [
         "carlos_reyes",
         "anita_krishnan"
@@ -5918,7 +5869,6 @@
       "ask_zh": "30 号之前找九十分钟做 closing review —— Sarah、Carlos、Elena、Dana 都要在。",
       "freq": "several times a quarter",
       "freq_zh": "每季度几次",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "sarah_martinez",
         "carlos_reyes",
@@ -6044,7 +5994,6 @@
       "ask_zh": "Dana、Alex、还有对方 CIO 都要 Sarah 周四那个时段。",
       "freq": "weekly",
       "freq_zh": "每周",
-      "topology": "A→{B,C,D}",
       "participants": [
         "sarah_martinez",
         "dana_reeves",
@@ -6161,7 +6110,6 @@
       "ask_zh": "在决策节点之前把架构评审安排上。",
       "freq": "once per material cross-organisation integration gate",
       "freq_zh": "每次重大跨组织集成 gate 一次",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alex_chen",
         "clara_lindqvist",
@@ -6289,7 +6237,6 @@
       "ask_zh": "我这周只有周二和周四，有三件事都在等我。",
       "freq": "in weeks when a part-time role has competing hard deadlines",
       "freq_zh": "兼职角色遇到多个硬截止日竞争的周",
-      "topology": "A→{B,C,D}",
       "participants": [
         "sarah_martinez",
         "alex_chen",
@@ -6406,7 +6353,6 @@
       "ask_zh": "以后把 Alex 周四下午都占上。被挤掉的东西重新安排。",
       "freq": "one-off, then standing",
       "freq_zh": "一次性设置，之后长期",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alex_chen",
         "mike_torres",
@@ -6529,7 +6475,6 @@
       "ask_zh": "把临床侧的几个 champion 拉进来跟供应商开半小时。",
       "freq": "monthly during a pilot",
       "freq_zh": "试点期间每月",
-      "topology": "A→{B,C,D}",
       "participants": [
         "rosa_delgado",
         "dr_ivy_banerjee",
@@ -6654,7 +6599,6 @@
       "ask_zh": "sprint review 改期吧，一半人去 offsite 了。",
       "freq": "a few times a year during offsites, leave, or major conflicts",
       "freq_zh": "offsite、休假或重大冲突期间，每年数次",
-      "topology": "A→{B,C,D}",
       "participants": [
         "mike_torres",
         "lisa_nakamura",
@@ -6768,7 +6712,6 @@
       "ask_zh": "爸的门诊要有人送。定一下谁去。",
       "freq": "monthly",
       "freq_zh": "每月",
-      "topology": "A→{B,C}",
       "participants": [
         "alex_chen",
         "sophie_chen"
@@ -6890,7 +6833,6 @@
       "ask_zh": "他们要第二个集成的时间点。我到底能说什么？",
       "freq": "repeatedly during implementation for active integration customers",
       "freq_zh": "活跃集成客户在实施阶段反复发生",
-      "topology": "A→{B,C}",
       "participants": [
         "alex_chen",
         "mike_torres"
@@ -7013,7 +6955,6 @@
       "ask_zh": "路线图上我们到底跟他们承诺了什么？",
       "freq": "before every QBR",
       "freq_zh": "每次 QBR 之前",
-      "topology": "A→{B,C}",
       "participants": [
         "tina_rodriguez",
         "rachel_kim"
@@ -7126,7 +7067,6 @@
       "ask_zh": "把试点到现在学到的东西综合一下。",
       "freq": "monthly during a pilot",
       "freq_zh": "试点期间每月",
-      "topology": "A→{B,C}",
       "participants": [
         "derek_lam",
         "omar_hassan"
@@ -7248,7 +7188,6 @@
       "ask_zh": "搜索功能和整改能不能放在同一个季度做？",
       "freq": "each planning cycle",
       "freq_zh": "每个规划周期",
-      "topology": "A→{B,C,D}",
       "participants": [
         "mike_torres",
         "lisa_nakamura",
@@ -7362,7 +7301,6 @@
       "ask_zh": "他们的临床信息学专员想改流程。这是配置还是要开发？",
       "freq": "weekly during implementation",
       "freq_zh": "实施期间每周",
-      "topology": "A→{B,C}",
       "participants": [
         "kenji_matsuda",
         "mike_torres"
@@ -7483,7 +7421,6 @@
       "ask_zh": "我想把这个试点写成一个案例。",
       "freq": "when the company seeks a public customer case study; not every launch",
       "freq_zh": "仅在公司准备公开客户案例时；不是每次发布都发生",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "rachel_kim",
         "stephen_kowalczyk",
@@ -7613,7 +7550,6 @@
       "ask_zh": "给我一个能放在发布页上的效果数字。",
       "freq": "when a public launch asset proposes a numerical customer or clinical outcome claim",
       "freq_zh": "公开发布材料拟使用客户或临床 outcome 数字时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "sunil_rao",
         "dr_maya_patel",
@@ -7740,7 +7676,6 @@
       "ask_zh": "有记者在问我们医疗这块的进展。我能说什么？",
       "freq": "a few times a year",
       "freq_zh": "一年几次",
-      "topology": "A→{B,C}",
       "participants": [
         "sarah_martinez",
         "rachel_kim"
@@ -7862,7 +7797,6 @@
       "ask_zh": "他们 CMIO 说愿意来我们用户大会讲一讲。这个可以吗？",
       "freq": "when a customer clinician is proposed as a public speaker",
       "freq_zh": "仅在客户机构的临床人员被提议公开演讲时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "naomi_adeyemi",
         "stephen_kowalczyk",
@@ -7990,7 +7924,6 @@
       "ask_zh": "今天要跑工资，而这个月多了一个新人。",
       "freq": "each payroll cycle; a new starter is present only in some cycles",
       "freq_zh": "每个工资周期；只有部分周期包含新员工",
-      "topology": "A→{B,C}",
       "participants": [
         "sarah_martinez",
         "alex_chen"
@@ -8111,7 +8044,6 @@
       "ask_zh": "把这个月结掉。",
       "freq": "monthly",
       "freq_zh": "每月",
-      "topology": "A→{B,C}",
       "participants": [
         "hannah_brix",
         "sarah_martinez"
@@ -8225,7 +8157,6 @@
       "ask_zh": "这个月现金比模型紧。有三张发票到期。",
       "freq": "during cash-constrained periods when payment prioritisation is required",
       "freq_zh": "现金紧张且需要付款优先级取舍时",
-      "topology": "A→{B,C}",
       "participants": [
         "sarah_martinez",
         "elena_park"
@@ -8347,7 +8278,6 @@
       "ask_zh": "FY27 预测在给董事会看之前要重做。",
       "freq": "quarterly",
       "freq_zh": "每季度",
-      "topology": "A→{B,C,D}",
       "participants": [
         "rachel_kim",
         "alex_chen",
@@ -8462,7 +8392,6 @@
       "ask_zh": "IT 资本计划实际花了多少？",
       "freq": "monthly",
       "freq_zh": "每月",
-      "topology": "A→{B,C}",
       "participants": [
         "dmitri_sokolov",
         "bea_ferreira"
@@ -8583,7 +8512,6 @@
       "ask_zh": "银行对账有一笔差异我解释不了。这三笔是什么？",
       "freq": "when standard bank reconciliation leaves an unexplained variance",
       "freq_zh": "仅在标准银行对账后仍有无法解释的差异时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "carlos_reyes",
         "elena_park",
@@ -8727,7 +8655,6 @@
       "ask_zh": "把爸的照护情况整理一下，让我们三个看的是同一份东西。",
       "freq": "monthly",
       "freq_zh": "每月",
-      "topology": "A→{B,C,D}",
       "participants": [
         "linda_chen",
         "sophie_chen",
@@ -8850,7 +8777,6 @@
       "ask_zh": "婚礼这边到哪一步了？我已经搞不清什么定了什么没定。",
       "freq": "weekly for six months",
       "freq_zh": "连着六个月每周",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alex_chen",
         "linda_chen",
@@ -8972,7 +8898,6 @@
       "ask_zh": "我下周上夜班。周二谁能带爸去？",
       "freq": "monthly",
       "freq_zh": "每月",
-      "topology": "A→{B,C}",
       "participants": [
         "alex_chen",
         "sophie_chen"
@@ -9086,7 +9011,6 @@
       "ask_zh": "妈一直在问爸的检查结果，我不知道她被告知了多少。",
       "freq": "recurring in any family illness",
       "freq_zh": "任何家庭疾病中反复发生",
-      "topology": "A→{B,C}",
       "participants": [
         "linda_chen",
         "david_chen"
@@ -9208,7 +9132,6 @@
       "ask_zh": "我们的模型供应商换了。这会不会影响已经签掉的那些？",
       "freq": "when an already-enabled provider or subprocessor change may conflict with existing commitments",
       "freq_zh": "已启用的 provider/subprocessor 变更可能冲突现有承诺时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "sarah_martinez",
@@ -9332,7 +9255,6 @@
       "ask_zh": "他们财务说我们的发票跟采购单对不上。",
       "freq": "occasionally for active customers using PO billing when scope and PO disagree",
       "freq_zh": "使用 PO billing 的活跃客户在 scope 与 PO 不一致时偶发",
-      "topology": "A→{B,C}",
       "participants": [
         "rachel_kim",
         "dmitri_sokolov"
@@ -9456,7 +9378,6 @@
       "ask_zh": "这次发版把试点病区搞挂了。我现在要回滚。",
       "freq": "several times a year",
       "freq_zh": "一年几次",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alex_chen",
         "mike_torres",
@@ -9600,7 +9521,6 @@
       "ask_zh": "Jake 的实习六周后结束。转不转正？",
       "freq": "every intern cohort",
       "freq_zh": "每一批实习生",
-      "topology": "A→{B,C,D}",
       "participants": [
         "mike_torres",
         "sarah_martinez",
@@ -9722,7 +9642,6 @@
       "ask_zh": "爸周五出院，头几天不能一个人待着。",
       "freq": "per hospital episode",
       "freq_zh": "每次住院",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alex_chen",
         "sophie_chen",
@@ -9845,7 +9764,6 @@
       "ask_zh": "季度权限复核。每一条生产权限都要负责人确认还需不需要。",
       "freq": "periodically under TechFlow's documented access-review control; exact cadence requires a control source",
       "freq_zh": "按 TechFlow 已记录的权限复核控制定期触发；具体周期需控制文件佐证",
-      "topology": "A→{B,C,D,E,F,G,H}",
       "participants": [
         "alex_chen",
         "mike_torres",
@@ -9979,7 +9897,6 @@
       "ask_zh": "在接下来六周里找一天全公司能凑在一个屋子里。",
       "freq": "quarterly",
       "freq_zh": "每季度",
-      "topology": "A→{B,C,D,E,F,G,H,I,J,K,L,M,N,O}",
       "participants": [
         "sarah_martinez",
         "alex_chen",
@@ -10125,7 +10042,6 @@
       "ask_zh": "版本已经发出去了才发现问题。到底哪些客户受影响？",
       "freq": "several times a year",
       "freq_zh": "一年几次",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "priya_sharma",
         "mike_torres",
@@ -10251,7 +10167,6 @@
       "ask_zh": "明年的人员规划。每个职能告诉我他们要什么、为什么。",
       "freq": "annually",
       "freq_zh": "每年",
-      "topology": "A→{B,C,D,E,F,G}",
       "participants": [
         "alex_chen",
         "tina_rodriguez",
@@ -10382,7 +10297,6 @@
       "ask_zh": "第三方标准改了。所有对接供应商的人都要确认自家供应商还合不合规。",
       "freq": "annually, or after any standard revision",
       "freq_zh": "每年，或标准修订后",
-      "topology": "A→{B,C,D,E,F}",
       "participants": [
         "stephen_kowalczyk",
         "dmitri_sokolov",
@@ -10509,7 +10423,6 @@
       "ask_zh": "我周一入职，一个人都不认识。搞清楚我到底该认识谁、每个人是干什么的。",
       "freq": "once per new engineer before start, when a named contact plan is required",
       "freq_zh": "每位新工程师入职前一次；仅在需要明确联系人计划时",
-      "topology": "A→{B,C,D,E,F}",
       "participants": [
         "alex_chen",
         "tom_bradford",
@@ -10641,7 +10554,6 @@
       "ask_zh": "我要改发布流水线里的一个东西，完全不知道该找谁。",
       "freq": "several times or as needed during a new engineer's first month",
       "freq_zh": "新工程师首月按需，通常数次",
-      "topology": "A→{B,C}",
       "participants": [
         "priya_sharma",
         "alex_chen"
@@ -10754,7 +10666,6 @@
       "ask_zh": "没人告诉我我到底该做什么。",
       "freq": "every hire, first week",
       "freq_zh": "每次招聘的第一周",
-      "topology": "A→{B,C,D}",
       "participants": [
         "tina_rodriguez",
         "tom_bradford",
@@ -10867,7 +10778,6 @@
       "ask_zh": "这儿什么事该谁签字？",
       "freq": "once for a new hire's first reimbursement, or when the expense falls outside policy",
       "freq_zh": "新员工首次报销一次；或费用超出政策时触发",
-      "topology": "A→{B,C,D}",
       "participants": [
         "jake_ellis",
         "alex_chen",
@@ -10984,7 +10894,6 @@
       "ask_zh": "Maria 周一来接搜索这块。做一份像样的交接。",
       "freq": "every hire and every departure",
       "freq_zh": "每次入职和离职",
-      "topology": "A→{B,C,D}",
       "participants": [
         "tom_bradford",
         "tina_rodriguez",
@@ -11105,7 +11014,6 @@
       "ask_zh": "我问了一个人，他让我去问另一个，那个人又把我推回来了。",
       "freq": "occasionally during onboarding when sandbox ownership or approval is unclear",
       "freq_zh": "入职期间偶发；仅在 sandbox 的 owner 或审批路径不清时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alex_chen",
         "priya_sharma",
@@ -11233,7 +11141,6 @@
       "ask_zh": "我们要来一个新的临床信息学专员。临床这边他需要认识谁？",
       "freq": "every clinical hire",
       "freq_zh": "每次临床招聘",
-      "topology": "A→{B,C,D,E,F}",
       "participants": [
         "kenji_matsuda",
         "dr_ivy_banerjee",
@@ -11358,7 +11265,6 @@
       "ask_zh": "Maria 入职三十天了。把她实际情况整理一下。",
       "freq": "once in the final week before a confirmed hire starts",
       "freq_zh": "已确认录用的新员工入职前最后一周一次",
-      "topology": "A→{B,C,D}",
       "participants": [
         "maria_garcia",
         "priya_sharma",
@@ -11481,7 +11387,6 @@
       "ask_zh": "月度拒付复核。他们那条 edit rule 一直在扣我们的钱，我要把它抬到合同层面。",
       "freq": "when a disputed edit creates a material contract escalation; not every monthly denial review",
       "freq_zh": "仅在争议 edit 形成重大合同升级时；不是每月 denial review 都触发",
-      "topology": "A→{B,C,D}",
       "participants": [
         "lorraine_pike",
         "grace_okonkwo",
@@ -11606,7 +11511,6 @@
       "ask_zh": "委员会想把试点结果数字给外部看。走一遍放行流程。",
       "freq": "quarterly during any pilot",
       "freq_zh": "任何试点期间每季度",
-      "topology": "A→{B,C}",
       "participants": [
         "sunil_rao",
         "grace_okonkwo"
@@ -11728,7 +11632,6 @@
       "ask_zh": "写回接口的提交到了。走认证流程。",
       "freq": "every third-party integration",
       "freq_zh": "每个第三方集成",
-      "topology": "A→{B,C,D}",
       "participants": [
         "raj_venkatesan",
         "kenji_matsuda",
@@ -11852,7 +11755,6 @@
       "ask_zh": "夜班被临床系统锁在外面，经理联系不上，而承包商就站在旁边。",
       "freq": "low-frequency, high-impact compound incident; requires local 24/7 operations data",
       "freq_zh": "低频高影响的复合事件；需本地 24/7 运营数据验证",
-      "topology": "A→{B,C}",
       "participants": [
         "oskar_reinhardt",
         "wes_arnold"
@@ -11965,7 +11867,6 @@
       "ask_zh": "工地又跟她的委员会撞上了。把这周排开。",
       "freq": "repeatedly during peak periods for this specific two-career household",
       "freq_zh": "该双职工家庭在高峰期反复发生",
-      "topology": "A→{B,C}",
       "participants": [
         "naomi_adeyemi",
         "patrick_nwosu"
@@ -12089,7 +11990,6 @@
       "ask_zh": "有猎头找我。我什么都还没决定，也不想让这事传出去。",
       "freq": "when an approved confidential leadership search is opened",
       "freq_zh": "仅在获批的保密管理岗位招聘启动时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alex_chen",
         "bryce_holloway",
@@ -12215,7 +12115,6 @@
       "ask_zh": "抗凝治疗 alert 触发过于频繁。",
       "freq": "when alert performance crosses an agreed safety or burden threshold",
       "freq_zh": "当 alert 表现超过既定安全或负担阈值时",
-      "topology": "A→{B,C,D,E,F}",
       "participants": [
         "dr_ivy_banerjee",
         "leah_brooks",
@@ -12341,7 +12240,6 @@
       "ask_zh": "上次 downtime 演练使用了过期表单。",
       "freq": "after a drill finds a material procedure or form gap",
       "freq_zh": "演练发现重大流程或表单缺口后",
-      "topology": "A→{B,C,D}",
       "participants": [
         "kenji_matsuda",
         "dr_ivy_banerjee",
@@ -12465,7 +12363,6 @@
       "ask_zh": "研究合作方请求 outcome 数据。",
       "freq": "per external research or public outcome extract request",
       "freq_zh": "每次外部研究或公开 outcome 数据请求",
-      "topology": "A→{B,C,D}",
       "participants": [
         "sunil_rao",
         "grace_okonkwo",
@@ -12591,7 +12488,6 @@
       "ask_zh": "完成 SOC 2 的 complementary user-entity-control 和 subservice organisation 证据请求。",
       "freq": "once per audit period when these control dependencies are in scope",
       "freq_zh": "每个审计周期一次；仅在这些控制依赖属于范围时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "elena_park",
@@ -12715,7 +12611,6 @@
       "ask_zh": "关账期间，一份客户 amendment 已商业同意但未签署。",
       "freq": "when close encounters an unsigned amendment that could change recognition",
       "freq_zh": "关账遇到可能影响收入确认的未签 amendment 时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "carlos_reyes",
         "rachel_kim",
@@ -12841,7 +12736,6 @@
       "ask_zh": "年度 EHR 升级导致 synthetic sandbox 的 write-back 失效。",
       "freq": "per annual EHR release when regression testing finds a material integration failure",
       "freq_zh": "每次年度 EHR 发布中，回归测试发现重大集成故障时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "raj_venkatesan",
         "kenji_matsuda",
@@ -12966,7 +12860,6 @@
       "ask_zh": "在不影响门诊的前提下退役 legacy scheduling 接口及其人工 workaround。",
       "freq": "once per legacy interface retirement",
       "freq_zh": "每次 legacy 接口退役一次",
-      "topology": "A→{B,C,D}",
       "participants": [
         "clara_lindqvist",
         "raj_venkatesan",
@@ -13091,7 +12984,6 @@
       "ask_zh": "工单要求 MSP 重置合同范围外的特权服务账号。",
       "freq": "when a work order requests privileged action outside MSP scope",
       "freq_zh": "工单要求 MSP 执行合同范围外的特权操作时",
-      "topology": "A→{B,C}",
       "participants": [
         "bea_ferreira",
         "wes_arnold"
@@ -13214,7 +13106,6 @@
       "ask_zh": "终端更新时，MSP 发现一台使用不受支持临床镜像的设备。",
       "freq": "when endpoint refresh discovers an unsupported or unsafe clinical build",
       "freq_zh": "终端更新发现不受支持或不安全的临床 build 时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "oskar_reinhardt",
         "wes_arnold",
@@ -13339,7 +13230,6 @@
       "ask_zh": "谈判 EHR 升级 SOW，在签署前明确认证、接口回归支持、变更控制和预算审批。",
       "freq": "per material EHR upgrade or renewal statement of work",
       "freq_zh": "每份重大 EHR 升级或续约 SOW",
-      "topology": "A→{B,C,D}",
       "participants": [
         "dmitri_sokolov",
         "clara_lindqvist",
@@ -13467,7 +13357,6 @@
       "ask_zh": "夜班临床人员反复报告病历超时。",
       "freq": "when repeated access failures create a material clinical-safety concern",
       "freq_zh": "重复访问故障形成重大临床安全风险时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "dr_ivy_banerjee",
         "rosa_delgado",
@@ -13594,7 +13483,6 @@
       "ask_zh": "在短工作周内上线临床工作流变更，同时不得降低安全 staffing。",
       "freq": "when a material clinical change must launch during a constrained staffing period",
       "freq_zh": "重大临床变更必须在 staffing 受限期间上线时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "rosa_delgado",
         "dr_ivy_banerjee",
@@ -13719,7 +13607,6 @@
       "ask_zh": "一名员工今天 16:00 被正式解雇。",
       "freq": "when an involuntary termination is approved; no cadence asserted",
       "freq_zh": "非自愿解雇获批时触发；不声称固定频率",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "carlos_reyes",
@@ -13867,7 +13754,6 @@
       "ask_zh": "安全团队已确认 PHI 离开环境。",
       "freq": "when an incident is confirmed to involve PHI leaving the controlled environment",
       "freq_zh": "确认事件涉及 PHI 离开受控环境时触发",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "nora_fields",
         "farida_haddad",
@@ -14013,7 +13899,6 @@
       "ask_zh": "一项离职员工争议现在需要 Legal Hold。",
       "freq": "when litigation is pending or reasonably anticipated and counsel defines a matter-specific hold",
       "freq_zh": "诉讼已发生或可合理预期，且律师界定具体 Legal Hold 时触发",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "marcus_webb",
@@ -14141,7 +14026,6 @@
       "ask_zh": "扫描器在互联网暴露的临床网关上发现严重漏洞。",
       "freq": "when a critical finding affects an exposed production asset",
       "freq_zh": "严重发现影响暴露的生产资产时触发",
-      "topology": "A→{B,C,D}",
       "participants": [
         "farida_haddad",
         "bea_ferreira",
@@ -14266,7 +14150,6 @@
       "ask_zh": "一次 IT 服务恢复演练中，门诊排班未达到恢复时间目标。",
       "freq": "after a continuity exercise or material architecture change exposes a recovery gap",
       "freq_zh": "业务连续性演练或重大架构变更暴露恢复缺口后触发",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "farida_haddad",
         "bea_ferreira",
@@ -14394,7 +14277,6 @@
       "ask_zh": "TechFlow 调查显示 Kestrel PHI 可能离开了批准边界。",
       "freq": "when a TechFlow incident may involve Kestrel PHI or triggers the BAA notice clause",
       "freq_zh": "TechFlow 事件可能涉及 Kestrel PHI 或触发 BAA 通知条款时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "elena_park",
         "nora_fields",
@@ -14524,7 +14406,6 @@
       "ask_zh": "一个拟议 subprocessor 下月将处理 Kestrel 数据。",
       "freq": "when a new or materially changed subprocessor would receive customer data",
       "freq_zh": "新增或重大变更的 subprocessor 将接收客户数据时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "nora_fields",
@@ -14651,7 +14532,6 @@
       "ask_zh": "TechFlow 服务即将终止。",
       "freq": "when a service handling PHI terminates or a BAA return-or-destruction duty is activated",
       "freq_zh": "处理 PHI 的服务终止或 BAA 返还/销毁义务被触发时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "elena_park",
         "priya_sharma",
@@ -14780,7 +14660,6 @@
       "ask_zh": "一名员工周一更换岗位和经理。",
       "freq": "when an approved role, manager, location, or employment-status change affects access or People Ops records",
       "freq_zh": "已批准的岗位、经理、地点或雇佣状态变化影响权限或 People Ops 记录时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "alex_chen",
@@ -14907,7 +14786,6 @@
       "ask_zh": "药品短缺迫使临时更换 formulary。",
       "freq": "when a shortage or formulary change requires a temporary medication-workflow substitution",
       "freq_zh": "短缺或 formulary 变化需要临时替代用药流程时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "kenji_matsuda",
         "dr_ivy_banerjee",
@@ -15033,7 +14911,6 @@
       "ask_zh": "一项安全例外 14 天后到期。",
       "freq": "when an exception reaches its review or expiry window, or its owner or compensating control changes",
       "freq_zh": "安全例外进入复核/到期窗口，或 owner/补偿控制发生变化时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "wes_arnold",
         "bea_ferreira",
@@ -15160,7 +15037,6 @@
       "ask_zh": "患者质疑一条过敏记录。",
       "freq": "when a patient submits a valid request to amend a designated record",
       "freq_zh": "患者有效提交指定记录更正请求时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "dr_ivy_banerjee",
         "grace_okonkwo",
@@ -15284,7 +15160,6 @@
       "ask_zh": "一份 subpoena 要求四个工作日内提供五年病历。",
       "freq": "when a legal demand for records is received",
       "freq_zh": "收到病历法律要求时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "helen_vasquez",
         "grace_okonkwo",
@@ -15408,7 +15283,6 @@
       "ask_zh": "一位家长请求访问青少年 portal。",
       "freq": "when a proxy-access request involves age, service, or authority restrictions",
       "freq_zh": "proxy access 请求涉及年龄、服务或授权限制时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alicia_morgan",
         "grace_okonkwo",
@@ -15534,7 +15408,6 @@
       "ask_zh": "两个患者身份被错误合并。",
       "freq": "when a duplicate or merged-record event affects multiple systems",
       "freq_zh": "重复/合并病历事件影响多个系统时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "kenji_matsuda",
         "clara_lindqvist",
@@ -15660,7 +15533,6 @@
       "ask_zh": "运行一次 EHR downtime 桌面演练，测试认证中断、现行纸质表单、用药/医嘱记录、患者安全升级、恢复接受和恢复后核对。",
       "freq": "on the documented exercise calendar and after material downtime-process change",
       "freq_zh": "按已记录的演练日历，以及 downtime 流程重大变化后",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "bea_ferreira",
         "naomi_adeyemi",
@@ -15787,7 +15659,6 @@
       "ask_zh": "TechFlow 中断超过 Kestrel 本地 fallback 阈值。",
       "freq": "when a vendor outage crosses Kestrel's documented continuity threshold",
       "freq_zh": "供应商中断超过 Kestrel 已记录连续性阈值时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "samira_cole",
         "stephen_kowalczyk",
@@ -15912,7 +15783,6 @@
       "ask_zh": "用整改行动计划关闭上次 downtime 演练：列明每个失败能力、责任 owner、截止日、证据、复测方法，以及行动未完成期间被明确接受的风险。",
       "freq": "after every exercise or actual continuity activation that identifies a gap",
       "freq_zh": "每次发现缺口的演练或真实连续性启动后",
-      "topology": "A→{B,C,D}",
       "participants": [
         "aisha_rahman",
         "bea_ferreira",
@@ -16036,7 +15906,6 @@
       "ask_zh": "两个一级服务共享同一恢复团队，无法同时达到恢复目标。",
       "freq": "when constrained recovery resources make declared recovery objectives mutually infeasible",
       "freq_zh": "恢复资源受限导致既定恢复目标无法同时满足时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "daniel_cho",
         "naomi_adeyemi",
@@ -16163,7 +16032,6 @@
       "ask_zh": "一次错误患者用药 near miss 跨越了登记、条码和 EHR 环节。",
       "freq": "when a serious near miss or adverse event meets the patient-safety review threshold",
       "freq_zh": "严重 near miss 或不良事件达到患者安全 review 阈值时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "leah_brooks",
         "dr_ivy_banerjee",
@@ -16288,7 +16156,6 @@
       "ask_zh": "三个病区报告相同的标本标签 near miss。",
       "freq": "when repeated events indicate a cross-unit pattern",
       "freq_zh": "重复事件显示跨病区模式时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "rosa_delgado",
         "patrick_nwosu",
@@ -16412,7 +16279,6 @@
       "ask_zh": "Kestrel 安全 review 显示 TechFlow write-back 行为可能导致用药行动延迟。",
       "freq": "when a customer safety event plausibly involves product behaviour",
       "freq_zh": "客户安全事件可能涉及产品行为时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "aisha_rahman",
         "kenji_matsuda",
@@ -16539,7 +16405,6 @@
       "ask_zh": "一项整改措施已实施 90 天。",
       "freq": "at the documented effectiveness-review date for a material safety action",
       "freq_zh": "重大安全行动到达已记录有效性 review 日期时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "sunil_rao",
         "patrick_nwosu",
@@ -16663,7 +16528,6 @@
       "ask_zh": "为临床系统中断准备并发布 holding statement，使用获批的影响、workaround 和下次更新时间。",
       "freq": "when an operational event meets Kestrel's external or broad-internal communication threshold",
       "freq_zh": "运营事件达到 Kestrel 对外或广泛内部沟通阈值时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "stephen_kowalczyk",
         "farida_haddad",
@@ -16787,7 +16651,6 @@
       "ask_zh": "一项 breach 判定需要患者通知。",
       "freq": "when the accountable Privacy Office determines individual notification is required",
       "freq_zh": "责任 Privacy Office 判定需要个人通知时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "meghan_osei",
         "nora_fields",
@@ -16911,7 +16774,6 @@
       "ask_zh": "服务中断改变两个站点门诊时间。",
       "freq": "when a disruption materially changes patient-facing service availability",
       "freq_zh": "中断实质改变面向患者的服务可用性时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "daniel_cho",
         "patrick_nwosu",
@@ -17035,7 +16897,6 @@
       "ask_zh": "运行 Kestrel 三个系统的定期访问复核 campaign。",
       "freq": "on Kestrel's documented access-review control calendar",
       "freq_zh": "按 Kestrel 已记录的访问复核控制日历",
-      "topology": "A→{B,C,D}",
       "participants": [
         "stephen_kowalczyk",
         "bea_ferreira",
@@ -17159,7 +17020,6 @@
       "ask_zh": "事件后 review 一次紧急特权访问。",
       "freq": "after every use of the documented emergency privileged-access mechanism",
       "freq_zh": "每次使用已记录的紧急特权访问机制后",
-      "topology": "A→{B,C,D}",
       "participants": [
         "wes_arnold",
         "bea_ferreira",
@@ -17283,7 +17143,6 @@
       "ask_zh": "一名门诊经理更换岗位与站点。",
       "freq": "when an approved mover event changes role, manager, site, or access prerequisites",
       "freq_zh": "获批 mover 事件改变岗位、经理、站点或权限前提时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "patrick_nwosu",
         "nora_fields",
@@ -17407,7 +17266,6 @@
       "ask_zh": "MSP 承包商任务周五结束，但紧急更新工作延续到周一。",
       "freq": "when contractor access approaches expiry while work is still requested",
       "freq_zh": "承包商权限临近到期但仍被请求继续工作时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "oskar_reinhardt",
         "bea_ferreira",
@@ -17533,7 +17391,6 @@
       "ask_zh": "Kestrel 报告高影响 timeout。",
       "freq": "when a customer report meets the documented incident-severity threshold",
       "freq_zh": "客户报告达到已记录事件 severity 阈值时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "priya_sharma",
         "omar_hassan",
@@ -17658,7 +17515,6 @@
       "ask_zh": "六张客户 ticket 使用相同 timeout workaround。",
       "freq": "when repeated incidents meet TechFlow's problem-management trigger",
       "freq_zh": "重复事件达到 TechFlow problem management 触发条件时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "mike_torres",
         "priya_sharma",
@@ -17782,7 +17638,6 @@
       "ask_zh": "计划发布前，可靠性已超过约定 error budget。",
       "freq": "when the documented reliability threshold is breached before a material release",
       "freq_zh": "重大发布前超过已记录可靠性阈值时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "alex_chen",
@@ -17906,7 +17761,6 @@
       "ask_zh": "一次 qualifying life event 需要更改福利。",
       "freq": "when an employee reports a qualifying life event within the plan window",
       "freq_zh": "员工在计划期限内报告 qualifying life event 时",
-      "topology": "A→{B,C}",
       "participants": [
         "monica_alvarez",
         "carlos_reyes"
@@ -18031,7 +17885,6 @@
       "ask_zh": "一项 leave case 已需雇主行动。",
       "freq": "when a leave-administration case requires employer input or an operational handoff",
       "freq_zh": "休假管理 case 需要雇主输入或运营交接时",
-      "topology": "A→{B,C}",
       "participants": [
         "carlos_reyes",
         "elena_park"
@@ -18154,7 +18007,6 @@
       "ask_zh": "工资、HRIS 和 carrier 对一名员工福利生效日不一致。",
       "freq": "when eligibility, carrier and payroll records do not reconcile",
       "freq_zh": "资格、carrier 与工资记录无法对账时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "monica_alvarez",
         "hannah_brix",
@@ -18298,7 +18150,6 @@
       "ask_zh": "出院后，请把我的用药清单与家庭医生和出院说明核对。",
       "freq": "after a discharge or material medication change when the patient requests help",
       "freq_zh": "出院或重大用药变化后，且患者请求帮助时",
-      "topology": "A→{B,C}",
       "participants": [
         "dr_paul_mensah",
         "linda_chen"
@@ -18423,7 +18274,6 @@
       "ask_zh": "恢复训练前，请取得我的同意，并只向家庭医生询问 Ryan 所需的功能限制。",
       "freq": "when a client requests return-to-exercise coordination after a health change",
       "freq_zh": "客户在健康变化后请求恢复训练协调时",
-      "topology": "A→{B,C}",
       "participants": [
         "dr_paul_mensah",
         "ryan_park"
@@ -18566,7 +18416,6 @@
       "ask_zh": "围绕共同家庭日历协调一个定期私人预约。",
       "freq": "when the client asks to coordinate a private appointment with household commitments",
       "freq_zh": "client 请求把私人预约与家庭安排协调时",
-      "topology": "A→{B,C}",
       "participants": [
         "dr_karen_walsh",
         "jamie_lin"
@@ -18689,7 +18538,6 @@
       "ask_zh": "David 希望我未来两个月协助预约。",
       "freq": "when a patient asks a family member to help with care coordination",
       "freq_zh": "患者请求家属协助照护协调时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "david_chen",
         "dr_paul_mensah",
@@ -18815,7 +18663,6 @@
       "ask_zh": "一名员工今天正式离职。",
       "freq": "when an authorised employee separation reaches its effective date",
       "freq_zh": "当已批准的员工离职到达生效日时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "sarah_martinez",
         "lisa_nakamura",
@@ -18942,7 +18789,6 @@
       "ask_zh": "供应商在一笔重大付款前两天要求更改银行账户。",
       "freq": "when a supplier requests a bank-detail change before payment",
       "freq_zh": "当供应商在付款前请求更改银行信息时",
-      "topology": "A→{B,C}",
       "participants": [
         "carlos_reyes",
         "sarah_martinez"
@@ -19083,7 +18929,6 @@
       "ask_zh": "某项 SOC 2 控制在审计期内失败。",
       "freq": "when audit testing identifies a control exception requiring remediation or retest",
       "freq_zh": "当审计测试发现需要整改或复测的控制例外时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "priya_sharma",
         "elena_park",
@@ -19207,7 +19052,6 @@
       "ask_zh": "一项有效删除请求涉及可能同时受诉讼保全约束的数据。",
       "freq": "when a valid deletion request intersects with retention or legal-hold obligations",
       "freq_zh": "当有效删除请求与保留或诉讼保全义务发生交叉时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "alicia_morgan",
         "helen_vasquez",
@@ -19329,7 +19173,6 @@
       "ask_zh": "一次计划恢复测试发现备份虽成功，但关键门诊服务无法在目标时间内恢复。",
       "freq": "when a scheduled restore test or actual recovery attempt misses its approved recovery target",
       "freq_zh": "当计划恢复测试或实际恢复未达到批准的恢复目标时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "stephen_kowalczyk",
         "bea_ferreira",
@@ -19454,7 +19297,6 @@
       "ask_zh": "一项紧急治疗因支付方授权要求而延迟。",
       "freq": "when a payer authorisation delay creates a documented risk to timely treatment",
       "freq_zh": "当支付方授权延误对及时治疗形成有记录的风险时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "lorraine_pike",
         "patrick_nwosu",
@@ -19580,7 +19422,6 @@
       "ask_zh": "一项药品召回或短缺影响现有医嘱。",
       "freq": "when a recall, shortage, or safety alert affects medication currently stocked or ordered",
       "freq_zh": "当召回、短缺或安全警报影响当前库存或已开立药品时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "dr_ivy_banerjee",
         "rosa_delgado",
@@ -19705,7 +19546,6 @@
       "ask_zh": "监测发现关键检验结果被路由到停用收件箱。",
       "freq": "when monitoring or an event reveals unacknowledged critical results or a failed results-routing queue",
       "freq_zh": "当监测或事件发现未确认的关键结果或结果路由队列失败时",
-      "topology": "A→{B,C,D,E,F}",
       "participants": [
         "dr_ivy_banerjee",
         "kenji_matsuda",
@@ -19831,7 +19671,6 @@
       "ask_zh": "Kestrel 试用的 TechFlow 临床决策支持模型越过了已记录的安全阈值。请决定恢复正常使用前应如何处理。",
       "freq": "when an in-scope clinically material model crosses its documented post-release performance or safety threshold",
       "freq_zh": "当范围内具有临床影响的模型超过书面上线后性能或安全阈值时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "aisha_rahman",
         "naomi_adeyemi",
@@ -19974,7 +19813,6 @@
       "ask_zh": "一名员工的工作许可文件接近记录的到期日。",
       "freq": "when an employment-authorisation record reaches the organisation's documented action window",
       "freq_zh": "当工作许可记录进入组织规定的处理时间窗时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "anita_krishnan",
         "elena_park",
@@ -20098,7 +19936,6 @@
       "ask_zh": "一名候选人退出保密招聘并询问其数据将如何处理。",
       "freq": "when a candidate withdraws and makes a valid data-retention, correction, or deletion request",
       "freq_zh": "当候选人退出并提出有效的数据保留、更正或删除请求时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "carlos_reyes",
         "elena_park",
@@ -20224,7 +20061,6 @@
       "ask_zh": "一项患者端流程在发布前不久未通过无障碍 review。",
       "freq": "when a material patient-facing accessibility barrier is found before or after release",
       "freq_zh": "当患者端功能在发布前后发现重大无障碍障碍时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "derek_lam",
         "dr_maya_patel",
@@ -20349,7 +20185,6 @@
       "ask_zh": "一名患者提交正式书面申诉，指称诊疗延误和沟通不佳。",
       "freq": "when a patient or representative submits a formal grievance that cannot be resolved at the point of service",
       "freq_zh": "当患者或代理人提交无法在服务现场解决的正式申诉时",
-      "topology": "A→{B,C,D,E}",
       "participants": [
         "aisha_rahman",
         "grace_okonkwo",
@@ -20474,7 +20309,6 @@
       "ask_zh": "一名执业人员需要在现有期限届满前续展 privileges。",
       "freq": "when a practitioner appointment or privilege term enters the documented renewal window",
       "freq_zh": "当执业人员任命或 privilege 期限进入书面续展窗口时",
-      "topology": "A→{B,C,D}",
       "participants": [
         "naomi_adeyemi",
         "helen_vasquez",

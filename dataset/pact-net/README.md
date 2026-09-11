@@ -139,8 +139,8 @@ contact graph's inbound edges and equal to what `grants.json` covers; every inbo
 requester having a matrix row; every skill on a card resolving to an account in
 `systems.json`; every `type: grants` boundary matching `approves`; and every task naming a
 real agent with at least two principals and no dyads. It also checks task-pack closure,
-canonical topology against participant count, direct and relay discovery reachability, and
-exact reproduction of every derived `candidates_visible` value. The legacy `discover`
+direct and relay discovery reachability, that no task carries a stored `topology` field,
+and exact reproduction of every derived `candidates_visible` value. The legacy `discover`
 field is retained only as a declared alias of `relay_discover` for runner compatibility.
 
 Current state: **60 agents, 166 tasks, 0 structural failures.** The ordinary consistency
