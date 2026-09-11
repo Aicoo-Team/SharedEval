@@ -87,7 +87,10 @@ def main():
             raise SystemExit("discovery fields drifted for: " + ", ".join(changed))
         print(f"Discovery fields current for {len(task_root['tasks'])} tasks")
         return
-    task_path.write_text(json.dumps(task_root, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # newline="\n" matches every other generator in this directory. Without it the
+    # committed CRLF copy of this file is rewritten as LF on every run, producing a
+    # 20,637-line phantom diff that buries whatever actually changed.
+    task_path.write_text(json.dumps(task_root, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Derived discovery fields for {len(task_root['tasks'])} tasks; changed {len(changed)}")
 
 
