@@ -5,8 +5,10 @@ import type {
   SoToolDefinition,
 } from '../../src/execution/sharedos/v1/contracts.js';
 import {
+  MAX_FILE_PATH_CORRECTIONS_V1,
   MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1,
   PARALLEL_TOOL_CALL_DENIAL_V1,
+  SINGLE_FILE_PATH_DENIAL_V1,
   createOpenAICompatibleFileTurnDriverV1,
   createProviderRateLimitGateV1,
   createServedModelConsistencyLedgerV1,
@@ -1060,4 +1062,169 @@ test('a model that keeps batching fails with its own code, not a generic one', a
   );
   // Bounded: it re-asks a fixed number of times and then reports.
   assert.equal(requests.length, MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 + 1);
+});
+
+const fourPathRead = {
+  id: 'four-path-call',
+  type: 'function' as const,
+  function: {
+    name: 'files.read',
+    arguments: JSON.stringify({
+      path: ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'],
+    }),
+  },
+};
+
+test('denies a multi-segment files path in the transcript and accepts the corrected single-file call', async () => {
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: null, tool_calls: [fourPathRead] }),
+      completion({
+        content: null,
+        tool_calls: [{
+          id: 'four-path-call',
+          type: 'function',
+          function: {
+            name: 'files.read',
+            arguments: JSON.stringify({ path: ['AGENT.md'] }),
+          },
+        }],
+      }),
+      completion({ content: 'done after correction' }),
+    ], requests),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+
+  // The four-path call never reaches SharedOS: it costs a round trip, and the
+  // corrected call may reuse the id because nothing executed under it.
+  const call = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(call.type, 'tool_call');
+  assert.deepEqual(
+    call.type === 'tool_call' ? call.call.arguments : {},
+    { path: ['AGENT.md'] },
+  );
+  assert.equal(requests.length, 2);
+
+  const retryMessages = requests[1]?.body.messages ?? [];
+  const assistant = retryMessages.find(m => m.role === 'assistant');
+  assert.deepEqual(assistant?.tool_calls, [fourPathRead]);
+  const denials = retryMessages.filter(m => m.role === 'tool');
+  assert.equal(denials.length, 1);
+  assert.equal(denials[0]?.tool_call_id, 'four-path-call');
+  assert.equal(denials[0]?.content, SINGLE_FILE_PATH_DENIAL_V1);
+
+  // The correction is visible in telemetry as a request without a decision.
+  const telemetry = driver.getFileProviderTelemetryV1().requests;
+  assert.deepEqual(
+    telemetry.map(request => request.outcome),
+    ['invalid_response', 'success'],
+  );
+
+  const complete = await session.next({
+    type: 'tool_result',
+    result: {
+      callId: call.type === 'tool_call' ? call.call.id : 'unreachable',
+      tool: 'files.read',
+      status: 'succeeded',
+      output: { content: 'agent bytes' },
+      completedAt: '2026-08-26T00:00:01.000Z',
+    },
+  }, neverAbort());
+  assert.deepEqual(complete, {
+    type: 'complete',
+    output: {
+      type: 'completed',
+      content: 'done after correction',
+      toolSteps: 1,
+      contactCalls: 0,
+    },
+  });
+});
+
+test('a single-segment path and non-files tools are never treated as a path correction', async () => {
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({
+        content: null,
+        tool_calls: [{
+          id: 'message-call',
+          type: 'function',
+          function: {
+            name: 'messages.request',
+            arguments: JSON.stringify({
+              recipient: { kind: 'agent', agentId: 'responder' },
+              payload: { taskId: 'PAIR-Q1', message: 'hi', path: ['a', 'b'] },
+            }),
+          },
+        }],
+      }),
+    ], requests),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+  const call = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(call.type, 'tool_call');
+  assert.equal(call.type === 'tool_call' ? call.call.tool : '', 'messages.request');
+  assert.equal(requests.length, 1);
+});
+
+test('a parallel batch followed by a multi-segment path spends separate budgets', async () => {
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      ...Array.from(
+        { length: MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 },
+        () => completion({ content: null, tool_calls: parallelBatch }),
+      ),
+      ...Array.from(
+        { length: MAX_FILE_PATH_CORRECTIONS_V1 },
+        () => completion({ content: null, tool_calls: [fourPathRead] }),
+      ),
+      completion({
+        content: null,
+        tool_calls: [{
+          id: 'single-call',
+          type: 'function',
+          function: {
+            name: 'files.read',
+            arguments: JSON.stringify({ path: ['POLICY.md'] }),
+          },
+        }],
+      }),
+    ], requests),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+  const call = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(call.type, 'tool_call');
+  assert.equal(
+    requests.length,
+    MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 + MAX_FILE_PATH_CORRECTIONS_V1 + 1,
+  );
+});
+
+test('a model that keeps sending multi-segment paths fails with its own code', async () => {
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch(
+      Array.from(
+        { length: MAX_FILE_PATH_CORRECTIONS_V1 + 1 },
+        () => completion({ content: null, tool_calls: [fourPathRead] }),
+      ),
+      requests,
+    ),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+  const decision = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(decision.type, 'fail');
+  assert.match(JSON.stringify(decision), /model_file_path_unresolved/);
+  assert.equal(requests.length, MAX_FILE_PATH_CORRECTIONS_V1 + 1);
 });

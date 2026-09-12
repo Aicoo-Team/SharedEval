@@ -126,12 +126,50 @@ export const PARALLEL_TOOL_CALL_DENIAL_V1 =
   'This runtime executes one tool call per assistant turn. None of the calls '
   + 'in that turn were executed. Issue a single tool call.';
 
-type ParallelToolCallCorrectionV1 = Readonly<{ corrected: true }>;
+/**
+ * How many consecutive multi-segment file paths are denied and re-asked before
+ * the turn fails. Separate from the parallel budget on purpose: the observed
+ * sequence is one parallel batch, then one four-path call, then single reads,
+ * and folding both into one counter would fail that turn on its third step.
+ */
+export const MAX_FILE_PATH_CORRECTIONS_V1 = 2;
 
-function isParallelToolCallCorrection(
-  outcome: SoTurnDecision | ParallelToolCallCorrectionV1,
-): outcome is ParallelToolCallCorrectionV1 {
-  return (outcome as ParallelToolCallCorrectionV1).corrected === true;
+/**
+ * The files tools' published schema types `path` as an array of segments, so
+ * a model that wants all four workspace files reads the guidance "call
+ * files.read for AGENT.md, HEARTBEAT.md, POLICY.md, and MEMORY.md" as one
+ * call carrying four segments. SharedOS resolves that as a single nested path
+ * no grant matches and answers `no_matching_grant`, which glm-5.3-flash took
+ * for a permission denial and replied without reading (about a quarter of
+ * its responder turns in the 2026-09 grid, 84% of its excluded tasks). This
+ * workspace holds exactly four root-level files, so a path with any other
+ * segment count can never be granted; denying it here, as protocol fact and
+ * with the required shape, keeps the correction out of the kernel's audit
+ * trail the same way a parallel batch is.
+ */
+export const SINGLE_FILE_PATH_DENIAL_V1 =
+  'files.read and files.replace operate on exactly one file per call: path '
+  + 'is a one-element array holding one file name. That call was not executed.';
+
+const SINGLE_PATH_FILE_TOOLS_V1: ReadonlySet<string> = new Set([
+  'files.read',
+  'files.replace',
+]);
+
+type ProtocolCorrectionKindV1 = 'parallel_tool_calls' | 'multi_segment_path';
+
+type ProtocolCorrectionV1 = Readonly<{ corrected: ProtocolCorrectionKindV1 }>;
+
+function isProtocolCorrection(
+  outcome: SoTurnDecision | ProtocolCorrectionV1,
+): outcome is ProtocolCorrectionV1 {
+  return typeof (outcome as ProtocolCorrectionV1).corrected === 'string';
+}
+
+function isMultiSegmentFilePath(tool: string, arguments_: JsonObject): boolean {
+  if (!SINGLE_PATH_FILE_TOOLS_V1.has(tool)) return false;
+  const path = arguments_['path'];
+  return Array.isArray(path) && path.length !== 1;
 }
 
 type ProviderMessage =
@@ -521,27 +559,40 @@ class OpenAICompatibleFileTurnSessionV1 {
   }
 
   async #requestNextDecision(signal: AbortSignal): Promise<SoTurnDecision> {
-    for (
-      let corrections = 0;
-      corrections <= MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1;
-      corrections += 1
-    ) {
+    let parallelCorrections = 0;
+    let pathCorrections = 0;
+    for (;;) {
       const outcome = await this.#attemptNextDecision(signal);
-      if (!isParallelToolCallCorrection(outcome)) return outcome;
+      if (!isProtocolCorrection(outcome)) return outcome;
       throwIfAborted(signal);
+      // A model that will not stop violating the protocol is a real finding
+      // about that model, so each shape gets its own code rather than hiding
+      // inside model_invalid_tool_call.
+      if (outcome.corrected === 'parallel_tool_calls') {
+        parallelCorrections += 1;
+        if (parallelCorrections > MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1) {
+          throw new FileModelDriverErrorV1(
+            'model_parallel_tool_calls_unresolved',
+            'File model provider returned multiple parallel tool calls in '
+            + `${MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 + 1} consecutive responses`,
+          );
+        }
+      } else {
+        pathCorrections += 1;
+        if (pathCorrections > MAX_FILE_PATH_CORRECTIONS_V1) {
+          throw new FileModelDriverErrorV1(
+            'model_file_path_unresolved',
+            'File model provider returned a multi-segment file path in '
+            + `${MAX_FILE_PATH_CORRECTIONS_V1 + 1} consecutive responses`,
+          );
+        }
+      }
     }
-    // A model that will not stop batching is a real finding about that model,
-    // so it gets its own code rather than hiding inside model_invalid_tool_call.
-    throw new FileModelDriverErrorV1(
-      'model_parallel_tool_calls_unresolved',
-      'File model provider returned multiple parallel tool calls in '
-      + `${MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 + 1} consecutive responses`,
-    );
   }
 
   async #attemptNextDecision(
     signal: AbortSignal,
-  ): Promise<SoTurnDecision | ParallelToolCallCorrectionV1> {
+  ): Promise<SoTurnDecision | ProtocolCorrectionV1> {
     const fetched = await this.#fetchCompletion(signal);
     throwIfAborted(signal);
     const response = redactOpenAICompatibleProviderCredentialV1(
@@ -616,7 +667,7 @@ class OpenAICompatibleFileTurnSessionV1 {
         // The response was well-formed but yielded no decision; leaving the
         // telemetry outcome at invalid_response is what makes corrections
         // visible per request instead of silently absorbed.
-        return { corrected: true };
+        return { corrected: 'parallel_tool_calls' };
       }
       const call = calls[0];
       if (!call) {
@@ -632,6 +683,13 @@ class OpenAICompatibleFileTurnSessionV1 {
         );
       }
       const arguments_ = parseToolArguments(call.function.arguments);
+      if (isMultiSegmentFilePath(call.function.name, arguments_)) {
+        // Same treatment as a parallel batch: a well-formed response that
+        // yielded no decision, denied in the transcript and re-asked, with
+        // the telemetry outcome left at invalid_response.
+        this.#denyMultiSegmentFilePath(call, message);
+        return { corrected: 'multi_segment_path' };
+      }
       const reasoning = parseReasoningDetails(message.reasoning_details);
       this.#messages.push({
         role: 'assistant',
@@ -723,6 +781,29 @@ class OpenAICompatibleFileTurnSessionV1 {
         content: PARALLEL_TOOL_CALL_DENIAL_V1,
       });
     }
+  }
+
+  /**
+   * A files call whose path is not exactly one segment is recorded as emitted
+   * and answered with the protocol fact, never dispatched. As with a parallel
+   * batch, the id is NOT added to #seenProviderCallIds: nothing executed.
+   */
+  #denyMultiSegmentFilePath(
+    call: ProviderToolCall,
+    message: { content?: string | null; reasoning_details?: unknown[] | null },
+  ): void {
+    const reasoning = parseReasoningDetails(message.reasoning_details);
+    this.#messages.push({
+      role: 'assistant',
+      content: message.content ?? null,
+      tool_calls: [call],
+      ...(reasoning ? { reasoning_details: reasoning } : {}),
+    });
+    this.#messages.push({
+      role: 'tool',
+      tool_call_id: call.id,
+      content: SINGLE_FILE_PATH_DENIAL_V1,
+    });
   }
 
   #requestBody(): Record<string, unknown> {
