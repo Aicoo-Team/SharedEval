@@ -74,6 +74,7 @@ an unavailable or mismatched build fails before model spend.
 - [PACT-Pair data](dataset/pact-pair/BENCHMARK_DATA.md)
 - [PACT-Pair evaluation tools](docs/pact-pair-evaluation-tools.md)
 - [PACT-Net P-01 native pilot and post-hoc evaluation](docs/pact-net-pilot.md)
+- [Assigned NET procurement profiles](docs/pact-net-assigned-profiles.md)
 - [Hugging Face export](docs/huggingface.md)
 - [Metrics](docs/metrics.md)
 

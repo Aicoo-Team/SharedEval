@@ -1188,7 +1188,7 @@ test('rejects symlinked roots, symlinked authority, special records, and lock su
   );
 });
 
-test('rejects FIFO records without blocking the operation lane', { timeout: 3_000 }, async t => {
+test('rejects FIFO records without blocking the operation lane', { timeout: 10_000 }, async t => {
   const options = await temporaryOptions(t, 'fifo-record');
   await openSharedOsSessionStoreV1(options);
   const fifo = sessionPath(options.runDirectory, 'messages', 'record-000000000000.json');
@@ -1215,7 +1215,9 @@ test('rejects FIFO records without blocking the operation lane', { timeout: 3_00
       ...process.env,
       SESSION_OPTIONS_B64: Buffer.from(JSON.stringify(options)).toString('base64url'),
     },
-    timeout: 1_000,
+    // Includes a fresh Node/tsx process and module loading. Keep FIFO hangs
+    // bounded without treating a slow process startup as a storage failure.
+    timeout: 5_000,
   });
   assert.match(result.stdout, /regular|special|fifo/i);
 });

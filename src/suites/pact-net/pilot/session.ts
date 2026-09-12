@@ -8,10 +8,10 @@ import type { SoAccessContext, SoAddress, SoAuditEvent, SoCapabilityRequirement,
 import { loadSharedOsModulesV1 } from '../../../execution/sharedos/v1/load-sharedos.js';
 import { openWorldSession, type WorldSession } from '../../../runner/world/session.js';
 import { worldContextFrontiersSchema, type WorldContextFrontiers } from '../../../runner/world/profile.js';
-import { ACTORS, ACTION_OWNER, CASE_ID, PURPOSE, OWNER, NAMESPACE, actorAddress, createPilotProfile, digest, grantsFor, privateProjection, requirement, type PilotActor, type PilotProfile, type PilotAction } from './profile.js';
+import { OWNER, NAMESPACE, actionOwners, actorAddress, actorIdSchema, assignedActorView, profileActors, profileRoles, profilePurpose, validateExecutionProfile, digest, grantsFor, privateProjection, requirement, type PilotActor, type ExecutionProfile, type PilotAction } from './profile.js';
 import { applyEvent, buildEvent, eventSchema, replayEvents, type PilotEvent, type PilotState } from './state.js';
 
-const deliverySchema = z.object({ id: z.string(), actor: z.enum(ACTORS), envelope: z.unknown() }).strict();
+const deliverySchema = z.object({ id: z.string(), actor: actorIdSchema, envelope: z.unknown() }).strict();
 const checkpointSchema = z.object({ version: z.literal('net-pilot-checkpoint/v1'), binding: z.string(), startedAt: z.string().datetime(), pending: z.string().nullable(), queue: z.array(deliverySchema), processed: z.array(z.string()), events: z.array(eventSchema), audit: z.array(z.unknown()), executions: z.array(z.unknown()), revoked: z.array(z.string()), frontiers: worldContextFrontiersSchema, checksum: z.string() }).strict();
 type Delivery = { id: string; actor: PilotActor; envelope: SoMessageEnvelope };
 type Checkpoint = { version: 'net-pilot-checkpoint/v1'; binding: string; startedAt: string; pending: string | null; queue: Delivery[]; processed: string[]; events: PilotEvent[]; audit: SoAuditEvent[]; executions: SoExecutionResult[]; revoked: string[]; frontiers: WorldContextFrontiers };
@@ -33,15 +33,18 @@ export type PilotTurnDriver = {
   }>;
 };
 export type PilotDriverFactory = (actor: PilotActor) => PilotTurnDriver;
-export type PilotSessionOptions = { directory: string; runId: string; profile: PilotProfile; createDriver: PilotDriverFactory; sharedOsDir?: string };
+export type PilotSessionOptions = { directory: string; runId: string; profile: ExecutionProfile; createDriver: PilotDriverFactory; sharedOsDir?: string };
 
 /** One host-owned local transaction per actor turn; uncertain turns are never replayed. */
 export async function openNetPilot(options: PilotSessionOptions) {
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(options.runId)) throw new Error('pilot_run_id_invalid');
+  const profile = validateExecutionProfile(options.profile);
+  const actors = profileActors(profile);
+  const roles = profileRoles(profile);
+  const caseId = profile.initial.case_id;
+  const purpose = profilePurpose(profile);
   const loaded = await loadSharedOsModulesV1(options.sharedOsDir);
   if (!loaded.ok) throw new Error(loaded.reason);
-  const profile = structuredClone(options.profile);
-  if (!['success', 'safe-partial'].includes(profile.mode) || digest(profile) !== digest(createPilotProfile(profile.initial, profile.mode))) throw new Error('pilot_profile_invalid');
   const namespaceId = `net-pilot-${options.runId}`;
   const binding = digest({ profile, namespaceId, revision: loaded.revision, runtimeDigest: loaded.runtimeDigest });
   const directory = resolve(options.directory);
@@ -62,14 +65,14 @@ export async function openNetPilot(options: PilotSessionOptions) {
       if (body.pending !== null) throw new Error('pilot_pending_turn_incomplete');
       saved = body as Checkpoint;
       for (const delivery of saved.queue) loaded.modules.contracts.MessageEnvelopeSchema.parse(delivery.envelope);
-      if (new Set(saved.processed).size !== saved.processed.length || new Set(saved.queue.map(item => item.id)).size !== saved.queue.length || saved.queue.some(item => saved!.processed.includes(item.id) || item.envelope.id !== item.id || item.envelope.receiver.kind !== 'agent' || item.envelope.receiver.agentId !== item.actor)) throw new Error('pilot_queue_integrity_error');
+      if (new Set(saved.processed).size !== saved.processed.length || new Set(saved.queue.map(item => item.id)).size !== saved.queue.length || saved.queue.some(item => !actors.includes(item.actor) || saved!.processed.includes(item.id) || item.envelope.id !== item.id || item.envelope.receiver.kind !== 'agent' || item.envelope.receiver.agentId !== item.actor)) throw new Error('pilot_queue_integrity_error');
       replayEvents(profile, saved.events);
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
-    world = await openWorldSession({ directory: join(directory, 'contexts'), worldId: namespaceId, bindingDigest: binding, actorIds: ACTORS, profile: { protocol: 'actor-context/v1', maxContextBytes: 1_048_576 } });
+    world = await openWorldSession({ directory: join(directory, 'contexts'), worldId: namespaceId, bindingDigest: binding, actorIds: actors, profile: { protocol: 'actor-context/v1', maxContextBytes: 1_048_576 } });
     await world.assertCommittedFrontiers(saved?.frontiers);
     const startedAt = saved?.startedAt ?? new Date().toISOString();
-    const initialEnvelope: SoMessageEnvelope = { version: '1', id: 'pilot-seed', sender: OWNER, receiver: actorAddress(ACTORS[0]), purpose: PURPOSE, payload: { stage: 'start', case_id: CASE_ID }, traceId: 'pilot-seed-trace', createdAt: startedAt };
-    let checkpoint: Checkpoint = saved ?? { version: 'net-pilot-checkpoint/v1', binding, startedAt, pending: null, queue: [{ id: initialEnvelope.id, actor: ACTORS[0], envelope: initialEnvelope }], processed: [], events: [], audit: [], executions: [], revoked: [], frontiers: await world.frontiers() };
+    const initialEnvelope: SoMessageEnvelope = { version: '1', id: 'pilot-seed', sender: OWNER, receiver: actorAddress(roles.requester), purpose, payload: { stage: 'start', case_id: caseId }, traceId: 'pilot-seed-trace', createdAt: startedAt };
+    let checkpoint: Checkpoint = saved ?? { version: 'net-pilot-checkpoint/v1', binding, startedAt, pending: null, queue: [{ id: initialEnvelope.id, actor: roles.requester, envelope: initialEnvelope }], processed: [], events: [], audit: [], executions: [], revoked: [], frontiers: await world.frontiers() };
     let committedCheckpoint = structuredClone(checkpoint);
     let state = replayEvents(profile, checkpoint.events);
     let writeTail = Promise.resolve();
@@ -87,16 +90,16 @@ export async function openNetPilot(options: PilotSessionOptions) {
       return write.catch(error => { poisoned = true; throw error; });
     }
     if (!saved) await persist();
-    const context = (actor: PilotActor, traceId: string): SoAccessContext => ({ namespaceId, actor: actorAddress(actor), authority: OWNER, owner: OWNER, purpose: PURPOSE, traceId, enabledToolNamespaces: [NAMESPACE], now: new Date().toISOString() });
+    const context = (actor: PilotActor, traceId: string): SoAccessContext => ({ namespaceId, actor: actorAddress(actor), authority: OWNER, owner: OWNER, purpose, traceId, enabledToolNamespaces: [NAMESPACE], now: new Date().toISOString() });
     // A private, freshly constructed kernel belongs to this session. It is never
     // exposed, and no host path opens a turn-authority lease on it.
     const kernel = new loaded.modules.core.SharedOSKernel({
-      grantSource: { load: async ctx => structuredClone(grantsFor(namespaceId, startedAt, checkpoint.revoked).filter(grant => digest(grant.subject) === digest(ctx.actor))) },
+      grantSource: { load: async ctx => structuredClone(grantsFor(namespaceId, startedAt, checkpoint.revoked, profile).filter(grant => digest(grant.subject) === digest(ctx.actor))) },
       audit: { record: async event => { checkpoint.audit.push(structuredClone(event)); } },
       messageTransport: { deliver: async (ctx, envelope, signal) => {
         signal.throwIfAborted();
         const recipient = envelope.receiver.kind === 'agent' ? envelope.receiver.agentId : '';
-        if (!ACTORS.includes(recipient as PilotActor)) throw new Error('pilot_recipient_outside_profile');
+        if (!actors.includes(recipient)) throw new Error('pilot_recipient_outside_profile');
         if (checkpoint.queue.some(item => item.id === envelope.id) || checkpoint.processed.includes(envelope.id)) throw new Error('pilot_duplicate_delivery');
         checkpoint.queue.push({ id: envelope.id, actor: recipient as PilotActor, envelope: structuredClone(envelope) });
         return { status: 'accepted', messageId: envelope.id, timestamp: ctx.now };
@@ -121,8 +124,9 @@ export async function openNetPilot(options: PilotSessionOptions) {
     const snapshot = () => {
       const committedState = replayEvents(profile, committedCheckpoint.events);
       const indeterminate = poisoned || checkpoint.pending !== null;
-      return structuredClone({ evidence_kind: 'scripted-native-runtime-pilot', case_id: CASE_ID,
+      return structuredClone({ evidence_kind: 'scripted-native-runtime-pilot', case_id: caseId,
         mode: profile.mode, authority_lifecycle: profile.authorityLifecycle,
+        ...(profile.mode === 'assigned' ? { profile_version: profile.version } : {}),
         profile_digest: digest(profile), initial_resource_digest: profile.resourceVersion,
         owner_evidence_digests: { budget: digest(profile.evidence.budget), contract: digest(profile.evidence.contract) },
         synthetic_owner_evidence: true, task_privacy_claim: false,
@@ -143,7 +147,7 @@ export async function openNetPilot(options: PilotSessionOptions) {
       async revoke(actor: PilotActor, key: string) {
         if (closed || poisoned) throw new Error('pilot_session_unavailable');
         const id = `${actor}:${key}`;
-        if (!grantsFor(namespaceId, startedAt, []).some(grant => grant.id === id)) throw new Error('pilot_grant_unknown');
+        if (!grantsFor(namespaceId, startedAt, [], profile).some(grant => grant.id === id)) throw new Error('pilot_grant_unknown');
         if (!checkpoint.revoked.includes(id)) checkpoint.revoked.push(id);
         await persist();
       },
@@ -164,7 +168,8 @@ export async function openNetPilot(options: PilotSessionOptions) {
           const executor = new loaded.modules.runtime.SharedOSExecutor(executorKernel, new StandardRuntime(journal.driver));
           const result = await executor.execute({ version: '1', executionId, agent: { kind: 'agent', agentId: delivery.actor }, context: ctx,
             message: { ...delivery.envelope, traceId: ctx.traceId }, tools: handlers.map(handler => handler.definition),
-            state: { actor_view: privateProjection(profile, delivery.actor), public_state: publicState(state) },
+            state: { actor_view: privateProjection(profile, delivery.actor), public_state: publicState(state),
+              ...(profile.mode === 'assigned' ? { assignment: assignedActorView(profile, delivery.actor) } : {}) },
             options: { maxSteps: 20, maxToolCalls: 12, timeoutMs: 30000 },
           });
           if (!journal.isComplete()) throw new Error('pilot_pending_turn_incomplete');
@@ -220,12 +225,15 @@ function journalDriver(world: WorldSession, actor: PilotActor, turnId: string, d
   } };
   return { driver, isComplete: () => !opened || finished };
 }
-function makeHandlers(options: { profile: PilotProfile; kernel: NativeKernel; context(actor: PilotActor, trace: string): SoAccessContext; state(): PilotState; sequence(): number; commit(event: PilotEvent): void }): SoToolHandler[] {
+function makeHandlers(options: { profile: ExecutionProfile; kernel: NativeKernel; context(actor: PilotActor, trace: string): SoAccessContext; state(): PilotState; sequence(): number; commit(event: PilotEvent): void }): SoToolHandler[] {
   const { profile, kernel } = options;
-  const scope = z.object({ case_id: z.literal(CASE_ID), resource_version: z.literal(profile.resourceVersion) }).strict();
-  const scopeInput: JsonObject = { type: 'object', properties: { case_id: { const: CASE_ID, type: 'string' }, resource_version: { const: profile.resourceVersion, type: 'string' } }, required: ['case_id', 'resource_version'], additionalProperties: false };
+  const actors = profileActors(profile);
+  const roles = profileRoles(profile);
+  const caseId = profile.initial.case_id;
+  const scope = z.object({ case_id: z.literal(caseId), resource_version: z.literal(profile.resourceVersion) }).strict();
+  const scopeInput: JsonObject = { type: 'object', properties: { case_id: { const: caseId, type: 'string' }, resource_version: { const: profile.resourceVersion, type: 'string' } }, required: ['case_id', 'resource_version'], additionalProperties: false };
   function handler(name: string, surface: string, action: string, readWrite: 'read' | 'write', fn: (ctx: SoAccessContext, callId: string, args: JsonObject) => Promise<JsonValue>): SoToolHandler {
-    return { definition: { name: `net.${name}`, description: `P-01 synthetic pilot ${name}`, namespace: NAMESPACE, source: 'sharedeval-net-pilot', readWrite, inputSchema: scopeInput, requiredCapability: requirement(surface, action) },
+    return { definition: { name: `net.${name}`, description: `${profile.mode === 'assigned' ? 'Assigned procurement pilot' : 'P-01 synthetic pilot'} ${name}`, namespace: NAMESPACE, source: 'sharedeval-net-pilot', readWrite, inputSchema: scopeInput, requiredCapability: requirement(surface, action, profile) },
       parseArguments: args => scope.parse(args),
       invoke: async (ctx, call, signal) => {
         signal.throwIfAborted();
@@ -235,13 +243,13 @@ function makeHandlers(options: { profile: PilotProfile; kernel: NativeKernel; co
     };
   }
   const tools: SoToolHandler[] = [handler('read_case', 'public', 'read', 'read', async () => publicState(options.state()))];
-  for (const actor of ACTORS) tools.push(handler(`read_private_${actor}`, `private-${actor}`, 'read', 'read', async () => privateProjection(profile, actor)));
-  for (const action of Object.keys(ACTION_OWNER) as PilotAction[]) tools.push(handler(action, action, action, 'write', async (ctx, callId) => {
-    if (ctx.actor.kind !== 'agent' || !ACTORS.includes(ctx.actor.agentId as PilotActor)) throw new Error('pilot_actor_invalid');
+  for (const actor of actors) tools.push(handler(`read_private_${actor}`, `private-${actor}`, 'read', 'read', async () => privateProjection(profile, actor)));
+  for (const action of Object.keys(actionOwners(profile)) as PilotAction[]) tools.push(handler(action, action, action, 'write', async (ctx, callId) => {
+    if (ctx.actor.kind !== 'agent' || !actors.includes(ctx.actor.agentId)) throw new Error('pilot_actor_invalid');
     if (action === 'release_po') {
       // Recheck current owner authority through SharedOS, alongside version-bound evidence in the reducer.
-      for (const [actor, approvalAction] of [[ACTORS[1], 'approve_budget'], [ACTORS[2], 'verify_signed_contract']] as const) {
-        const decision = await kernel.authorize(options.context(actor, ctx.traceId), requirement(approvalAction, approvalAction));
+      for (const [actor, approvalAction] of [[roles.budget, 'approve_budget'], [roles.legal, 'verify_signed_contract']] as const) {
+        const decision = await kernel.authorize(options.context(actor, ctx.traceId), requirement(approvalAction, approvalAction, profile));
         if (!decision.allowed) throw new Error('pilot_approval_authority_revoked');
       }
     }
@@ -253,9 +261,9 @@ function makeHandlers(options: { profile: PilotProfile; kernel: NativeKernel; co
     const result = await kernel.sendMessage(ctx, { version: '1', id: `message-${callId}`, sender: ctx.actor, receiver: actorAddress(String(args.recipient)), purpose: ctx.purpose, payload: args.payload!, traceId: ctx.traceId, createdAt: ctx.now });
     return result as unknown as JsonValue;
   });
-  const sendSchema = z.object({ recipient: z.string().min(1).max(128), payload: z.object({ stage: z.string().min(1).max(40), case_id: z.literal(CASE_ID), receipt: z.record(z.union([z.string(), z.number()])).optional() }).strict() }).strict();
+  const sendSchema = z.object({ recipient: z.string().min(1).max(128), payload: z.object({ stage: z.string().min(1).max(40), case_id: z.literal(caseId), receipt: z.record(z.union([z.string(), z.number()])).optional() }).strict() }).strict();
   const sendHandler: SoToolHandler = { ...send, parseArguments: (args: JsonObject) => sendSchema.parse(args) };
-  send.definition.inputSchema = { type: 'object', properties: { recipient: { type: 'string' }, payload: { type: 'object', properties: { stage: { type: 'string' }, case_id: { type: 'string', const: CASE_ID }, receipt: { type: 'object' } }, required: ['stage', 'case_id'], additionalProperties: false } }, required: ['recipient', 'payload'], additionalProperties: false };
+  send.definition.inputSchema = { type: 'object', properties: { recipient: { type: 'string' }, payload: { type: 'object', properties: { stage: { type: 'string' }, case_id: { type: 'string', const: caseId }, receipt: { type: 'object' } }, required: ['stage', 'case_id'], additionalProperties: false } }, required: ['recipient', 'payload'], additionalProperties: false };
   tools.push(sendHandler);
   return tools;
 }

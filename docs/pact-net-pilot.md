@@ -1,5 +1,9 @@
 # PACT-Net P-01 native-runtime pilot
 
+For a versioned host configuration with different actors and resources, see
+[assigned procurement profiles](pact-net-assigned-profiles.md). The default P-01
+profile and its scoring path below remain the original registered fixture.
+
 This is a bounded, scripted integration pilot for `PO-27-0881`, with three actors
 and one persistent world. It is not a general NET runner, a 166-task rollout,
 a model benchmark score, or a practitioner-validated purchase-order workflow.
