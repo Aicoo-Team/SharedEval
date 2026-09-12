@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import test from 'node:test';
 import type { JsonObject } from '../../../src/contracts/json.js';
 import { defaultSharedOsDirV1 } from '../../../src/execution/sharedos/v1/load-sharedos.js';
-import { loadPilotProfile, type PilotMode } from '../../../src/suites/pact-net/pilot/profile.js';
+import { loadAssignedProcurementProfile, loadPilotProfile, type PilotMode } from '../../../src/suites/pact-net/pilot/profile.js';
 import { scriptedPilotDriver } from '../../../src/suites/pact-net/pilot/driver.js';
 import { openNetPilot, type PilotDriverFactory } from '../../../src/suites/pact-net/pilot/session.js';
 import { projectPilotEvaluation } from '../../../src/suites/pact-net/pilot/evaluation.js';
@@ -100,6 +100,33 @@ test('P-01 audit-before-release through the provider seam cannot score full comp
     const score = JSON.parse(execFileSync('python3', [join(data, 'scripts/evaluate_executable_task.py'), data, 'P-01', path], { encoding: 'utf8' }));
     assert.equal(score.full_completion, false);
     assert.ok(score.score < 1);
+  } finally {
+    await session.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('completed assigned execution is not eligible for the registered P-01 evaluator or scoring CLI', { skip }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'assigned-evaluation-boundary-'));
+  const assigned = await loadAssignedProcurementProfile(join(root, 'tests/suites/pact-net/fixtures/assigned-procurement.json'));
+  const legacy = await loadPilotProfile(join(data, 'tasks/executable_core/P-01/initial_state.json'), 'success');
+  const session = await openNetPilot({ directory, runId: 'assigned-evaluation', profile: assigned, createDriver: scriptedPilotDriver() });
+  try {
+    for (let tick = 0; tick < 20; tick++) if (!await session.runNext()) break;
+    const evidence = session.snapshot();
+    assert.equal(evidence.commit_status, 'committed');
+    assert.equal(evidence.terminal_success, true);
+    assert.equal(evidence.final_state.case_id, assigned.initial.case_id);
+    // Exercise the JavaScript boundary as well as a caller mistakenly selecting the P-01 profile.
+    assert.throws(() => projectPilotEvaluation(assigned as unknown as typeof legacy, evidence), /profile_not_registered/);
+    assert.throws(() => projectPilotEvaluation(legacy, evidence), /profile_not_registered/);
+    const path = join(directory, 'evidence.json');
+    await writeFile(path, JSON.stringify(evidence), { mode: 0o600 });
+    assert.throws(() => execFileSync(process.execPath, ['--import', 'tsx', join(root, 'scripts/pact-net-pilot-evaluate.ts'), path, 'success'], {
+      cwd: root, encoding: 'utf8', stdio: 'pipe',
+    }), /profile_not_registered/);
+    assert.equal(existsSync(join(directory, 'submission.json')), false);
+    assert.equal(existsSync(join(directory, 'evaluation.json')), false);
   } finally {
     await session.close();
     await rm(directory, { recursive: true, force: true });

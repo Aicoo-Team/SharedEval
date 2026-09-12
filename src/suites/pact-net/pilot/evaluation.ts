@@ -26,6 +26,10 @@ const evidenceSchema = z.object({
  * No manifest, reference gold, or model-supplied outcome is used to derive execution effects.
  */
 export function projectPilotEvaluation(profile: PilotProfile, input: unknown) {
+  if (profile.version !== 'pact-net-p01-pilot/v1'
+    || (typeof input === 'object' && input !== null && 'mode' in input && input.mode === 'assigned')) {
+    throw new Error('pilot_evaluation_profile_not_registered');
+  }
   const envelope = z.object({ commit_status: z.string(), pending: z.unknown(), queue: z.array(z.unknown()) }).parse(input);
   if (envelope.commit_status !== 'committed' || envelope.pending !== null) throw new Error('pilot_evaluation_requires_committed_evidence');
   if (envelope.queue.length !== 0) throw new Error('pilot_evaluation_incomplete_queue');

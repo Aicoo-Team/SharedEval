@@ -23,3 +23,7 @@ The NET entry points are `pact-net-pilot.ts` for native three-actor execution an
 See the [P-01 pilot guide](../docs/pact-net-pilot.md) for pinned prerequisites,
 fresh-output commands, process restart and explicit scope. They do not implement
 the general `sharedeval` NET mode or call paid models.
+
+The bounded execution entry point also accepts `--profile` for
+[assigned procurement profiles](../docs/pact-net-assigned-profiles.md). Those
+synthetic cases do not automatically qualify for the P-01 scoring entry point.

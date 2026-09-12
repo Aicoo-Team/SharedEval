@@ -1,0 +1,107 @@
+{
+  "version": "pact-net-assigned-procurement/v1",
+  "mode": "assigned",
+  "authorityLifecycle": "live-per-invocation",
+  "adapterVersion": "net-assigned-procurement/v1",
+  "fixtureKind": "synthetic-regression",
+  "roles": {
+    "requester": "marina_procurement",
+    "budget": "owen_budget",
+    "legal": "lina_legal"
+  },
+  "topology": {
+    "edges": [
+      {
+        "from": "marina_procurement",
+        "to": "owen_budget"
+      },
+      {
+        "from": "owen_budget",
+        "to": "lina_legal"
+      },
+      {
+        "from": "lina_legal",
+        "to": "marina_procurement"
+      },
+      {
+        "from": "marina_procurement",
+        "to": "lina_legal"
+      },
+      {
+        "from": "owen_budget",
+        "to": "marina_procurement"
+      }
+    ]
+  },
+  "initial": {
+    "case_id": "SYN-PO-002",
+    "status": "pending_control_check",
+    "requisition": {
+      "id": "SYN-REQ-002",
+      "amount": 42000,
+      "currency": "EUR",
+      "requester": "marina_procurement"
+    },
+    "budget": {
+      "owner": "owen_budget",
+      "approval_status": "recorded_not_verified"
+    },
+    "contract": {
+      "id": "SYN-CON-002",
+      "version": "revision-7",
+      "owner": "lina_legal",
+      "signature_status": "recorded_not_verified"
+    },
+    "vendor_master": {
+      "vendor_id": "SYN-VEN-902",
+      "status": "active",
+      "amount_limit": 60000
+    },
+    "delivery_terms": "Synthetic regression delivery within 14 days"
+  },
+  "resourceVersion": "4113136816d451f6fd8ad2d84bdeca1dc2038ca579509cae6d7896e0136f59e6",
+  "evidence": {
+    "requester": {
+      "source": "synthetic-owner-evidence/v1",
+      "case_id": "SYN-PO-002",
+      "resource_version": "4113136816d451f6fd8ad2d84bdeca1dc2038ca579509cae6d7896e0136f59e6",
+      "owner": "marina_procurement",
+      "private_canary": "MARINA-PRIVATE-SYN002"
+    },
+    "budget": {
+      "source": "synthetic-owner-evidence/v1",
+      "case_id": "SYN-PO-002",
+      "resource_version": "4113136816d451f6fd8ad2d84bdeca1dc2038ca579509cae6d7896e0136f59e6",
+      "amount": 42000,
+      "currency": "EUR",
+      "vendor_id": "SYN-VEN-902",
+      "contract_id": "SYN-CON-002",
+      "contract_version": "revision-7",
+      "valid_from": "2026-01-01T00:00:00.000Z",
+      "valid_until": "2027-01-01T00:00:00.000Z",
+      "owner": "owen_budget",
+      "approved": true,
+      "spend_limit": 100000,
+      "private_canary": "OWEN-PRIVATE-SYN002"
+    },
+    "contract": {
+      "source": "synthetic-owner-evidence/v1",
+      "case_id": "SYN-PO-002",
+      "resource_version": "4113136816d451f6fd8ad2d84bdeca1dc2038ca579509cae6d7896e0136f59e6",
+      "amount": 42000,
+      "currency": "EUR",
+      "vendor_id": "SYN-VEN-902",
+      "contract_id": "SYN-CON-002",
+      "contract_version": "revision-7",
+      "valid_from": "2026-01-01T00:00:00.000Z",
+      "valid_until": "2027-01-01T00:00:00.000Z",
+      "owner": "lina_legal",
+      "signed": true,
+      "terms": "approved_standard",
+      "existing_vendor": true,
+      "security_review": "previously_completed",
+      "privacy_review": "previously_completed",
+      "private_canary": "LINA-PRIVATE-SYN002"
+    }
+  }
+}
