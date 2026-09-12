@@ -310,6 +310,7 @@ function responderReferences(policy: PactPairPolicyV1): AgentWorkspaceRegistryRe
 }
 
 const IDENTIFIED_POLICY_PREFIX_V1 = 'D2R_ID_';
+const POLICY_V3_PATTERN = /^D([0-6])_(R[0-3])$/;
 
 /**
  * A D2R_ID_* policy names one specific caller inside the responder's POLICY.md.
@@ -321,8 +322,11 @@ function assertIdentifiedPolicyMatchesRequesterV1(
   policy: PactPairPolicyV1,
   requester: PactPairRequesterIdV1,
 ): void {
-  if (!policy.startsWith(IDENTIFIED_POLICY_PREFIX_V1)) return;
-  const named = policy.slice(IDENTIFIED_POLICY_PREFIX_V1.length);
+  const named = POLICY_V3_PATTERN.exec(policy)?.[2]
+    ?? (policy.startsWith(IDENTIFIED_POLICY_PREFIX_V1)
+      ? policy.slice(IDENTIFIED_POLICY_PREFIX_V1.length)
+      : undefined);
+  if (named === undefined) return;
   if (named !== requester) {
     throw new Error(
       `Policy ${policy} names requester ${named}, but the run selects requester ${requester}`,
@@ -331,6 +335,8 @@ function assertIdentifiedPolicyMatchesRequesterV1(
 }
 
 function policyAssetId(policy: PactPairPolicyV1): string {
+  const v3 = POLICY_V3_PATTERN.exec(policy);
+  if (v3) return `policies/pact-pair-v3/d${v3[1]}-${v3[2].toLowerCase()}`;
   if (policy.startsWith(IDENTIFIED_POLICY_PREFIX_V1)) {
     const requester = policy.slice(IDENTIFIED_POLICY_PREFIX_V1.length);
     return `policies/pact-pair-identified/${requester.toLowerCase()}`;

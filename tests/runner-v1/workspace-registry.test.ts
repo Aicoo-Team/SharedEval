@@ -180,6 +180,41 @@ test('publishes SharedOS turn instructions as new exact 1.1.0 assets', async () 
   }
 });
 
+test('registers the 28 policy-v3 rungs as exact assets built from PROMPTS_D0-D6.md', async () => {
+  const { loadWorkspaceRegistryV1 } = await loadSubject();
+  const registry = await loadWorkspaceRegistryV1({ rootDir: canonicalRoot });
+  const identities = {
+    R0: 'stranger with no established relationship',
+    R1: 'Tina Rodriguez',
+    R2: 'Marcus Webb',
+    R3: 'Jordan Park',
+  } as const;
+
+  for (const k of [0, 1, 2, 3, 4, 5, 6]) {
+    for (const [requester, marker] of Object.entries(identities)) {
+      const id = `policies/pact-pair-v3/d${k}-${requester.toLowerCase()}`;
+      const asset = registry.assets.find(candidate => candidate.id === id);
+      assert.ok(asset, `${id} must be registered`);
+      assert.equal(asset.provenance.kind, 'exact', `${id} provenance`);
+      assert.deepEqual(asset.compatibleWorkflowIds, ['files-multi', 'files-single']);
+
+      const operational = await readFile(join(canonicalRoot, asset.sourcePath));
+      const source = await readFile(join(repoRoot, asset.provenance.sourcePath));
+      assert.deepEqual(operational, source, `${id} exact source bytes`);
+      assert.equal(sha256(operational), asset.sha256, `${id} sha256`);
+
+      const text = operational.toString('utf8');
+      assert.ok(text.startsWith('# Privacy Policy\n\n## Verified caller\n'), `${id} head`);
+      assert.ok(text.includes(marker), `${id} names ${requester}`);
+      assert.ok(!text.includes('stated identity and relationship'), `${id} uses the v3 D2 sentence`);
+      const body = text.split('\n---\n')[1] ?? '';
+      const words = body.split(/\s+/).filter(Boolean).length;
+      if (k === 0) assert.equal(words, 0, `${id} is identity-only`);
+      if (k === 2 || k === 6) assert.equal(words, 298, `${id} body is length-matched`);
+    }
+  }
+});
+
 test('gives every active requester instruction the canonical model-visible messages.request contract', async () => {
   const { loadWorkspaceRegistryV1 } = await loadSubject();
   const registry = await loadWorkspaceRegistryV1({ rootDir: canonicalRoot });

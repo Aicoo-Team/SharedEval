@@ -72,6 +72,18 @@ test('cross-validates relationship policy, requester, and grading mode', () => {
   }
 });
 
+test('binds every policy-v3 rung to the requester named in its verified caller head', () => {
+  const v3 = validConfig.replace(
+    'benchmark:\n  tasks:',
+    'benchmark:\n  policy: D2_R3\n  requester: R3\n  tasks:',
+  );
+  assert.equal(parseSharedevalRunConfigV1Yaml(v3).benchmark.policy, 'D2_R3');
+  assert.throws(
+    () => parseSharedevalRunConfigV1Yaml(v3.replace('requester: R3', 'requester: R1')),
+    ZodError,
+  );
+});
+
 test('rejects retired protocol, dataset, and backend selectors', () => {
   for (const source of [
     validConfig.replace('sharedeval-run/v1', 'pact-run/v1'),

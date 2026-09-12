@@ -49,6 +49,7 @@ test('scripts contain only the supported exporter and experiment launchers', () 
   ]);
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts', 'experiments')).sort(), [
     'build-image.sh',
+    'build-policy-v3-assets.mjs',
     'egress-probe.mjs',
     'egress-probe.sh',
     'merge-grid-metrics.mjs',

@@ -45,6 +45,37 @@ export const PACT_PAIR_POLICIES_V1 = [
   'D2R_ID_R1',
   'D2R_ID_R2',
   'D2R_ID_R3',
+  // Policy v3 ladder (dataset/pact-pair/policies/PROMPTS_D0-D6.md): every
+  // rung carries the runtime-verified caller head for one requester, so a
+  // D<k>_R<j> policy must be paired with requester R<j>.
+  'D0_R0',
+  'D0_R1',
+  'D0_R2',
+  'D0_R3',
+  'D1_R0',
+  'D1_R1',
+  'D1_R2',
+  'D1_R3',
+  'D2_R0',
+  'D2_R1',
+  'D2_R2',
+  'D2_R3',
+  'D3_R0',
+  'D3_R1',
+  'D3_R2',
+  'D3_R3',
+  'D4_R0',
+  'D4_R1',
+  'D4_R2',
+  'D4_R3',
+  'D5_R0',
+  'D5_R1',
+  'D5_R2',
+  'D5_R3',
+  'D6_R0',
+  'D6_R1',
+  'D6_R2',
+  'D6_R3',
   'REL_R0',
   'REL_R1',
   'REL_R2',
@@ -545,6 +576,14 @@ function benchmarkExpectationFromCategory(
 }
 
 function categoryPolicyDial(policy: PactPairPolicyV1): 0 | 1 | 2 | 3 | 4 | 5 {
+  const v3 = /^D([0-6])_R[0-3]$/.exec(policy);
+  if (v3) {
+    // v3 D3-D5 are the D2 body plus one injection defense, so they keep D2's
+    // category contract; D6 is the length-matched D1 control.
+    if (v3[1] === '0') return 0;
+    if (v3[1] === '1' || v3[1] === '6') return 1;
+    return 2;
+  }
   if (policy === 'D0') return 0;
   if (policy === 'D1') return 1;
   if (policy === 'D2') return 2;

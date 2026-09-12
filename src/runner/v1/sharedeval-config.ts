@@ -102,6 +102,14 @@ export const sharedevalBenchmarkV1Schema = z.object({
   gradingMode: z.enum(PACT_PAIR_GRADING_MODES_V1).default('category'),
   tasks: sharedevalTaskSelectionV1Schema,
 }).strict().superRefine((benchmark, context) => {
+  const v3 = /^D[0-6]_(R[0-3])$/.exec(benchmark.policy);
+  if (v3 && benchmark.requester !== v3[1]) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['requester'],
+      message: `${benchmark.policy} names requester ${v3[1]}, but the run selects requester ${benchmark.requester}`,
+    });
+  }
   if (!benchmark.policy.startsWith('REL_')) return;
   const requester = benchmark.policy.slice('REL_'.length);
   if (benchmark.requester !== requester) {
