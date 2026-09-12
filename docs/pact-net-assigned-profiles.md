@@ -107,3 +107,6 @@ for the protocol boundary and follow-up scope.
 Run `SHAREDEVAL_REQUIRE_SHAREDOS=1 pnpm check` for acceptance. The mandatory native
 CI gate includes assigned-profile execution, routing/privacy negatives, fresh
 process continuation and evaluation eligibility, alongside the P-01 regressions.
+The complete test command uses two concurrent test files so disk-heavy journals
+and native turns do not scale their contention with the host CPU count. This
+limits test scheduling only; runtime deadlines and safety assertions are unchanged.
