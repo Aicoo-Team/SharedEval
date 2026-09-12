@@ -48,9 +48,16 @@ const DEFAULT_PROVIDER_TIMEOUT_MS_V1 = 3_600_000;
 // Rate limits and stalled attempts are unrelated failure modes, so each gets
 // its own attempt budget: one stall must not spend the 429 budget, and a task
 // that meets both still has a full complement of retries for each.
-const MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1 = 3;
+// OpenRouter's shared upstream pools throttle in bursts (2026-09-12: 16
+// concurrent Inceptron requests drew 25% HTTP 429 one minute and none the
+// next), so three attempts spaced 15s/30s apart turned whole cells into data
+// holes. Eight attempts under the 60s cap stay inside a 600s task budget.
+export const MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1 = 8;
 const MAX_PROVIDER_STALL_ATTEMPTS_V1 = 3;
 const DEFAULT_PROVIDER_RATE_LIMIT_DELAY_MS_V1 = 15_000;
+// When the run-wide gate clears, every waiting task would otherwise fire in
+// the same millisecond and re-trip the limit; spread the release instead.
+export const PROVIDER_RATE_LIMIT_RELEASE_JITTER_MS_V1 = 3_000;
 // The caller's signal only carries the whole-task budget (budget.maxRuntimeMs).
 // A silently stalled connection never settles, so without a per-attempt bound it
 // consumes that budget in full: the rate-limit loop below never gets a second
@@ -283,10 +290,18 @@ export function createProviderRateLimitGateV1(): ProviderRateLimitGateV1 {
   let blockedUntilMs = 0;
   return {
     async wait(signal: AbortSignal): Promise<void> {
+      let waited = false;
       for (;;) {
         const remainingMs = blockedUntilMs - Date.now();
-        if (remainingMs <= 0) return;
+        if (remainingMs <= 0) break;
+        waited = true;
         await waitForProviderRateLimitV1(remainingMs, signal);
+      }
+      if (waited) {
+        await waitForProviderRateLimitV1(
+          Math.floor(Math.random() * PROVIDER_RATE_LIMIT_RELEASE_JITTER_MS_V1),
+          signal,
+        );
       }
     },
     block(delayMs: number): void {

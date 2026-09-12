@@ -12,6 +12,7 @@ import {
   createOpenAICompatibleFileTurnDriverV1,
   createProviderRateLimitGateV1,
   createServedModelConsistencyLedgerV1,
+  MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1,
 } from '../../src/runner/v1/file-model-driver.js';
 import {
   SHAREDEVAL_MODEL_API_KEY_ENV_V1,
@@ -439,6 +440,47 @@ test('retries only a definitive provider rate-limit rejection', async () => {
   });
   assert.equal(requests.length, 2);
   assert.equal(driver.getFileProviderTelemetryV1().requests[0]?.attempts, 2);
+});
+
+test('outlasts a bursty rate limit for up to MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1 attempts', async () => {
+  const busy = () => new Response('busy', { status: 429, headers: { 'retry-after': '0' } });
+  const survives = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      ...Array.from({ length: MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1 - 1 }, busy),
+      completion({ content: 'done' }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await survives.open(turnRequest(), neverAbort());
+  const decision = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(decision.type, 'complete');
+  assert.equal(
+    survives.getFileProviderTelemetryV1().requests[0]?.attempts,
+    MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1,
+  );
+
+  const exhausted = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch(
+      Array.from({ length: MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1 + 1 }, busy),
+      [],
+    ),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const exhaustedSession = await exhausted.open(turnRequest(), neverAbort());
+  assert.deepEqual(await exhaustedSession.next({ type: 'start' }, neverAbort()), {
+    type: 'fail',
+    error: {
+      code: 'model_provider_error',
+      message: 'File model provider rate limit did not clear',
+      retryable: true,
+    },
+  });
+  assert.equal(
+    exhausted.getFileProviderTelemetryV1().requests[0]?.attempts,
+    MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1,
+  );
 });
 
 test('never retries a provider operation whose external completion is unknown', async () => {
