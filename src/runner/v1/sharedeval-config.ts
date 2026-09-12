@@ -8,6 +8,7 @@ import {
   safeRelativePathSchema,
 } from '../../contracts/json.js';
 import { pactModelConfigV1Schema } from './model-config.js';
+import { sharedevalHarnessV1Schema } from './codex/codex-harness-config.js';
 import {
   PACT_PAIR_GRADING_MODES_V1,
   PACT_PAIR_POLICIES_V1,
@@ -149,8 +150,21 @@ export const sharedevalRunConfigV1Schema = z
       })
       .strict()
       .default({ directory: 'runs', saveTraces: false }),
+    // Optional and additive: absent, the key never enters the canonical JSON
+    // and every pre-existing configDigest is unchanged. Present, it is part of
+    // the run identity like any other field.
+    harness: sharedevalHarnessV1Schema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((config, context) => {
+    if (config.harness && config.model.provider !== 'openai-compatible') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['harness'],
+        message: 'the codex responder harness requires an openai-compatible model',
+      });
+    }
+  });
 
 export type SharedevalRunConfigV1 = z.infer<typeof sharedevalRunConfigV1Schema>;
 export type ResolvedSharedevalRunConfigV1 = SharedevalRunConfigV1 & Readonly<{

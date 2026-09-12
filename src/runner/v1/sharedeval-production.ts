@@ -23,6 +23,11 @@ import {
   type OpenAICompatibleFileTurnDriverV1Options,
 } from './file-model-driver.js';
 import {
+  CODEX_HARNESS_PROVIDER_ID_V1,
+  createCodexResponderTurnDriverV1,
+  type CodexResponderTurnDriverV1Options,
+} from './codex/codex-responder-driver.js';
+import {
   pactModelIdentifierV1,
   resolvePactRunModelApiKeyV1,
 } from './model-config.js';
@@ -82,6 +87,7 @@ export type SharedevalProductionDependenciesV1 = Readonly<{
   loadSharedOs?: typeof loadSharedOsModulesV1;
   createSessionFactory?: typeof createPreloadedSharedOsFileSessionFactoryV1;
   createDriver?: typeof createOpenAICompatibleFileTurnDriverV1;
+  createCodexDriver?: typeof createCodexResponderTurnDriverV1;
   prepareRunDirectories?: typeof prepareSharedevalRunDirectoriesV1;
   runFiles?: typeof runSharedevalPactPairFilesV1;
 }>;
@@ -142,12 +148,26 @@ export async function runSharedevalProductionV1(
     requestedModel: modelId,
     resolvedModel: modelId,
   });
+  const codexHarness = options.config.harness;
+  // With the Codex harness the responder's provenance names the harness as
+  // its provider; the model identity is still the run's model, which Codex is
+  // configured to call through the same endpoint.
+  const responderModel = codexHarness
+    ? Object.freeze({ ...model, provider: CODEX_HARNESS_PROVIDER_ID_V1 })
+    : model;
   const runProvenance: FileWorkflowHostRunProvenanceV1 = deepFreeze({
     ...datasetAuthority,
-    models: { requester: model, responder: model },
+    models: { requester: model, responder: responderModel },
     backend: { adapterId: 'sharedos-runtime', executor: 'sharedos-executor' },
   });
   const createDriver = dependencies.createDriver ?? createOpenAICompatibleFileTurnDriverV1;
+  const createCodexDriver = dependencies.createCodexDriver ?? createCodexResponderTurnDriverV1;
+  if (codexHarness && options.config.model.provider !== 'openai-compatible') {
+    throw new Error('The codex responder harness requires an openai-compatible model');
+  }
+  const codexModel = options.config.model.provider === 'openai-compatible'
+    ? options.config.model
+    : undefined;
   // One ledger and one rate-limit gate per run: providers may vary freely,
   // the served model may not, and concurrent tasks queue behind one 429.
   const servedModelLedger = createServedModelConsistencyLedgerV1();
@@ -170,13 +190,22 @@ export async function runSharedevalProductionV1(
       references: responderReferences(options.config.benchmark.policy),
     },
     tasks,
-    createDriver: () => createDriver({
-      model: options.config.model,
-      requestedModel: modelId,
-      environment: driverEnvironment,
-      servedModelLedger,
-      rateLimitGate,
-    } satisfies OpenAICompatibleFileTurnDriverV1Options),
+    createDriver: input => (
+      codexHarness && codexModel && input.role === 'responder'
+        ? createCodexDriver({
+          harness: codexHarness.codex,
+          model: codexModel,
+          requestedModel: modelId,
+          environment: driverEnvironment,
+        } satisfies CodexResponderTurnDriverV1Options)
+        : createDriver({
+          model: options.config.model,
+          requestedModel: modelId,
+          environment: driverEnvironment,
+          servedModelLedger,
+          rateLimitGate,
+        } satisfies OpenAICompatibleFileTurnDriverV1Options)
+    ),
     createSharedOsSession,
     createSessionResources: input => ({
       pactWorkspace: createPactPairWorkspaceV1(),
