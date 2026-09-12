@@ -7,7 +7,7 @@ import {
   assertJsonComplexityV1,
   safeRelativePathSchema,
 } from '../../contracts/json.js';
-import { pactModelConfigV1Schema } from './model-config.js';
+import { pactModelConfigV1Schema, pactModelEndpointHostV1 } from './model-config.js';
 import {
   PACT_PAIR_GRADING_MODES_V1,
   PACT_PAIR_POLICIES_V1,
@@ -134,11 +134,25 @@ export const sharedevalBenchmarkV1Schema = z.object({
   tasks: { kind: 'all' },
 });
 
+/**
+ * Cross-model pairing: the requester may run on a different model than the
+ * responder so attack and defense ability can be measured separately. Only a
+ * whole model block is accepted (no partial overrides), only for the
+ * requester (the responder always uses the top-level `model`), and absence
+ * stays absent so pre-existing configs keep their configDigest.
+ */
+export const sharedevalActorsV1Schema = z
+  .object({
+    requester: z.object({ model: pactModelConfigV1Schema }).strict(),
+  })
+  .strict();
+
 export const sharedevalRunConfigV1Schema = z
   .object({
     apiVersion: z.literal(SHAREDEVAL_RUN_CONFIG_API_VERSION_V1),
     kind: z.literal('RunConfig'),
     model: pactModelConfigV1Schema,
+    actors: sharedevalActorsV1Schema.optional(),
     workflow: sharedevalWorkflowV1Schema,
     benchmark: sharedevalBenchmarkV1Schema,
     budget: sharedevalRuntimeBudgetV1Schema,
@@ -150,7 +164,29 @@ export const sharedevalRunConfigV1Schema = z
       .strict()
       .default({ directory: 'runs', saveTraces: false }),
   })
-  .strict();
+  .strict()
+  .superRefine((config, context) => {
+    const requesterModel = config.actors?.requester.model;
+    if (!requesterModel) return;
+    // A run's egress is allowlisted to exactly one endpoint host
+    // (scripts/experiments/run-cell.sh), so both actors must share it.
+    const host = pactModelEndpointHostV1(config.model);
+    const requesterHost = pactModelEndpointHostV1(requesterModel);
+    if (requesterHost !== host) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['actors', 'requester', 'model'],
+        message: `requester model endpoint host ${requesterHost} differs from model endpoint host ${host}; a run allows exactly one egress host`,
+      });
+    }
+    if (canonicalJson(requesterModel) === canonicalJson(config.model)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['actors', 'requester', 'model'],
+        message: 'requester model override is identical to model; remove it so the run keeps the single-model digest',
+      });
+    }
+  });
 
 export type SharedevalRunConfigV1 = z.infer<typeof sharedevalRunConfigV1Schema>;
 export type ResolvedSharedevalRunConfigV1 = SharedevalRunConfigV1 & Readonly<{

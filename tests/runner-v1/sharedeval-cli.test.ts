@@ -204,6 +204,38 @@ test('requires --run-id only when execution is requested', async () => {
   });
 });
 
+test('--check prints both actor models only when the requester overrides the model', async () => {
+  const requesterModel = [
+    'actors:',
+    '  requester:',
+    '    model:',
+    '      provider: openai-compatible',
+    '      baseUrl: https://api.example.com/v1',
+    '      apiKeyEnv: SHAREDEVAL_MODEL_API_KEY',
+    '      model: z-ai/glm-5.3-flash',
+    '',
+  ].join('\n');
+  const check = async (source: string) => {
+    const writes: string[] = [];
+    await withConfig(source, async configPath => {
+      assert.equal(await mainSharedevalV1(
+        ['multi', '--config', configPath, '--check'],
+        { writeOutput: value => writes.push(value) },
+      ), 0);
+    });
+    return JSON.parse(writes.join('')) as Record<string, unknown>;
+  };
+
+  const single = await check(configYaml());
+  assert.equal('actors' in single, false);
+  const cross = await check(configYaml('', requesterModel));
+  assert.deepEqual(cross['actors'], {
+    requester: { model: 'z-ai/glm-5.3-flash' },
+    responder: { model: 'example-model' },
+  });
+  assert.notEqual(cross['configDigest'], single['configDigest']);
+});
+
 async function withConfig(
   source: string,
   run: (configPath: string) => Promise<void>,

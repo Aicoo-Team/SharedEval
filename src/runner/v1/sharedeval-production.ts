@@ -25,6 +25,7 @@ import {
 import {
   pactModelIdentifierV1,
   resolvePactRunModelApiKeyV1,
+  type PactModelConfigV1,
 } from './model-config.js';
 import type { FileWorkflowHostRunProvenanceV1 } from './file-workflow-artifacts.js';
 import type { EffectiveSharedevalRunConfigV1 } from './sharedeval-config.js';
@@ -136,21 +137,25 @@ export async function runSharedevalProductionV1(
     outputDirectory: options.config.output.directory,
     runId: options.runId,
   });
-  const modelId = pactModelIdentifierV1(options.config.model);
-  const model = Object.freeze({
-    provider: options.config.model.provider,
-    requestedModel: modelId,
-    resolvedModel: modelId,
-  });
+  const responderModel = actorModel(options.config.model);
+  // Cross-model pairing: the requester may override the model; the responder
+  // always uses the top-level block.
+  const requesterModel = options.config.actors
+    ? actorModel(options.config.actors.requester.model)
+    : responderModel;
   const runProvenance: FileWorkflowHostRunProvenanceV1 = deepFreeze({
     ...datasetAuthority,
-    models: { requester: model, responder: model },
+    models: { requester: requesterModel.provenance, responder: responderModel.provenance },
     backend: { adapterId: 'sharedos-runtime', executor: 'sharedos-executor' },
   });
   const createDriver = dependencies.createDriver ?? createOpenAICompatibleFileTurnDriverV1;
-  // One ledger and one rate-limit gate per run: providers may vary freely,
-  // the served model may not, and concurrent tasks queue behind one 429.
-  const servedModelLedger = createServedModelConsistencyLedgerV1();
+  // One ledger per served model and one rate-limit gate per run: providers
+  // may vary freely, the served model may not, and concurrent tasks queue
+  // behind one 429 (both actors share the one allowlisted egress host).
+  const responderLedger = createServedModelConsistencyLedgerV1();
+  const requesterLedger = requesterModel === responderModel
+    ? responderLedger
+    : createServedModelConsistencyLedgerV1();
   const rateLimitGate = createProviderRateLimitGateV1();
   const run = await (dependencies.runFiles ?? runSharedevalPactPairFilesV1)({
     config: options.config,
@@ -170,11 +175,11 @@ export async function runSharedevalProductionV1(
       references: responderReferences(options.config.benchmark.policy),
     },
     tasks,
-    createDriver: () => createDriver({
-      model: options.config.model,
-      requestedModel: modelId,
+    createDriver: ({ role }) => createDriver({
+      model: role === 'requester' ? requesterModel.config : responderModel.config,
+      requestedModel: role === 'requester' ? requesterModel.id : responderModel.id,
       environment: driverEnvironment,
-      servedModelLedger,
+      servedModelLedger: role === 'requester' ? requesterLedger : responderLedger,
       rateLimitGate,
     } satisfies OpenAICompatibleFileTurnDriverV1Options),
     createSharedOsSession,
@@ -273,6 +278,19 @@ export async function prepareSharedevalRunDirectoriesV1(input: Readonly<{
     throw new Error('Sharedeval output directory escapes its config root');
   }
   return Object.freeze({ runRoot, workspaceRootDir, multiStoreRoot, singleStoreRoot });
+}
+
+function actorModel(config: PactModelConfigV1): Readonly<{
+  config: PactModelConfigV1;
+  id: string;
+  provenance: FileWorkflowHostRunProvenanceV1['models']['requester'];
+}> {
+  const id = pactModelIdentifierV1(config);
+  return Object.freeze({
+    config,
+    id,
+    provenance: Object.freeze({ provider: config.provider, requestedModel: id, resolvedModel: id }),
+  });
 }
 
 function requesterIdentity(requester: PactPairRequesterIdV1): { assetName: string } {

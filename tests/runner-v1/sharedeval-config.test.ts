@@ -230,3 +230,128 @@ test('written taskConcurrency is part of the digest and absence leaves it unchan
   assert.notEqual(explicitEight, explicitOne);
   assert.equal(absent, digestOf(single));
 });
+
+// Exact YAML parsed at the base commit 9c29358 (before the actors override
+// existed); the digest of the parsed config (without the CLI's sourcePath /
+// rootDir) must never move.
+const baselineCrossModelConfig = `apiVersion: sharedeval-run/v1
+kind: RunConfig
+model:
+  provider: openai-compatible
+  baseUrl: https://openrouter.ai/api/v1
+  apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
+  model: deepseek/deepseek-v4-flash-0731
+  temperature: 0
+  maxOutputTokens: 4096
+workflow:
+  mode: single
+  protocol: files
+  maxTicks: 40
+  stopWhen: all-terminal
+  taskConcurrency: 4
+benchmark:
+  dataset: pact-pair
+  policy: D2_R3
+  requester: R3
+  gradingMode: relationship
+  tasks:
+    kind: all
+    limit: 3
+budget:
+  maxToolCalls: 12
+  maxRuntimeMs: 120000
+output:
+  directory: runs
+  saveTraces: false
+`;
+const BASELINE_CROSS_MODEL_DIGEST =
+  '7a706e20b6dd07a900f53b75705c92c5a1097f97e5622c9e41950e442bf7195e';
+
+function withRequesterModel(source: string, model: string): string {
+  return source.replace('workflow:\n', `actors:\n  requester:\n    model:\n${model}workflow:\n`);
+}
+
+const glmRequester = [
+  '      provider: openai-compatible',
+  '      baseUrl: https://openrouter.ai/api/v1',
+  '      apiKeyEnv: SHAREDEVAL_MODEL_API_KEY',
+  '      model: z-ai/glm-5.3-flash',
+  '',
+].join('\n');
+
+test('an absent actors block stays absent and keeps the pre-override digest', () => {
+  const parsed = parseSharedevalRunConfigV1Yaml(baselineCrossModelConfig);
+  assert.equal('actors' in parsed, false);
+  const effective = applySharedevalOverridesV1(parsed, resolveWorkflow(['single']));
+  assert.equal('actors' in effective, false);
+  assert.equal(effective.configDigest, BASELINE_CROSS_MODEL_DIGEST);
+});
+
+test('a whole requester model block overrides only the requester and enters the digest', () => {
+  const source = withRequesterModel(baselineCrossModelConfig, glmRequester);
+  const parsed = parseSharedevalRunConfigV1Yaml(source);
+  assert.equal(parsed.model.provider, 'openai-compatible');
+  assert.equal(parsed.model.provider === 'openai-compatible' && parsed.model.model,
+    'deepseek/deepseek-v4-flash-0731');
+  assert.deepEqual(parsed.actors, {
+    requester: {
+      model: {
+        provider: 'openai-compatible',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        apiKeyEnv: 'SHAREDEVAL_MODEL_API_KEY',
+        model: 'z-ai/glm-5.3-flash',
+        maxOutputTokens: 4_096,
+      },
+    },
+  });
+  const effective = applySharedevalOverridesV1(parsed, resolveWorkflow(['single']));
+  assert.notEqual(effective.configDigest, BASELINE_CROSS_MODEL_DIGEST);
+  assert.equal(
+    effective.configDigest,
+    applySharedevalOverridesV1(parseSharedevalRunConfigV1Yaml(source), resolveWorkflow(['single']))
+      .configDigest,
+  );
+});
+
+test('rejects partial, ambiguous, or cross-host requester overrides loudly', () => {
+  const rejected: Record<string, string> = {
+    'empty actors': baselineCrossModelConfig.replace('workflow:\n', 'actors: {}\nworkflow:\n'),
+    'empty requester': baselineCrossModelConfig.replace(
+      'workflow:\n', 'actors:\n  requester: {}\nworkflow:\n',
+    ),
+    'responder override': baselineCrossModelConfig.replace(
+      'workflow:\n',
+      `actors:\n  requester:\n    model:\n${glmRequester}  responder:\n    model:\n${glmRequester}workflow:\n`,
+    ),
+    'partial model (name only)': withRequesterModel(
+      baselineCrossModelConfig, '      model: z-ai/glm-5.3-flash\n',
+    ),
+    'different egress host': withRequesterModel(
+      baselineCrossModelConfig,
+      glmRequester.replace('https://openrouter.ai/api/v1', 'https://api.other.example/v1'),
+    ),
+    'identical to model': withRequesterModel(
+      baselineCrossModelConfig,
+      [
+        '      provider: openai-compatible',
+        '      baseUrl: https://openrouter.ai/api/v1',
+        '      apiKeyEnv: SHAREDEVAL_MODEL_API_KEY',
+        '      model: deepseek/deepseek-v4-flash-0731',
+        '      temperature: 0',
+        '      maxOutputTokens: 4096',
+        '',
+      ].join('\n'),
+    ),
+  };
+  for (const [label, source] of Object.entries(rejected)) {
+    assert.throws(() => parseSharedevalRunConfigV1Yaml(source), ZodError, label);
+  }
+  assert.throws(
+    () => parseSharedevalRunConfigV1Yaml(rejected['different egress host']!),
+    /exactly one egress host/,
+  );
+  assert.throws(
+    () => parseSharedevalRunConfigV1Yaml(rejected['identical to model']!),
+    /identical to model/,
+  );
+});

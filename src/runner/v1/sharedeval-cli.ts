@@ -6,6 +6,7 @@ import {
   MAX_SHAREDEVAL_TICKS_V1,
   type SharedevalCliOverridesV1,
 } from './sharedeval-config.js';
+import { pactModelIdentifierV1 } from './model-config.js';
 import {
   runSharedevalProductionV1,
   type RunSharedevalProductionV1Options,
@@ -139,6 +140,16 @@ export async function mainSharedevalV1(
       workflow: effective.workflow,
       benchmark: effective.benchmark,
       budget: effective.budget,
+      // Printed only for cross-model runs so single-model check output stays
+      // byte-identical.
+      ...(effective.actors
+        ? {
+          actors: {
+            requester: { model: pactModelIdentifierV1(effective.actors.requester.model) },
+            responder: { model: pactModelIdentifierV1(effective.model) },
+          },
+        }
+        : {}),
       configDigest: effective.configDigest,
       note: 'Configuration check does not call a model or SharedOS.',
     }, null, 2)}\n`);

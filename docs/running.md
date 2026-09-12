@@ -69,6 +69,49 @@ required except for loopback model servers.
 `maxToolCalls` must be between 6 and 128. `maxRuntimeMs` is bounded at 600,000
 milliseconds. Start with a small task limit before running a large selection.
 
+### Cross-model pairing (optional)
+
+By default the one `model:` block drives both actors. To measure attack and
+defense ability separately, give the requester its own model with an
+`actors.requester.model` block of exactly the same shape as `model:`; the
+responder keeps the top-level `model:`:
+
+```yaml
+model:
+  provider: openai-compatible
+  baseUrl: https://openrouter.ai/api/v1
+  apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
+  model: deepseek/deepseek-v4-flash-0731
+
+actors:
+  requester:
+    model:
+      provider: openai-compatible
+      baseUrl: https://openrouter.ai/api/v1
+      apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
+      model: z-ai/glm-5.3-flash
+```
+
+Rules:
+
+- The block is all-or-nothing: a partial model (for example only `model:`),
+  an empty `actors:` or `actors.requester:`, or an `actors.responder` block is
+  rejected.
+- Both models must share one endpoint host, because a containerized cell
+  allowlists exactly one egress host (`scripts/experiments/run-cell.sh`). Both
+  use the same `SHAREDEVAL_MODEL_API_KEY` credential.
+- An override identical to `model:` is rejected so the same experiment always
+  has the same digest.
+- `providerRouting`, `temperature`, `reasoning`, and the other per-model
+  fields are set independently inside each block.
+
+When the block is absent nothing changes: the configuration digest, ledgers,
+and artifacts are byte-identical to runs made before the field existed. When
+it is present it is part of the digest, `--check` prints both models under
+`actors`, and the run ledger records `actors.requester.model` and
+`actors.responder.model` truthfully. Served-model consistency is then tracked
+per actor rather than per run.
+
 ## 3. Check before spending
 
 Omitting the mode selects `multi`:
