@@ -1,6 +1,6 @@
 # PAIR 取消结算：机制证据与 P0/P1 实施方案
 
-日期：2026-09-14（Asia/Shanghai）。状态：**机制 characterization 已交付；P0 生产实现已分配，尚未验收**。
+日期：2026-09-14（Asia/Shanghai）。状态：**机制 characterization 独立审核通过；P0 生产实现进行中，尚未验收**。
 本文提出跨层契约及验收顺序，不批准新模型调用或旧世界续跑。历史证据见
 [尾轮诊断](pair-terminal-diagnostic-2026-09-13.md)，既有代码见冻结
 [PR67](https://github.com/Aicoo-Team/SharedEval/pull/67)。
@@ -21,6 +21,7 @@
 | `PLAN.zh-CN.md` | 12102 | `028ff054cdb7b2b46781263943ab0c809ad160edff3818d386f957425953aa07` |
 | `runtime-cancellation.test.mjs` | 13980 | `b5516c53a615c242a92cad431d12814ac4726203e2c3933eeb005438bf1c51cc` |
 | `settlement-prototype.mjs` | 2182 | `dc9b997500a1b7ae69a354a53b254129733b0ddeae53be51f7147ee1a636c545` |
+| 外部审核 `PAIR-RUNTIME-MECHANISM-REVIEW.md` | 11938 | `dc852c0dd2cba7899bf4adac0e3d689f9033af8264685e00d063e48510b67355` |
 
 复现运行固定 Node 24.18.0、SharedOS revision
 `3aa07e33999b656a10ace294fd4e41df8cbc318e`，loader 验证 executable digest
@@ -32,7 +33,11 @@
 | --- | --- | --- | --- |
 | 诊断作者 | 7/7；0 fail/cancel/skip；exit 0 | 149.625208 ms | 新诊断运行 |
 | 作者所在任务的根代理 | 7/7；0 fail/cancel/skip；exit 0 | 148.979708 ms | 同一固定诊断复跑，**不是本监督任务复验** |
-| 外部 room reviewer | **pending** | 待填 | 独立复跑与断言审核尚未回传，不能计为通过 |
+| 外部 room reviewer | 7/7；0 fail/cancel/skip/todo；exit 0 | 146.374125 ms | 独立阅读与复跑；实际 Node 24.18.0、已验证同一 pin/digest |
+
+外部 reviewer 报告运行前后正文文件及 archive 哈希不变，SharedOS checkout clean，
+临时 fixture 已清理。监督方核对并阅读了这份脱敏报告，没有将其计为监督侧自行复跑。
+通过路径的清理不等于所有 observer promise 都已 join，相关限制及后续门槛见下文。
 
 **7/7 是 characterization 通过，包含成功重现现有缺陷，不表示修复通过。**
 真实 kernel、runtime、executor、授权及 abort 实现未修改；file、driver、audit
@@ -44,7 +49,7 @@ actor journal、workspace CAS 或掉电持久性测试。实验显式触发 abor
 | --- | --- |
 | A：事后 audit 阻挡真实结果 | 文件已写、handler 已产生并经 kernel 校验的 succeeded 结果 → audit gate 等待 → abort → close 开始、executor 返回 cancelled → audit 放行、kernel 才返回结果。driver 交付数为 0、handler 仅一次；外层返回不保证 close 已 ACK。 |
 | B：ingestion 与 close 竞争 | kernel 返回结果 → combined `session.next(tool_result)` 开始异步保存 → abort → close 及 executor/runtime 返回 → 保存之后才完成。PR67 先接收结果再检查 abort，仍不足以保证 runtime 等到持久化 ACK。 |
-| 反序对照 | 先放行 audit、完成结果保存与 close，executor 返回 succeeded 后才 abort；一次结果交付、一次 `tool.completed`。说明顺序改变会改变结果。 |
+| 正常成功对照（原称反序对照） | audit、结果保存、close 和完整 execution/runtime 均结束，取消监听 dispose 后才 abort；一次结果交付、一次 `tool.completed`。证明正常路径可成功，未覆盖 ACK 已到但 finish/close 仍活动时的取消。 |
 
 固定 pin 的相关代码为：
 [kernel handler/result/audit 顺序](https://github.com/Aicoo-Team/SharedOS/blob/3aa07e33999b656a10ace294fd4e41df8cbc318e/packages/core/src/kernel.ts#L696-L727)、
@@ -60,6 +65,21 @@ standard-runtime 155–158 / 242–243 / 344–346 仍存在相关控制流。**
 SHA 的静态检查；不声称它是目前的 main，也未在该 SHA 上执行七项复现。**
 机制与旧 DeepSeek 时序相容，仍未证明原 timer 的准确触发点、唯一根因或 Codex
 尾轮也已发布文件。
+
+## 独立审核明确的限制
+
+以下是外部 reviewer 对原型和测试覆盖的静态发现；七案之外未新增动态复现，
+不将这些发现归为 SharedOS 生产源码缺陷或原 timer 的唯一因果证明。原七案包保持
+冻结，P0 owner 已收到发现并继续实现；新增回归另记版本与结果。
+
+| 现有证明的边界 | 生产实现及新增回归要求 |
+| --- | --- |
+| 正常成功对照在整个执行结束、监听释放后才取消。 | 保留该对照，另测 audit/result ACK 已完成、finish/close gate 仍阻塞时取消，不能用旧对照代替活动边界。 |
+| 原型直接读取 `caught.message`，遇 `null` / `undefined` 拒绝值可能在 catch 中再抛；已知 reject、invalid/mismatch、ingestion/finish 失败又可能只留下 pending。 | 安全处理非 Error 拒绝值；用精确 JSON-safe 状态区分未决、已拒绝/无效、失败与已确认，覆盖 operation、ingestion、finish 各阶段。这是原型问题，不是已验证的生产缺陷。 |
+| 现有拒绝案通过 discovery 的 `tool_unavailable` 阻止执行，未覆盖 consuming invocation re-authorization。 | 新增工具仍可发现但具体执行权限不足，以及契约允许的撤销边界测试；核对拒绝码、审计和零 handler/effect，不改变固定 turn authority 的既有语义。 |
+| 两个 budget 案由外部 AbortController 中止等待，未等自然 timer 到期，也未覆盖 finish 已开始后的超时/失败。 | 分别验证自然预算到期、finish 超时及失败，且 operation/ingestion/finish 共用有限总预算；不把它们解释为测到了历史执行 timer。 |
+| ACK 只证明 synthetic `appendFile` 返回，不证明 fsync 或完整 journal；原型依赖可信 promise、默认 cancelled 前提，仅有限身份字段校验。 | 生产契约须认证已准入操作与取消前提，覆盖完整 schema、精确摘要、重复/冲突/外来结果、audit 和 cleanup 状态；持久性语义由 host 存储协议和崩溃测试证明。 |
+| 通过路径 fixture 干净，但部分测试仅等待完成标记，未显式 join 原始 observer；budget/ACK 案断言失败后可能来不及释放 gate。 | 将 release 与有界 drain 放入 `finally`，保留并处理已启动 observer；验证失败路径收尾，不把目录清空或进程 exit 0 当作全面静止证明。 |
 
 ## P0：实时结算契约
 
@@ -79,9 +99,10 @@ history finish、cleanup 与未决 operation IDs。内部观察或存储接口�
 仅凭 `run()` / `close()` 返回就推断 settled；旧调用方行为单独做兼容回归，新的
 SharedEval world profile 明确要求所需能力，不能静默升级旧世界。
 
-现有孤立原型仅接收已发起的真实 kernel promise，验证有界等待、ACK→finish 顺序
-及 unknown 的处理。它尚未实现 P0-A，仍受旧 kernel 的 audit wait 阻挡，也没有
-生产 driver 接口、崩溃恢复或原子回执；有限 grace period 本身不是完整修复。
+现有孤立原型由可信调用方传入已发起的 kernel promise，演示有限预算结构、
+ACK→finish 顺序和 incomplete 的处理；它不自行认证 promise 来源或取消前提，
+也未完整区分已知错误。它尚未实现 P0-A，仍受旧 kernel 的 audit wait 阻挡，
+没有生产 driver 接口、崩溃恢复或原子回执；有限 grace period 本身不是完整修复。
 
 ## P1：Host 回执与存储
 
@@ -105,15 +126,17 @@ owner 根据 **Codex tick26 开始前**的冻结元数据前缀及源码路径�
 
 ## 验收顺序与停止条件
 
-1. **固定诊断的独立审核：**外部 reviewer 针对上述四文件指纹及 pin 回传七案结果：
-   A、B、反序正常、真实结果 ACK 后 finish、operation settlement 超时、ingestion
-   ACK 超时、真实授权拒绝无写入。保留 characterization 的预期，不能把“缺陷仍能
-   重现”改称修复验收；两个作者侧 7/7 不合并为独立监督通过。
+1. **固定诊断独立审核已完成：**外部 reviewer 在同一指纹及 pin 上取得 7/7，覆盖
+   A、B、执行结束后的正常成功对照、真实结果 ACK 后 finish、operation/ingestion
+   预算由显式 abort 中止、discovery 拒绝无写入。保留上述证据限制及原包；新增测试
+   不倒填入这七案。三个 7/7 分列，不能把“缺陷仍能重现”改称生产修复通过。
 2. **生产实现回归：**在实际新 contracts/core/runtime/driver 中验证发布前取消、
    发布后 audit 前取消、result-ready/audit 未决、ingestion 未 ACK、handler 不返回、
    close 失败、重复/冲突/外来结果及 callback/error 路径；逐案断言无新模型决策、
    无新授权使用、无 action 重放、无伪造 finish，返回 settled/incomplete 与事实一致。
-   必须覆盖 allow/deny、旧 plugin capability 兼容及完整仓库检查。
+   必须落实上表的活动 close 取消、非 Error 与已知失败状态、执行阶段拒绝/撤销、
+   自然 timer/finish 超时、完整结果/ACK 绑定及失败后 `finally` 有界 drain；覆盖
+   allow/deny、旧 plugin capability 兼容及完整仓库检查。现有七案不满足此门槛。
 3. **新 world 的 scripted 集成及恢复：**实际接入 SharedEval journal/workspace/消息，
    覆盖跨 tick 状态修改、failed/cancelled tick 的显式恢复、首问覆盖、依赖先前回复
    的重问。0/24/300-turn mock 历史比较记录/frontier 等价并测量 read calls、bytes、

@@ -47,9 +47,14 @@ model execution or historical recovery was performed for this supplement.
 The subsequent [settlement mechanism and implementation plan](pair-settlement-plan.md)
 separates two controlled cancellation orderings from historical causal attribution.
 Its characterization probes use the pinned kernel/runtime with synthetic storage,
-drivers and gates; passing probes do not establish a production fix. P0 work covers
-versioned result readiness, durable ingestion acknowledgement and finite settlement.
-Host atomic receipts and storage changes remain a separate P1 scope.
+drivers and gates. An external reviewer independently passed the unchanged seven
+probes in 146.374125 ms with zero failures/cancellations/skips. The review also
+limits the normal-success control to cancellation after execution ended and the
+denial control to discovery, and records prototype error/state/ACK/budget/cleanup
+coverage gaps. These are characterization results, not a production fix. P0 work
+covers versioned result readiness, durable ingestion acknowledgement and finite
+settlement with the missing regressions. Host atomic receipts and storage changes
+remain a separate P1 scope.
 
 No PR has been merged by the supervisor. Room review and independent checks are
 recorded separately from author reports. Idle status or a message saying done
