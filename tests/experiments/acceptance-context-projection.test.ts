@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 import {
   ACCEPTANCE_CONTEXT_PROJECTION_VERSION,
+  createAcceptanceTurnContextProjector,
   projectAcceptanceContext,
 } from '../../scripts/experiments/acceptance-context-projection.js';
 
@@ -240,6 +241,79 @@ test('300 synthetic ticks retain all contacts and ordered IDs while eliminating 
   assert.deepEqual(projected.messages.slice(-14), messages.slice(-14));
   assert.ok(projected.metadata.projectedBytes < projected.metadata.inputBytes * 0.15,
     `expected at least 85% reduction, got ${JSON.stringify({ before: projected.metadata.inputBytes, after: projected.metadata.projectedBytes })}`);
+});
+
+test('freezes two actor turns independently and keeps native continuation prefixes stable as current file results arrive', () => {
+  const staticContent = text('same static file across workspace versions');
+  const initialMemory = text('old MEMORY notes');
+  const nextMemory = text('next MEMORY notes');
+  const messages: Message[] = [{ role: 'user', content: 'tick 1' }];
+  const firstTurn = createAcceptanceTurnContextProjector();
+  let previous = firstTurn(messages);
+  for (const [id, file, content] of [
+    ['first-agent', 'AGENT.md', staticContent], ['first-memory', 'MEMORY.md', initialMemory],
+  ]) {
+    const pair = read(id!, file!, content!, 0);
+    messages.push(...pair);
+    const current = firstTurn(messages);
+    assert.deepEqual(current.messages.slice(0, -1), [...previous.messages, pair[0]]);
+    previous = current;
+  }
+  messages.push(...contact('first-contact', 1), ...write('first-write', nextMemory, 0),
+    { role: 'assistant', content: 'Actual completed tick 1.' });
+  firstTurn(messages);
+
+  messages.push({ role: 'user', content: 'tick 2' });
+  const secondTurn = createAcceptanceTurnContextProjector();
+  const turnStartLength = messages.length;
+  previous = secondTurn(messages);
+  const frozen = structuredClone(previous);
+  assert.equal(previous.metadata.frozenHistoricalPrefix?.firstRequestMessageCount, turnStartLength);
+  for (const [id, file, content] of [
+    ['second-agent', 'AGENT.md', staticContent], ['second-memory', 'MEMORY.md', nextMemory],
+  ]) {
+    const pair = read(id!, file!, content!, 1);
+    messages.push(...pair);
+    const current = secondTurn(messages);
+    // Same invariant as native #continue: exactly one linked result follows the
+    // immutable prefix plus the assistant decision returned by the native turn.
+    assert.deepEqual(current.messages.slice(0, -1), [...previous.messages, pair[0]]);
+    assert.deepEqual(current.messages.slice(0, turnStartLength), frozen.messages);
+    assert.deepEqual(current.messages.at(-1), pair[1]);
+    assert.deepEqual(current.metadata.omissions, frozen.metadata.omissions);
+    assert.deepEqual(current.metadata.frozenHistoricalPrefix, frozen.metadata.frozenHistoricalPrefix);
+    assert.equal(current.metadata.inputSha256, hash(JSON.stringify(messages)));
+    assert.equal(current.metadata.projectedSha256, hash(JSON.stringify(current.messages)));
+    previous = current;
+  }
+  assert.notDeepEqual(projectAcceptanceContext(messages).messages.slice(0, turnStartLength), frozen.messages,
+    'regression setup must expose the original recomputed-prefix divergence');
+  assert.deepEqual(toolIds(previous.messages), toolIds(messages));
+});
+
+test('turn projection accepts identical retries, rejects rewritten history and cannot be poisoned through returned objects', () => {
+  const messages = [{ role: 'user', content: 'prior' }, ...read('old', 'AGENT.md', text('agent'), 0),
+    { role: 'user', content: 'prior 2' }, ...read('later', 'AGENT.md', text('agent'), 1),
+    { role: 'user', content: 'current' }];
+  const project = createAcceptanceTurnContextProjector();
+  const first = project(messages);
+  const retry = project(messages);
+  assert.deepEqual(retry, first);
+  first.messages[2]!.content = 'tampered returned copy';
+  first.metadata.omissions[0]!.retainedContentAt.messageIndex = 999;
+  first.metadata.frozenHistoricalPrefix!.inputSha256 = 'tampered metadata';
+  assert.deepEqual(project(messages), retry);
+  const changed = structuredClone(messages);
+  changed[0]!.content = 'rewritten actor input';
+  assert.throws(() => project(changed), /acceptance_turn_context_history_diverged/);
+  assert.throws(() => project(messages.slice(1)), /acceptance_turn_context_history_diverged/);
+  const appended = [...messages, ...contact('current-contact', 5)];
+  const next = project(appended);
+  assert.equal(next.metadata.contactCallCount, 1);
+  assert.equal(next.metadata.messageCount, appended.length);
+  const changedCurrent = structuredClone(appended);
+  changedCurrent.at(-1)!.content = 'rewritten current result';
+  assert.throws(() => project(changedCurrent), /acceptance_turn_context_history_diverged/);
 });
 
 function freezeDeep(value: unknown): void {

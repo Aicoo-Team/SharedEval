@@ -38,6 +38,11 @@ export type AcceptanceContextProjectionMetadata = {
   historicalMemoryWrites: number;
   omissions: AcceptanceContextOmission[];
   informationLoss: string[];
+  frozenHistoricalPrefix?: {
+    firstRequestMessageCount: number;
+    inputSha256: string;
+    projectedSha256: string;
+  };
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -72,7 +77,6 @@ export function projectAcceptanceContext<T>(
   messages: readonly T[],
   options: AcceptanceContextProjectionOptions = {},
 ): { messages: T[]; metadata: AcceptanceContextProjectionMetadata } {
-  const inputText = JSON.stringify(messages);
   const projected = structuredClone(messages) as T[];
   let inferredStart = -1;
   for (let index = 0; index < messages.length; index += 1) {
@@ -83,36 +87,14 @@ export function projectAcceptanceContext<T>(
     throw new RangeError('currentTurnStartIndex must be a raw message index within the input');
   }
 
-  const linkage: unknown[] = [];
-  const callCounts = new Map<string, number>();
-  const resultCounts = new Map<string, number>();
-  let toolCallCount = 0;
-  let toolResultCount = 0;
-  let contactCallCount = 0;
-  for (const [index, value] of messages.entries()) {
-    const message = record(value);
-    if (message?.role === 'assistant' && Array.isArray(message.tool_calls)) {
-      for (const value of message.tool_calls) {
-        const call = record(value);
-        toolCallCount += 1;
-        if (typeof call?.id === 'string') increment(callCounts, call.id);
-        const name = record(call?.function)?.name;
-        if (name === 'messages.request') contactCallCount += 1;
-        linkage.push(['call', index, call?.id ?? null, name ?? null]);
-      }
-    } else if (message?.role === 'tool') {
-      toolResultCount += 1;
-      if (typeof message.tool_call_id === 'string') increment(resultCounts, message.tool_call_id);
-      linkage.push(['result', index, message.tool_call_id ?? null]);
-    }
-  }
+  const wire = inspectWire(messages);
 
   // Only the exact single-call, adjacent-result protocol emitted by this driver
   // is recognized. Ambiguous IDs, parallel calls and evolving schemas pass through.
   const snapshots: Snapshot[] = [];
   for (let index = 0; index + 1 < messages.length; index += 1) {
     const snapshot = recognizeSnapshot(messages[index], messages[index + 1], index);
-    if (snapshot && callCounts.get(snapshot.id) === 1 && resultCounts.get(snapshot.id) === 1) {
+    if (snapshot && wire.callCounts.get(snapshot.id) === 1 && wire.resultCounts.get(snapshot.id) === 1) {
       snapshots.push(snapshot);
     }
   }
@@ -180,29 +162,110 @@ export function projectAcceptanceContext<T>(
     omissions.push(omission);
   }
 
+  return {
+    messages: projected,
+    metadata: buildMetadata(messages, projected, currentStart, omissions, wire),
+  };
+}
+
+/**
+ * One instance per actor turn, shared by both experiment transports. Freeze the
+ * first request's projected prefix: a later current-turn read must not rewrite
+ * history already injected into a native turn. Every subsequent raw message is
+ * appended verbatim. Start a new instance for the next actor turn.
+ */
+export function createAcceptanceTurnContextProjector(options: AcceptanceContextProjectionOptions = {}) {
+  let frozen: {
+    prefix: unknown[];
+    currentTurnStartIndex: number;
+    omissions: AcceptanceContextOmission[];
+    identity: NonNullable<AcceptanceContextProjectionMetadata['frozenHistoricalPrefix']>;
+  } | undefined;
+  let previousRawMessageCount = 0;
+  let previousRawSha256 = '';
+  return function projectTurn<T>(messages: readonly T[]): {
+    messages: T[]; metadata: AcceptanceContextProjectionMetadata;
+  } {
+    if (!frozen) {
+      const first = projectAcceptanceContext(messages, options);
+      frozen = {
+        prefix: structuredClone(first.messages),
+        currentTurnStartIndex: first.metadata.currentTurnStartIndex,
+        omissions: structuredClone(first.metadata.omissions),
+        identity: { firstRequestMessageCount: messages.length,
+          inputSha256: first.metadata.inputSha256, projectedSha256: first.metadata.projectedSha256 },
+      };
+      previousRawMessageCount = messages.length;
+      previousRawSha256 = first.metadata.inputSha256;
+      first.metadata.frozenHistoricalPrefix = { ...frozen.identity };
+      return first;
+    }
+    if (messages.length < previousRawMessageCount
+      || sha256(JSON.stringify(messages.slice(0, previousRawMessageCount))) !== previousRawSha256) {
+      throw new Error('acceptance_turn_context_history_diverged');
+    }
+    const projected = [
+      ...structuredClone(frozen.prefix),
+      ...structuredClone(messages.slice(frozen.identity.firstRequestMessageCount)),
+    ] as T[];
+    const metadata = buildMetadata(messages, projected, frozen.currentTurnStartIndex,
+      structuredClone(frozen.omissions));
+    metadata.frozenHistoricalPrefix = { ...frozen.identity };
+    previousRawMessageCount = messages.length;
+    previousRawSha256 = metadata.inputSha256;
+    return { messages: projected, metadata };
+  };
+}
+
+function inspectWire(messages: readonly unknown[]) {
+  const linkage: unknown[] = [];
+  const callCounts = new Map<string, number>();
+  const resultCounts = new Map<string, number>();
+  let toolCallCount = 0;
+  let toolResultCount = 0;
+  let contactCallCount = 0;
+  for (const [index, value] of messages.entries()) {
+    const message = record(value);
+    if (message?.role === 'assistant' && Array.isArray(message.tool_calls)) {
+      for (const value of message.tool_calls) {
+        const call = record(value);
+        toolCallCount += 1;
+        if (typeof call?.id === 'string') increment(callCounts, call.id);
+        const name = record(call?.function)?.name;
+        if (name === 'messages.request') contactCallCount += 1;
+        linkage.push(['call', index, call?.id ?? null, name ?? null]);
+      }
+    } else if (message?.role === 'tool') {
+      toolResultCount += 1;
+      if (typeof message.tool_call_id === 'string') increment(resultCounts, message.tool_call_id);
+      linkage.push(['result', index, message.tool_call_id ?? null]);
+    }
+  }
+  return { callCounts, resultCounts, toolCallCount, toolResultCount, contactCallCount,
+    orderedToolLinkageSha256: sha256(JSON.stringify(linkage)) };
+}
+
+function buildMetadata(messages: readonly unknown[], projected: readonly unknown[], currentStart: number,
+  omissions: AcceptanceContextOmission[], wire = inspectWire(messages)): AcceptanceContextProjectionMetadata {
+  const inputText = JSON.stringify(messages);
   const projectedText = JSON.stringify(projected);
   const inputBytes = Buffer.byteLength(inputText, 'utf8');
   const projectedBytes = Buffer.byteLength(projectedText, 'utf8');
-  const memoryLoss = omissions.some(item => item.kind !== 'duplicate-file-read');
   return {
-    messages: projected,
-    metadata: {
-      version: ACCEPTANCE_CONTEXT_PROJECTION_VERSION,
-      inputSha256: sha256(inputText),
-      projectedSha256: sha256(projectedText),
-      inputBytes, projectedBytes, savedBytes: inputBytes - projectedBytes,
-      messageCount: messages.length,
-      modifiedMessageCount: new Set(omissions.map(item => item.messageIndex)).size,
-      toolCallCount, toolResultCount, contactCallCount,
-      orderedToolLinkageSha256: sha256(JSON.stringify(linkage)),
-      currentTurnStartIndex: currentStart,
-      duplicateFileReads: omissions.filter(item => item.kind === 'duplicate-file-read').length,
-      historicalMemoryReads: omissions.filter(item => item.kind === 'historical-memory-read').length,
-      historicalMemoryWrites: omissions.filter(item => item.kind === 'historical-memory-write').length,
-      omissions,
-      informationLoss: memoryLoss
-        ? ['Superseded complete MEMORY notes/status snapshots are absent from the model view. Latest MEMORY does not reconstruct them; the raw journal retains them.'] : [],
-    },
+    version: ACCEPTANCE_CONTEXT_PROJECTION_VERSION,
+    inputSha256: sha256(inputText), projectedSha256: sha256(projectedText),
+    inputBytes, projectedBytes, savedBytes: inputBytes - projectedBytes,
+    messageCount: messages.length,
+    modifiedMessageCount: new Set(omissions.map(item => item.messageIndex)).size,
+    toolCallCount: wire.toolCallCount, toolResultCount: wire.toolResultCount,
+    contactCallCount: wire.contactCallCount, orderedToolLinkageSha256: wire.orderedToolLinkageSha256,
+    currentTurnStartIndex: currentStart,
+    duplicateFileReads: omissions.filter(item => item.kind === 'duplicate-file-read').length,
+    historicalMemoryReads: omissions.filter(item => item.kind === 'historical-memory-read').length,
+    historicalMemoryWrites: omissions.filter(item => item.kind === 'historical-memory-write').length,
+    omissions,
+    informationLoss: omissions.some(item => item.kind !== 'duplicate-file-read')
+      ? ['Superseded complete MEMORY notes/status snapshots are absent from the model view. Latest MEMORY does not reconstruct them; the raw journal retains them.'] : [],
   };
 }
 
