@@ -13,7 +13,8 @@ independent execution and remaining expansion gates. See the
 | Persistent NET world / Single reset | Draft [PR63](https://github.com/Aicoo-Team/SharedEval/pull/63) | `c13e620`: two cases, full serial 867/867 and mandatory native CI green; local parallel 866/867 remains disclosed |
 | Bounded unified native NET entry | Draft [PR64](https://github.com/Aicoo-Team/SharedEval/pull/64) | `4f8d8c0` on `c13e620`: unified check/run/resume/P-01 score; full serial 889/889, CI and four fixed-head CLI runs pass; local parallel 888/889 remains disclosed |
 | Evaluator provenance / output consistency | Draft [PR65](https://github.com/Aicoo-Team/SharedEval/pull/65) | `5da4785c` on frozen PR64: required `pnpm check` 903/903, both CI jobs and retained-artifact v1 → v2 e2e pass; independent review/probe results stay separately attributed |
-| Historical PAIR acceptance helpers | Draft [PR66](https://github.com/Aicoo-Team/SharedEval/pull/66) | Frozen `63bb0108` on PR57: ten historical helper commits are now fetchable; focused 193/193 reported, but CI validation has five failures. Independent review and a separate recovery fix remain in progress |
+| Historical PAIR acceptance helpers | Draft [PR66](https://github.com/Aicoo-Team/SharedEval/pull/66) | Frozen `63bb0108` on PR57: source/patch identity independently verified; focused 193/193 reported, CI validation has five failures, and independent review found an analyzer run-attribution P2 |
+| PAIR recovery and coverage protocol | Draft [PR67](https://github.com/Aicoo-Team/SharedEval/pull/67) | `f06b637a` on PR66: owner reports required 871/871; both CI jobs pass. Analyzer attribution P2 is still open and is being fixed in a later commit; final acceptance remains pending |
 | PAIR e2e | Independently reproduced | Required pinned SharedOS; Multi history continuity, Single reset, deny and failure lifecycle |
 | NET e2e | Independently reproduced after review fix | Final `a883f51`: full 814/814, success/held/cold-process CLI runs, and native adversarial audit-order denial |
 | NET cross-case e2e | Reproduced at `c13e620` | Both conditions: separate CLI processes 8→9→16 turns, five actions per case, completed reopen unchanged; Multi retains history/effect, Single resets all histories/resources |
@@ -53,6 +54,25 @@ not a cause of either failed model trial. The owner is fixing them together with
 cancellation, telemetry and versioned coverage progression on a separate recovery
 branch. The historical PR and original runs stay frozen; passing focused checks
 on that new branch do not yet establish final recovery acceptance.
+
+The independent PR66 review verified all ten patch commits and sixteen added
+files against the historical package. Its 54/54 focused tests and standalone
+type-check passed separately from the failing CI configuration. It also exposed
+a run-attribution P2 in the analyzer: a foreign ledger could be accepted with a
+current-run failure marker, or without a failure marker. Internal ledger
+consistency alone did not bind every record to the requested lane. These were
+synthetic probes, not evidence that the delivered private runs were mixed.
+
+PR67 head `f06b637ad63046345efc2edc4d25e53748825927` fixes cancellation/result
+handling, coverage/v2, telemetry and CI/source availability; its owner reports
+required-runtime `pnpm check` **871/871**, zero failures/cancellations/skips,
+54.310 seconds. [CI 34741194856](https://github.com/Aicoo-Team/SharedEval/actions/runs/34741194856)
+passed both jobs at that head. An earlier `6f89fc7` run was 870/871 due to a CI
+command assertion and remains a separate failed result. The analyzer attribution
+finding arrived afterward and is **not fixed or accepted by those green checks**.
+The owner is adding lane/record/event/selection/journal binding validation,
+including the no-failure path, with fresh regressions and a new fixed head.
+Final independent PR67 review remains open; original trials stay sealed.
 
 ## Assigned profiles and cross-case extension
 
@@ -163,8 +183,9 @@ and the task split. The review does not provide missing raw inputs for independe
 recomputation, prove the full execution checkout or reconstruct complete native
 prompts. The candidate helper hashes remain partial provenance.
 
-Source inspection found a candidate abort-during-save path that may return
-HTTP 200; it has not been dynamically reproduced and is not an established cause
+The reviewer subsequently reproduced an abort-during-save bridge response of
+HTTP 200 using actual source and filesystem/RPC mocks; the outer FileModelDriver
+still rejected with AbortError. This is not proof of a late SharedOS effect or an established cause
 of either original failure. The metadata reports 52 closed, 51 completed and
 zero `failurePresent`: an absent failure record is not a successful completion.
 Keep the 300-second, 180-second and 30-second timeout layers distinct. The owner

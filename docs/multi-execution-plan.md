@@ -213,13 +213,21 @@ partial provenance. The review report's SHA-256 is
 `3636152f67370bf20ccb5b059ecfb4551d27347dd1089b347281500871fd55de`;
 the detailed counts and package identity are in the delivery record.
 
-Source inspection identifies an abort-during-save path that may return HTTP 200;
-this remains a candidate without dynamic reproduction, not an established cause
-of the originals' failures. Capture metadata reports 52 closed, 51 completed and
+The reviewer subsequently reproduced the abort-during-save bridge path with
+actual source and filesystem/RPC mocks: HTTP 200 can coexist with a cancellation
+marker, while the outer FileModelDriver still rejects with AbortError. This does
+not prove a late SharedOS effect or establish the originals' failure cause.
+Capture metadata reports 52 closed, 51 completed and
 zero `failurePresent`; missing failure details do not establish success. Keep the
 300-second, 180-second and 30-second timeout layers separate. The owner has
 resumed bounded work without model calls on cancellation, late effects and
-coverage progression, with a reviewable PR required. Both originals stay sealed;
+coverage progression in [PR67](https://github.com/Aicoo-Team/SharedEval/pull/67),
+stacked on the frozen historical helpers in PR66. At `f06b637a`, its owner reports
+required 871/871 and both CI jobs pass. Independent review exposed a separate
+analyzer run-attribution P2: internally consistent foreign ledger data could be
+accepted for the requested lane. That finding is not covered by the green head;
+the owner is adding lane/record/event/selection/journal validation and fresh
+regressions before final review. Both originals stay sealed;
 this follow-up does not authorize a paid restart or change Q103's unresolved
 source-confirmation semantics. No raw private journals are part of this delivery.
 
