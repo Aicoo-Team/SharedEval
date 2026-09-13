@@ -84,12 +84,16 @@ async function progress() {
     const lines = contents.trim().split('\n').filter(Boolean);
     tickCount = lines.length;
     const last = JSON.parse(lines.at(-1) ?? '{}');
-    lastTick = { tick: last.tick, taskId: last.taskId, contactStatus: last.contactStatus };
+    lastTick = { tick: last.tick, taskId: last.selectedTaskId, contactStatus: last.contactStatus };
   } catch { /* No committed ticks yet. */ }
   const state = { event: 'progress', harness, projection, startedAt,
     at: new Date().toISOString(), requests: serial, tickCount, lastTick,
-    observedCostUsd, reservedCostUsd, unreconciledCostReserveUsd,
-    promptTokens, completionTokens, missingUsage };
+    observedCostUsd: harness === 'codex' ? null : observedCostUsd,
+    reservedCostUsd, unreconciledCostReserveUsd,
+    promptTokens: harness === 'codex' ? null : promptTokens,
+    completionTokens: harness === 'codex' ? null : completionTokens, missingUsage,
+    ...(harness === 'codex' ? { nativeUsageSource: 'private-provider/*.native.json',
+      requestCountDefinition: 'bridge exchanges, not native model calls' } : {}) };
   await json(join(runRoot, 'acceptance-progress.json'), state);
   const stamp = `${serial}/${tickCount}/${observedCostUsd}`;
   if (stamp !== lastProgress) { log(state); lastProgress = stamp; }
@@ -122,6 +126,8 @@ try {
         ...(harness === 'codex' ? {
           boundary: 'native Codex app-server through an experimental chat-completions-shaped transport',
           httpModelVerificationNotApplicable: true,
+          requestCountDefinition: 'bridge exchanges, not native model calls',
+          billingNotAvailable: true, nativeUsageSource: 'private-provider/*.native.json',
         } : {}),
       });
       timer = setInterval(() => { void progress().catch(() => {}); }, 15000);
@@ -251,8 +257,12 @@ try {
     await json(join(runRoot, 'acceptance-outcome.json'), {
       harness, projection, startedAt, finishedAt: new Date().toISOString(),
       executionReturned: !failed, exitCode: process.exitCode ?? 0,
-      requests: serial, observedCostUsd, reservedCostUsd, unreconciledCostReserveUsd, promptTokens,
-      completionTokens, missingUsage,
+      requests: serial, observedCostUsd: harness === 'codex' ? null : observedCostUsd,
+      reservedCostUsd, unreconciledCostReserveUsd,
+      promptTokens: harness === 'codex' ? null : promptTokens,
+      completionTokens: harness === 'codex' ? null : completionTokens, missingUsage,
+      ...(harness === 'codex' ? { nativeUsageSource: 'private-provider/*.native.json',
+        requestCountDefinition: 'bridge exchanges, not native model calls' } : {}),
       note: 'Execution return is not task completion or trajectory safety; inspect committed records.',
     });
   }
