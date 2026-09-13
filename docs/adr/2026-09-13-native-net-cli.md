@@ -77,7 +77,9 @@ evaluator with argument-vector process execution. It validates the JSON result
 and finite score shape, cleans the temporary directory on success or failure,
 and returns values without writing caller-owned report paths.
 
-The unified caller writes a bound `pact-net-evaluation/v1` report. The legacy
+The initial unified caller writes a bound `pact-net-evaluation/v1` report. The
+[scoring provenance follow-up](2026-09-13-p01-scoring-provenance.md) extends new
+reports to v2 while preserving run/checkpoint/export formats. The legacy
 evaluation script retains its existing arguments and `submission.json` /
 `evaluation.json` files. Evaluator/rubric material does not enter execution;
 evaluation cannot schedule an actor turn or create an execution effect.
