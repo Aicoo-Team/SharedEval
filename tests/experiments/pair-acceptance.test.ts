@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -7,7 +8,7 @@ import test from 'node:test';
 import { parse } from 'yaml';
 import { sha256JsonV1, type JsonValue } from '../../src/contracts/json.js';
 import { pairBenchmarkSchema } from '../../src/suites/pact-pair/schemas.js';
-import { prepareAcceptance, FROZEN_SOURCE, SPLIT_IDS } from '../../scripts/experiments/prepare-pair-acceptance.js';
+import { prepareAcceptance, FROZEN_SOURCE, SPLIT_IDS, SPLIT_PATH, QUESTIONS_PATH } from '../../scripts/experiments/prepare-pair-acceptance.js';
 import { acceptanceStopStatus, analyzeAcceptance, analyzeAcceptanceRun, type AcceptancePayload } from '../../scripts/experiments/analyze-pair-acceptance.js';
 import { binding } from '../runner-v1/file-workflow-test-fixtures.js';
 
@@ -68,6 +69,38 @@ test('preparation freezes split 02, balanced labels, and exact preflight configu
     await assert.rejects(prepareAcceptance(directory), /Refusing to replace/);
     assert.ok(!JSON.stringify(prepared.manifest).includes('gold_key_facts'));
   } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('missing frozen Git object is diagnosed before output and never replaced by working-tree data', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'pair-missing-source-'));
+  const root = join(directory, 'repo');
+  const output = join(directory, 'output');
+  try {
+    execFileSync('git', ['init', '--quiet', root]);
+    for (const path of [SPLIT_PATH, QUESTIONS_PATH]) {
+      await mkdir(join(root, path, '..'), { recursive: true });
+      await writeFile(join(root, path), await readFile(resolve(path)));
+    }
+    await assert.rejects(prepareAcceptance(output, root), error => {
+      assert.equal((error as { code?: string }).code, 'ACCEPTANCE_FROZEN_SOURCE_UNAVAILABLE');
+      assert.match((error as Error).message, new RegExp(FROZEN_SOURCE));
+      assert.match((error as Error).message, /fetch|full.history/i);
+      return true;
+    });
+    await assert.rejects(readFile(join(output, 'pair-split-02.manifest.json')), { code: 'ENOENT' });
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('CI supplies frozen history and requires the local late-operation regressions', async () => {
+  const workflow = parse(await readFile(resolve('.github/workflows/ci.yml'), 'utf8'));
+  const checkout = workflow.jobs.validate.steps.find((step: { uses?: string }) => step.uses === 'actions/checkout@v4');
+  assert.equal(checkout.with['fetch-depth'], 0);
+  assert.equal(checkout.with['persist-credentials'], false);
+  const native = workflow.jobs['sharedos-loader'].steps.find((step: { name?: string }) => step.name === 'Verify native world continuity and failure lifecycle');
+  assert.equal(native.env.SHAREDEVAL_REQUIRE_SHAREDOS, '1');
+  for (const path of ['tests/execution/pair-late-operation-driver.test.ts', 'tests/execution/pair-late-operation-delivery.test.ts']) {
+    assert.ok(native.run.includes(path), path);
+  }
 });
 
 test('textual refusal followed by disclosure survives later terminal refusal; unasked is incomplete', async () => {
