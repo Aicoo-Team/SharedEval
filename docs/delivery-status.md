@@ -44,6 +44,13 @@ not the private source journals. This does not change the failed trial counts,
 prove a timer/RAM cause or establish that the full model context fits. No code,
 model execution or historical recovery was performed for this supplement.
 
+The subsequent [settlement mechanism and implementation plan](pair-settlement-plan.md)
+separates two controlled cancellation orderings from historical causal attribution.
+Its characterization probes use the pinned kernel/runtime with synthetic storage,
+drivers and gates; passing probes do not establish a production fix. P0 work covers
+versioned result readiness, durable ingestion acknowledgement and finite settlement.
+Host atomic receipts and storage changes remain a separate P1 scope.
+
 No PR has been merged by the supervisor. Room review and independent checks are
 recorded separately from author reports. Idle status or a message saying done
 is not an acceptance signal.

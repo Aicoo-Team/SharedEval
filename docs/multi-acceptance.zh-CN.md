@@ -45,6 +45,11 @@ DeepSeek tick28 的 MEMORY 已发布为 workspace v26（4738 bytes），但 acto
 负责人提供的脱敏附录已核对哈希；监督方未读取原私有 journal。MEMORY 文件大小、
 完整模型输入与宿主机 RAM 是三个不同指标，现有证据未闭环超时或资源压力的因果关系。
 
+后续[结算机制复现与修复方案](pair-settlement-plan.md)将问题拆为两条可控时序：
+事后审计阻挡真实工具结果返回，以及结果持久化尚未确认时取消触发关闭。固定 runtime
+上的 characterization tests 用于证明机制，不代表生产修复或原实验唯一根因。
+P0 正推进版本化的结果就绪、持久化 ACK 和有限结算契约；原子恢复回执及存储优化另列 P1。
+
 ## NET Multi 怎么跑
 
 NET 没有固定的全局 requester/responder 二元关系。host 提供 actor registry、
