@@ -37,9 +37,10 @@ test('retired execution surfaces and historical artifacts are absent', () => {
   }
 });
 
-test('scripts contain only the supported exporter and experiment launchers', () => {
+test('scripts contain only supported checks, exporters, and experiment launchers', () => {
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts')).sort(), [
     'README.md',
+    'check.mjs',
     'experiments',
     'huggingface',
   ]);
@@ -48,17 +49,27 @@ test('scripts contain only the supported exporter and experiment launchers', () 
     'export-pact-pair.mjs',
   ]);
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts', 'experiments')).sort(), [
+    'acceptance-context-projection.ts',
+    'acceptance-stream-redaction.mjs',
     'aggregate-flip-stats.mjs',
+    'analyze-pair-acceptance.ts',
     'build-image.sh',
+    'codex-app-server-transport-canary.ts',
+    'codex-app-server-transport.ts',
     'egress-probe.mjs',
     'egress-probe.sh',
     'gen-mt-configs.mjs',
     'merge-grid-metrics.mjs',
     'mt-lane.sh',
+    'prepare-codex-acceptance.ts',
+    'prepare-pair-acceptance.ts',
     'run-cell-lib.mjs',
     'run-cell.sh',
     'run-grid.sh',
+    'run-pair-acceptance.ts',
+    'secure-acceptance-host.mjs',
     'stage-sharedos-provenance.ts',
+    'validate-acceptance-continuity.ts',
   ]);
 });
 
@@ -67,6 +78,7 @@ test('package and public docs expose only the retained product surface', () => {
     readFileSync(join(repoRoot, 'package.json'), 'utf8'),
   ) as { scripts: Record<string, string> };
   assert.deepEqual(Object.keys(packageJson.scripts).sort(), [
+    'check',
     'eval:pact-pair',
     'export:huggingface:pact-pair',
     'sharedeval',

@@ -9,6 +9,7 @@
     "node": ">=20.11"
   },
   "scripts": {
+    "check": "node scripts/check.mjs",
     "sharedeval": "tsx src/runner/v1/sharedeval-cli.ts",
     "validate": "tsx src/validate.ts",
     "smoke:pact-pair": "tsx src/validate.ts --suite pair",
