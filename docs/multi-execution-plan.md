@@ -50,12 +50,17 @@ does not make a new benchmark-performance claim.
   development native run passed 9/9. Independent review and final gates remain
   separately attributed below. Fixed-head required `pnpm check` passed 903/903;
   both CI jobs and retained-artifact v1 → v2 e2e passed. PR64 is unchanged.
-- Main/stack/governance compatibility has a separate
-  [combined-tree verification](integration-acceptance-2026-09-13.md): staged tree
-  `8a80569f08b34bc8deb1b500b3b5ac377eeea645` passed required 903/903 and four-mode
-  scripted CLI e2e. It includes main `dc5`, PR65 `5da` and PR58 `6c512c0`, but no
-  integration commit or PR60/61/66/recovery changes. NET benchmark readiness still
-  fails its explicit gate for external corpus access and unvalidated gold.
+- Current main/stack/governance compatibility is recorded in the
+  [PAIR recovery integration report](integration-pair-recovery-2026-09-13.md):
+  staged tree `e93d46f934987f380137a684f244fff9f6e66a43` combines NET65 `5da`,
+  PAIR67 `c1bedc0` and governance `23a432f` (including main `dc5`). Required
+  `pnpm check` passed **1005/1005** and four-mode old-version continuation passed
+  with **48 scripted native turns / zero model calls**. The failed first external
+  helper attempt remains separately recorded. No integration commit or PR merge
+  was made; PR60/61 remain excluded. The earlier
+  [903-test combination](integration-acceptance-2026-09-13.md) is retained as
+  historical evidence. NET readiness still fails for external corpus access and
+  unvalidated gold.
 - These world/native CLI branches require SharedOS
   `3aa07e33999b656a10ace294fd4e41df8cbc318e`, runtime digest
   `4afb23d79851a83a48e25e968f04e45cefc81847b4a9963c62277b5c05862d5d`.
@@ -222,12 +227,15 @@ zero `failurePresent`; missing failure details do not establish success. Keep th
 300-second, 180-second and 30-second timeout layers separate. The owner has
 resumed bounded work without model calls on cancellation, late effects and
 coverage progression in [PR67](https://github.com/Aicoo-Team/SharedEval/pull/67),
-stacked on the frozen historical helpers in PR66. At `f06b637a`, its owner reports
-required 871/871 and both CI jobs pass. Independent review exposed a separate
-analyzer run-attribution P2: internally consistent foreign ledger data could be
-accepted for the requested lane. That finding is not covered by the green head;
-the owner is adding lane/record/event/selection/journal validation and fresh
-regressions before final review. Both originals stay sealed;
+stacked on the frozen historical helpers in PR66. At `1e6c350b`, its owner reports
+required 889/889 and both CI jobs pass. The original reviewer independently
+closed the analyzer run-attribution P2 with its original controls and 28/28
+focused tests, plus 21/21 native checks of stable behavior. A separate old-binding
+range regression is independently closed at `c1bedc0`, including real legacy
+ledger reopening and 53/53 focused tests; CI passes. Its owner full check remains
+891/892 with one FIFO child-process failure, while unchanged isolated tests pass
+27/27. Keep these results separate; see the [per-head evidence record](delivery-status.md).
+Both originals stay sealed;
 this follow-up does not authorize a paid restart or change Q103's unresolved
 source-confirmation semantics. No raw private journals are part of this delivery.
 
@@ -471,6 +479,9 @@ are now separate gates: PR64 implements the bounded entry over existing adapters
 its fixed-head serial 889/889, CI and CLI artifact runs pass. The parallel
 888/889 result remains a disclosed limitation. General inventory/provider support
 and a two-registered-case scoring path remain unimplemented acceptance gates.
+The [provider and authored-case follow-up plan](net-provider-execution-plan.md)
+defines the next code boundary, a no-paid-model HTTP acceptance path, and the
+source/authority records needed before registering a second authored case.
 The [world run guide](https://github.com/Aicoo-Team/SharedEval/blob/c13e6204669cd4fdca05af7beff13c46e72db566/docs/pact-net-world.md)
 and its verification script provide concrete Multi/Single commands. Keep the
 recorded local parallel failure distinct from the successful full serial run.

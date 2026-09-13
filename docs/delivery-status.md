@@ -2,7 +2,9 @@
 
 Updated 2026-09-13. This record distinguishes design, initial implementation,
 independent execution and remaining expansion gates. See the
-[PAIR/NET execution plan](multi-execution-plan.md).
+[PAIR/NET execution plan](multi-execution-plan.md),
+[Chinese acceptance overview](multi-acceptance.zh-CN.md), and the
+[provider/second-case follow-up plan](net-provider-execution-plan.md).
 
 | Deliverable | State | Evidence / next gate |
 | --- | --- | --- |
@@ -14,7 +16,7 @@ independent execution and remaining expansion gates. See the
 | Bounded unified native NET entry | Draft [PR64](https://github.com/Aicoo-Team/SharedEval/pull/64) | `4f8d8c0` on `c13e620`: unified check/run/resume/P-01 score; full serial 889/889, CI and four fixed-head CLI runs pass; local parallel 888/889 remains disclosed |
 | Evaluator provenance / output consistency | Draft [PR65](https://github.com/Aicoo-Team/SharedEval/pull/65) | `5da4785c` on frozen PR64: required `pnpm check` 903/903, both CI jobs and retained-artifact v1 → v2 e2e pass; independent review/probe results stay separately attributed |
 | Historical PAIR acceptance helpers | Draft [PR66](https://github.com/Aicoo-Team/SharedEval/pull/66) | Frozen `63bb0108` on PR57: source/patch identity independently verified; focused 193/193 reported, CI validation has five failures, and independent review found an analyzer run-attribution P2 |
-| PAIR recovery and coverage protocol | Draft [PR67](https://github.com/Aicoo-Team/SharedEval/pull/67) | `f06b637a` on PR66: owner reports required 871/871; both CI jobs pass. Analyzer attribution P2 is still open and is being fixed in a later commit; final acceptance remains pending |
+| PAIR recovery and coverage protocol | Draft [PR67](https://github.com/Aicoo-Team/SharedEval/pull/67) | Both P2 findings independently closed by `c1bedc0`; CI passes. Local full check remains 891/892 with one FIFO child-process failure; unchanged isolated 27/27 and independent compatibility 53/53 pass separately |
 | PAIR e2e | Independently reproduced | Required pinned SharedOS; Multi history continuity, Single reset, deny and failure lifecycle |
 | NET e2e | Independently reproduced after review fix | Final `a883f51`: full 814/814, success/held/cold-process CLI runs, and native adversarial audit-order denial |
 | NET cross-case e2e | Reproduced at `c13e620` | Both conditions: separate CLI processes 8→9→16 turns, five actions per case, completed reopen unchanged; Multi retains history/effect, Single resets all histories/resources |
@@ -22,7 +24,7 @@ independent execution and remaining expansion gates. See the
 | Real-provider e2e | Both PAIR originals stopped, failed and sealed | DeepSeek 27 committed ticks / 26 replies; Codex 25 committed ticks / 26 deliveries. Neither reached re-ask/action; adaptive behavior unassessed and 60-task acceptance failed. Limited independent package review completed; raw recomputation/full-checkout/full-prompt provenance remain unavailable. No live NET run is claimed |
 | General NET task/provider and multiple-case scoring | Pending | Broader inventory/provider extension and at least two registered case rubrics remain separate gates; assigned/world fixtures are unregistered |
 | General/practitioner-validated NET | Not accepted | Further tasks, topologies, resource evolution, domain-owner validation and experiment cells remain |
-| Integration with current main | Object-tree verification passed | Main `dc5` + NET65 `5da` + governance `6c512c0` produced tree `8a80569f`: required 903/903 and four-mode CLI e2e pass. No integration commit/merge; PR60/61/66 and PAIR recovery are excluded |
+| Integration with current main and PAIR recovery | Combined required check and migration check passed | NET65 `5da` + PAIR67 `c1bedc0` + governance `23a432f` (including main `dc5`) produced tree `e93d46f`: required 1005/1005 and four-mode old-version continuation, 48 scripted native turns. No integration commit/merge; PR60/61 remain excluded. Earlier `8a80569f` evidence is retained separately |
 
 No PR has been merged by the supervisor. Room review and independent checks are
 recorded separately from author reports. Idle status or a message saying done
@@ -30,7 +32,26 @@ is not an acceptance signal.
 
 ## Combined-tree verification and PAIR helper follow-up
 
-The [combined-tree report](integration-acceptance-2026-09-13.md) records an
+The current combination includes reviewed PAIR recovery at `c1bedc0` alongside
+NET65 `5da4785` and governance `23a432f`. Staged tree
+`e93d46f934987f380137a684f244fff9f6e66a43` passes required-runtime `pnpm check`
+**1005/1005**, zero failures/cancellations/skips, **209.387 seconds**, plus catalog
+validation and type-check. The 73-entry registry and the intended CI/check/script
+unions pass independent read-only inspection. The
+[new combined-tree report](integration-pair-recovery-2026-09-13.md) also records
+successful old-version continuation: 20 turns seeded under frozen NET65 plus
+28 candidate turns, zero model calls, correct P-01 scoring and Multi/Single
+continuity/reset. Completed reopens preserve all non-export bytes and complete
+export JSON values/canonical identities without extra effects.
+
+The first external continuation helper incorrectly required
+raw byte stability of the derived execution export, despite identical JSON values
+and canonical digests after reopening. That failed attempt is preserved; the
+corrected helper requires identical non-export bytes and exact export values and
+identities and passed with fresh seeds. No production code changed for this
+helper correction; the unchanged candidate's full suite was not repeated.
+
+The earlier [combined-tree report](integration-acceptance-2026-09-13.md) records an
 isolated staged tree, not an integration commit. At
 `8a80569f08b34bc8deb1b500b3b5ac377eeea645`, required-runtime `pnpm check` passed
 903/903 with zero failures/cancellations/skips in 185.606 seconds. Four additional
@@ -63,16 +84,57 @@ current-run failure marker, or without a failure marker. Internal ledger
 consistency alone did not bind every record to the requested lane. These were
 synthetic probes, not evidence that the delivered private runs were mixed.
 
-PR67 head `f06b637ad63046345efc2edc4d25e53748825927` fixes cancellation/result
-handling, coverage/v2, telemetry and CI/source availability; its owner reports
-required-runtime `pnpm check` **871/871**, zero failures/cancellations/skips,
-54.310 seconds. [CI 34741194856](https://github.com/Aicoo-Team/SharedEval/actions/runs/34741194856)
-passed both jobs at that head. An earlier `6f89fc7` run was 870/871 due to a CI
-command assertion and remains a separate failed result. The analyzer attribution
-finding arrived afterward and is **not fixed or accepted by those green checks**.
-The owner is adding lane/record/event/selection/journal binding validation,
-including the no-failure path, with fresh regressions and a new fixed head.
-Final independent PR67 review remains open; original trials stay sealed.
+PR67 adds cancellation/result handling, coverage/v2, telemetry and CI/source
+availability. Historical `f06b637a` passed the owner's required-runtime check
+871/871 and CI; an earlier `6f89fc7` run was 870/871 due to a CI command assertion.
+These are separate results and do not cover the later analyzer fix.
+
+At `1e6c350ba7b996f03cc10ae81d3b2c73eab05320`, the owner reports required-runtime
+**889/889**, zero failures/cancellations/skips, **57.491 seconds**. The supervisor
+verified [CI 34741567565](https://github.com/Aicoo-Team/SharedEval/actions/runs/34741567565):
+ordinary **873 passed / 16 skipped**, plus mandatory **10/4/7**, each with zero
+failures/cancellations/skips. The original reviewer independently closed the
+attribution P2 using the same four controls and 28/28 analyzer tests: the valid
+lane remains accepted and all three foreign-lane variants are rejected. An
+additional native-required **21/21** passed in **31.421 seconds**, and standalone
+type-check passed. The run-level analyzer now anchors records/events/selection
+and any present journal, including the no-failure path. Entirely absent journals
+remain explicit; orphan journals are rejected. This does not replace full
+continuity validation or reaccept the original model trials.
+
+That review found a separate public-binding compatibility P2: reusing the CLI's
+10,000-tick schema rejected historical safe-integer bindings, such as maxTicks
+20,000 with phase2StartTick 10,001/finalizeTick 20,000. The CLI/runtime execution
+cap is separate from the old public binding's parsing range. The owner committed
+`c1bedc072ae9a020cbd4c9263ebea4d741d246d2` to restore that separation and reports
+53/53 focused coverage/config/artifact checks. Its first final required-runtime
+full run is **891/892**, zero cancellations/skips, **123.240 seconds**: the old
+FIFO-record test's child process ended with SIGTERM and empty output. This is a
+failed full check. The unchanged isolated store tests pass **27/27** in
+**19.610 seconds**, including the FIFO case in **578 ms**. Source comparison
+shows the store, FIFO test and JSON-contract blobs are unchanged from `1e6c350`;
+the numeric change does not execute on that child-process path. This narrows the
+investigation but does not establish where startup/import/store execution was
+interrupted. The owner retained the failure without changing timeouts,
+concurrency or skips, and did not repeat the full suite to obtain a green run.
+
+At the same `c1bedc0` head,
+[CI 34742541397](https://github.com/Aicoo-Team/SharedEval/actions/runs/34742541397)
+passes both jobs: ordinary **876 passed / 16 skipped** (892 total), plus mandatory
+**10/4/7**, each with zero failures/cancellations/skips. The original reviewer
+also closes the numeric P2: a legacy API at frozen `63bb010` creates 10,000- and
+20,000-tick ledgers, commits one synthetic heartbeat to each, and `c1bedc0`
+reopens both with the original binding digest and binding/record bytes intact.
+Its independent focused **53/53** passes in **21.808 seconds**, and type-check
+passes. The original schema probe now accepts 20,000 on both versions. CLI/runtime
+10,000 limits, effective minimum two, ordering and v2 constraints remain intact.
+These results close the compatibility regression without relabeling the local
+full check as successful.
+
+Stable-source review has no other blocking finding. Adding the benchmark-harness
+SHA alongside the store SHA remains a diagnostic P3 follow-up. Both blocking
+code findings are closed; the local FIFO failure and broader experiment gates
+remain disclosed. Original trials stay sealed.
 
 ## Assigned profiles and cross-case extension
 
