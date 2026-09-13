@@ -39,6 +39,12 @@ CLI/runtime 的 10,000 执行上限未扩大。
 16 跳过**，required 分组 **10/4/7** 全通过且不跳过。具体超时阶段仍未确定，
 组合树的 1005/1005 不能用来改写这个单分支失败结果。
 
+最新[尾轮诊断补充](pair-terminal-diagnostic-2026-09-13.md)记录了负责人只读核查的新证据：
+DeepSeek tick28 的 MEMORY 已发布为 workspace v26（4738 bytes），但 actor 未保存
+对应工具结果或 finish，heartbeat 未提交。文件发布、工具审计和回合提交不能互相替代。
+负责人提供的脱敏附录已核对哈希；监督方未读取原私有 journal。MEMORY 文件大小、
+完整模型输入与宿主机 RAM 是三个不同指标，现有证据未闭环超时或资源压力的因果关系。
+
 ## NET Multi 怎么跑
 
 NET 没有固定的全局 requester/responder 二元关系。host 提供 actor registry、
@@ -93,9 +99,13 @@ NOT READY：Alex 外部语料依赖未包含，gold 为 validated 0 / draft 10 /
   adaptive 未评估；额外交付回复不能补认成已提交 tick。
 - SharedOS 外层取消可能早于 session 完整关闭、历史读取随长度增长等边界仍待后续工作。
 - 当前 NET scripted 世界验证不等于任意任务/provider 或 166 任务 benchmark 已完成。
-- 第二个真实 rubric 需要可审核的执行源和授权。PAY-01 的 236,000 付款超过 Sarah
-  资料中的 25,000 审批额度，缺上级 delegation 及对应供应商/核验/发票记录；F-08 也缺
-  指定账目分类和批准来源。不能从 gold 反推权限或把合成 fixture 改名当成真实注册。
+- 第二个真实 rubric 需要可审核的执行源和逐动作授权。PAY-01 的 236,000 未注明币种，
+  不能直接与 Sarah 的 25,000 USD spending approval 比较；该额度也不等于付款放行权。
+  已有 maker/checker、银行双签等通用控制，但缺本案授权及供应商/核验/发票来源。
+  F-08 已有初始金额、期间和客户签核后才能入账的条件，仍缺指定账目分类及实际批准。
+  正常建模的“证据不可得”应与坏包区分；停止 release/post 不自动产生 held 状态，
+  改写 held 同样需要授权。不能从 gold 反推事实、扩大文件夹授权或把合成 fixture
+  改名当成真实注册。先完成哪份源包，再选择第二个 case。
 
 监督会继续按实际差异分配实现和审核工作；已完成的固定头不因无新反馈而重复跑测试。
 发现未完成工作提前停止时继续推进，实验失败、来源缺口和待验收条件持续保留在

@@ -26,6 +26,24 @@ independent execution and remaining expansion gates. See the
 | General/practitioner-validated NET | Not accepted | Further tasks, topologies, resource evolution, domain-owner validation and experiment cells remain |
 | Integration with current main and PAIR recovery | Combined required check and migration check passed | NET65 `5da` + PAIR67 `c1bedc0` + governance `23a432f` (including main `dc5`) produced tree `e93d46f`: required 1005/1005 and four-mode old-version continuation, 48 scripted native turns. No integration commit/merge; PR60/61 remain excluded. Earlier `8a80569f` evidence is retained separately |
 
+The independent second-case source review supports the remaining source gate
+and refines the [provider plan](net-provider-execution-plan.md). PAY-01's amount
+has no currency/unit, so it cannot be compared directly with Sarah's USD spending
+limit or used as payment-release authority. Existing maker/checker, dual-signature
+and conditional posting controls remain authored constraints; case-specific facts
+and per-action authority are still missing. A legitimate evidence-unavailable
+variant differs from an invalid package, and refusing release/post does not itself
+authorize a held-state mutation. These are design clarifications, not new runtime
+or dataset validation results.
+
+A new [PAIR terminal diagnostic supplement](pair-terminal-diagnostic-2026-09-13.md)
+records the owner's read-only finding that DeepSeek tick28 published workspace
+version 26, while the corresponding actor result/finish and heartbeat commit
+remain absent. The supervisor verified the sanitized appendix's size and hash,
+not the private source journals. This does not change the failed trial counts,
+prove a timer/RAM cause or establish that the full model context fits. No code,
+model execution or historical recovery was performed for this supplement.
+
 No PR has been merged by the supervisor. Room review and independent checks are
 recorded separately from author reports. Idle status or a message saying done
 is not an acceptance signal.

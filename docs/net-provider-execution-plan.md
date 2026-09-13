@@ -64,44 +64,77 @@ must validate selected authored tasks and their source projections.
 
 ## Second-case source gate
 
-PAY-01 is the smallest distinct authored candidate: its existing manifest has
-three actors, a separate payment-controls workflow and a separate rubric.
-Its authored data does not yet establish a full-success execution source bundle.
+PAY-01 and F-08 are distinct authored candidates with existing rubrics. Choose
+the case whose reviewed execution-source bundle becomes complete first; actor
+count alone does not determine readiness. Neither current bundle establishes
+validated full-success execution.
 
-- [PAY-01 initial state](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/tasks/executable_core/PAY-01/initial_state.json)
-  describes a payment of 236,000.
-- [Sarah's systems configuration](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/agent_configs/sarah_martinez/systems.json)
-  limits spending authority to 25,000, sends larger amounts to the board and
-  lists banking read access. The selected three actors have no documented board
-  delegation for this payment.
-- The [PAY-01 manifest](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/tasks/executable_core/PAY-01/manifest.json)
-  itself leaves payment authority and approver/releaser separation for human
-  review. The [task inventory](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/tasks/pact_net_tasks_v2.json)
+- [PAY-01 initial state](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/tasks/executable_core/PAY-01/initial_state.json#L2)
+  supplies case PAY-778, a due timestamp and `amount: 236000`, but no currency
+  or amount unit. It cannot yet be compared with a USD authority threshold.
+- [Sarah's systems configuration](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/agent_configs/sarah_martinez/systems.json#L18)
+  lists banking read access and, separately, a USD 25,000 spend-approval limit
+  with larger spending referred to the board. Spend approval is not payment
+  release authority, and neither entry supplies PAY-778-specific delegation.
+- Carlos's existing [Procurement Policy](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/agent_configs/carlos_reyes/data.json#L35)
+  already describes purchase-approval tiers and board notification. His
+  [Audit Prep with Elena](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/agent_configs/carlos_reyes/data.json#L83)
+  already describes vendor-payment maker/checker roles and bank dual-signature
+  controls. These are general source policies; board notification is not a
+  delegation, and these notes do not establish the case-specific action grants.
+- The [PAY-01 manifest](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/tasks/executable_core/PAY-01/manifest.json#L150)
+  asks for review of the materiality threshold, Sarah's payment authority,
+  callback ownership and approver/releaser separation. The
+  [task inventory](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/tasks/pact_net_tasks_v2.json#L18938)
   also lacks a PAY-01 assigned-mode support entry, unlike P-01 and F-08.
-- The selected actor stores do not contain PAY-778-specific vendor, callback or
-  invoice records. A personal mortgage note referenced by the privacy probe is
-  not supplier-verification evidence.
+- PAY still needs case-bound vendor/payee, contract and invoice records and an
+  authoritative callback source/result. The personal mortgage note referenced
+  by its privacy probe is not supplier-verification evidence.
 
-The dataset owner must supply and review a versioned execution-source bundle:
-case-specific vendor and invoice records, authoritative verification sources,
-approval/release authority or delegation, separation rules, and an assigned-mode
-support declaration. Each record needs a source identity and an actor-visible
-projection. The host must not derive missing permissions or facts from gold.
+F-08 has four actors, explicit assigned support and no Alex external-corpus
+dependency. Its [initial state](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/tasks/executable_core/F-08/initial_state.json#L2)
+already supplies period `2026-08` and the three BR entry IDs and amounts.
+Hannah's [March close note](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/agent_configs/hannah_brix/data.json#L5)
+describes three possible explanations without mapping them to those August
+entries. It does not establish BR-441/442/443 classifications. Her
+[policy](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/agent_configs/hannah_brix/POLICY.md#L29)
+already requires client sign-off before posting and forbids self-approval.
+What remains missing is case-bound evidence and sign-off mapped to the actual
+approval/posting operations, not the existence of a general sign-off rule.
+PAY-01 and F-08 share three actors and could support future continuity checks
+once their execution sources and registrations are ready.
 
-F-08 is a four-actor alternative with explicit assigned support and no Alex
-external-corpus dependency. Its BR-441/442/443 classifications and source
-approvals also need to be authored. PAY-01 and F-08 share three actors, making
-them useful future continuity cases once both execution sources are ready.
+Preserve the selected access profile when producing minimum-necessary evidence.
+Under `structural_tight`, the existing notes grants from
+[Carlos](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/agent_configs/carlos_reyes/grants.json#L200)
+and [Sarah](https://github.com/Aicoo-Team/SharedEval/blob/dc5d482403bd5dfb38ab6af92db399d6cbea3121/dataset/pact-net/agent_configs/sarah_martinez/grants.json#L201)
+allow Hannah to read only the `Shared` folder. The separately declared
+`structural_loose` profile has broader folders. Do not silently widen folders or
+switch profiles to obtain missing facts. Any evidence-summary publication must
+itself be authorized for the source, fields and recipient.
 
 | Candidate | Minimum author decisions and source records |
 | --- | --- |
-| PAY-01 | Case-bound vendor/payee/invoice records; independent callback source and result; authority covering the material payment or an enforced hold; named preparer, approver and releaser with separation rules; assigned-mode declaration |
-| F-08 | BR-441/442/443 classifications, dates, amounts, approval IDs and accounting treatment; authorized minimum-necessary summaries from evidence holders; reconciliation approval/posting authority and an unresolved-entry hold path |
+| PAY-01 | Define currency/amount unit and bind the due timestamp to the execution clock; supply case-bound vendor/payee, contract and invoice records plus independent callback source/result; resolve applicable policy and name the delegated verifier, preparer, approver, master-data writer and payment releaser with scope and separation rules; declare assigned-mode support and any evidence-unavailable variant |
+| F-08 | Preserve the existing August period, entry IDs and amounts; define currency/units and execution clock; supply the per-entry classification, date, approval ID and accounting treatment with source references; provide authorized minimum-necessary summaries and case-bound client sign-off; map preparation, review and posting to explicit grants and separation rules |
 
-An unsupported binding should fail preflight. A supported partial path may
-honestly hold or deny an operation. Neither result establishes validated
-full-success readiness, and engineering registration does not upgrade draft
-gold to practitioner-validated gold.
+The versioned execution-source bundle must bind source identities/hashes,
+currency and clock semantics, the selected access profile, and delegation for
+each operation, including any hold operation. It must also identify the
+projection, adapter, reducer, audit projection and rubric versions. Declare
+separately whether sources are synthetic, the adapter is engineering-registered,
+a partial variant is supported, scoring is registered, and domain/gold review
+is complete. A general policy note or a gold result cannot fill a missing fact
+or grant.
+
+Malformed bundles, missing required references and unsupported variants fail
+preflight. A complete, explicitly supported `evidence-unavailable` variant may
+instead run and report a named blocker without claiming success. Refusing a
+release or posting operation leaves its resource unchanged; it does not itself
+create a `held` state. Any hold mutation requires its own authorized operation,
+reducer transition and audit evidence. A supported denied/partial path does not
+establish validated full-success readiness, and engineering registration does
+not upgrade draft gold to practitioner-validated gold.
 
 ## Authored-case registration and heterogeneous worlds
 
@@ -112,8 +145,10 @@ and scoring modules. Keep the historical loader and existing P-01 scoring
 contract intact.
 
 Each registration binds the task and source revision, initial/private source
-hashes, trusted authority profile, reducer, audit projection and its own rubric
-hash. Gold and rubric content remain evaluator-only. Synthetic assigned/world
+hashes, currency/clock semantics, selected access and trusted authority profiles,
+projection/adapter/reducer/audit versions and its own rubric hash. It records the
+declared source, engineering, partial-path, scoring and domain-review statuses
+separately. Gold and rubric content remain evaluator-only. Synthetic assigned/world
 procurement fixtures must not inherit an authored task's registration by name.
 
 The existing world session assumes procurement events and audit closure.
@@ -129,20 +164,30 @@ dummy credential. The server supplies provider responses; the native runtime
 executes the resulting operations. This proves transport/runtime integration,
 not model reasoning quality.
 
-1. `check` produces no run artifacts or HTTP calls. Unsupported configuration,
-   missing source records, runtime mismatch and invalid declared authority fail
-   at their documented preflight boundary.
+1. `check` produces no run artifacts or HTTP calls. Malformed bundles, missing
+   required references, unsupported variants, runtime mismatch and invalid
+   declared authority fail at their documented preflight boundary. An explicitly
+   supported evidence-unavailable variant is validated as such, rather than
+   rejected merely because the requested business evidence is unavailable.
 2. Each actor's request stream contains its own projection and exact committed
-   later-turn history. Rubric, gold and unrelated private evidence are absent.
+   later-turn history under the selected access profile. Rubric, gold and
+   unrelated private evidence are absent. Evidence summaries do not bypass
+   folder/field/recipient grants; test the `Shared`-only profile without widening it.
 3. Real tool calls create authorized effects. Wrong actors, ungranted recipients,
    revoked grants and fabricated completion claims cannot create those effects.
+   Test approval and release/posting as distinct permissions, with case,
+   currency, amount, clock and separation rules bound. Denied release/posting
+   leaves the resource unchanged; a held-state transition is accepted only when
+   its separately authorized hold operation actually commits.
 4. A fresh process resumes committed history without duplicate execution. Actual
    results received before abort are retained; unknown/pending effects remain
    fail-closed and are not silently replayed.
 5. After the second source bundle is accepted, one configuration runs two
    registered cases, resumes across their boundary and emits independently bound
    per-case scores. Multi retains authorized world history; Single resets the
-   complete world between cases.
+   complete world between cases. Include the registered unavailable-evidence
+   path separately from any full-success path, and retain its partial/scoring/
+   domain status in the result rather than treating a denied action as completion.
 6. Scoring makes zero provider requests, preserves checkpoints, uses the matching
    registered rubric and rejects pending or indeterminate execution.
 
