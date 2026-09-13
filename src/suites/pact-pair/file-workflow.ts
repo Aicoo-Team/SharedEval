@@ -17,6 +17,8 @@ import type {
 import {
   deriveFileMemoryTerminalStatusV1,
 } from '../../runner/v1/file-memory.js';
+import { deriveFileMultiTurnProgress, isFirstAskCoverageV2, validFileMultiTurn,
+  type FileMultiTurn, type FileFirstAskProgressV2 } from '../../runner/v1/file-multi-turn.js';
 import type { FileTurnDecisionV1 } from '../../runner/v1/file-turn-contracts.js';
 import {
   inspectFileWorkspacePresenceV1,
@@ -105,10 +107,7 @@ export type FileDrivenPairBudgetV1 = Readonly<{
   maxToolCalls: number;
 }>;
 
-export type FileDrivenPairMultiTurnV1 = Readonly<{
-  phase2StartTick: number;
-  finalizeTick: number;
-}>;
+export type FileDrivenPairMultiTurnV1 = Readonly<FileMultiTurn>;
 
 export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   workflowId: FileDrivenPairWorkflowIdV1;
@@ -510,6 +509,9 @@ export async function runOneFileDrivenPairSessionV1(
 
     while (!state.stopReason) {
       const tick = records.length + 1;
+      const multiTurnProgress = options.multiTurn && isFirstAskCoverageV2(options.multiTurn)
+        ? deriveFileMultiTurnProgress({ binding, multiTurn: options.multiTurn, tick, records }) as FileFirstAskProgressV2
+        : undefined;
       if (tick > options.maxTicks) {
         throw new Error('Committed heartbeat history exhausted maxTicks without terminal authority');
       }
@@ -527,6 +529,7 @@ export async function runOneFileDrivenPairSessionV1(
         sha256JsonV1(options.pactWorkspace.snapshot() as unknown as JsonValue),
         [...state.terminalTaskIds],
         ...(contextBefore ? [contextBefore as unknown as JsonValue] : []),
+        ...(multiTurnProgress ? [multiTurnProgress as unknown as JsonValue] : []),
       ]);
       const eventId = stableIdV1('heartbeat', [
         'heartbeat',
@@ -564,6 +567,7 @@ export async function runOneFileDrivenPairSessionV1(
             eventId,
             traceId,
             inputDigest,
+            ...(multiTurnProgress ? { multiTurnProgress } : {}),
             ...(options.cancellationSignal ? { signal: options.cancellationSignal } : {}),
           });
           const actionAfter = options.pactWorkspace.snapshot();
@@ -1560,11 +1564,7 @@ function validateSessionOptions(options: RunOneFileDrivenPairSessionV1Options): 
       throw new Error('multiTurn applies only to the files-multi workflow');
     }
     if (
-      !Number.isSafeInteger(options.multiTurn.phase2StartTick)
-      || !Number.isSafeInteger(options.multiTurn.finalizeTick)
-      || options.multiTurn.phase2StartTick < 2
-      || options.multiTurn.phase2StartTick > options.multiTurn.finalizeTick
-      || options.multiTurn.finalizeTick > options.maxTicks
+      !validFileMultiTurn(options.multiTurn, options.maxTicks)
     ) {
       throw new Error('multiTurn phase boundaries must satisfy 2 <= phase2StartTick <= finalizeTick <= maxTicks');
     }

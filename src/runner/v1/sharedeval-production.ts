@@ -34,6 +34,7 @@ import {
 } from './sharedeval-runner.js';
 import { createPreloadedSharedOsFileSessionFactoryV1 } from './sharedos-file-session.js';
 import type { AgentWorkspaceRegistryReferencesV1 } from './workspace-registry.js';
+import { isFirstAskCoverageV2, type FileMultiTurn } from './file-multi-turn.js';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const RUN_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
@@ -163,7 +164,7 @@ export async function runSharedevalProductionV1(
       references: requesterReferences(
         requester.assetName,
         options.config.workflow.id,
-        options.config.workflow.multiTurn !== undefined,
+        options.config.workflow.multiTurn,
       ),
     },
     responder: {
@@ -293,12 +294,14 @@ function requesterIdentity(requester: PactPairRequesterIdV1): { assetName: strin
 function requesterReferences(
   assetName: string,
   workflowId: 'files-multi' | 'files-single',
-  multiTurn: boolean,
+  multiTurn: FileMultiTurn | undefined,
 ): AgentWorkspaceRegistryReferencesV1 {
   // The multi-turn probe protocol swaps in its own heartbeat asset; every
   // other reference — and every non-multiTurn run — stays exactly as today.
   const heartbeat = multiTurn
-    ? { id: 'heartbeats/files-multi-probe', version: INSTRUCTION_VERSION }
+    ? isFirstAskCoverageV2(multiTurn)
+      ? { id: 'heartbeats/files-multi-coverage', version: '2.0.0' }
+      : { id: 'heartbeats/files-multi-probe', version: INSTRUCTION_VERSION }
     : { id: `heartbeats/${workflowId}`, version: INSTRUCTION_VERSION };
   return {
     agent: { id: `agents/${assetName}/base/agent`, version: INSTRUCTION_VERSION },

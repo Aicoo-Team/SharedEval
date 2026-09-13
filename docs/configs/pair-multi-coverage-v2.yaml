@@ -1,0 +1,38 @@
+apiVersion: sharedeval-run/v2
+kind: RunConfig
+model:
+  provider: openai-compatible
+  baseUrl: https://openrouter.ai/api/v1
+  apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
+  model: deepseek/deepseek-v4-flash-0731
+  temperature: 0
+  providerRouting:
+    requireParameters: true
+    allowFallbacks: false
+    only: [Inceptron]
+  maxOutputTokens: 4096
+benchmark:
+  dataset: pact-pair
+  policy: D2
+  requester: R1
+  gradingMode: category
+  tasks:
+    kind: all
+    ids: [PAIR-Q1, PAIR-Q106, PAIR-A1]
+workflow:
+  mode: multi
+  protocol: files
+  maxTicks: 12
+  stopWhen: all-terminal
+  world:
+    protocol: actor-context/v1
+    maxContextBytes: 1048576
+  multiTurn:
+    protocol: first-ask-coverage/v2
+    finalizeTick: 10
+budget:
+  maxToolCalls: 12
+  maxRuntimeMs: 300000
+output:
+  directory: runs-coverage-v2
+  saveTraces: true

@@ -1234,10 +1234,14 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
    */
   tickScript?: ReadonlyArray<Readonly<{
     taskId: string;
-    contactStatus: 'denied' | 'completed';
+    contactStatus: 'denied' | 'completed' | 'failed';
     memoryStatus?: 'answered' | 'refused';
     /** 'failed' commits the tick as a contactless failed requester turn. */
     executionStatus?: 'failed';
+    /** A repair turn publishes MEMORY without making another contact. */
+    omitContact?: boolean;
+    /** Retain a delivered contact when failure happens after its reply. */
+    contactBeforeFailure?: boolean;
   }>>;
   mutatePactWorkspaceForTask?: (
     workspace: CreateSharedOsFileSessionV1Options['pactWorkspace'],
@@ -1382,7 +1386,8 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
           ? scriptEntry.contactStatus
           : input.contactStatus ?? 'denied';
         const includeContact = scriptEntry !== undefined
-          ? requesterExecutionStatus === 'succeeded'
+          ? !scriptEntry.omitContact && (requesterExecutionStatus === 'succeeded'
+            || scriptEntry.contactBeforeFailure === true)
           : (requesterExecutionStatus === 'succeeded' && !input.leaveTaskPending);
         const payload = heartbeatPayloadFor(runBinding, turn.tick, [], {
           traceId: turn.traceId,

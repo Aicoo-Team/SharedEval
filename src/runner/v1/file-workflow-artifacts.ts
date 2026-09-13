@@ -9,6 +9,7 @@ import {
   pactPairPublicEvaluationV1Schema,
 } from '../../suites/pact-pair/public-evaluation.js';
 import { fileTurnDecisionV1Schema } from './file-turn-contracts.js';
+import { fileMultiTurnSchema, validFileMultiTurn } from './file-multi-turn.js';
 import {
   FILE_SESSION_CONTACT_ERROR_CODES_V1,
   SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
@@ -208,10 +209,7 @@ export const fileWorkflowRunBindingV1Schema = z.object({
     // Multi-turn probe gate: absent for every pre-existing run so committed
     // bindings and their digests are unchanged; the ledger keys every relaxed
     // multi-turn check off this field, never off runtime options.
-    multiTurn: z.object({
-      phase2StartTick: positiveSafeIntegerSchema,
-      finalizeTick: positiveSafeIntegerSchema,
-    }).strict().optional(),
+    multiTurn: fileMultiTurnSchema.optional(),
   }).strict(),
   dataset: datasetProvenanceSchema,
   goldSet: goldSetProvenanceSchema,
@@ -266,9 +264,7 @@ export const fileWorkflowRunBindingV1Schema = z.object({
       });
     }
     if (
-      multiTurn.phase2StartTick < 2
-      || multiTurn.phase2StartTick > multiTurn.finalizeTick
-      || multiTurn.finalizeTick > binding.scheduler.maxTicks
+      !validFileMultiTurn(multiTurn, binding.scheduler.maxTicks)
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,

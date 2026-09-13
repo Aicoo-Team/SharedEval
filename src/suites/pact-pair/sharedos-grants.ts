@@ -6,6 +6,7 @@ import {
 import type {
   SoCapabilityGrant,
 } from '../../execution/sharedos/v1/contracts.js';
+import { validFileMultiTurn, type FileMultiTurn } from '../../runner/v1/file-multi-turn.js';
 import {
   SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
   SHAREDEVAL_SERVICE_ADDRESS_V1,
@@ -42,7 +43,7 @@ export type BuildPactPairSharedOsGrantManifestV1Options = Readonly<{
   // still-pending task. Grant IDs exclude maxUses, so identities are unchanged;
   // only the constraints (and thus the manifest digest) differ, and only when
   // the gate is on.
-  multiTurn?: Readonly<{ phase2StartTick: number; finalizeTick: number }>;
+  multiTurn?: Readonly<FileMultiTurn>;
   maxToolCalls: number;
   tasks: readonly PactPairSharedOsGrantTaskV1[];
 }>;
@@ -273,9 +274,7 @@ function validateOptions(input: BuildPactPairSharedOsGrantManifestV1Options): vo
     );
   }
   if (input.multiTurn && (
-    !boundedSafeInteger(input.multiTurn.phase2StartTick, 2, input.maxTicks)
-    || !boundedSafeInteger(input.multiTurn.finalizeTick, 2, input.maxTicks)
-    || input.multiTurn.phase2StartTick > input.multiTurn.finalizeTick
+    !validFileMultiTurn(input.multiTurn, input.maxTicks)
   )) {
     throw new Error('SharedOS multi-turn phase boundaries must satisfy 2 <= phase2StartTick <= finalizeTick <= maxTicks');
   }

@@ -24,6 +24,7 @@ import {
   parseFileMemoryV1,
   type FileMemoryRowV1,
 } from './file-memory.js';
+import { deriveFileMultiTurnProgress, isFirstAskCoverageV2 } from './file-multi-turn.js';
 import {
   assertFileWorkflowFinalCardinalityV1,
   fileWorkflowCheckpointV1Schema,
@@ -197,6 +198,10 @@ export async function openFileWorkflowLedgerV1(
   options: OpenFileWorkflowLedgerV1Options,
 ): Promise<FileWorkflowLedgerV1> {
   const binding = fileWorkflowRunBindingV1Schema.parse(options.binding);
+  if (binding.scheduler.multiTurn && isFirstAskCoverageV2(binding.scheduler.multiTurn)
+    && !options.retainPrivate) {
+    throw new Error('First-ask coverage requires private evidence retention');
+  }
   await ensureRunDirectory(options.runDirectory);
   await assertPublicLanePaths(options.runDirectory);
   await rejectForeignPublicRun(options.runDirectory, binding);
@@ -1896,6 +1901,9 @@ async function publishPublicProjections(input: {
     ? input.records.flatMap(record => {
       const payload = record.payload;
       if (isFileWorkflowQuarantinePayloadV1(payload)) return [];
+      const progress = deriveFileMultiTurnProgress({
+        binding: input.binding, multiTurn, tick: payload.event.tick, records: input.records,
+      });
       const authority = payload.contactAuthority;
       const reply = authority
         ? payload.privateEvidence?.sourceEvidence.acceptedMessages.find(message => (
@@ -1936,8 +1944,8 @@ async function publishPublicProjections(input: {
         runId: input.binding.runId,
         sessionId: payload.event.sessionId,
         tick: payload.event.tick,
-        phase: payload.event.tick < multiTurn.phase2StartTick ? 1 : 2,
-        finalization: payload.event.tick >= multiTurn.finalizeTick,
+        phase: progress.phase,
+        finalization: progress.finalization,
         status: payload.sharedOsAuthority.requesterExecutionStatus === 'succeeded'
           ? 'completed'
           : 'failed',
