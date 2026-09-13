@@ -43,7 +43,7 @@ export async function mainSharedevalNetV1(argv: readonly string[], dependencies:
       const { evaluatePilotEvidence } = await import('../../suites/pact-net/pilot/score.js');
       const scored = await evaluatePilotEvidence({ profile: config.profile, evidence: execution.evidence,
         dataDirectory: resolve(import.meta.dirname, '../../../dataset/pact-net') });
-      const value = { version: 'pact-net-evaluation/v1', configDigest: config.configDigest, evidenceDigest: execution.evidenceDigest,
+      const value = { version: 'pact-net-evaluation/v2', configDigest: config.configDigest, evidenceDigest: execution.evidenceDigest,
         evaluator: { taskId: 'P-01', executionContract: 'pact-net-p01-pilot/v1' }, ...scored };
       await artifacts.publishEvaluation(value);
       return scored.evaluation;

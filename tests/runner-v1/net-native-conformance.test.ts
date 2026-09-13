@@ -1,18 +1,21 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import test from 'node:test';
 import { defaultSharedOsDirV1 } from '../../src/execution/sharedos/v1/load-sharedos.js';
-import { digest } from '../../src/suites/pact-net/pilot/profile.js';
+import { digest, loadPilotProfile } from '../../src/suites/pact-net/pilot/profile.js';
+import { evaluatePilotEvidence } from '../../src/suites/pact-net/pilot/score.js';
 
 const root = resolve(import.meta.dirname, '../..');
 const executeFile = promisify(execFile);
 const skip = !process.env.SHAREDEVAL_REQUIRE_SHAREDOS && !existsSync(join(defaultSharedOsDirV1(), 'packages/runtime/dist/index.js')) ? 'Pinned SharedOS is unavailable' : false;
 const readJson = async (path: string) => JSON.parse(await readFile(path, 'utf8'));
+const sha256 = (input: string | Buffer) => createHash('sha256').update(input).digest('hex');
 async function fixture(execution: Record<string, string>, runId = 'native-cli-conformance') {
   const directory = await mkdtemp(join(tmpdir(), 'net-native-cli-'));
   const configPath = join(directory, 'config.json');
@@ -48,8 +51,16 @@ for (const [mode, score, actions] of [['success', 1, 5], ['safe-partial', 0.175,
       const checkpoint = await readFile(join(f.run, 'checkpoint.json'), 'utf8');
       assert.equal((await f.invoke('score')).result.score, score);
       const evaluation = await readJson(join(f.run, 'evaluation.json'));
+      assert.equal(evaluation.version, 'pact-net-evaluation/v2');
       assert.equal(evaluation.configDigest, committed.configDigest);
       assert.equal(evaluation.evidenceDigest, committed.evidenceDigest);
+      assert.equal(evaluation.provenance.version, 'pact-net-p01-evaluation-provenance/v1');
+      assert.equal(evaluation.provenance.evaluatorSha256, sha256(await readFile(join(root, 'dataset/pact-net/scripts/evaluate_executable_task.py'))));
+      assert.equal(evaluation.provenance.manifestSha256, sha256(await readFile(join(root, 'dataset/pact-net/tasks/executable_core/P-01/manifest.json'))));
+      assert.equal(evaluation.provenance.submissionSha256, sha256(`${JSON.stringify(evaluation.submission, null, 2)}\n`));
+      assert.match(evaluation.provenance.launcher.sha256, /^[a-f0-9]{64}$/);
+      const python = await executeFile('python3', ['-I', '-c', 'import json, platform, sys; print(json.dumps({"implementation": sys.implementation.name, "version": platform.python_version()}))'], { encoding: 'utf8', timeout: 10_000 });
+      assert.deepEqual(evaluation.provenance.python, JSON.parse(python.stdout));
       assert.equal(await readFile(join(f.run, 'checkpoint.json'), 'utf8'), checkpoint);
       assert.deepEqual(await f.execution(), committed);
       await f.invoke('run', 40);
@@ -100,6 +111,70 @@ test('main NET assigned CLI executes its supplied profile but cannot inherit the
     assert.equal((await f.execution()).evidence.terminal_success, true);
     await assert.rejects(() => f.invoke('score'), error => /native_net_evaluator_not_registered/.test((error as { stderr: string }).stderr));
     assert.equal(existsSync(join(f.run, 'evaluation.json')), false);
+  } finally { await f.cleanup(); }
+});
+
+test('post-hoc API rejects contradictory substitute output and preserves committed CLI evidence and prior score', { skip }, async () => {
+  const f = await fixture({ kind: 'p01-pilot', mode: 'success' });
+  try {
+    await f.invoke('run', 40);
+    await f.invoke('score');
+    const originals = await Promise.all(['checkpoint.json', 'execution.json', 'evaluation.json'].map(async name => [name, await readFile(join(f.run, name), 'utf8')] as const));
+    const evidence = (await f.execution()).evidence;
+    const canonical = await readJson(join(f.run, 'evaluation.json'));
+    const profile = await loadPilotProfile(join(root, 'dataset/pact-net/tasks/executable_core/P-01/initial_state.json'), 'success');
+    const dataDirectory = join(f.directory, 'substitute evaluator');
+    await mkdir(join(dataDirectory, 'scripts'), { recursive: true });
+    await mkdir(join(dataDirectory, 'tasks/executable_core/P-01'), { recursive: true });
+    await cp(join(root, 'dataset/pact-net/tasks/executable_core/P-01/manifest.json'), join(dataDirectory, 'tasks/executable_core/P-01/manifest.json'));
+    const sourcePath = join(dataDirectory, 'scripts/evaluate_executable_task.py');
+    const contradictory = structuredClone(canonical.evaluation);
+    for (const checkpoint of contradictory.checkpoints) {
+      checkpoint.passed = false;
+      checkpoint.details = ['Substitute evaluator reports an unmet checkpoint'];
+    }
+    contradictory.checkpoint_points = 0;
+    contradictory.checkpoint_ratio = 0;
+    contradictory.safety_gates[0].passed = false;
+    contradictory.safety_gates[0].details = ['Substitute evaluator reports a failed hard gate'];
+    contradictory.safety_passed = true;
+    contradictory.full_completion = true;
+    contradictory.score = 1;
+    await writeFile(sourcePath, `print(${JSON.stringify(JSON.stringify(contradictory))})\n`);
+    await assert.rejects(() => evaluatePilotEvidence({ profile, evidence, dataDirectory }), /pilot_evaluation_result_invalid/);
+    const source = `print(${JSON.stringify(JSON.stringify(canonical.evaluation))})\n`;
+    await writeFile(sourcePath, source);
+    const accepted = await evaluatePilotEvidence({ profile, evidence, dataDirectory });
+    assert.deepEqual(accepted.evaluation, canonical.evaluation);
+    assert.equal(accepted.provenance.evaluatorSha256, sha256(source));
+    assert.notEqual(accepted.provenance.evaluatorSha256, canonical.provenance.evaluatorSha256);
+    const manifestPath = join(dataDirectory, 'tasks/executable_core/P-01/manifest.json');
+    const manifestBytes = await readFile(manifestPath);
+    const changingSource = [
+      'import base64, pathlib, sys',
+      `pathlib.Path(${JSON.stringify(sourcePath)}).write_text("raise RuntimeError('source changed')\\n")`,
+      `pathlib.Path(${JSON.stringify(manifestPath)}).write_text("{}\\n")`,
+      'captured_manifest = pathlib.Path(sys.argv[1]) / "tasks/executable_core/P-01/manifest.json"',
+      `assert captured_manifest.read_bytes() == base64.b64decode(${JSON.stringify(manifestBytes.toString('base64'))})`,
+      `print(${JSON.stringify(JSON.stringify(canonical.evaluation))})`,
+      '',
+    ].join('\n');
+    await writeFile(sourcePath, changingSource);
+    const snapshotted = await evaluatePilotEvidence({ profile, evidence, dataDirectory });
+    assert.deepEqual(snapshotted.evaluation, canonical.evaluation);
+    assert.equal(snapshotted.provenance.evaluatorSha256, sha256(changingSource));
+    assert.equal(snapshotted.provenance.manifestSha256, sha256(manifestBytes));
+    assert.equal(await readFile(sourcePath, 'utf8'), "raise RuntimeError('source changed')\n");
+    assert.equal(await readFile(manifestPath, 'utf8'), '{}\n');
+    for (const [name, contents] of originals) assert.equal(await readFile(join(f.run, name), 'utf8'), contents);
+    // The dedicated legacy script still publishes its original flat result files.
+    const legacy = join(f.directory, 'legacy');
+    await mkdir(legacy);
+    const evidencePath = join(legacy, 'evidence.json');
+    await writeFile(evidencePath, JSON.stringify(evidence));
+    await executeFile(process.execPath, ['--import', 'tsx', join(root, 'scripts/pact-net-pilot-evaluate.ts'), evidencePath, 'success'], { cwd: root, encoding: 'utf8', timeout: 40_000 });
+    assert.deepEqual(await readJson(join(legacy, 'evaluation.json')), canonical.evaluation);
+    assert.deepEqual(await readJson(join(legacy, 'submission.json')), canonical.submission);
   } finally { await f.cleanup(); }
 });
 

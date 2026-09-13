@@ -112,13 +112,26 @@ fail with `native_net_evaluator_not_registered`, even when their domain outcome
 is released. P-01 scoring requires a committed, drained, audited snapshot whose
 events, authorization records, resource binding and final state agree.
 
-The scorer is loaded only for `score`. After those checks, it sends a temporary
-submission to the existing P-01 Python evaluator, validates the returned finite
-score/checkpoint/safety-gate structure and removes the temporary files. Execution
-does not load rubric or reference-gold material. `evaluation.json` contains the
-`pact-net-evaluation/v1` wrapper, bound evidence digest, submission and result;
-scoring does not resume or repeat actor turns. A later score can replace this
-derived report under the same ownership checks.
+The scorer is loaded only for `score`. After those checks, it snapshots the
+evaluator and manifest, then evaluates a temporary submission with those captured
+bytes. The result must contain the supported checkpoint IDs, with labels and
+weights matching the captured manifest, and agree with its hard gates, totals,
+safety/completion flags and supported score formula. Unsupported scoring
+semantics or inconsistent output fail before a new report is published. Temporary
+files are removed on success or failure. Execution does not load rubric or gold.
+
+`evaluation.json` uses `pact-net-evaluation/v2`, with configuration/evidence
+digests, submission, result and `provenance`. Provenance records SHA-256 for the
+actual evaluator, manifest and submitted JSON bytes, the launcher identity, and
+Python implementation/version from the evaluation process. Submission bytes use
+two-space `JSON.stringify` plus one newline. The metadata identifies inputs under
+trusted host storage; it is not an operator signature or an independent regrade.
+See the [scoring provenance decision](adr/2026-09-13-p01-scoring-provenance.md).
+
+Scoring does not resume or repeat actor turns. An explicit score can replace this
+derived report under the same ownership checks. Existing run/checkpoint/export
+formats and the legacy script's flat result remain compatible; historical v1
+reports do not acquire provenance merely because newer code can read the run.
 
 See the [CLI decision](adr/2026-09-13-native-net-cli.md),
 [P-01 adapter](pact-net-pilot.md), [assigned profiles](pact-net-assigned-profiles.md)
