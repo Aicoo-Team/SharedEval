@@ -50,6 +50,12 @@ does not make a new benchmark-performance claim.
   development native run passed 9/9. Independent review and final gates remain
   separately attributed below. Fixed-head required `pnpm check` passed 903/903;
   both CI jobs and retained-artifact v1 → v2 e2e passed. PR64 is unchanged.
+- Main/stack/governance compatibility has a separate
+  [combined-tree verification](integration-acceptance-2026-09-13.md): staged tree
+  `8a80569f08b34bc8deb1b500b3b5ac377eeea645` passed required 903/903 and four-mode
+  scripted CLI e2e. It includes main `dc5`, PR65 `5da` and PR58 `6c512c0`, but no
+  integration commit or PR60/61/66/recovery changes. NET benchmark readiness still
+  fails its explicit gate for external corpus access and unvalidated gold.
 - These world/native CLI branches require SharedOS
   `3aa07e33999b656a10ace294fd4e41df8cbc318e`, runtime digest
   `4afb23d79851a83a48e25e968f04e45cefc81847b4a9963c62277b5c05862d5d`.
@@ -322,8 +328,11 @@ manifest, submission and launcher hashes were checked, Python identity was
 `cpython` 3.13.0, and legacy flat evaluation/submission outputs remained equal.
 No turns or model calls were added. The full suite also verifies original-source
 mutation after capture and unchanged evidence/prior score on inconsistent output.
-The original room reviewer's additional PR65 review remains pending; internal
-independent review and probes above are complete within their stated scope.
+The original room reviewer also independently closed both findings: 16/16 pure
+tests, 9/9 required-native conformance tests, type-check and their own scripted
+v1 → v2 migration passed. Counts and fixture-creation turns remain separate in
+[delivery status](delivery-status.md). Blank failure-detail strings remain a
+nonblocking diagnostic follow-up; they do not permit a failed hard gate to score.
 
 The remaining general NET profile is a separate target with this fixed lifecycle:
 
@@ -463,7 +472,7 @@ recorded local parallel failure distinct from the successful full serial run.
 | Configurable assigned profile | Parameterize actor/case/topology/resource/grant profiles; retain explicit synthetic fixtures and the native driver seam | Two bounded profiles execute; unknown or mismatched actor, case and resource version fail at the proper boundary; P-01 regressions stay green |
 | Multiple cases in one world | Partition resource state by case; reuse actor journals, deterministic queue and checkpoint; add whole-world Single reset | A fresh process continues case B after A: Multi retains only authorized history/effects; Single does not; no approval reuse, duplicate action or private-history leak |
 | Third follow-up A: bounded native entry | Implemented in draft PR64: versioned check/run/resume, portable identity, owned execution exports and explicit P-01 scoring over existing adapters | Fixed-head serial 889/889, CI and four CLI artifact runs pass, including legacy/unified cold-resume parity; parallel `pnpm check` 888/889 and unproven failure cause remain disclosed |
-| Evaluator provenance and output consistency | Draft PR65 at `5da4785c781cd660fd3c41cc42cdbe137f895f32`, based on frozen PR64 | Required `pnpm check` 903/903, both CI jobs and retained-artifact v1 → v2 e2e pass; internal independent review/probes complete, original room reviewer follow-up pending; preserve explicit provenance and legacy output |
+| Evaluator provenance and output consistency | Draft PR65 at `5da4785c781cd660fd3c41cc42cdbe137f895f32`, based on frozen PR64 | Required `pnpm check` 903/903, both CI jobs and retained-artifact v1 → v2 e2e pass; internal and original-room independent reviews close the findings within the explicit provenance/output-consistency scope |
 | Third follow-up B: general NET task/provider integration | Pending: validated inventory selection and projections, actor-agnostic recipient/payload provider seam and broader resource/topology adapters, preserving PAIR behavior | A declared selected NET task set executes through the actual public provider/runtime path; missing runtime, invalid config and indeterminate effects fail closed |
 | Third follow-up C: multiple registered-case scoring | Pending: register and validate at least two actual case rubrics and their post-hoc projections; synthetic assigned/world fixtures do not inherit P-01's registration | One configuration completes check → two registered cases → cold resume → per-case scoring, with authentic evidence and no actor-visible rubric/gold |
 

@@ -13,18 +13,46 @@ independent execution and remaining expansion gates. See the
 | Persistent NET world / Single reset | Draft [PR63](https://github.com/Aicoo-Team/SharedEval/pull/63) | `c13e620`: two cases, full serial 867/867 and mandatory native CI green; local parallel 866/867 remains disclosed |
 | Bounded unified native NET entry | Draft [PR64](https://github.com/Aicoo-Team/SharedEval/pull/64) | `4f8d8c0` on `c13e620`: unified check/run/resume/P-01 score; full serial 889/889, CI and four fixed-head CLI runs pass; local parallel 888/889 remains disclosed |
 | Evaluator provenance / output consistency | Draft [PR65](https://github.com/Aicoo-Team/SharedEval/pull/65) | `5da4785c` on frozen PR64: required `pnpm check` 903/903, both CI jobs and retained-artifact v1 → v2 e2e pass; independent review/probe results stay separately attributed |
+| Historical PAIR acceptance helpers | Draft [PR66](https://github.com/Aicoo-Team/SharedEval/pull/66) | Frozen `63bb0108` on PR57: ten historical helper commits are now fetchable; focused 193/193 reported, but CI validation has five failures. Independent review and a separate recovery fix remain in progress |
 | PAIR e2e | Independently reproduced | Required pinned SharedOS; Multi history continuity, Single reset, deny and failure lifecycle |
 | NET e2e | Independently reproduced after review fix | Final `a883f51`: full 814/814, success/held/cold-process CLI runs, and native adversarial audit-order denial |
 | NET cross-case e2e | Reproduced at `c13e620` | Both conditions: separate CLI processes 8→9→16 turns, five actions per case, completed reopen unchanged; Multi retains history/effect, Single resets all histories/resources |
-| Repository conventions | Draft [PR58](https://github.com/Aicoo-Team/SharedEval/pull/58) | Tested code baseline has green local/remote checks; published documentation head `d4ecfa5` also has both CI jobs green, separately recorded below |
+| Repository conventions | Draft [PR58](https://github.com/Aicoo-Team/SharedEval/pull/58) | Tested code baseline and preceding documentation heads have green checks; each publication result is recorded separately below |
 | Real-provider e2e | Both PAIR originals stopped, failed and sealed | DeepSeek 27 committed ticks / 26 replies; Codex 25 committed ticks / 26 deliveries. Neither reached re-ask/action; adaptive behavior unassessed and 60-task acceptance failed. Limited independent package review completed; raw recomputation/full-checkout/full-prompt provenance remain unavailable. No live NET run is claimed |
 | General NET task/provider and multiple-case scoring | Pending | Broader inventory/provider extension and at least two registered case rubrics remain separate gates; assigned/world fixtures are unregistered |
 | General/practitioner-validated NET | Not accepted | Further tasks, topologies, resource evolution, domain-owner validation and experiment cells remain |
-| Integration with current main | Separate gate | Historical PAIR stack and newer main data must be combined and checked at one final SHA before merge |
+| Integration with current main | Object-tree verification passed | Main `dc5` + NET65 `5da` + governance `6c512c0` produced tree `8a80569f`: required 903/903 and four-mode CLI e2e pass. No integration commit/merge; PR60/61/66 and PAIR recovery are excluded |
 
 No PR has been merged by the supervisor. Room review and independent checks are
 recorded separately from author reports. Idle status or a message saying done
 is not an acceptance signal.
+
+## Combined-tree verification and PAIR helper follow-up
+
+The [combined-tree report](integration-acceptance-2026-09-13.md) records an
+isolated staged tree, not an integration commit. At
+`8a80569f08b34bc8deb1b500b3b5ac377eeea645`, required-runtime `pnpm check` passed
+903/903 with zero failures/cancellations/skips in 185.606 seconds. Four additional
+CLI scenarios verified P-01 success/held scoring, Multi continuity and Single
+reset across cold processes. These results are distinct from PR65's 185.626-second
+full run. The 72-entry union registry was independently checked; 10 draft
+Python fixture cases and the canonical 600-row export passed. Authored NET review
+still has two readiness blockers, and explicit `--benchmark-ready` exited 1.
+Any later actual integration commit must be identified and checked separately.
+
+Historical PAIR helpers are now reviewable in PR66 at
+`63bb0108cf50112f80c949c561551dcb8eb669af`, based on PR57. Its owner reported a
+193/193 focused baseline; [CI 34740151699](https://github.com/Aicoo-Team/SharedEval/actions/runs/34740151699)
+instead has ordinary **830 passed / 5 failed / 9 skipped** (844 total), with
+type-check not reached, and mandatory native **10 + 4** separately passing.
+Independent reproduction isolated four failures to unavailable fixed-baseline
+Git objects in a shallow checkout and one to the missing ten-helper script
+inventory. Fetching only the fixed baseline changed that same five-test probe
+from 0/5 to 4/5; the inventory failure remained. These are CI integration findings,
+not a cause of either failed model trial. The owner is fixing them together with
+cancellation, telemetry and versioned coverage progression on a separate recovery
+branch. The historical PR and original runs stay frozen; passing focused checks
+on that new branch do not yet establish final recovery acceptance.
 
 ## Assigned profiles and cross-case extension
 
@@ -260,9 +288,24 @@ test that changes the original evaluator/manifest after capture, then verifies
 that the executed snapshot and hashes retain their original identity and that
 committed evidence and a prior score remain untouched on invalid output. The
 retained-artifact check recorded `cpython` 3.13.0 and verified the submitted JSON
-byte hash against the legacy script's serialization. The original room reviewer's
-additional PR65 review remains pending; internal independent review and probes
-are complete within the stated trusted-host scope.
+byte hash against the legacy script's serialization.
+
+The original room reviewer has independently closed both original PR65 findings
+within the stated trusted-host scope. Their separate Node 24.18.0 results are
+**16/16 pure tests**, **9/9 required-native conformance tests** (39.534 seconds,
+zero failures/cancellations/skips), and a passing type-check. They created their
+own v1 scripted fixtures at PR64, then migrated copies at PR65: scores 1 / 0.175,
+all four hashes, Python identity and legacy flat output bytes matched, while the
+originals and 87/83 copied non-report files were unchanged. Fixture creation used
+16 scripted turns; migration used zero new turns and the entire check used zero
+models. They independently decoded CI and confirmed its PR-merge checkout tree
+equals the fixed PR65 tree. These are distinct from the supervisor's runs.
+
+A nonblocking diagnostic follow-up remains: failed checkpoint/gate `details`
+can contain blank strings. A failed hard gate still produces score zero; this
+does not reopen the provenance or contradictory-score findings. The independent
+report SHA-256 is
+`5127aec92c723f78313f961628a653e5cb5e5a735a39b7268b577d7218afd763`.
 
 The former third follow-up is split explicitly. Its bounded command entry is
 implemented and exercised in PR64 with the parallel-check limitation above. General NET
@@ -422,10 +465,11 @@ branch adopted the exact test-only allowances already on the world branch.
 Production deadlines and atomic-publication assertions remain unchanged.
 
 The preceding published documentation-only PR58 head was
-`d4ecfa5efe096c35d9bdc91c819095132140080b`; it does not change the tested code
-baseline above. Its [CI run 34737798246](https://github.com/Aicoo-Team/SharedEval/actions/runs/34737798246)
-was verified with both jobs completed successfully at 2026-09-13 05:12 UTC.
-That result applies to `d4ecfa5`; these subsequent documentation edits require
+`6c512c03df6a06b7ffd57da4c6539ba8f4e4f5fb`; it does not change the tested code
+baseline above. Its [CI run 34739967123](https://github.com/Aicoo-Team/SharedEval/actions/runs/34739967123)
+was verified with both jobs completed successfully at 2026-09-13 05:20 UTC.
+The earlier `d4ecfa5` documentation CI also passed independently. Those results
+apply to their exact heads; these subsequent documentation edits require
 their own publication/check record and do not change the earlier code results.
 
 PR58 Actions run [34630043844](https://github.com/Aicoo-Team/SharedEval/actions/runs/34630043844)

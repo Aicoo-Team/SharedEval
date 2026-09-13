@@ -107,7 +107,7 @@ world/native runtime acceptance unless the target branch pins another version.
 | Execution boundary | `SHAREDEVAL_SHAREDOS_DIR=/path/to/pinned/SharedOS npm run test:sharedos` | Required real SharedOS loader/conformance cases; missing builds fail. |
 | Run configuration | `npm run sharedeval -- --config sharedeval-run.yaml --check` | Configuration and digest only; no SharedOS or model calls. |
 | NET v2 authored world | `python3 dataset/pact-net/scripts/review.py dataset/pact-net` | World consistency, with disclosed warnings. |
-| NET v2 evaluator pilot | `python3 dataset/pact-net/scripts/test_executable_core.py dataset/pact-net` | Draft evaluator fixtures; no agent runner or practitioner validation. |
+| NET v2 evaluator pilot | `python3 dataset/pact-net/scripts/test_executable_core.py` | Draft evaluator fixtures in the script's own dataset tree; no configurable root, agent runner or practitioner validation. |
 
 Use [running instructions](running.md) to build the exact SharedOS pin and to
 execute a bounded real-model run. Read the loader constants in the checkout
