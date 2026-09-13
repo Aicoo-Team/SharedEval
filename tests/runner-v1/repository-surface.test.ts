@@ -37,13 +37,15 @@ test('retired execution surfaces and historical artifacts are absent', () => {
   }
 });
 
-test('scripts contain only the supported exporter, experiment launchers, and bounded NET pilot', () => {
+test('scripts contain only the supported exporter, experiment launchers, and bounded NET adapters', () => {
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts')).sort(), [
     'README.md',
     'experiments',
     'huggingface',
     'pact-net-pilot-evaluate.ts',
     'pact-net-pilot.ts',
+    'pact-net-world.ts',
+    'verify-pact-net-world.ts',
   ]);
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts', 'huggingface')).sort(), [
     'README.md',

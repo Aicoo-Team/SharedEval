@@ -1,7 +1,7 @@
 # Scripts
 
 This directory contains the deterministic PACT-Pair exporter under `huggingface/`,
-experiment launchers under `experiments/`, and a bounded scripted NET pilot.
+experiment launchers under `experiments/`, and bounded scripted NET adapters.
 
 Validate the canonical 600-row export without keeping a staging directory:
 
@@ -27,3 +27,9 @@ the general `sharedeval` NET mode or call paid models.
 The bounded execution entry point also accepts `--profile` for
 [assigned procurement profiles](../docs/pact-net-assigned-profiles.md). Those
 synthetic cases do not automatically qualify for the P-01 scoring entry point.
+
+`pact-net-world.ts` executes ordered assigned cases under Multi or whole-world
+Single reset. `verify-pact-net-world.ts` launches separate CLI processes and saves
+reproducible continuity/reset evidence in a new output directory. See the
+[NET world guide](../docs/pact-net-world.md). Both use the scripted native provider
+and have no benchmark scoring registration.

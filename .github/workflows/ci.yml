@@ -110,3 +110,9 @@ jobs:
           SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
           SHAREDEVAL_REQUIRE_SHAREDOS: '1'
         run: npm exec -- tsx --test tests/suites/pact-net/pilot-runtime.test.ts tests/suites/pact-net/pilot-evaluation.test.ts tests/suites/pact-net/assigned-*.test.ts
+
+      - name: Verify native NET case continuity and whole-world reset
+        env:
+          SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
+          SHAREDEVAL_REQUIRE_SHAREDOS: '1'
+        run: npm exec -- tsx --test --test-concurrency=2 tests/suites/pact-net/world-*.test.ts
