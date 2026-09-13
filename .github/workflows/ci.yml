@@ -104,4 +104,10 @@ jobs:
         env:
           SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
           SHAREDEVAL_REQUIRE_SHAREDOS: '1'
-        run: npm exec -- tsx --test tests/runner-v1/world-native-conformance.test.ts tests/runner-v1/world-failure-lifecycle.test.ts tests/execution/pair-late-operation-driver.test.ts tests/execution/pair-late-operation-delivery.test.ts
+        run: npm exec -- tsx --test tests/runner-v1/world-native-conformance.test.ts tests/runner-v1/world-failure-lifecycle.test.ts
+
+      - name: Verify cancellation and late-operation settlement
+        env:
+          SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
+          SHAREDEVAL_REQUIRE_SHAREDOS: '1'
+        run: npm exec -- tsx --test tests/execution/pair-late-operation-driver.test.ts tests/execution/pair-late-operation-delivery.test.ts

@@ -96,8 +96,9 @@ test('CI supplies frozen history and requires the local late-operation regressio
   const checkout = workflow.jobs.validate.steps.find((step: { uses?: string }) => step.uses === 'actions/checkout@v4');
   assert.equal(checkout.with['fetch-depth'], 0);
   assert.equal(checkout.with['persist-credentials'], false);
-  const native = workflow.jobs['sharedos-loader'].steps.find((step: { name?: string }) => step.name === 'Verify native world continuity and failure lifecycle');
+  const native = workflow.jobs['sharedos-loader'].steps.find((step: { name?: string }) => step.name === 'Verify cancellation and late-operation settlement');
   assert.equal(native.env.SHAREDEVAL_REQUIRE_SHAREDOS, '1');
+  assert.equal(native.env.SHAREDEVAL_SHAREDOS_DIR, '${{ github.workspace }}/sharedos-repo');
   for (const path of ['tests/execution/pair-late-operation-driver.test.ts', 'tests/execution/pair-late-operation-delivery.test.ts']) {
     assert.ok(native.run.includes(path), path);
   }
