@@ -12,11 +12,12 @@ independent execution and remaining expansion gates. See the
 | Assigned NET profiles | Draft [PR62](https://github.com/Aicoo-Team/SharedEval/pull/62) | `8381465`: strict case/actor/topology/evidence binding, full required 841/841, original P-01 compatibility and unregistered-scoring rejection |
 | Persistent NET world / Single reset | Draft [PR63](https://github.com/Aicoo-Team/SharedEval/pull/63) | `c13e620`: two cases, full serial 867/867 and mandatory native CI green; local parallel 866/867 remains disclosed |
 | Bounded unified native NET entry | Draft [PR64](https://github.com/Aicoo-Team/SharedEval/pull/64) | `4f8d8c0` on `c13e620`: unified check/run/resume/P-01 score; full serial 889/889, CI and four fixed-head CLI runs pass; local parallel 888/889 remains disclosed |
+| Evaluator provenance / output consistency | Draft [PR65](https://github.com/Aicoo-Team/SharedEval/pull/65) | `5da4785c` on frozen PR64: required `pnpm check` 903/903, both CI jobs and retained-artifact v1 → v2 e2e pass; independent review/probe results stay separately attributed |
 | PAIR e2e | Independently reproduced | Required pinned SharedOS; Multi history continuity, Single reset, deny and failure lifecycle |
 | NET e2e | Independently reproduced after review fix | Final `a883f51`: full 814/814, success/held/cold-process CLI runs, and native adversarial audit-order denial |
 | NET cross-case e2e | Reproduced at `c13e620` | Both conditions: separate CLI processes 8→9→16 turns, five actions per case, completed reopen unchanged; Multi retains history/effect, Single resets all histories/resources |
-| Repository conventions | Draft [PR58](https://github.com/Aicoo-Team/SharedEval/pull/58) | AGENTS, CONTRIBUTING, PR template, architecture/validation conventions and `pnpm check`; green local and remote checks |
-| Real-provider e2e | PAIR preflight reported; full-run acceptance pending | PAIR owner retains the current 60-task run; the two-case preflight does not establish completion. Final wrapper/projection/request, protocol-deviation and full-run coverage evidence remain pending. No live NET run is claimed |
+| Repository conventions | Draft [PR58](https://github.com/Aicoo-Team/SharedEval/pull/58) | Tested code baseline has green local/remote checks; published documentation head `d4ecfa5` also has both CI jobs green, separately recorded below |
+| Real-provider e2e | Both PAIR originals stopped, failed and sealed | DeepSeek 27 committed ticks / 26 replies; Codex 25 committed ticks / 26 deliveries. Neither reached re-ask/action; adaptive behavior unassessed and 60-task acceptance failed. Limited independent package review completed; raw recomputation/full-checkout/full-prompt provenance remain unavailable. No live NET run is claimed |
 | General NET task/provider and multiple-case scoring | Pending | Broader inventory/provider extension and at least two registered case rubrics remain separate gates; assigned/world fixtures are unregistered |
 | General/practitioner-validated NET | Not accepted | Further tasks, topologies, resource evolution, domain-owner validation and experiment cells remain |
 | Integration with current main | Separate gate | Historical PAIR stack and newer main data must be combined and checked at one final SHA before merge |
@@ -77,27 +78,72 @@ draft PR64, with fixed-head execution evidence and the local parallel-check limi
 Broader NET task/provider integration and scoring across multiple registered cases
 remain open; synthetic assigned profiles have no benchmark rubric.
 
-The PAIR owner's current 60-task run remains under that owner. Its reported
-two-case live preflight does not establish full-run completion or acceptance.
-Final acceptance still needs separately frozen wrapper/projection code, actual
-model-request hashes, journal frontiers and context-size evidence. A frozen
-runner SHA alone does not identify an added provider-side compression path.
+The PAIR owner has stopped and sealed both failed original 60-task trials.
+DeepSeek has **27 committed ticks / 26 replies**; Codex has **25 committed ticks /
+26 delivered replies**. Both ended with `context_turn_incomplete` before the
+re-ask/action phases. Neither satisfies complete 60-task acceptance, adaptive
+behavior is unassessed, and no model process or automatic paid restart is active.
+The reported two-case live preflights remain distinct from these failed originals.
 
-The owner reported in room message 64 that an HTTP 520 at tick 23 left the final
-requester `MEMORY` uncommitted. Tick 24 recovered history but encountered
-`publication_limit`; tick 25 made no new contact while recovering Q234. Preserve
-these deviations under the existing configuration rather than resetting or
-relabeling the trial. Fixed tick 61 may begin re-asks before 60 distinct first
-contacts, so final acceptance must show actual task coverage and contact-to-task
-mapping. Track delivered replies separately from committed MEMORY: a failed
-MEMORY update does not undo exposure from a delivered response. Q103 remains
-‘original gold match; semantic leakage under review’. Freeze the actual scorer
-version and distinguish question echo, new private facts and unauthorized
-confirmation; overlapping question/gold wording alone settles none of these.
-Reviewer messages 66–67 contain synthetic matcher probes, not actual-trace
-rescoring. The runtime helper/wrapper also needs a fetchable frozen commit or
-reviewable sanitized patch bound to its per-file hashes. These are reported
-observations and acceptance requirements, not accepted full-run results.
+Preserve the HTTP 520 at tick 23, uncommitted requester MEMORY, tick-24
+`publication_limit` and tick-25 Q234 recovery without a new contact under the
+original configuration. Scheduled ticks do not establish unique task contacts or
+phase coverage; retain actual task-to-contact mappings. Codex tick 26/Q252 was
+delivered while its requester MEMORY remained uncommitted. Delivered exposure and
+committed MEMORY counts must stay separate.
+
+Q103 remains ‘original gold match; semantic leakage under review’. The owner
+reports that actual preflight responses match both frozen matcher variants.
+That result does not settle whether a response merely echoes the question,
+adds private facts or supplies unauthorized source confirmation. Preserve the
+frozen scores and review these semantics separately. Earlier reviewer messages
+66–67 contain synthetic matcher probes, not actual-trace rescoring.
+
+The owner delivered ten reviewable patches from `4eede49a` to `63bb010` and
+startup helper hashes tied to candidates `5e8ddda`/`38e69ed`. Those hashes do
+not prove the full execution checkout. The package also includes 674 captures
+and 52 native first-input hashes with explicit coverage/projection limitations;
+these counts alone do not establish complete provenance or context fidelity.
+The sanitized package is 353,793 bytes, SHA-256
+`48552cfd03ec0f777789e90562a6b8b3872582115a5a761fbfeba6e7c854864d`.
+The supervisor verified the downloaded package against the server hash.
+The original independent reviewer completed a limited read-only review, including
+32 archive file hashes. JSON and CSV inventories agree on 60 unique tasks per
+original: 20 notes, 20 todos and 20 actions. The review report's SHA-256 is
+`3636152f67370bf20ccb5b059ecfb4551d27347dd1089b347281500871fd55de`.
+
+| Reviewed measure | DeepSeek | Codex |
+| --- | ---: | ---: |
+| Committed ticks | 27 | 25 |
+| Tasks with committed contacts | 26 | 25 |
+| Delivered contacts, including Q252 separately | 26 | 26 |
+| Terminal results | 15 | 16 |
+| Correct under the formal scorer | 13 | 12 |
+| Historical own-gold matches | 12 | 13 |
+| Tasks without a committed contact | 34 | 35 |
+| Re-ask/action phase coverage | 0 | 0 |
+
+These measures have different denominators and meanings; adaptive behavior is
+unassessed. Q252's separate delivery does not become a committed contact or undo
+the failed trial. The formal-scorer and historical own-gold counts are preserved
+as separate labels, not silently substituted for one another.
+
+The reviewer checked the ten patches in memory against nine helper file hashes,
+674 capture metadata summaries with frozen-prefix/grouping checks, 52 unique
+native first-input bindings, and fixed bytes for four scorer files, questions
+and the task split. The review does not provide missing raw inputs for independent
+recomputation, prove the full execution checkout or reconstruct complete native
+prompts. The candidate helper hashes remain partial provenance.
+
+Source inspection found a candidate abort-during-save path that may return
+HTTP 200; it has not been dynamically reproduced and is not an established cause
+of either original failure. The metadata reports 52 closed, 51 completed and
+zero `failurePresent`: an absent failure record is not a successful completion.
+Keep the 300-second, 180-second and 30-second timeout layers distinct. The owner
+has resumed bounded work without model calls on cancellation, late effects and
+coverage progression, with a reviewable PR required. Both original trials remain
+sealed; there is no paid restart or changed Q103 semantic conclusion. No raw
+private journals are included in this governance delivery.
 
 ## Bounded unified native NET entry
 
@@ -162,9 +208,61 @@ They also mix legacy and unified world entry points across cold processes and
 require complete snapshot equality, including context frontiers, resource state,
 authorization audit and archived events. Independent source review reproduced a
 manifest-publication/native-writer race, now fixed by holding native ownership
-through manifest publication and protected by a targeted regression. The reviewer
-reported no further actionable finding; their source review is not a separate
-native test run.
+through manifest publication and protected by a targeted regression. That early
+source-only review reported no further finding within its reviewed scope and is
+not counted as a native test run.
+
+A later independent reviewer at frozen PR64 head
+`4f8d8c07a7e088ac25fc27c14137bcb9a6acb027` passed **22/22 new-file native tests**,
+type-check, runnable examples and runtime e2e, with no further native runtime
+finding. This is separately attributed evidence, not an addition to or rerun of
+the supervisor's 889-test serial suite. The review also found missing evaluator,
+rubric/input and Python provenance, and weak cross-field validation. A substitute
+evaluator script returned contradictory output that the adapter accepted. This
+is a reproduced validation gap; it does not show that canonical P-01 scoring is
+known wrong. The review report's SHA-256 is
+`22d49618c09908da4262271ef70f8504f80ead066d3b89fa4da4e93ff323cc86`.
+
+The fix is published as [PR65](https://github.com/Aicoo-Team/SharedEval/pull/65),
+branch `codex/sharedeval-net-scoring`, head
+`5da4785c781cd660fd3c41cc42cdbe137f895f32`, based on frozen PR64
+`4f8d8c07a7e088ac25fc27c14137bcb9a6acb027`. PR64 remains unchanged.
+Development regressions first reproduced output-consistency failures (4 of 9
+tests) and the report-version mismatch. Later validation runs are recorded
+separately below; those initial RED checks are not acceptance passes.
+
+The follow-up binds the exact raw evaluator, manifest and submission hashes to
+captured private inputs actually executed, plus a launcher digest and the
+same-process Python implementation/version. It requires
+`pact-net-p01-evaluation-provenance/v1`, and the unified report is versioned
+as `pact-net-evaluation/v2`. Complete metadata, weighted sums, gates, safety,
+full-completion, score formula and Python four-decimal rounding must agree.
+Invalid projections must fail before temporary inputs or Python execution.
+Existing run/config/checkpoint/export contracts and legacy flat script output
+remain compatibility requirements. The change validates output consistency and
+provenance; it does not independently regrade predicates or attest a canonical
+rubric hash. Consistent trusted-host custom evaluators remain allowed with
+distinct provenance hashes.
+
+| Scoring follow-up validation | Result and scope |
+| --- | --- |
+| Pure scoring/launcher tests and type-check | **16/16** tests passed; type-check passed |
+| First development native run | **9/9**, zero failures/cancellations/skips, **43.314 s** |
+| Independent review of launcher fixes | Successful-`SystemExit` and buffering regressions found, then independently closed with **9/9** launcher probes |
+| Independent Python rounding comparison | **131,842** values checked for four-decimal rounding parity; separate from the launcher probes |
+| Fixed-head required-runtime `pnpm check` | Node 24.18.0, `3aa07e3` pin: **903/903**, zero failures/cancellations/skips, **185.626 s**; catalog validation and type-check pass |
+| [CI 34739634285](https://github.com/Aicoo-Team/SharedEval/actions/runs/34739634285) | Both jobs pass at `5da4785c`, Node 24.20.0. Ordinary: **835 passed / 68 native skipped**. Mandatory runtime **10**, PAIR world **4**, NET pilot **50**, NET world **26**, unified CLI/scoring **36**: each zero failures/cancellations/skips |
+| Retained-artifact old-v1 → v2 e2e | Fixed-head copies of PR64 success/held runs explicitly rescored to v2; scores **1 / 0.175**, source and every copied non-report file unchanged, byte hashes/Python identity verified, legacy flat outputs equal; zero new turns/model calls |
+
+The development tests, independent probes, rounding comparison, fixed-head full
+check and CI steps are separate runs. The full check also covers a native-evidence
+test that changes the original evaluator/manifest after capture, then verifies
+that the executed snapshot and hashes retain their original identity and that
+committed evidence and a prior score remain untouched on invalid output. The
+retained-artifact check recorded `cpython` 3.13.0 and verified the submitted JSON
+byte hash against the legacy script's serialization. The original room reviewer's
+additional PR65 review remains pending; internal independent review and probes
+are complete within the stated trusted-host scope.
 
 The former third follow-up is split explicitly. Its bounded command entry is
 implemented and exercised in PR64 with the parallel-check limitation above. General NET
@@ -185,6 +283,9 @@ above remain unchanged and are not relabelled by this newer development run.
 - Bounded unified NET entry: `4f8d8c07a7e088ac25fc27c14137bcb9a6acb027`,
   based on PR63 `c13e6204669cd4fdca05af7beff13c46e72db566`; serial full tests,
   fixed-head CLI artifacts and CI pass, with the parallel failure retained above.
+- Scoring provenance/output consistency: `5da4785c781cd660fd3c41cc42cdbe137f895f32`
+  (PR65), based on bounded unified entry `4f8d8c07a7e088ac25fc27c14137bcb9a6acb027`;
+  final full/native-CI/artifact-e2e results are recorded separately above.
 - Governance tested code head: `a09b50c9b3495a120d30b0cf2e20a494de2ad323`,
   based on main; subsequent changes to this record and the plan are documentation.
 
@@ -319,6 +420,13 @@ failures/cancellations/skips, 42.57 seconds. An earlier full run exposed two tig
 unchanged-main test setup budgets. Both files passed in isolation (52/52); the
 branch adopted the exact test-only allowances already on the world branch.
 Production deadlines and atomic-publication assertions remain unchanged.
+
+The preceding published documentation-only PR58 head was
+`d4ecfa5efe096c35d9bdc91c819095132140080b`; it does not change the tested code
+baseline above. Its [CI run 34737798246](https://github.com/Aicoo-Team/SharedEval/actions/runs/34737798246)
+was verified with both jobs completed successfully at 2026-09-13 05:12 UTC.
+That result applies to `d4ecfa5`; these subsequent documentation edits require
+their own publication/check record and do not change the earlier code results.
 
 PR58 Actions run [34630043844](https://github.com/Aicoo-Team/SharedEval/actions/runs/34630043844)
 also passed: Node22 ordinary tests **661 passed / 7 native skipped**, and its

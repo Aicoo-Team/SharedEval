@@ -37,7 +37,19 @@ does not make a new benchmark-performance claim.
   world Multi/Single. The local parallel `pnpm check` was **888/889** with one
   `pilot_pending_turn_incomplete` failure; its exact isolated rerun passed **1/1**.
   Cause remains unproven. Counts, commands and review limits stay separate in
-  delivery status; the failed parallel check is not relabelled green.
+  delivery status; the failed parallel check is not relabelled green. A later
+  independent reviewer passed 22/22 new-file native tests, type-check, examples
+  and runtime e2e at this frozen head; that run is separate from the supervisor's
+  889-test serial run and CI. The reviewer also reproduced missing evaluator
+  provenance and acceptance of inconsistent evaluator output, tracked below.
+- Evaluator provenance/output-consistency follow-up: published
+  [PR65](https://github.com/Aicoo-Team/SharedEval/pull/65), branch
+  `codex/sharedeval-net-scoring`, head `5da4785c781cd660fd3c41cc42cdbe137f895f32`,
+  based on frozen PR64 `4f8d8c07a7e088ac25fc27c14137bcb9a6acb027`.
+  Pure scoring/launcher tests passed 16/16 and type-check passed; a first
+  development native run passed 9/9. Independent review and final gates remain
+  separately attributed below. Fixed-head required `pnpm check` passed 903/903;
+  both CI jobs and retained-artifact v1 → v2 e2e passed. PR64 is unchanged.
 - These world/native CLI branches require SharedOS
   `3aa07e33999b656a10ace294fd4e41df8cbc318e`, runtime digest
   `4afb23d79851a83a48e25e968f04e45cefc81847b4a9963c62277b5c05862d5d`.
@@ -159,23 +171,51 @@ Legacy `sharedeval-run/v1` retains fresh-context semantics. Never silently
 resume a v1 experiment under v2 or relabel historical results as persistent
 Multi. Do not remove actor-context locks or rewrite journals to force resume.
 
-The reported two-case live PAIR preflight does not establish full-run acceptance.
-The current 60-task PAIR run remains under the PAIR owner's control. Acceptance
-still needs the frozen wrapper/projection code, actual model-request hashes,
-journal frontiers, context-size evidence and complete run artifacts. Neither
-preflight success nor a frozen runner SHA alone establishes that any added
-provider-side compression path preserves the declared context protocol.
+Both original PAIR 60-task trials are stopped, failed and sealed. The owner
+reports **27 committed ticks / 26 replies** for DeepSeek and **25 committed ticks /
+26 delivered replies** for Codex. Both stopped at `context_turn_incomplete`
+before reaching the re-ask or action phases; full 60-task acceptance failed and
+adaptive behavior remains unassessed. There is no active model process or
+automatic paid restart. The two-case live preflights remain separate evidence.
 
-The owner's ongoing HTTP-520/publication-limit recovery must remain visible as
-a protocol deviation under the original configuration. Fixed tick 61 may begin
-re-asks before 60 distinct first contacts; final acceptance requires actual task
-coverage and contact-to-task mapping, not the scheduled tick alone. Separate
-delivered replies from committed MEMORY; failure of the latter does not undo
-possible exposure. Q103 remains an original gold match with semantic leakage
-under review. Freeze the actual scorer and distinguish question echo, new private
-facts and unauthorized confirmation. Synthetic matcher probes do not rescore the
-actual trace. Require reviewable frozen wrapper/helper code bound to its file
-hashes and request projections. These observations are not a completed-run result.
+Preserve HTTP-520/publication-limit recovery and actual task-to-first-contact
+mapping under each original configuration. A fixed tick-61 phase boundary does
+not establish 60 distinct first contacts. Codex tick 26/Q252 was delivered but
+its requester MEMORY was not committed; an incomplete MEMORY update does not
+undo response exposure. Q103 remains an original gold match with semantic
+leakage under review. The owner reports that actual preflight responses match
+both frozen matcher variants; this still requires distinguishing question echo,
+new private facts and unauthorized source confirmation. Frozen scores remain
+unchanged, and earlier synthetic matcher probes are not actual-trace rescoring.
+
+A limited independent review of the sanitized acceptance package is complete.
+It checked 32 archive file hashes and matching JSON/CSV inventories containing
+60 unique tasks each: 20 notes, 20 todos and 20 actions. DeepSeek/Codex have
+26/25 committed task contacts, 15/16 terminal results, 13/12 formal-scorer-correct
+results, 12/13 historical own-gold matches and 34/35 tasks without a committed
+contact. Separately counting Q252's delivered reply gives 26/26 delivered
+contacts. Neither original reached re-ask/action; adaptive behavior is unassessed.
+These denominators and scoring labels must remain distinct.
+
+The reviewer checked the ten patches in memory against nine helper file hashes,
+674 capture metadata summaries and their frozen-prefix/grouping checks, 52
+unique native first-input bindings, and fixed bytes for four scorer files,
+questions and the task split. This does not supply the missing raw inputs for
+independent recomputation, prove the full execution checkout or reconstruct
+complete native prompts. Candidate helper versions `5e8ddda`/`38e69ed` remain
+partial provenance. The review report's SHA-256 is
+`3636152f67370bf20ccb5b059ecfb4551d27347dd1089b347281500871fd55de`;
+the detailed counts and package identity are in the delivery record.
+
+Source inspection identifies an abort-during-save path that may return HTTP 200;
+this remains a candidate without dynamic reproduction, not an established cause
+of the originals' failures. Capture metadata reports 52 closed, 51 completed and
+zero `failurePresent`; missing failure details do not establish success. Keep the
+300-second, 180-second and 30-second timeout layers separate. The owner has
+resumed bounded work without model calls on cancellation, late effects and
+coverage progression, with a reviewable PR required. Both originals stay sealed;
+this follow-up does not authorize a paid restart or change Q103's unresolved
+source-confirmation semantics. No raw private journals are part of this delivery.
 
 ## NET: how Multi runs
 
@@ -244,6 +284,46 @@ and native writer ownership. Stale/corrupt receipts and pending effects fail
 closed; legacy runs are not automatically adopted and stale locks are not deleted.
 Only explicit P-01 `score` loads its post-hoc evaluator. Assigned and world
 profiles remain unregistered even when both synthetic cases release successfully.
+
+The separate scoring follow-up addresses the independent review's reproducible
+provenance and cross-field consistency findings. PR65 binds the
+exact raw evaluator, manifest and submission hashes to the captured private
+inputs actually executed, plus the launcher digest and same-process Python
+implementation/version. It requires `pact-net-p01-evaluation-provenance/v1` and
+versions the unified report as `pact-net-evaluation/v2`. Validation covers
+metadata, weighted sums, gates, safety/full-completion/score relationships and
+Python four-decimal rounding; invalid projections fail before temporary input
+creation or Python execution. Existing run/checkpoint/export identities and the
+legacy flat evaluator output remain compatibility requirements. This validates
+reported output consistency and provenance, not independent predicate regrading
+or canonical rubric-hash attestation. Consistent trusted-host custom evaluators
+remain permitted and must receive their own hashes.
+
+Pure scoring/launcher tests passed **16/16** and type-check passed. The first
+development native run passed **9/9**, zero failures/cancellations/skips, in
+43.314 seconds. Independent source review found successful-`SystemExit` handling
+and buffering regressions; fixes were independently closed with **9/9** launcher
+probes. A separate comparison checked **131,842** values for Python four-decimal
+rounding parity. These are distinct runs, not a final full-suite result, and do
+not establish that the canonical P-01 scorer previously returned wrong scores.
+
+At fixed head `5da4785c781cd660fd3c41cc42cdbe137f895f32`, Node 24.18.0 with
+the required `3aa07e3` pin passed **`pnpm check`: 903/903**, zero failures,
+cancellations or skips, in **185.626 seconds**, including catalog validation and
+type-check. [CI 34739634285](https://github.com/Aicoo-Team/SharedEval/actions/runs/34739634285)
+passed both jobs on Node 24.20.0: ordinary **835 passed / 68 native skipped**;
+mandatory runtime/PAIR-world/NET-pilot/NET-world/CLI-scoring steps **10/4/50/26/36**,
+each with zero failures, cancellations or skips.
+
+A separate fixed-head e2e copied the original PR64 success and held runs and
+explicitly rescored v1 reports to v2. Scores remained **1 / 0.175**; the source
+runs and every copied non-report file remained byte-identical. Evaluator,
+manifest, submission and launcher hashes were checked, Python identity was
+`cpython` 3.13.0, and legacy flat evaluation/submission outputs remained equal.
+No turns or model calls were added. The full suite also verifies original-source
+mutation after capture and unchanged evidence/prior score on inconsistent output.
+The original room reviewer's additional PR65 review remains pending; internal
+independent review and probes above are complete within their stated scope.
 
 The remaining general NET profile is a separate target with this fixed lifecycle:
 
@@ -383,6 +463,7 @@ recorded local parallel failure distinct from the successful full serial run.
 | Configurable assigned profile | Parameterize actor/case/topology/resource/grant profiles; retain explicit synthetic fixtures and the native driver seam | Two bounded profiles execute; unknown or mismatched actor, case and resource version fail at the proper boundary; P-01 regressions stay green |
 | Multiple cases in one world | Partition resource state by case; reuse actor journals, deterministic queue and checkpoint; add whole-world Single reset | A fresh process continues case B after A: Multi retains only authorized history/effects; Single does not; no approval reuse, duplicate action or private-history leak |
 | Third follow-up A: bounded native entry | Implemented in draft PR64: versioned check/run/resume, portable identity, owned execution exports and explicit P-01 scoring over existing adapters | Fixed-head serial 889/889, CI and four CLI artifact runs pass, including legacy/unified cold-resume parity; parallel `pnpm check` 888/889 and unproven failure cause remain disclosed |
+| Evaluator provenance and output consistency | Draft PR65 at `5da4785c781cd660fd3c41cc42cdbe137f895f32`, based on frozen PR64 | Required `pnpm check` 903/903, both CI jobs and retained-artifact v1 → v2 e2e pass; internal independent review/probes complete, original room reviewer follow-up pending; preserve explicit provenance and legacy output |
 | Third follow-up B: general NET task/provider integration | Pending: validated inventory selection and projections, actor-agnostic recipient/payload provider seam and broader resource/topology adapters, preserving PAIR behavior | A declared selected NET task set executes through the actual public provider/runtime path; missing runtime, invalid config and indeterminate effects fail closed |
 | Third follow-up C: multiple registered-case scoring | Pending: register and validate at least two actual case rubrics and their post-hoc projections; synthetic assigned/world fixtures do not inherit P-01's registration | One configuration completes check → two registered cases → cold resume → per-case scoring, with authentic evidence and no actor-visible rubric/gold |
 
