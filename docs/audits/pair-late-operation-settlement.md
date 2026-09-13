@@ -90,8 +90,8 @@ Relevant pinned SharedOS source locations:
 - `packages/runtime/src/standard-runtime.ts:163` awaits `host.invokeTool` before
   constructing the next `tool_result` input. Its `finally` at line 185 awaits
   `closeSession`; line 276 bounds close separately and suppresses close errors.
-- SharedEval `src/runner/v1/sharedos-file-session.ts:426` awaits executor
-  completion and then checks actor settlement. Executor completion alone is not
+- SharedEval `src/runner/v1/sharedos-file-session.ts:430` awaits executor
+  completion and then checks actor settlement at line 433. Executor completion alone is not
   evidence that runtime session cleanup is complete.
 
 This is a bounded upstream ownership reproduction, not a SharedOS fix. No
@@ -124,3 +124,22 @@ These repairs do not make either historical incomplete run safe to resume.
 Existing unmatched calls, delivered tail replies, and uncommitted heartbeats
 must remain separately reported. No missing result, heartbeat commit, or model
 outcome may be inferred from this test's success.
+
+## CI Runtime Boundary
+
+The two new execution test files use the existing optional-build convention:
+without `SHAREDEVAL_REQUIRE_SHAREDOS`, a missing runtime build is skipped. A
+present build still goes through revision/digest verification; the test does
+not replace an invalid runtime with a mock. The required SharedOS CI step now
+includes both files and sets `SHAREDEVAL_REQUIRE_SHAREDOS=1`.
+
+The following missing-runtime checks used only the fresh synthetic path
+`/tmp/sharedeval-deliberately-missing-runtime-pair-recovery`:
+
+- REQUIRE unset: exit 0, seven skipped, zero failures, 299.833708 ms.
+- REQUIRE set to `1`: exit 1, all seven failed loader verification, zero skips,
+  246.210708 ms. This intentional failure proves the mandatory gate stays closed.
+
+Both used Node 24 with `--import tsx --test --test-concurrency=1` and the two
+`tests/execution/pair-late-operation-*.test.ts` paths. Passing pinned-runtime
+verification remains separately required; a skip is never an acceptance pass.

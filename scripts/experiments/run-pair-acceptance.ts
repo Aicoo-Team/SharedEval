@@ -7,6 +7,7 @@ import { gzip } from 'node:zlib';
 import { mainSharedevalV1 } from '../../src/runner/v1/sharedeval-cli.js';
 import { runSharedevalProductionV1 } from '../../src/runner/v1/sharedeval-production.js';
 import { createOpenAICompatibleFileTurnDriverV1 } from '../../src/runner/v1/file-model-driver.js';
+import type { NativeCodexCloseContext } from './codex-app-server-transport.js';
 
 const zip = promisify(gzip);
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -142,8 +143,9 @@ try {
           const actorId = driverOptions.actorContext?.actorId ?? 'unknown';
           const project = projectorFactory?.();
           let native: Awaited<ReturnType<typeof import('./codex-app-server-transport.js')['createCodexAppServerTransport']>> | undefined;
-          const closeNative = async () => {
-            try { await native?.close(); }
+          let runtimeTurnTimeoutMs: number | undefined;
+          const closeNative = async (context: NativeCodexCloseContext = { source: 'run_cleanup' }) => {
+            try { await native?.close(context); }
             finally { native = undefined; closers.delete(closeNative); }
           };
           const fetchImplementation: typeof fetch = async (input, init) => {
@@ -192,6 +194,7 @@ try {
                 const module = await import('./codex-app-server-transport.js');
                 native = await module.createCodexAppServerTransport({
                   model: body.model, actorId, evidenceDirectory: evidenceRoot, effort: 'medium',
+                  runtimeTurnTimeoutMs,
                 });
                 closers.add(closeNative);
               }
@@ -230,12 +233,21 @@ try {
             getFileProviderTelemetryV1: () => driver.getFileProviderTelemetryV1(),
             assertActorContextSettled: () => driver.assertActorContextSettled(),
             open: async (request, signal) => {
+              runtimeTurnTimeoutMs = request.options?.timeoutMs;
               const session = await driver.open(request, signal);
               return {
                 next: (input, signal) => session.next(input, signal),
-                close: async (outcome, signal) => {
-                  try { await session.close?.(outcome, signal); }
-                  finally { await closeNative(); }
+                close: async (outcome, closeSignal) => {
+                  let actorSettlement: 'succeeded' | 'failed' = 'failed';
+                  try { await session.close?.(outcome, closeSignal); actorSettlement = 'succeeded'; }
+                  finally {
+                    try { await closeNative({ source: 'session_close', executionId: request.executionId,
+                      outcome, actorSettlement, runtimeSignalAborted: signal.aborted }); }
+                    catch (cleanupError) {
+                      // Do not replace the original settlement error with a later cleanup error.
+                      if (actorSettlement === 'succeeded') throw cleanupError;
+                    }
+                  }
                 },
               };
             },

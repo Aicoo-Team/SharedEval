@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import fsPromises from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -8,6 +10,11 @@ import { CODEX_TRANSPORT_BASE_URL, CODEX_ISOLATION_OVERRIDES, createCodexAppServ
 } from '../../scripts/experiments/codex-app-server-transport.js';
 
 type Obj = Record<string, any>;
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>(done => { resolve = done; });
+  return { promise, resolve };
+}
 async function until(predicate: () => boolean) {
   const deadline = Date.now() + 5_000;
   while (!predicate()) {
@@ -28,17 +35,20 @@ function effectiveConfig(overrides: Record<string, unknown>): Obj {
   return config;
 }
 
-async function harness(options: { mode?: 'normal' | 'parallel' | 'native' | 'wait' | 'compaction'; instructionSources?: string[]; commentary?: boolean } = {}) {
+async function harness(options: { mode?: 'normal' | 'parallel' | 'native' | 'wait' | 'compaction'; instructionSources?: string[]; commentary?: boolean;
+  closeGate?: ReturnType<typeof deferred>; closeFailure?: boolean; openGate?: ReturnType<typeof deferred> } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'codex-transport-test-'));
   const calls: Array<{ method: string; params: Obj }> = [];
   const replies: Array<{ id: string | number; result: Obj }> = [];
-  let launch!: CodexRpcLaunch; let closed = 0; let alias = ''; let thread = 0;
+  let launch!: CodexRpcLaunch; let closed = 0; let alias = ''; let thread = 0; let launches = 0;
   const event = (method: string, params: Obj, id?: number) => launch.onEvent({ method, params, ...(id === undefined ? {} : { id }) });
   const item = (type: string, extra: Obj = {}) => event('item/started', { threadId: `thread-${thread}`, turnId: 'turn-1', item: { type, id: 'item-1', ...extra } });
   const dynamic = (id = 77) => event('item/tool/call', { threadId: `thread-${thread}`, turnId: 'turn-1',
     callId: `call-${id}`, tool: alias, arguments: { path: 'MEMORY.md' } }, id);
   const factory: CodexRpcFactory = async input => {
     launch = input;
+    launches++;
+    await options.openGate?.promise;
     return {
       async request(method, params) {
         calls.push({ method, params });
@@ -76,17 +86,24 @@ async function harness(options: { mode?: 'normal' | 'parallel' | 'native' | 'wai
           item: { type: 'agentMessage', id: 'final-1', phase: 'final_answer', text: 'Done.' } });
         event('turn/completed', { threadId: `thread-${thread}`, turn: { id: 'turn-1', status: 'completed' } });
       },
-      async close() { closed++; },
+      async close() {
+        closed++; await options.closeGate?.promise;
+        if (options.closeFailure) throw new Error('private peer cleanup detail');
+      },
     };
   };
   const transport = createCodexAppServerTransport({ model: 'native-test', actorId: 'requester',
-    evidenceDirectory: directory, rpcFactory: factory });
+    evidenceDirectory: directory, rpcFactory: factory, runtimeTurnTimeoutMs: 300_000 });
   const send = (messages: unknown[], extra: RequestInit = {}) => transport.fetch(`${CODEX_TRANSPORT_BASE_URL}/chat/completions`, {
     method: 'POST', headers: { Authorization: 'Bearer secret-never-forwarded' },
     body: JSON.stringify({ model: 'native-test', messages, tools: [tool] }), ...extra,
   });
-  return { transport, directory, calls, replies, send, dynamic, event, get closed() { return closed; },
-    async cleanup() { await transport.close(); await rm(directory, { recursive: true, force: true }); } };
+  return { transport, directory, calls, replies, send, dynamic, event,
+    get closed() { return closed; }, get launches() { return launches; },
+    async cleanup() {
+      try { await transport.close(); }
+      finally { await rm(directory, { recursive: true, force: true }); }
+    } };
 }
 
 test('pairs native requests to actual SharedOS results, with opaque aliases and isolated start', async () => {
@@ -209,6 +226,141 @@ test('cancels a waiting native turn and closes process', async () => {
     await until(() => h.calls.some(call => call.method === 'turn/start')); abort.abort();
     await assert.rejects(pending, /native_cancelled/); assert.ok(h.closed > 0);
   } finally { await h.cleanup(); }
+});
+
+test('cancellation during the decision evidence write never returns a successful bridge response', async t => {
+  const h = await harness();
+  const abort = new AbortController();
+  const savingDecision = deferred();
+  const releaseWrite = deferred();
+  const write = fsPromises.writeFile;
+  let intercepted = false;
+  const mocked = t.mock.method(fsPromises, 'writeFile', async (...args: Parameters<typeof write>) => {
+    if (!intercepted && String(args[0]).endsWith('.native.json')
+      && JSON.parse(String(args[1])).turns.length > 0) {
+      intercepted = true;
+      savingDecision.resolve();
+      await releaseWrite.promise;
+    }
+    return write(...args);
+  });
+  syncBuiltinESMExports();
+  try {
+    const pending = h.send(initial, { signal: abort.signal });
+    await savingDecision.promise;
+    abort.abort(new Error('private caller reason must not enter evidence'));
+    releaseWrite.resolve();
+    await assert.rejects(pending, /native_cancelled/);
+    assert.equal(h.replies.length, 0);
+    assert.ok(h.closed > 0);
+    const evidence = h.transport.evidence();
+    assert.equal(evidence.failure, 'native_cancelled');
+    assert.equal(evidence.abortSource, 'caller_signal');
+    assert.equal(evidence.lifecycle.closeSource, 'transport_failure');
+    assert.doesNotMatch(JSON.stringify(evidence), /private caller reason/);
+    await h.transport.close({ source: 'session_close', outcome: 'cancelled',
+      actorSettlement: 'failed', runtimeSignalAborted: true });
+    const enriched = h.transport.evidence();
+    assert.equal(enriched.lifecycle.closeRequestedAt, evidence.lifecycle.closeRequestedAt);
+    assert.equal(enriched.lifecycle.closeSource, 'transport_failure');
+    assert.equal(enriched.lifecycle.outer?.actorSettlement, 'failed');
+    const names = await readdir(h.directory);
+    assert.deepEqual(JSON.parse(await readFile(join(h.directory, names[0]!), 'utf8')),
+      JSON.parse(JSON.stringify(enriched)));
+  } finally {
+    releaseWrite.resolve();
+    mocked.mock.restore();
+    syncBuiltinESMExports();
+    await h.cleanup();
+  }
+});
+
+test('versioned close evidence distinguishes requested cleanup from a settled peer and incomplete native turn', async () => {
+  const closeGate = deferred();
+  const h = await harness({ closeGate });
+  try {
+    await h.send(initial);
+    const closing = h.transport.close({ source: 'session_close', outcome: 'cancelled',
+      actorSettlement: 'failed', runtimeSignalAborted: true });
+    const pending = h.transport.evidence() as Obj;
+    assert.equal(pending.apiVersion, 'sharedeval-native-codex-evidence/v2');
+    assert.equal(pending.closeState, 'closing');
+    assert.ok(pending.lifecycle.closeRequestedAt);
+    assert.equal(pending.lifecycle.peerClosedAt, undefined);
+    assert.equal(pending.lifecycle.cleanupCompletedAt, undefined);
+    assert.equal(pending.turns[0].completed, false);
+    assert.equal(pending.turns[0].completedAt, undefined);
+    closeGate.resolve();
+    await closing;
+    const evidence = h.transport.evidence() as Obj;
+    assert.equal(evidence.closeState, 'closed');
+    assert.equal(evidence.failure, undefined, 'Outer cancellation is not a fabricated native failure');
+    assert.ok(evidence.lifecycle.peerClosedAt >= evidence.lifecycle.closeRequestedAt);
+    assert.ok(evidence.lifecycle.cleanupCompletedAt >= evidence.lifecycle.peerClosedAt);
+    assert.deepEqual(evidence.lifecycle.outer, { source: 'session_close', outcome: 'cancelled',
+      actorSettlement: 'failed', runtimeSignalAborted: true });
+    assert.deepEqual(evidence.timeouts, { runtimeTurnMs: 300_000, bridgeFetchMs: 180_000, rpcRequestMs: 30_000 });
+  } finally { closeGate.resolve(); await h.cleanup(); }
+});
+
+test('native completion and failed outer settlement remain distinct across idempotent close calls', async () => {
+  const h = await harness();
+  try {
+    const first = await (await h.send(initial)).json() as Obj;
+    await h.send([...initial, first.choices[0].message,
+      { role: 'tool', tool_call_id: 'call-77', content: '{"status":"succeeded","output":{}}' }]);
+    await h.transport.close({ source: 'session_close', outcome: 'failed',
+      actorSettlement: 'failed', runtimeSignalAborted: false });
+    const evidence = h.transport.evidence() as Obj;
+    assert.equal(evidence.turns[0].completed, true);
+    assert.ok(evidence.turns[0].startedAt);
+    assert.ok(evidence.turns[0].completedAt >= evidence.turns[0].startedAt);
+    assert.equal(evidence.lifecycle.outer.outcome, 'failed');
+    assert.equal(evidence.failure, undefined);
+    await h.transport.close({ source: 'run_cleanup' });
+    assert.deepEqual(h.transport.evidence(), evidence, 'A later cleanup must not rewrite the first close cause');
+    const names = await readdir(h.directory);
+    assert.deepEqual(JSON.parse(await readFile(join(h.directory, names[0]!), 'utf8')),
+      JSON.parse(JSON.stringify(evidence)));
+  } finally { await h.cleanup(); }
+});
+
+test('failed native cleanup persists its outer cause without inventing cleanup completion', async () => {
+  const h = await harness({ closeFailure: true });
+  try {
+    await h.send(initial);
+    await assert.rejects(h.transport.close({ source: 'session_close', outcome: 'failed',
+      actorSettlement: 'failed', runtimeSignalAborted: false }));
+    const names = await readdir(h.directory);
+    const evidence = JSON.parse(await readFile(join(h.directory, names[0]!), 'utf8')) as Obj;
+    assert.equal(evidence.closeState, 'failed');
+    assert.equal(evidence.lifecycle.outer.outcome, 'failed');
+    assert.equal(evidence.lifecycle.cleanupError, 'native_cleanup_failed');
+    assert.equal(evidence.lifecycle.peerClosedAt, undefined);
+    assert.equal(evidence.lifecycle.cleanupCompletedAt, undefined);
+    assert.doesNotMatch(JSON.stringify(evidence), /private peer cleanup detail/);
+  } finally { await h.cleanup().catch(() => {}); }
+});
+
+test('close accounts for a peer created by an already-pending open without initializing it afterward', async () => {
+  const openGate = deferred();
+  const closeGate = deferred();
+  const h = await harness({ openGate, closeGate });
+  try {
+    const opening = h.transport.preflight().then(() => assert.fail('A closed transport must not open'),
+      error => { assert.match(String(error), /native_closed/); });
+    await until(() => h.launches === 1);
+    const closing = h.transport.close({ source: 'run_cleanup' });
+    openGate.resolve();
+    await until(() => h.closed > 0);
+    closeGate.resolve();
+    await Promise.all([opening, closing]);
+    const evidence = h.transport.evidence();
+    assert.ok(evidence.lifecycle.peerClosedAt, 'The late-created peer must be included in awaited cleanup');
+    assert.ok(evidence.lifecycle.cleanupCompletedAt! >= evidence.lifecycle.peerClosedAt);
+    assert.equal(h.calls.length, 0, 'Closing must prevent post-cancellation initialization RPCs');
+    assert.equal(evidence.lifecycle.closeSource, 'run_cleanup');
+  } finally { openGate.resolve(); closeGate.resolve(); await h.cleanup(); }
 });
 
 test('rejects unexpected native server requests without responding with an approval', async () => {
