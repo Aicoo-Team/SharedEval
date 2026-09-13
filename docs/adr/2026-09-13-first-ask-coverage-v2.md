@@ -44,6 +44,14 @@ The new `heartbeats/files-multi-coverage@2.0.0` asset instructs the requester to
 
 The old shape `{phase2StartTick, finalizeTick}` remains the legacy protocol with identical parsing output, heartbeat asset bytes, heartbeat text, phase semantics, and config/binding digest input shape. An absent multi-turn block remains absent. Existing examples are unchanged. The new version has no `phase2StartTick` field and rejects combining that field with `protocol: first-ask-coverage/v2`. New runs must use new bindings and output directories; historical bindings must not be rewritten.
 
+### Public Binding Numeric Range
+
+A follow-up compatibility audit found that sharing the bounded execution schema had incorrectly imposed the CLI's 10,000-tick ceiling on legacy public bindings. The public binding schema and validator are now separate from the execution schema. Legacy bindings retain safe-integer fields and the historical effective constraint `2 <= phase2StartTick <= finalizeTick <= scheduler.maxTicks`, including values above 10,000. For example, `maxTicks: 20000`, `phase2StartTick: 10001`, `finalizeTick: 20000` remains parseable and reopenable without rewriting its binding bytes. Although the old inner fields were positive integers, the old outer refinement already rejected phase 1/finalize 1; the effective minimum remains 2.
+
+This restores an artifact-reading contract, not permission to execute a larger workload. CLI workflow limits and the existing execution schema/validator still reject values above 10,000 or phases below 2. The explicit coverage-v2 schema keeps its own 2..10,000 finalization range and requires finalization not to exceed the bound scheduler limit. Its strict versioned shape and evidence-retention requirement are unchanged.
+
+Read-only imports of the immutable `63bb010` parser confirmed: the 20,000-tick legacy case was accepted there but rejected before this compatibility fix; the min-1 case was rejected by both, and min-2 accepted by both. The new targeted tests first produced RED with 1 pass and 2 failures, then GREEN within 53/53 focused coverage, config, and artifact tests (5,916.983 ms). They cover public safe-integer boundaries, actual ledger commit/close/reopen with unchanged binding bytes, unchanged CLI/execution caps, and v2 bounds. TypeScript passed. No historical binding or run was modified.
+
 ## Local Regression Evidence
 
 Node 24.18.0, scripted local execution only:

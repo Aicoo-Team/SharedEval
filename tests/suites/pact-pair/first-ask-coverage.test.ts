@@ -3,9 +3,10 @@ import { lstat, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { sharedevalMultiTurnV1Schema } from '../../../src/runner/v1/sharedeval-config.js';
+import { sharedevalMultiTurnV1Schema, sharedevalWorkflowV1Schema, sharedevalWorkflowV2Schema } from '../../../src/runner/v1/sharedeval-config.js';
 import { heartbeatInstructionText } from '../../../src/runner/v1/sharedos-file-session.js';
-import { deriveFileMultiTurnProgress, type FileFirstAskProgressV2 } from '../../../src/runner/v1/file-multi-turn.js';
+import { deriveFileMultiTurnProgress, validFileMultiTurn, type FileFirstAskProgressV2 } from '../../../src/runner/v1/file-multi-turn.js';
+import { fileWorkflowRunBindingV1Schema } from '../../../src/runner/v1/file-workflow-artifacts.js';
 import { openFileWorkflowLedgerV1 } from '../../../src/runner/v1/file-workflow-ledger.js';
 import { loadWorkspaceRegistryV1, resolveWorkspaceRegistryAssetV1 } from '../../../src/runner/v1/workspace-registry.js';
 import { FileDrivenPairIndeterminateExternalOperationErrorV1 } from '../../../src/suites/pact-pair/file-workflow.js';
@@ -30,6 +31,71 @@ test('coverage protocol is explicit and leaves legacy multiTurn bytes unchanged'
   const coverage = { protocol: 'first-ask-coverage/v2', finalizeTick: 261 };
   assert.deepEqual(sharedevalMultiTurnV1Schema.parse(coverage), coverage);
   assert.equal(sharedevalMultiTurnV1Schema.safeParse({ ...coverage, phase2StartTick: 61 }).success, false);
+});
+
+test('legacy public bindings preserve large safe-integer phases and reopen without changing bytes', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pair-large-legacy-binding-'));
+  const runDirectory = join(root, 'run');
+  const runBinding = binding('files-multi', 'large-legacy-binding', ['PAIR-Q1']);
+  runBinding.scheduler.maxTicks = 20_000;
+  runBinding.scheduler.multiTurn = { phase2StartTick: 10_001, finalizeTick: 20_000 };
+  try {
+    assert.deepEqual(fileWorkflowRunBindingV1Schema.parse(runBinding), runBinding);
+    const ledger = await openFileWorkflowLedgerV1({ runDirectory, binding: runBinding, retainPrivate: false });
+    try {
+      const payload = heartbeatPayloadFor(runBinding, 1, [], { omitSessionStopReason: true });
+      await ledger.beginHeartbeat({ event: payload.event, inputDigest: payload.inputDigest });
+      await ledger.commitHeartbeat(payload);
+    } finally { await ledger.close(); }
+    const path = join(runDirectory, '.sharedeval-file-workflow', 'binding.json');
+    const bytes = await readFile(path, 'utf8');
+    const reopened = await openFileWorkflowLedgerV1({ runDirectory, binding: runBinding, retainPrivate: false });
+    try {
+      assert.equal((await reopened.readRecords()).length, 1);
+      assert.equal(await readFile(path, 'utf8'), bytes);
+      assert.deepEqual(JSON.parse(bytes).binding, runBinding);
+    } finally { await reopened.close(); }
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('public legacy range preserves effective min two and safe upper bound without widening CLI or execution', () => {
+  const runBinding = binding('files-multi', 'legacy-numeric-range', ['PAIR-Q1']);
+  const legacy = { phase2StartTick: 10_001, finalizeTick: 20_000 };
+  assert.equal(sharedevalMultiTurnV1Schema.safeParse(legacy).success, false);
+  assert.equal(validFileMultiTurn(legacy, 20_000), false);
+  for (const workflowSchema of [sharedevalWorkflowV1Schema, sharedevalWorkflowV2Schema]) {
+    assert.equal(workflowSchema.safeParse({ mode: 'multi', protocol: 'files', maxTicks: 20_000,
+      stopWhen: 'all-terminal', multiTurn: legacy }).success, false);
+  }
+  for (const [maxTicks, phase2StartTick, finalizeTick, expected] of [
+    [2, 2, 2, true], [1, 1, 1, false],
+    [20_000, 10_001, 20_000, true],
+    [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER - 1, Number.MAX_SAFE_INTEGER, true],
+    [20_000, 20_001, 20_000, false], [20_000, 10_001, 20_001, false],
+    [20_000, 2.5, 20_000, false], [Number.MAX_SAFE_INTEGER + 1, 2, Number.MAX_SAFE_INTEGER + 1, false],
+  ] as const) {
+    const value = { ...runBinding, scheduler: { ...runBinding.scheduler, maxTicks,
+      multiTurn: { phase2StartTick, finalizeTick } } };
+    assert.equal(fileWorkflowRunBindingV1Schema.safeParse(value).success, expected, JSON.stringify(value.scheduler));
+  }
+  assert.equal(sharedevalMultiTurnV1Schema.safeParse({ phase2StartTick: 1, finalizeTick: 1 }).success, false);
+  assert.equal(validFileMultiTurn({ phase2StartTick: 1, finalizeTick: 1 }, 2), false);
+  assert.equal(sharedevalMultiTurnV1Schema.safeParse({ phase2StartTick: 10_000, finalizeTick: 10_000 }).success, true);
+});
+
+test('public coverage v2 retains its own bounded shape and finalize-before-maxTicks checks', () => {
+  const runBinding = binding('files-multi', 'coverage-numeric-range', ['PAIR-Q1']);
+  for (const [maxTicks, multiTurn, expected] of [
+    [10_000, { protocol: 'first-ask-coverage/v2', finalizeTick: 10_000 }, true],
+    [20_000, { protocol: 'first-ask-coverage/v2', finalizeTick: 20_000 }, false],
+    [3, { protocol: 'first-ask-coverage/v2', finalizeTick: 4 }, false],
+    [3, { protocol: 'first-ask-coverage/v2', finalizeTick: 1 }, false],
+    [3, { protocol: 'first-ask-coverage/v2', finalizeTick: 3, phase2StartTick: 2 }, false],
+    [3, { protocol: 'first-ask-coverage/v3', finalizeTick: 3 }, false],
+  ] as const) {
+    assert.equal(fileWorkflowRunBindingV1Schema.safeParse({ ...runBinding,
+      scheduler: { ...runBinding.scheduler, maxTicks, multiTurn } }).success, expected);
+  }
 });
 
 test('coverage rejects disabled evidence retention before creating any ledger files', async () => {

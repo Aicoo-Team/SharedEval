@@ -4,16 +4,28 @@ import type { FileWorkflowLedgerRecordV1 } from './file-workflow-ledger.js';
 
 export const FIRST_ASK_COVERAGE_PROTOCOL_V2 = 'first-ask-coverage/v2' as const;
 
+const firstAskCoverageSchemaV2 = z.object({
+  protocol: z.literal(FIRST_ASK_COVERAGE_PROTOCOL_V2),
+  finalizeTick: z.number().int().safe().min(2).max(10_000),
+}).strict();
+
 // No defaults: legacy bindings and configuration digests retain their exact shape.
 export const fileMultiTurnSchema = z.union([
   z.object({
     phase2StartTick: z.number().int().safe().min(2).max(10_000),
     finalizeTick: z.number().int().safe().min(2).max(10_000),
   }).strict(),
+  firstAskCoverageSchemaV2,
+]);
+
+// Historical public bindings are wider than the executable CLI/runtime profile.
+// Keep their safe-integer range so committed ledgers remain parseable/reopenable.
+export const fileMultiTurnBindingSchema = z.union([
   z.object({
-    protocol: z.literal(FIRST_ASK_COVERAGE_PROTOCOL_V2),
-    finalizeTick: z.number().int().safe().min(2).max(10_000),
+    phase2StartTick: z.number().int().safe().positive(),
+    finalizeTick: z.number().int().safe().positive(),
   }).strict(),
+  firstAskCoverageSchemaV2,
 ]);
 
 export type FileMultiTurn = Readonly<z.infer<typeof fileMultiTurnSchema>>;
@@ -35,6 +47,14 @@ export function validFileMultiTurn(value: FileMultiTurn, maxTicks: number): bool
   return fileMultiTurnSchema.safeParse(value).success
     && value.finalizeTick <= maxTicks
     && (isFirstAskCoverageV2(value) || value.phase2StartTick <= value.finalizeTick);
+}
+
+export function validFileMultiTurnBinding(value: FileMultiTurn, maxTicks: number): boolean {
+  if (isFirstAskCoverageV2(value)) return validFileMultiTurn(value, maxTicks);
+  return fileMultiTurnBindingSchema.safeParse(value).success
+    && value.phase2StartTick >= 2
+    && value.phase2StartTick <= value.finalizeTick
+    && value.finalizeTick <= maxTicks;
 }
 
 /** Input records must already have passed the ledger's full evidence validation. */
