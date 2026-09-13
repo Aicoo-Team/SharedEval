@@ -1,0 +1,8 @@
+version: pact-net-native-run/v1
+runId: net-assigned-v1
+outputDirectory: ../../runs/net-assigned-v1
+provider:
+  type: scripted-procurement/v1
+execution:
+  kind: assigned-pilot
+  profileFile: ../../tests/suites/pact-net/fixtures/assigned-procurement.json

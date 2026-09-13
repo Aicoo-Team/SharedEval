@@ -2,9 +2,11 @@
 
 The bounded NET adapter can execute a host-supplied synthetic procurement profile
 with one case, three distinct control owners and explicit directed contact edges.
-This is the next step after the [P-01 pilot](pact-net-pilot.md). It still runs one
-case per world; it does not implement multi-case scheduling or the general NET
-mode of the main `sharedeval` CLI.
+This is the next step after the [P-01 pilot](pact-net-pilot.md). This adapter runs
+one case per world; the separate [world adapter](pact-net-world.md) adds an ordered
+case collection. Both are available through the
+[versioned native NET commands](pact-net-native-cli.md), within their bounded
+synthetic procurement scope.
 
 The [complete example JSON](../tests/suites/pact-net/fixtures/assigned-procurement.json)
 uses case `SYN-PO-002`, actors `marina_procurement`, `owen_budget` and `lina_legal`,

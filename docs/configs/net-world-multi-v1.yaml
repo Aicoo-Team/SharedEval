@@ -1,0 +1,8 @@
+version: pact-net-native-run/v1
+runId: net-world-multi-v1
+outputDirectory: ../../runs/net-world-multi-v1
+provider:
+  type: scripted-procurement/v1
+execution:
+  kind: procurement-world
+  profileFile: ../../tests/suites/pact-net/fixtures/procurement-world-multi.json

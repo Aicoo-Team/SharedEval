@@ -3,11 +3,13 @@
 For a versioned host configuration with different actors and resources, see
 [assigned procurement profiles](pact-net-assigned-profiles.md). The default P-01
 profile and its scoring path below remain the original registered fixture.
+The [native NET command guide](pact-net-native-cli.md) covers the unified versioned
+configuration; the dedicated script commands below remain available for legacy runs.
 
 This is a bounded, scripted integration pilot for `PO-27-0881`, with three actors
 and one persistent world. It is not a general NET runner, a 166-task rollout,
 a model benchmark score, or a practitioner-validated purchase-order workflow.
-The public entry point is `scripts/pact-net-pilot.ts`; it makes no provider or
+The dedicated entry point is `scripts/pact-net-pilot.ts`; it makes no provider or
 paid-model calls. P-01 has no forbidden facts. Private canaries test the adapter's
 actor isolation, not task-level disclosure success.
 
