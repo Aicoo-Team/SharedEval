@@ -60,8 +60,30 @@ async function writeImmutable(path: string, content: string) {
 }
 
 export async function prepareAcceptance(outputDirectory: string, root = repositoryRoot) {
-  const source = (path: string) => execFileSync('git', ['show', `${FROZEN_SOURCE}:${path}`],
-    { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+  // Resolve the exact object before creating output. Shallow checkouts must fetch
+  // this revision explicitly; working-tree data is never a substitute.
+  try {
+    execFileSync('git', ['cat-file', '-e', `${FROZEN_SOURCE}^{commit}`],
+      { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (cause) {
+    throw Object.assign(new Error(
+      `Frozen acceptance source ${FROZEN_SOURCE} is unavailable. Fetch that revision or use a full-history checkout; preparation never falls back to working-tree files.`,
+      { cause },
+    ), { code: 'ACCEPTANCE_FROZEN_SOURCE_UNAVAILABLE' });
+  }
+  const source = (path: string) => {
+    try {
+      return execFileSync('git', ['show', `${FROZEN_SOURCE}:${path}`], {
+        cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (cause) {
+      throw Object.assign(new Error(
+        `Cannot read frozen acceptance source ${FROZEN_SOURCE}:${path}; no working-tree fallback is permitted.`,
+        { cause },
+      ), { code: 'ACCEPTANCE_FROZEN_FILE_UNAVAILABLE' });
+    }
+  };
   const splitBytes = source(SPLIT_PATH);
   const questionBytes = source(QUESTIONS_PATH);
   const split = JSON.parse(splitBytes) as {

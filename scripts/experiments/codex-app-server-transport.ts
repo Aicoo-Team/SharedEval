@@ -7,6 +7,8 @@ import { z } from 'zod';
 
 export const CODEX_APP_SERVER_BINARY = '/Applications/ChatGPT.app/Contents/Resources/codex';
 export const CODEX_TRANSPORT_BASE_URL = 'http://127.0.0.1:1/v1';
+const BRIDGE_FETCH_TIMEOUT_MS = 180_000;
+const RPC_REQUEST_TIMEOUT_MS = 30_000;
 type JsonRecord = Record<string, unknown>;
 type RpcId = number | string;
 type RpcFrame = JsonRecord & { id?: RpcId; method?: string; params?: JsonRecord };
@@ -68,6 +70,13 @@ export interface CodexRpcLaunch {
   onEvent(frame: RpcFrame): void; onFailure(failure: NativeCodexTransportError): void;
 }
 export type CodexRpcFactory = (launch: CodexRpcLaunch) => Promise<CodexRpcPeer>;
+export type NativeCodexCloseContext = Readonly<{
+  source: 'session_close' | 'run_cleanup' | 'caller';
+  executionId?: string;
+  outcome?: 'succeeded' | 'denied' | 'failed' | 'cancelled' | 'escalated';
+  actorSettlement?: 'succeeded' | 'failed';
+  runtimeSignalAborted?: boolean;
+}>;
 export type CodexAppServerTransportOptions = {
   model: string;
   actorId: string;
@@ -80,6 +89,8 @@ export type CodexAppServerTransportOptions = {
   /** Bounds native tool continuations, including a two-response canary. */
   maxNativeToolCalls?: number;
   timeoutMs?: number;
+  /** Host-declared limit for evidence only; enforcement remains in SharedOS. */
+  runtimeTurnTimeoutMs?: number;
 };
 
 type NativeCall = { rpcId: RpcId; callId: string; name: string; arguments: JsonRecord };
@@ -91,6 +102,7 @@ type NativeTurnEvidence = {
   toolCatalogDigest: string; dynamicCalls: number; nativeItemTypes: string[];
   completed: boolean; tokenUsage?: unknown; providerErrorCategory?: string;
   requestedMaxOutputTokens?: number; outputTokenLimitEnforced: false;
+  threadStartedAt: string; startedAt?: string; completedAt?: string;
 };
 
 /** No HTTP request is made. The existing driver's dummy credential is never inspected or forwarded. */
@@ -100,7 +112,7 @@ export function createCodexAppServerTransport(options: CodexAppServerTransportOp
   const native = new NativeCodexTransport(options);
   return {
     fetch: native.fetch as typeof globalThis.fetch,
-    close: () => native.close(),
+    close: (context?: NativeCodexCloseContext) => native.close(context),
     preflight: () => native.preflight(),
     evidence: () => native.evidence(),
   };
@@ -109,6 +121,7 @@ export function createCodexAppServerTransport(options: CodexAppServerTransportOp
 class NativeCodexTransport {
   readonly #options: CodexAppServerTransportOptions;
   readonly #id = randomUUID();
+  readonly #createdAt = new Date().toISOString();
   #peer?: CodexRpcPeer;
   #scratch?: string;
   #opening?: Promise<void>;
@@ -116,6 +129,15 @@ class NativeCodexTransport {
   #closing?: Promise<void>;
   #busy = false;
   #failure?: NativeCodexTransportError;
+  #failureAt?: string;
+  #abortSource?: 'caller_signal' | 'bridge_deadline';
+  #closeSource?: NativeCodexCloseContext['source'] | 'transport_failure';
+  #closeRequestedAt?: string;
+  #peerClosedAt?: string;
+  #cleanupCompletedAt?: string;
+  #cleanupError?: 'native_cleanup_failed';
+  #outerClose?: NativeCodexCloseContext;
+  #saveTail = Promise.resolve();
   #version = 'not-started';
   #effort?: string;
   #overrides: JsonRecord = { ...CODEX_ISOLATION_OVERRIDES };
@@ -139,11 +161,20 @@ class NativeCodexTransport {
   constructor(options: CodexAppServerTransportOptions) { this.#options = options; }
 
   evidence() {
-    return structuredClone({ adapter: 'experimental-native-codex-app-server', actorId: this.#options.actorId,
+    return structuredClone({ apiVersion: 'sharedeval-native-codex-evidence/v2',
+      adapter: 'experimental-native-codex-app-server', actorId: this.#options.actorId,
       binary: this.#options.binary ?? CODEX_APP_SERVER_BINARY, cliVersion: this.#version,
       injectedTestPeer: Boolean(this.#options.rpcFactory), requestedModel: this.#options.model,
       effort: this.#effort, httpRequestsMade: 0, closed: this.#closed,
-      failure: this.#failure?.code, turns: this.#turns });
+      closeState: this.#cleanupError ? 'failed' : this.#cleanupCompletedAt ? 'closed' : this.#closed ? 'closing' : 'open',
+      createdAt: this.#createdAt, failure: this.#failure?.code, failureAt: this.#failureAt,
+      abortSource: this.#abortSource,
+      timeouts: { runtimeTurnMs: this.#options.runtimeTurnTimeoutMs ?? null,
+        bridgeFetchMs: this.#options.timeoutMs ?? BRIDGE_FETCH_TIMEOUT_MS, rpcRequestMs: RPC_REQUEST_TIMEOUT_MS },
+      lifecycle: { closeSource: this.#closeSource, closeRequestedAt: this.#closeRequestedAt,
+        peerClosedAt: this.#peerClosedAt, cleanupCompletedAt: this.#cleanupCompletedAt,
+        cleanupError: this.#cleanupError, outer: this.#outerClose },
+      turns: this.#turns });
   }
 
   async preflight() {
@@ -160,12 +191,16 @@ class NativeCodexTransport {
   readonly fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     if (this.#busy) { this.#fail(error('native_concurrent_fetch')); throw this.#failure; }
     this.#busy = true;
-    const deadline = AbortSignal.timeout(this.#options.timeoutMs ?? 180_000);
+    const deadline = AbortSignal.timeout(this.#options.timeoutMs ?? BRIDGE_FETCH_TIMEOUT_MS);
     const supplied = init?.signal ?? (input instanceof Request ? input.signal : undefined);
     const signal = supplied ? AbortSignal.any([supplied, deadline]) : deadline;
-    const onAbort = () => this.#fail(error('native_cancelled'));
+    const onAbort = () => {
+      this.#abortSource ??= supplied?.aborted ? 'caller_signal' : 'bridge_deadline';
+      this.#fail(error('native_cancelled'));
+    };
     signal.addEventListener('abort', onAbort, { once: true });
     try {
+      if (signal.aborted) onAbort();
       signal.throwIfAborted();
       this.#healthy();
       const url = new URL(input instanceof Request ? input.url : String(input));
@@ -191,6 +226,8 @@ class NativeCodexTransport {
       } else message = { role: 'assistant', content: nativeText || decision.content };
       this.#history.push(structuredClone(message));
       await this.#save();
+      signal.throwIfAborted();
+      this.#healthy();
       return Response.json({ id: `native-codex-${this.#turnId}`, model: this.#options.model,
         provider: 'native-codex-app-server', choices: [{ message }] });
     } catch (caught) {
@@ -209,7 +246,7 @@ class NativeCodexTransport {
   }
 
   #fail(failure: NativeCodexTransportError) {
-    this.#failure ??= failure;
+    if (!this.#failure) { this.#failure = failure; this.#failureAt = new Date().toISOString(); }
     this.#wake?.();
     void this.#peer?.close().catch(() => undefined);
   }
@@ -223,6 +260,7 @@ class NativeCodexTransport {
 
   async #open() {
     this.#scratch = await mkdtemp(join(tmpdir(), 'sharedeval-codex-'));
+    this.#healthy();
     if (this.#options.rpcFactory) this.#version = 'injected-test-peer';
     else {
       try { this.#version = execFileSync(this.#options.binary ?? CODEX_APP_SERVER_BINARY,
@@ -236,6 +274,7 @@ class NativeCodexTransport {
         binary: this.#options.binary ?? CODEX_APP_SERVER_BINARY, cwd: this.#scratch,
         overrides: this.#overrides, onEvent: frame => this.#event(frame), onFailure: failure => this.#fail(failure),
       });
+      this.#healthy();
       await this.#peer.request('initialize', { clientInfo: { name: 'sharedeval_native_probe', version: '0.1.0' },
         capabilities: { experimentalApi: true } });
       await this.#peer.notify('initialized', {});
@@ -307,6 +346,7 @@ class NativeCodexTransport {
       modelIdentitySource: 'thread/start.selectedModel-not-upstream-served-model', environments: [],
       instructionSourceCount: 0, inputHistoryDigest: digest(body.messages), toolCatalogDigest: digest(body.tools),
       dynamicCalls: 0, nativeItemTypes: [], completed: false, outputTokenLimitEnforced: false,
+      threadStartedAt: new Date().toISOString(),
       ...(typeof body.max_tokens === 'number' ? { requestedMaxOutputTokens: body.max_tokens } : {}),
     });
     const history = projectCodexHistory(body.messages.slice(0, -1), this.#reverseAliases);
@@ -365,6 +405,7 @@ class NativeCodexTransport {
       if (method === 'turn/started') {
         if (params.threadId !== this.#threadId) return;
         this.#turnId = textValue(record(params.turn).id);
+        this.#turns.at(-1)!.startedAt ??= new Date().toISOString();
       } else if (method === 'item/started' || method === 'item/completed') {
         if (params.threadId !== this.#threadId) return;
         const item = record(params.item); const type = textValue(item.type);
@@ -382,6 +423,7 @@ class NativeCodexTransport {
         const content = [...this.#texts.entries()].filter(([id]) => !this.#publishedTextIds.has(id)).map(([, text]) => text).join('\n');
         if (!content?.trim()) throw error('native_empty_completion');
         this.#turnComplete = true; this.#turns.at(-1)!.completed = true;
+        this.#turns.at(-1)!.completedAt = new Date().toISOString();
         this.#decisions.push({ kind: 'final', content }); this.#wake?.();
       } else if (/compact|model.*(?:changed|rerout)/i.test(method)) {
         throw error('native_context_or_model_changed');
@@ -422,18 +464,38 @@ class NativeCodexTransport {
     return entries.map(([, text]) => text).join('\n');
   }
 
-  async #save() {
-    await mkdir(this.#options.evidenceDirectory, { recursive: true });
-    await writeFile(join(this.#options.evidenceDirectory, `${this.#options.actorId}-${this.#id}.native.json`),
-      `${JSON.stringify(this.evidence(), null, 2)}\n`, { mode: 0o600 });
+  #save(): Promise<void> {
+    // A close snapshot must not be overwritten by an earlier in-flight fetch snapshot.
+    const saved = this.#saveTail.then(async () => {
+      await mkdir(this.#options.evidenceDirectory, { recursive: true });
+      await writeFile(join(this.#options.evidenceDirectory, `${this.#options.actorId}-${this.#id}.native.json`),
+        `${JSON.stringify(this.evidence(), null, 2)}\n`, { mode: 0o600 });
+    });
+    this.#saveTail = saved.catch(() => undefined);
+    return saved;
   }
 
-  close(): Promise<void> {
+  close(context?: NativeCodexCloseContext): Promise<void> {
+    // A transport failure can close first; retain the later actual session outcome separately.
+    const addedOuter = context?.source === 'session_close' && !this.#outerClose;
+    if (addedOuter) this.#outerClose = structuredClone(context);
+    if (this.#closing) return addedOuter ? this.#closing.finally(() => this.#save()) : this.#closing;
     this.#closing ??= (async () => {
+      this.#closeRequestedAt = new Date().toISOString();
+      this.#closeSource = this.#failure ? 'transport_failure' : context?.source ?? 'caller';
       this.#closed = true; this.#wake?.();
-      await this.#peer?.close();
-      if (this.#scratch) await rm(this.#scratch, { recursive: true, force: true });
-      await this.#save();
+      try {
+        const openingPeer = this.#peer;
+        await openingPeer?.close();
+        await this.#opening?.catch(() => undefined);
+        if (this.#peer && this.#peer !== openingPeer) await this.#peer.close();
+        if (this.#peer) this.#peerClosedAt = new Date().toISOString();
+        if (this.#scratch) await rm(this.#scratch, { recursive: true, force: true });
+        this.#cleanupCompletedAt = new Date().toISOString();
+      } catch {
+        this.#cleanupError = 'native_cleanup_failed';
+        throw error('native_cleanup_failed');
+      } finally { await this.#save(); }
     })();
     return this.#closing;
   }
@@ -512,7 +574,7 @@ class JsonRpcPeer implements CodexRpcPeer {
   }
   async request(method: string, params: JsonRecord, signal?: AbortSignal): Promise<unknown> {
     const id = this.#nextId++;
-    const deadline = signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000);
+    const deadline = signal ? AbortSignal.any([signal, AbortSignal.timeout(RPC_REQUEST_TIMEOUT_MS)]) : AbortSignal.timeout(RPC_REQUEST_TIMEOUT_MS);
     return new Promise((resolve, reject) => {
       const cleanup = () => { this.#requests.delete(id); deadline.removeEventListener('abort', aborted); };
       const aborted = () => { cleanup(); reject(error('native_rpc_timeout')); };

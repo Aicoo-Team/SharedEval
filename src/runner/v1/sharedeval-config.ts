@@ -9,6 +9,7 @@ import {
 } from '../../contracts/json.js';
 import { pactModelConfigV1Schema } from './model-config.js';
 import { worldProfileSchema } from '../world/profile.js';
+import { fileMultiTurnSchema, isFirstAskCoverageV2 } from './file-multi-turn.js';
 import {
   PACT_PAIR_GRADING_MODES_V1,
   PACT_PAIR_POLICIES_V1,
@@ -31,12 +32,7 @@ export const MAX_SHAREDEVAL_TASK_CONCURRENCY_V1 = 32;
 // The multi-turn probe protocol gate. Absent means the files-multi workflow
 // behaves exactly as today and the configDigest of pre-existing configs is
 // unchanged byte for byte; present, it parameterizes the trajectory phases.
-export const sharedevalMultiTurnV1Schema = z
-  .object({
-    phase2StartTick: z.number().int().safe().min(2).max(MAX_SHAREDEVAL_TICKS_V1),
-    finalizeTick: z.number().int().safe().min(2).max(MAX_SHAREDEVAL_TICKS_V1),
-  })
-  .strict();
+export const sharedevalMultiTurnV1Schema = fileMultiTurnSchema;
 
 export type SharedevalMultiTurnV1 = z.infer<typeof sharedevalMultiTurnV1Schema>;
 
@@ -81,7 +77,8 @@ function validateWorkflow(
     });
     return;
   }
-  if (workflow.multiTurn.phase2StartTick > workflow.multiTurn.finalizeTick) {
+  if (!isFirstAskCoverageV2(workflow.multiTurn)
+    && workflow.multiTurn.phase2StartTick > workflow.multiTurn.finalizeTick) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['multiTurn', 'finalizeTick'],

@@ -6,7 +6,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { sha256JsonV1, type JsonValue } from '../../src/contracts/json.js';
 import { parseFileMemoryV1 } from '../../src/runner/v1/file-memory.js';
-import { fileWorkflowRunBindingV1Schema } from '../../src/runner/v1/file-workflow-artifacts.js';
+import { fileWorkflowRunBindingV1Schema,
+  type FileWorkflowRunBindingV1 } from '../../src/runner/v1/file-workflow-artifacts.js';
+import { assertWorldContextCommit, worldContextCommitSchema } from '../../src/runner/world/profile.js';
 import { fileWorkflowExecutionStatusV1Schema, fileWorkflowFailureRecordV1Schema } from '../../src/runner/v1/file-workflow-failure.js';
 import { pairBenchmarkSchema, type PairBenchmark } from '../../src/suites/pact-pair/schemas.js';
 import { containsFact, norm } from '../../src/suites/pact-pair/evaluation-tools/v1/matching.js';
@@ -326,39 +328,90 @@ async function optionalJson(path: string): Promise<unknown | null> {
   }
 }
 
-async function committedRecords(lane: string): Promise<RecordEvidence[]> {
+async function currentRunBinding(lane: string) {
+  const envelope = z.object({ apiVersion: z.literal('sharedeval-file-ledger-binding/v1'),
+    binding: fileWorkflowRunBindingV1Schema, bindingDigest: z.string().regex(/^[a-f0-9]{64}$/),
+    retainPrivate: z.boolean() }).strict().parse(
+    await readJson(join(lane, '.sharedeval-file-workflow', 'binding.json')),
+  );
+  if (sha(envelope.binding) !== envelope.bindingDigest) throw new Error('Run binding digest mismatch');
+  return envelope;
+}
+
+async function committedRecords(lane: string, current: Awaited<ReturnType<typeof currentRunBinding>>): Promise<RecordEvidence[]> {
   const directory = join(lane, '.sharedeval-file-workflow', 'records');
   const names = (await readdir(directory)).filter(name => /^record-\d{12}\.json$/.test(name)).sort();
   const result: RecordEvidence[] = [];
   let previous: string | null = null;
-  let binding: string | undefined;
+  const binding = current.binding;
+  const selected = new Map(binding.selectedTasks.map(task => [task.taskId, task.kind]));
   for (const [sequence, name] of names.entries()) {
     const source = join(directory, name);
-    const record = z.object({ sequence: z.number(), previousRecordDigest: z.string().nullable(),
+    const record = z.object({ apiVersion: z.literal('sharedeval-file-heartbeat-record/v1'),
+      sequence: z.number().int().safe().nonnegative(), previousRecordDigest: z.string().nullable(),
       bindingDigest: z.string(), recordDigest: z.string(), payload: objectSchema }).passthrough().parse(await readJson(source));
+    if (record.bindingDigest !== current.bindingDigest) throw new Error('Committed ledger has a foreign run binding');
     const { recordDigest, ...material } = record;
     const digestMaterial = structuredClone(material);
     delete digestMaterial.payload.privateEvidence;
     if (sequence !== record.sequence || name !== `record-${String(sequence).padStart(12, '0')}.json`
-      || record.previousRecordDigest !== previous || sha(digestMaterial) !== recordDigest
-      || (binding !== undefined && binding !== record.bindingDigest)) throw new Error('Committed ledger hash chain mismatch');
+      || record.previousRecordDigest !== previous || sha(digestMaterial) !== recordDigest) throw new Error('Committed ledger hash chain mismatch');
     if (record.payload.privateEvidence !== undefined && sha(record.payload.privateEvidence) !== record.payload.privateEvidenceDigest) {
       throw new Error('Private evidence digest mismatch');
     }
-    result.push({ source, payload: payloadSchema.parse(record.payload) });
+    const payload = payloadSchema.parse(record.payload);
+    if (payload.event.runId !== binding.runId || payload.event.sessionId !== binding.scheduler.sessionId
+      || payload.event.actorId !== binding.actors.requester.actorId) {
+      throw new Error('Committed heartbeat has a foreign run/session binding');
+    }
+    if (payload.event.tick !== sequence + 1 || payload.event.tick > binding.scheduler.maxTicks) {
+      throw new Error('Committed heartbeat tick is outside its run binding');
+    }
+    const taskIds = [
+      ...(payload.contactAuthority ? [payload.contactAuthority.taskId] : []),
+      ...payload.transitions.map(row => row.taskId),
+      ...payload.memoryAuthorities.flatMap(row => row.newRows.map(task => task.taskId)),
+      ...(payload.privateEvidence?.actionSnapshots.map(row => row.taskId) ?? []),
+      ...(payload.privateEvidence?.sourceEvidence.acceptedMessages.flatMap(message => (
+        message.payload.taskId === undefined ? [] : [message.payload.taskId]
+      )) ?? []),
+    ];
+    if (taskIds.some(taskId => typeof taskId !== 'string' || !selected.has(taskId))
+      || (payload.contactAuthority && selected.get(payload.contactAuthority.taskId) !== payload.contactAuthority.kind)) {
+      throw new Error('Committed heartbeat has a foreign task selection');
+    }
+    result.push({ source, payload });
     previous = recordDigest;
-    binding = record.bindingDigest;
   }
   return result;
 }
 
-async function journalDrafts(lane: string, records: RecordEvidence[]) {
+async function journalDrafts(lane: string, records: RecordEvidence[], binding: FileWorkflowRunBindingV1, bindingDigest: string) {
   const root = join(lane, '.sharedeval-actor-context');
   const manifestValue = await optionalJson(join(root, 'manifest.json'));
-  if (manifestValue === null) return { present: false, drafts: [], uncommittedRecords: 0, actors: [] };
+  if (manifestValue === null) {
+    try { await readdir(root); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { present: false, drafts: [], uncommittedRecords: 0, actors: [] };
+      }
+      throw error;
+    }
+    throw new Error('Actor journal directory is present but its manifest is missing');
+  }
   const manifest = objectSchema.parse(manifestValue);
-  const actorIds = z.array(z.string()).parse(manifest.actorIds);
-  const frontiers = records.at(-1)?.payload.worldContext?.after ?? [];
+  const actorIds = [binding.actors.requester.actorId, binding.actors.responder.actorId].sort();
+  if (manifest.version !== 'actor-context/v1' || manifest.bindingDigest !== bindingDigest
+    || manifest.worldId !== binding.sharedOs.namespaceId || !isDeepStrictEqual(manifest.actorIds, actorIds)
+    || binding.scheduler.world?.protocol !== 'actor-context/v1'
+    || manifest.maxContextBytes !== binding.scheduler.world.maxContextBytes) {
+    throw new Error('Actor journal manifest has a foreign run binding');
+  }
+  let frontiers = actorIds.map(actorId => ({ actorId, sequence: 0, hash: sha([sha(manifest), actorId]) }));
+  for (const { payload } of records) {
+    const commit = worldContextCommitSchema.parse(payload.worldContext);
+    assertWorldContextCommit(actorIds, commit, frontiers);
+    frontiers = commit.after;
+  }
   const turns = new Map(records.flatMap(record => record.payload.sharedOsAuthority?.requesterExecutionId
     ? [[record.payload.sharedOsAuthority.requesterExecutionId, record] as const] : []));
   const drafts = [];
@@ -376,7 +429,9 @@ async function journalDrafts(lane: string, records: RecordEvidence[]) {
         previousHash: z.string(), turnId: z.string(), kind: z.string(), message: objectSchema.optional() }).passthrough().parse(await readJson(source));
       if (record.sequence > (committed?.sequence ?? 0)) { uncommittedRecords++; continue; }
       const { hash, ...material } = record;
-      if (record.actorId !== actorId || record.sequence !== ++observed || record.previousHash !== previousHash || sha(material) !== hash) {
+      if (record.actorId !== actorId || record.sequence !== ++observed
+        || name !== `record-${String(record.sequence).padStart(12, '0')}.json`
+        || record.previousHash !== previousHash || sha(material) !== hash) {
         throw new Error('Committed actor journal hash chain mismatch');
       }
       previousHash = hash;
@@ -416,14 +471,23 @@ export async function analyzeAcceptanceRun(options: { runRoot: string; outputDir
   const root = resolve(options.runRoot);
   const direct = await optionalJson(join(root, 'run.json'));
   const lane = direct === null ? join(root, 'multi') : root;
+  const current = await currentRunBinding(lane);
+  const runBinding = current.binding;
   const manifest = objectSchema.parse(direct ?? await readJson(join(lane, 'run.json')));
-  const selectedTaskIds = z.array(z.string()).parse(manifest.selectedTaskIds);
+  if (manifest.runId !== runBinding.runId
+    || (manifest.workflowId !== undefined && manifest.workflowId !== runBinding.workflowId)
+    || !isDeepStrictEqual(manifest.selectedTaskIds, runBinding.selectedTaskIds)
+    || (manifest.selectedTasks !== undefined && !isDeepStrictEqual(manifest.selectedTasks, runBinding.selectedTasks))
+    || (manifest.selectedTaskDigest !== undefined && manifest.selectedTaskDigest !== runBinding.selectedTaskDigest)) {
+    throw new Error('Run manifest has a foreign run binding or task selection');
+  }
+  const selectedTaskIds = runBinding.selectedTaskIds;
   const questionsPath = options.questionsPath ?? join(repositoryRoot, 'dataset/pact-pair/tasks/questions.json');
   const questionBytes = await readFile(questionsPath, 'utf8');
   const benchmark = pairBenchmarkSchema.parse(JSON.parse(questionBytes));
-  const records = await committedRecords(lane);
+  const records = await committedRecords(lane, current);
   const report = analyzeAcceptance({ selectedTaskIds, benchmark, records });
-  const journals = await journalDrafts(lane, records);
+  const journals = await journalDrafts(lane, records, runBinding, current.bindingDigest);
   const acceptanceRoot = lane === root ? dirname(root) : root;
   const processOutcome = await optionalJson(join(acceptanceRoot, 'acceptance-outcome.json'));
   const executionStatus = await optionalJson(join(lane, 'execution-status.json'));
@@ -433,20 +497,16 @@ export async function analyzeAcceptanceRun(options: { runRoot: string; outputDir
   catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   const failureRecords = [];
   for (const name of failureNames) failureRecords.push(await readJson(join(failureDirectory, name)));
-  let expectedBinding: Parameters<typeof acceptanceStopStatus>[0]['expectedBinding'];
-  if (executionStatus !== null || failureRecords.length > 0) {
-    const envelope = objectSchema.parse(await readJson(join(lane, '.sharedeval-file-workflow', 'binding.json')));
-    const runBinding = fileWorkflowRunBindingV1Schema.parse(envelope.binding);
-    const bindingDigest = sha(runBinding);
-    if (bindingDigest !== envelope.bindingDigest) throw new Error('Run binding digest mismatch');
-    expectedBinding = { runId: runBinding.runId, sessionId: runBinding.scheduler.sessionId, bindingDigest };
-  }
+  const expectedBinding = { runId: runBinding.runId, sessionId: runBinding.scheduler.sessionId,
+    bindingDigest: current.bindingDigest };
   const stopStatus = acceptanceStopStatus({ ledgerStopReason: report.summary.ledgerStopReason,
     processOutcome, executionStatus, failureRecords, expectedBinding });
   const output = resolve(options.outputDirectory);
   await mkdir(output, { recursive: true, mode: 0o700 });
   const summary = { ...report.summary,
+    version: 'pair-acceptance-analysis/v2',
     ...stopStatus,
+    runBinding: expectedBinding,
     questionsSha256: createHash('sha256').update(questionBytes).digest('hex'),
     actorJournalsPresent: journals.present, actorFrontiers: journals.actors,
     committedRequestDrafts: journals.drafts.length, uncommittedJournalRecordsExcluded: journals.uncommittedRecords,

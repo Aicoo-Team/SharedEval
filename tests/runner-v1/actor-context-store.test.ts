@@ -7,6 +7,7 @@ import test, { type TestContext } from 'node:test';
 import { sha256JsonV1, type JsonValue } from '../../src/contracts/json.js';
 import { assertActorContextBudget, type ActorContextMessage } from '../../src/runner/context/actor-context.js';
 import { openActorContextStore } from '../../src/runner/context/actor-context-store.js';
+import { measureActorContextIo } from './actor-context-store-io.bench.js';
 
 const input = (content: string): ActorContextMessage => ({ role: 'user', content });
 const reply = (content: string): ActorContextMessage => ({ role: 'assistant', content });
@@ -22,6 +23,43 @@ async function fixture(t: TestContext) {
   const options = { directory, worldId: 'world-a', bindingDigest: 'a'.repeat(64), actorIds: ['alice', 'bob'], maxContextBytes: 100_000 };
   return { directory, options };
 }
+
+test('hot checks reread every journal byte without reparsing byte-identical verified records', async t => {
+  const { options, directory } = await fixture(t);
+  const store = await openActorContextStore(options);
+  const turn = await store.beginTurn({ actorId: 'alice', turnId: 'one', input: input('read') });
+  await turn.append([call, { ...result, content: 'synthetic observation '.repeat(1000) }, reply('done')]);
+  await turn.finish('succeeded');
+  const actor = join(directory, 'actors', createHash('sha256').update('alice').digest('hex'));
+  const names = (await readdir(actor)).filter(name => name.startsWith('record-'));
+  const sizes = await Promise.all(names.map(async name => (await stat(join(actor, name))).size));
+  const measured = await measureActorContextIo(directory, () => store.getFrontier('alice'));
+  assert.equal(measured.metrics.recordOpens, names.length);
+  assert.equal(measured.metrics.recordReadBytes, sizes.reduce((sum, size) => sum + size, 0));
+  assert.equal(measured.metrics.recordReadCalls, names.length * 2);
+  assert.equal(measured.metrics.recordJsonParses, 0);
+  await store.close();
+});
+
+test('changed serialization is revalidated once without changing durable history', async t => {
+  const { options, directory } = await fixture(t);
+  const store = await openActorContextStore(options);
+  const turn = await store.beginTurn({ actorId: 'alice', turnId: 'one', input: input('hello') });
+  await turn.append([reply('answer')]);
+  await turn.finish('succeeded');
+  const before = await store.getFrontier('alice');
+  const actor = join(directory, 'actors', createHash('sha256').update('alice').digest('hex'));
+  const path = join(actor, 'record-000000000002.json');
+  const record = JSON.parse(await readFile(path, 'utf8'));
+  await writeFile(path, `${JSON.stringify(record, null, 2)}\n`);
+  const changed = await measureActorContextIo(directory, () => store.getFrontier('alice'));
+  assert.deepEqual(changed.value, before);
+  assert.equal(changed.metrics.recordJsonParses, 1);
+  const unchanged = await measureActorContextIo(directory, () => store.getFrontier('alice'));
+  assert.equal(unchanged.metrics.recordReadBytes, changed.metrics.recordReadBytes);
+  assert.equal(unchanged.metrics.recordJsonParses, 0);
+  await store.close();
+});
 
 test('persists final replies, actor isolation, deterministic frontier and input hashes across reopen', async t => {
   const { options } = await fixture(t);

@@ -7,6 +7,7 @@ import type {
   FileProviderTelemetrySourceV1,
   FileProviderTelemetryV1,
 } from './file-model-driver.js';
+import type { FileMultiTurn, FileFirstAskProgressV2 } from './file-multi-turn.js';
 import type { FileTurnDecisionV1 } from './file-turn-contracts.js';
 import type { FileReadReceiptV1, FileWorkspacePortV1 } from './file-workspace.js';
 import type { LoadedPactPairTaskV1 } from '../../suites/pact-pair/task-loader.js';
@@ -85,7 +86,7 @@ export type CreateSharedOsFileSessionV1Options = Readonly<{
   maxTicks: number;
   // Multi-turn probe gate: absent preserves today's session behavior
   // (single-contact grants, fixed heartbeat instruction) byte for byte.
-  multiTurn?: Readonly<{ phase2StartTick: number; finalizeTick: number }>;
+  multiTurn?: Readonly<FileMultiTurn>;
   maxToolCalls: number;
   deadlineMs: number;
   requester: Readonly<{
@@ -113,6 +114,7 @@ export interface SharedOsFileSessionV1 {
     eventId: string;
     traceId: string;
     inputDigest: string;
+    multiTurnProgress?: FileFirstAskProgressV2;
     signal?: AbortSignal;
   }>): Promise<SharedOsFileTurnResultV1>;
   close(): Promise<void>;

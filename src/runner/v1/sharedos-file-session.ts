@@ -27,6 +27,7 @@ import type {
   FileProviderTelemetrySourceV1,
   FileProviderTelemetryV1,
 } from './file-model-driver.js';
+import { isFirstAskCoverageV2, validFileMultiTurn, type FileFirstAskProgressV2 } from './file-multi-turn.js';
 import { fileTurnDecisionV1Schema } from './file-turn-contracts.js';
 import type { FileReadReceiptV1 } from './file-workspace.js';
 import {
@@ -173,6 +174,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     eventId: string;
     traceId: string;
     inputDigest: string;
+    multiTurnProgress?: FileFirstAskProgressV2;
     signal?: AbortSignal;
   }>): Promise<SharedOsFileTurnResultV1> {
     if (this.closing || this.closed) {
@@ -205,6 +207,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     eventId: string;
     traceId: string;
     inputDigest: string;
+    multiTurnProgress?: FileFirstAskProgressV2;
     signal?: AbortSignal;
   }>): Promise<SharedOsFileTurnResultV1> {
     const signal = input.signal ?? new AbortController().signal;
@@ -244,7 +247,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
         receiver: { kind: 'agent', agentId: this.options.requester.actorId },
         purpose: SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
         payload: {
-          text: heartbeatInstructionText(input.tick, this.options),
+          text: heartbeatInstructionText(input.tick, this.options, input.multiTurnProgress),
         },
         traceId: input.traceId,
         createdAt: now,
@@ -542,10 +545,27 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
 export function heartbeatInstructionText(
   tick: number,
   options: Pick<CreateSharedOsFileSessionV1Options, 'maxTicks' | 'multiTurn'>,
+  progress?: FileFirstAskProgressV2,
 ): string {
   const base = 'Read AGENT.md and HEARTBEAT.md, then follow the heartbeat.';
   const multiTurn = options.multiTurn;
   if (!multiTurn) return base;
+  if (isFirstAskCoverageV2(multiTurn)) {
+    if (!progress || progress.protocol !== multiTurn.protocol
+      || progress.phase !== (progress.uncoveredTaskIds.length === 0 ? 2 : 1)
+      || progress.finalization !== (progress.phase === 2 && tick >= multiTurn.finalizeTick)) {
+      throw new Error('Coverage heartbeat requires committed first-ask progress');
+    }
+    const phase = progress.phase === 1 ? 'Phase 1 (first asks).' : 'Phase 2 (retry protocol active).';
+    const finalization = progress.finalization
+      ? ' Finalization window: resolve remaining pending QA tasks with completed replies; never label unasked or incomplete requests refused.' : '';
+    return `${base} Heartbeat tick ${tick} of ${options.maxTicks}. Protocol ${multiTurn.protocol}. ${phase}`
+      + ` Committed accepted first requests: ${progress.coveredTaskIds.length}.`
+      + ` Not yet accepted task IDs: ${JSON.stringify(progress.uncoveredTaskIds)}.`
+      + ` Accepted request without a committed reply: ${JSON.stringify(progress.incompleteReplyTaskIds)}.`
+      + ' A MEMORY-only repair consumes this turn: publish once, then stop. Never re-issue an action whose request was accepted.'
+      + finalization;
+  }
   const phase = tick < multiTurn.phase2StartTick
     ? 'Phase 1 (first asks).'
     : 'Phase 2 (retry protocol active).';
@@ -610,13 +630,7 @@ function validateOptions(input: CreateSharedOsFileSessionV1Options): void {
     || !Number.isSafeInteger(input.maxTicks)
     || input.maxTicks <= 0
     || input.maxTicks > 10_000
-    || (input.multiTurn !== undefined && (
-      !Number.isSafeInteger(input.multiTurn.phase2StartTick)
-      || !Number.isSafeInteger(input.multiTurn.finalizeTick)
-      || input.multiTurn.phase2StartTick < 2
-      || input.multiTurn.phase2StartTick > input.multiTurn.finalizeTick
-      || input.multiTurn.finalizeTick > input.maxTicks
-    ))
+    || (input.multiTurn !== undefined && !validFileMultiTurn(input.multiTurn, input.maxTicks))
     || !Number.isSafeInteger(input.maxToolCalls)
     || input.maxToolCalls < 6
     || input.maxToolCalls > 128

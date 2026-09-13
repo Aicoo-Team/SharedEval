@@ -1,7 +1,26 @@
 # Scripts
 
-This directory contains one supported utility: the deterministic PACT-Pair
-exporter under `huggingface/`.
+This directory contains the repository check entry point, the deterministic
+PACT-Pair exporter under `huggingface/`, and experiment helpers under
+`experiments/`.
+
+Run catalog validation, TypeScript checking, and the full test suite in order:
+
+```bash
+pnpm check
+```
+
+`check.mjs` stops on the first failed command and preserves the existing scripts'
+test settings. For required local runtime coverage, set `SHAREDEVAL_SHAREDOS_DIR`
+to the intended SharedOS checkout and `SHAREDEVAL_REQUIRE_SHAREDOS=1`.
+
+Experiment helpers include split preparation, harness execution, continuity
+validation, and result analysis. Preparation and analysis do not call models;
+live execution requires explicit credentials and may incur provider charges.
+Acceptance preparation reads the fixed Git object
+`4eede49a83cf43da146664bd67c8c2c405aecc11`, never working-tree replacements.
+Shallow checkouts must fetch that revision explicitly or use full history before
+preparation. Missing source objects fail before any output is created.
 
 Validate the canonical 600-row export without keeping a staging directory:
 

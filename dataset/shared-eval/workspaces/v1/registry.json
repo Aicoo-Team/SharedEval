@@ -606,6 +606,23 @@
       }
     },
     {
+      "id": "heartbeats/files-multi-coverage",
+      "version": "2.0.0",
+      "actorRoles": ["requester"],
+      "sourcePath": "heartbeats/files-multi-coverage/2.0.0/HEARTBEAT.md",
+      "aliases": ["sharedeval:heartbeats/files-multi-coverage/2.0.0/HEARTBEAT.md"],
+      "status": "active",
+      "compatibleDatasets": ["pact-pair"],
+      "compatibleWorkflowIds": ["files-multi"],
+      "byteLength": 3504,
+      "sha256": "8bafe3000b2ad0ed8d97d8213f12835055c59f3bcf97c96778cab14a51255a5d",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/shared-eval/workspaces/v1/heartbeats/files-multi-coverage/2.0.0/HEARTBEAT.md",
+        "sourceSha256": "8bafe3000b2ad0ed8d97d8213f12835055c59f3bcf97c96778cab14a51255a5d"
+      }
+    },
+    {
       "id": "heartbeats/files-multi-probe",
       "version": "1.1.0",
       "actorRoles": [

@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 import { parse } from 'yaml';
-import { acceptanceConfig, FROZEN_SOURCE, PREFLIGHT_IDS, prepareAcceptance, SPLIT_IDS } from '../../scripts/experiments/prepare-pair-acceptance.js';
+import { acceptanceConfig, FROZEN_SOURCE, PREFLIGHT_IDS, prepareAcceptance, SPLIT_IDS, SPLIT_PATH, QUESTIONS_PATH } from '../../scripts/experiments/prepare-pair-acceptance.js';
 import { codexAcceptanceConfig, prepareCodexAcceptance } from '../../scripts/experiments/prepare-codex-acceptance.js';
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -89,5 +91,52 @@ test('native preparation rejects changed split manifest before generating output
     await writeFile(path, JSON.stringify(manifest));
     await assert.rejects(prepareCodexAcceptance(directory), /Frozen split manifest mismatch/);
     assert.equal((await readdir(directory)).some(name => name.startsWith('codex-')), false);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('a shallow bare source and dirty shallow worktree preserve exact frozen preparation bytes', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'pair-shallow-source-'));
+  const bare = join(directory, 'source.git');
+  const working = join(directory, 'working');
+  const runGit = (args: string[], cwd = directory) => execFileSync('git', args, {
+    cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+  try {
+    runGit(['init', '--bare', '--quiet', '--initial-branch=frozen', bare]);
+    await assert.rejects(prepareAcceptance(join(directory, 'missing-output'), bare), {
+      code: 'ACCEPTANCE_FROZEN_SOURCE_UNAVAILABLE',
+    });
+    // This is a local fetch, not a network/model call. Fetch only the pinned
+    // object and its snapshot; a full repository history is not required.
+    runGit(['fetch', '--quiet', '--no-tags', '--depth=1', resolve('.'),
+      `${FROZEN_SOURCE}:refs/heads/frozen`], bare);
+    assert.equal(runGit(['rev-parse', '--is-shallow-repository'], bare), 'true');
+    const bareOutput = join(directory, 'bare-output');
+    const fromBare = await prepareAcceptance(bareOutput, bare);
+    runGit(['clone', '--quiet', '--no-checkout', '--depth=1', pathToFileURL(bare).href, working]);
+    assert.equal(runGit(['rev-parse', '--is-shallow-repository'], working), 'true');
+    assert.equal(runGit(['rev-parse', 'HEAD'], working), FROZEN_SOURCE);
+    for (const path of [SPLIT_PATH, QUESTIONS_PATH]) {
+      await mkdir(dirname(join(working, path)), { recursive: true });
+      await writeFile(join(working, path), 'dirty working-tree bytes, not frozen JSON');
+    }
+    const dirtyOutput = join(directory, 'dirty-output');
+    const fromDirty = await prepareAcceptance(dirtyOutput, working);
+    assert.deepEqual(fromDirty.manifest, fromBare.manifest);
+    const frozenHashes = {
+      'deepseek-pair-preflight.yaml': '33158595b69eebe22989a033c8eef79d0c25368c261497cb38ba025ace8ea70d',
+      'deepseek-pair-60x300.yaml': '1bf3373d6cbba410fcf60f557f16de422086e32f34f85895f59bbc5c2a8a3f59',
+      'pair-split-02.manifest.json': '0b779e77bd51d212a61d5caf6c7da04e25255d6d4a9bf64391c3dbc8aa0eb3ef',
+    };
+    for (const [name, digest] of Object.entries(frozenHashes)) {
+      assert.equal(sha256(await readFile(join(bareOutput, name), 'utf8')), digest);
+      assert.equal(sha256(await readFile(join(dirtyOutput, name), 'utf8')), digest);
+    }
+    const nativeBare = await prepareCodexAcceptance(bareOutput);
+    const nativeDirty = await prepareCodexAcceptance(dirtyOutput);
+    assert.deepEqual(nativeDirty.manifest, nativeBare.manifest);
+    for (const [name, digest] of Object.entries(nativeBare.manifest.configurationSha256)) {
+      assert.equal(sha256(await readFile(join(dirtyOutput, name), 'utf8')), digest);
+    }
   } finally { await rm(directory, { recursive: true, force: true }); }
 });
