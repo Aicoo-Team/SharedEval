@@ -1,6 +1,6 @@
 # PAIR and NET Multi execution plan
 
-Status: delivery specification, 2026-09-12. Implementation and evidence are
+Status: delivery specification, updated 2026-09-13. Implementation and evidence are
 tracked separately in [delivery-status.md](delivery-status.md). This document
 does not make a new benchmark-performance claim.
 
@@ -18,6 +18,15 @@ does not make a new benchmark-performance claim.
   The final code also closes every domain mutation after its audit record and
   checks audit closure before scoring; independent review found the ordering
   defect after the initial 810/810 run. Exact evidence is in the delivery record.
+- Assigned NET profiles: [PR 62](https://github.com/Aicoo-Team/SharedEval/pull/62),
+  head `83814655575d093ff59c2ae35ca329646f097e9f`, stacked on PR59.
+- Persistent NET worlds and whole-world Single reset:
+  [PR 63](https://github.com/Aicoo-Team/SharedEval/pull/63), head
+  `c13e6204669cd4fdca05af7beff13c46e72db566`, stacked on PR62. Two synthetic
+  cases now execute and resume in both conditions; this does not register a
+  benchmark rubric or provide the general NET CLI. Serial full tests and native
+  CI pass; the local parallel check has one recorded timing failure. Exact
+  commands, scope and limitations are in the delivery record and PR.
 - That world branch requires SharedOS
   `3aa07e33999b656a10ace294fd4e41df8cbc318e`, runtime digest
   `4afb23d79851a83a48e25e968f04e45cefc81847b4a9963c62277b5c05862d5d`.
@@ -312,6 +321,12 @@ fixtures remain restricted even when generated from a benchmark.
 The P-01 pilot demonstrates multiple actors and turns within one case. General
 NET Multi additionally needs multiple cases sharing a persistent world. Deliver
 that extension in three independently reviewable changes:
+
+The first two follow-ups are implemented in draft PR62/63 with reproducible
+native evidence. The third remains the supervisor's next implementation gate.
+The [world run guide](https://github.com/Aicoo-Team/SharedEval/blob/c13e6204669cd4fdca05af7beff13c46e72db566/docs/pact-net-world.md)
+and its verification script provide concrete Multi/Single commands. Keep the
+recorded local parallel failure distinct from the successful full serial run.
 
 | Follow-up | Scope | Completion gate |
 | --- | --- | --- |

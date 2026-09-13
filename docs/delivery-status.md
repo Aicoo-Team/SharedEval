@@ -1,6 +1,6 @@
 # SharedEval delivery acceptance
 
-Updated 2026-09-12. This record distinguishes design, initial implementation,
+Updated 2026-09-13. This record distinguishes design, initial implementation,
 independent execution and remaining expansion gates. See the
 [PAIR/NET execution plan](multi-execution-plan.md).
 
@@ -9,16 +9,72 @@ independent execution and remaining expansion gates. See the
 | Complete PAIR and NET Multi design | Published for review | PR58; lifecycle, actor views, authority modes, schedules, reset/recovery and acceptance matrix |
 | PAIR persistent world | Draft [PR57](https://github.com/Aicoo-Team/SharedEval/pull/57) | Final owner head `4eede49a`; independent 789/789 at preceding `9c4d18a`; final delta only adds a CI gate/test |
 | NET runtime and scoring | Draft [PR59](https://github.com/Aicoo-Team/SharedEval/pull/59) | Native three-actor P-01, private journals, authorized effects and separate post-hoc evaluator; general NET CLI remains a later gate |
+| Assigned NET profiles | Draft [PR62](https://github.com/Aicoo-Team/SharedEval/pull/62) | `8381465`: strict case/actor/topology/evidence binding, full required 841/841, original P-01 compatibility and unregistered-scoring rejection |
+| Persistent NET world / Single reset | Draft [PR63](https://github.com/Aicoo-Team/SharedEval/pull/63) | `c13e620`: two cases, full serial 867/867 and mandatory native CI green; local parallel 866/867 remains disclosed |
 | PAIR e2e | Independently reproduced | Required pinned SharedOS; Multi history continuity, Single reset, deny and failure lifecycle |
 | NET e2e | Independently reproduced after review fix | Final `a883f51`: full 814/814, success/held/cold-process CLI runs, and native adversarial audit-order denial |
+| NET cross-case e2e | Reproduced at `c13e620` | Both conditions: separate CLI processes 8→9→16 turns, five actions per case, completed reopen unchanged; Multi retains history/effect, Single resets all histories/resources |
 | Repository conventions | Draft [PR58](https://github.com/Aicoo-Team/SharedEval/pull/58) | AGENTS, CONTRIBUTING, PR template, architecture/validation conventions and `pnpm check`; green local and remote checks |
-| Real-provider e2e | Not run | Scripted native tests do not establish model quality, provider availability or spend |
+| Real-provider e2e | PAIR preflight reported; not accepted | PAIR owner reports a two-case live preflight; final wrapper/projection/request evidence remains pending. No live NET run is claimed |
 | General/practitioner-validated NET | Not accepted | Further tasks, topologies, resource evolution, domain-owner validation and experiment cells remain |
 | Integration with current main | Separate gate | Historical PAIR stack and newer main data must be combined and checked at one final SHA before merge |
 
 No PR has been merged by the supervisor. Room review and independent checks are
 recorded separately from author reports. Idle status or a message saying done
 is not an acceptance signal.
+
+## Assigned profiles and cross-case extension
+
+PR62 head `83814655575d093ff59c2ae35ca329646f097e9f` passed required-native
+`pnpm check`: validation/type-check plus 841/841 tests, zero failures or skips.
+Separate CLI processes completed an assigned case and preserved the legacy
+success/held P-01 paths. Assigned cases are explicitly ineligible for the P-01
+rubric. A later independent reviewer ran 51/51 targeted tests at that same head.
+
+PR63 final head `c13e6204669cd4fdca05af7beff13c46e72db566` adds a frozen ordered
+world profile, actor-owned histories, case resource partitions, per-case native
+grants and explicit public-state disclosure. Single creates an empty whole-world
+epoch while retaining completed case evidence only for the host. Audited cases
+drain observer messages before advancing; an audited held case can advance without
+claiming business success. Unknown effects and unreleased writer locks fail closed.
+
+At that fixed head, validation/type-check passed and the full serial command
+(`npm exec -- tsx --test --test-concurrency=1` with all package test globs) passed
+**867/867**, zero failures/cancellations/skips, 242.952 seconds.
+[CI 34734349666](https://github.com/Aicoo-Team/SharedEval/actions/runs/34734349666)
+passed both jobs: ordinary 808 passed/59 native skips; mandatory runtime10,
+world4, old NET50 and new world26 all passed with zero skips.
+
+The same-head local `pnpm check` passed 866/867 tests: one old unsigned-contract
+case raised `pilot_pending_turn_incomplete`. That exact isolated case passed
+1/1, followed by the complete successful serial run. This record does not label
+the parallel check green or claim that the timing cause is fixed. Production
+deadlines remain unchanged. The implementation-head check also passed 866/867,
+with only the new-script allowlist missing; the final commit registers the two
+supported scripts and updates their README.
+
+The committed [CLI verification script](https://github.com/Aicoo-Team/SharedEval/blob/c13e6204669cd4fdca05af7beff13c46e72db566/scripts/verify-pact-net-world.ts)
+ran at the final head with Node24 and the required world pin. Both Multi and Single
+used separate processes for 8→9→16 turns and a completed reopen, with five actions
+per case and the prior event archive unchanged. At B's start, Multi actor frontiers
+were 20/40/20 and A's resource was released; Single frontiers were 0/0/0 and A's
+resource was initial. The script saves source/runtime identities, exact commands
+and snapshots in a new output directory. Native tests separately verify real tool
+allow/deny, private observations, role changes, stale approvals and recovery.
+
+Independent source review found no actionable remaining issue in legacy helper
+compatibility, late-effect publication or Single public projection. Another room
+reviewer independently ran 77/77 targeted tests, the CLI harness and six narrow
+recovery/revocation probes at implementation head `bee3e73`; their results remain
+separate from root's final-head execution. They verified the final delta affects
+only the script allowlist test and README. The recovery fixtures reconstruct
+durable boundaries with writer ownership released; they are not power-loss tests.
+
+General NET config-check/execution/resume/registered-scoring CLI integration is the
+next owned gate. Synthetic assigned profiles have no benchmark rubric. The PAIR
+owner's live preflight still needs separately frozen wrapper/projection code,
+actual model-request hashes, journal frontiers and context-size evidence. A frozen
+runner SHA alone does not identify an added provider-side compression path.
 
 ## Fixed baselines
 
