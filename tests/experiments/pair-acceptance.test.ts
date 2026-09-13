@@ -8,7 +8,8 @@ import { parse } from 'yaml';
 import { sha256JsonV1, type JsonValue } from '../../src/contracts/json.js';
 import { pairBenchmarkSchema } from '../../src/suites/pact-pair/schemas.js';
 import { prepareAcceptance, FROZEN_SOURCE, SPLIT_IDS } from '../../scripts/experiments/prepare-pair-acceptance.js';
-import { analyzeAcceptance, analyzeAcceptanceRun, type AcceptancePayload } from '../../scripts/experiments/analyze-pair-acceptance.js';
+import { acceptanceStopStatus, analyzeAcceptance, analyzeAcceptanceRun, type AcceptancePayload } from '../../scripts/experiments/analyze-pair-acceptance.js';
+import { binding } from '../runner-v1/file-workflow-test-fixtures.js';
 
 const hash = (value: unknown) => sha256JsonV1(value as JsonValue);
 const questionsPath = resolve('dataset/pact-pair/tasks/questions.json');
@@ -187,4 +188,94 @@ test('MEMORY strategy notes come from committed replacement bytes when authority
     benchmark: await benchmarkFixture(), records: [{ source: 'committed', payload }] });
   assert.equal(report.rows[0].claimedStrategy, 'first_ask');
   assert.equal(report.rows[0].memoryNote, 'tried=first_ask; refused: privacy');
+});
+
+test('process failure is not in_progress and missing outcome stays unknown without inventing a cause', () => {
+  const failed = acceptanceStopStatus({ ledgerStopReason: null,
+    processOutcome: { harness: 'deepseek', exitCode: 1, executionReturned: false, requests: 344 } });
+  assert.equal(failed.ledgerStopReason, null);
+  assert.equal(failed.stopReason, 'process_failed');
+  assert.equal(failed.processOutcome.exitCode, 1);
+  assert.equal(failed.executionOutcome.failureCode, null);
+  assert.equal(acceptanceStopStatus({ ledgerStopReason: null }).stopReason, 'unknown');
+  const terminal = acceptanceStopStatus({ ledgerStopReason: 'all_terminal',
+    processOutcome: { exitCode: 0, executionReturned: true } });
+  assert.equal(terminal.ledgerStopReason, 'all_terminal');
+  assert.equal(terminal.stopReason, 'all_terminal');
+  const failedAfterLedgerStop = acceptanceStopStatus({ ledgerStopReason: 'tick_exhausted',
+    processOutcome: { exitCode: 1, executionReturned: false } });
+  assert.equal(failedAfterLedgerStop.ledgerStopReason, 'tick_exhausted');
+  assert.equal(failedAfterLedgerStop.stopReason, 'process_failed');
+});
+
+test('stop classification retains an exact verified indeterminate failure marker without guessing its cause', () => {
+  const material = { apiVersion: 'sharedeval-file-failure/v1', bindingDigest: 'a'.repeat(64),
+    event: { eventId: 'event-28', runId: 'run', sessionId: 'session', tick: 28, actorId: 'requester', traceId: 'trace' },
+    inputDigest: 'b'.repeat(64), stage: 'context_settlement', code: 'context_turn_incomplete',
+    executionStatus: 'indeterminate_external_operation', evaluationStatus: 'incomplete' };
+  const record = { ...material, failureDigest: hash(material) };
+  const status = { apiVersion: 'sharedeval-file-execution-status/v1', bindingDigest: material.bindingDigest,
+    runId: 'run', eventId: 'event-28', tick: 28, inputDigest: material.inputDigest,
+    executionStatus: material.executionStatus, evaluationStatus: material.evaluationStatus,
+    failureStage: material.stage, failureCode: material.code, failureRecordDigest: record.failureDigest };
+  const expectedBinding = { runId: 'run', sessionId: 'session', bindingDigest: material.bindingDigest };
+  const summary = acceptanceStopStatus({ ledgerStopReason: null,
+    processOutcome: { harness: 'codex', exitCode: 1, executionReturned: false, requests: 330 },
+    executionStatus: status, failureRecords: [record], expectedBinding });
+  assert.equal(summary.stopReason, 'failed_indeterminate_external_operation');
+  assert.equal(summary.executionOutcome.failureTick, 28);
+  assert.equal(summary.executionOutcome.failureCode, 'context_turn_incomplete');
+  assert.equal(summary.executionOutcome.failureMarkerVerified, true);
+  assert.equal(summary.processOutcome.requestCountDefinition, 'bridge exchanges, not native model calls');
+  assert.throws(() => acceptanceStopStatus({ ledgerStopReason: null, failureRecords: [{ ...record, failureDigest: 'c'.repeat(64) }] }), /digest mismatch/);
+  assert.throws(() => acceptanceStopStatus({ ledgerStopReason: null, executionStatus: { ...status, tick: 29 }, failureRecords: [record] }), /disagree/);
+  for (const foreign of [{ ...expectedBinding, runId: 'another-run' },
+    { ...expectedBinding, bindingDigest: 'd'.repeat(64) }, { ...expectedBinding, sessionId: 'another-session' }]) {
+    assert.throws(() => acceptanceStopStatus({ ledgerStopReason: null, executionStatus: status,
+      failureRecords: [record], expectedBinding: foreign }), /foreign run binding/);
+  }
+  assert.throws(() => acceptanceStopStatus({ ledgerStopReason: null, executionStatus: status,
+    failureRecords: [record] }), /requires the current run binding/);
+  assert.throws(() => acceptanceStopStatus({ ledgerStopReason: null, failureRecords: [record],
+    expectedBinding: { ...expectedBinding, runId: 'another-run' } }), /foreign run binding/);
+});
+
+test('run analysis anchors failure evidence to the actual lane binding, not a self-consistent foreign pair', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pair-stop-binding-'));
+  try {
+    const lane = join(root, 'multi'), ledger = join(lane, '.sharedeval-file-workflow');
+    const failures = join(lane, '.sharedeval-file-failures');
+    await mkdir(join(ledger, 'records'), { recursive: true });
+    await mkdir(failures);
+    const current = binding('files-multi', 'current-run', ['PAIR-Q11']);
+    const bindingPath = join(ledger, 'binding.json');
+    const envelope = { apiVersion: 'sharedeval-file-ledger-binding/v1', binding: current,
+      bindingDigest: hash(current), retainPrivate: true };
+    await writeFile(bindingPath, JSON.stringify(envelope));
+    await writeFile(join(lane, 'run.json'), JSON.stringify({ selectedTaskIds: current.selectedTaskIds }));
+    const publishFailure = async (runBinding: typeof current) => {
+      const material = { apiVersion: 'sharedeval-file-failure/v1', bindingDigest: hash(runBinding),
+        event: { eventId: 'event-1', runId: runBinding.runId, sessionId: runBinding.scheduler.sessionId,
+          tick: 1, actorId: 'requester', traceId: 'trace-1' },
+        inputDigest: 'b'.repeat(64), stage: 'context_settlement', code: 'context_turn_incomplete',
+        executionStatus: 'indeterminate_external_operation', evaluationStatus: 'incomplete' };
+      const record = { ...material, failureDigest: hash(material) };
+      await writeFile(join(failures, 'failure-000000000001.json'), JSON.stringify(record));
+      await writeFile(join(lane, 'execution-status.json'), JSON.stringify({
+        apiVersion: 'sharedeval-file-execution-status/v1', bindingDigest: material.bindingDigest,
+        runId: material.event.runId, eventId: material.event.eventId, tick: material.event.tick,
+        inputDigest: material.inputDigest, executionStatus: material.executionStatus,
+        evaluationStatus: material.evaluationStatus, failureStage: material.stage,
+        failureCode: material.code, failureRecordDigest: record.failureDigest,
+      }));
+    };
+    const options = { runRoot: root, outputDirectory: join(root, 'report') };
+    await publishFailure(binding('files-multi', 'foreign-run', ['PAIR-Q11']));
+    await assert.rejects(analyzeAcceptanceRun(options), /foreign run binding/);
+    await publishFailure(current);
+    const report = await analyzeAcceptanceRun(options);
+    assert.equal(report.summary.executionOutcome.failureMarkerVerified, true);
+    await writeFile(bindingPath, JSON.stringify({ ...envelope, bindingDigest: 'c'.repeat(64) }));
+    await assert.rejects(analyzeAcceptanceRun(options), /Run binding digest mismatch/);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
