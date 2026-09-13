@@ -185,7 +185,7 @@ try {
               if (!native) {
                 const module = await import('./codex-app-server-transport.js');
                 native = await module.createCodexAppServerTransport({
-                  model: body.model, actorId, evidenceDirectory: evidenceRoot,
+                  model: body.model, actorId, evidenceDirectory: evidenceRoot, effort: 'medium',
                 });
                 closers.add(closeNative);
               }
