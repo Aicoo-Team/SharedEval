@@ -33,7 +33,12 @@ type RecordPayload =
   | { kind: 'message'; message: ActorContextMessage }
   | { kind: 'finish'; status: ActorContextStatus };
 type TurnState = { turnId: string; inputHash: string; messages: ActorContextMessage[]; status?: ActorContextStatus };
-type ActorState = { frontier: ActorContextFrontier; turns: TurnState[] };
+type StoredRecord = z.infer<typeof recordSchema>;
+type VerifiedRecord = {
+  wireHash: string;
+  link: Pick<StoredRecord, 'actorId' | 'sequence' | 'previousHash' | 'hash'>;
+};
+type ActorState = { frontier: ActorContextFrontier; turns: TurnState[]; verifiedRecords: Map<string, VerifiedRecord> };
 type Identity = { dev: number; ino: number };
 
 function hash(value: unknown): string { return sha256JsonV1(value as JsonValue); }
@@ -165,13 +170,16 @@ export async function openActorContextStore(options: OpenActorContextStoreOption
       const frontier = { sequence: 0, hash: hash([manifestHash, actorId]) };
       const turns: TurnState[] = [];
       const ids = new Set<string>();
-      for await (const { name, record } of readActorRecords(path, names.filter(name => name.startsWith('record-')))) {
-        const { hash: recordHash, ...body } = record;
-        if (record.actorId !== actorId || record.sequence !== frontier.sequence + 1
-          || name !== recordName(record.sequence) || record.previousHash !== frontier.hash || recordHash !== hash(body)) integrity();
-        // The entire chain is still read and hashed on hot checks. An unchanged cached
-        // frontier proves these records already passed semantic validation.
+      const verifiedRecords = new Map<string, VerifiedRecord>();
+      for await (const { name, record, verified } of readActorRecords(path,
+        names.filter(name => name.startsWith('record-')), cached?.verifiedRecords)) {
+        const link = verified.link;
+        if (link.actorId !== actorId || link.sequence !== frontier.sequence + 1
+          || name !== recordName(link.sequence) || link.previousHash !== frontier.hash) integrity();
+        // Fresh bytes are always reread and hashed. Only byte-identical previously
+        // verified records can reuse parsing; the durable chain is still checked.
         if (!cached) {
+          if (!record) integrity();
           const active = turns.at(-1);
           if (record.kind === 'begin') {
             if (ids.has(record.turnId) || (active && !active.status)) integrity();
@@ -192,15 +200,17 @@ export async function openActorContextStore(options: OpenActorContextStoreOption
             }
           }
         }
-        frontier.sequence = record.sequence;
-        frontier.hash = recordHash;
+        frontier.sequence = link.sequence;
+        frontier.hash = link.hash;
+        verifiedRecords.set(name, verified);
       }
       if (hash(frontierSchema.parse(await readJson(join(path, 'frontier.json')))) !== hash(frontier)) integrity();
       if (cached) {
         if (cached.frontier.sequence !== frontier.sequence || cached.frontier.hash !== frontier.hash) integrity();
+        cached.verifiedRecords = verifiedRecords;
         return cached;
       }
-      return { frontier, turns };
+      return { frontier, turns, verifiedRecords };
     }
 
     async function checkedActor(actorId: string): Promise<ActorState> {
@@ -241,6 +251,7 @@ export async function openActorContextStore(options: OpenActorContextStoreOption
           state.turns.at(-1)!.status = record.status;
         }
         state.frontier = tip;
+        state.verifiedRecords.set(recordName(record.sequence), verifiedRecord(record, wireHash(serializeJson(record))));
       } catch {
         poisoned = true;
         integrity();
@@ -309,11 +320,25 @@ export async function openActorContextStore(options: OpenActorContextStoreOption
 
 function recordName(sequence: number): string { return `record-${String(sequence).padStart(12, '0')}.json`; }
 
-async function* readActorRecords(directory: string, names: readonly string[]) {
+function wireHash(bytes: string | Buffer): string { return createHash('sha256').update(bytes).digest('hex'); }
+function serializeJson(value: unknown): string { return `${JSON.stringify(value)}\n`; }
+function verifiedRecord(record: StoredRecord, digest: string): VerifiedRecord {
+  const { actorId, sequence, previousHash, hash: recordHash } = record;
+  return { wireHash: digest, link: { actorId, sequence, previousHash, hash: recordHash } };
+}
+
+async function* readActorRecords(directory: string, names: readonly string[], cached?: ReadonlyMap<string, VerifiedRecord>) {
   for (let offset = 0; offset < names.length; offset += 4) {
-    const batch = await Promise.allSettled(names.slice(offset, offset + 4).map(async name => ({
-      name, record: recordSchema.parse(await readJson(join(directory, name))),
-    })));
+    const batch = await Promise.allSettled(names.slice(offset, offset + 4).map(async name => {
+      const bytes = await readBytes(join(directory, name));
+      const digest = wireHash(bytes);
+      const verified = cached?.get(name);
+      if (verified?.wireHash === digest) return { name, verified };
+      const record = recordSchema.parse(parseJson(bytes));
+      const { hash: recordHash, ...body } = record;
+      if (recordHash !== hash(body)) integrity();
+      return { name, record, verified: verifiedRecord(record, digest) };
+    }));
     for (const entry of batch) {
       if (entry.status === 'rejected') throw entry.reason;
       yield entry.value;
@@ -360,7 +385,7 @@ async function ensureDirectory(path: string): Promise<void> {
 }
 
 async function writeStage(directory: string, value: unknown): Promise<string> {
-  const content = `${JSON.stringify(value)}\n`;
+  const content = serializeJson(value);
   if (Buffer.byteLength(content) > MAX_RECORD_BYTES) integrity();
   const path = join(directory, `stage-${randomUUID()}.json`);
   const handle = await open(path, 'wx', 0o600);
@@ -382,6 +407,14 @@ async function replaceFrontier(directory: string, frontier: ActorContextFrontier
 }
 
 async function readJson(path: string): Promise<unknown> {
+  return parseJson(await readBytes(path));
+}
+
+function parseJson(bytes: Buffer): unknown {
+  return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+}
+
+async function readBytes(path: string): Promise<Buffer> {
   const handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
     const before = await handle.stat();
@@ -397,7 +430,7 @@ async function readJson(path: string): Promise<unknown> {
     const current = await lstat(path);
     if (!current.isFile() || current.isSymbolicLink() || !sameIdentity(before, current)
       || before.size !== after.size || offset !== before.size || before.mtimeMs !== after.mtimeMs) integrity();
-    return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, offset)));
+    return buffer.subarray(0, offset);
   } finally { await handle.close(); }
 }
 

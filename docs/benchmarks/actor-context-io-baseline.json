@@ -1,0 +1,715 @@
+{
+  "version": "actor-context-io-benchmark/v1",
+  "node": "v24.18.0",
+  "sourceSha256": "c9ce320d245f8986cf861a082dfdfa0904d876c89ff38c296fe0730a03418de6",
+  "fixture": {
+    "syntheticOnly": true,
+    "recordMessagesPerTurn": 13,
+    "documentBytesPerTurnApproximate": 26000,
+    "contactsPerTurn": 1,
+    "priorTurns": [
+      0,
+      8,
+      24
+    ],
+    "allRecordsRereadRequired": true
+  },
+  "samples": [
+    {
+      "priorTurns": 0,
+      "priorMessages": 0,
+      "historyHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "inputHash": "abd2612875047364a658476d8cc621231bb16870748cce531216431f51069fa9",
+      "finalFrontier": {
+        "sequence": 15,
+        "hash": "26ebb1834edf53695cfe77abaa0cdce1d0b0e4ecece178c439ce52618e1dec96"
+      },
+      "probes": [
+        {
+          "operation": "getFrontier",
+          "repeat": 0,
+          "readCalls": 4,
+          "readBytes": 302,
+          "recordReadCalls": 0,
+          "recordReadBytes": 0,
+          "recordOpens": 0,
+          "recordJsonParses": 0,
+          "elapsedMs": 0.946
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 1,
+          "readCalls": 4,
+          "readBytes": 302,
+          "recordReadCalls": 0,
+          "recordReadBytes": 0,
+          "recordOpens": 0,
+          "recordJsonParses": 0,
+          "elapsedMs": 0.572
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 2,
+          "readCalls": 4,
+          "readBytes": 302,
+          "recordReadCalls": 0,
+          "recordReadBytes": 0,
+          "recordOpens": 0,
+          "recordJsonParses": 0,
+          "elapsedMs": 0.483
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 3,
+          "readCalls": 4,
+          "readBytes": 302,
+          "recordReadCalls": 0,
+          "recordReadBytes": 0,
+          "recordOpens": 0,
+          "recordJsonParses": 0,
+          "elapsedMs": 0.535
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 4,
+          "readCalls": 4,
+          "readBytes": 302,
+          "recordReadCalls": 0,
+          "recordReadBytes": 0,
+          "recordOpens": 0,
+          "recordJsonParses": 0,
+          "elapsedMs": 0.5
+        },
+        {
+          "operation": "beginTurn",
+          "repeat": 0,
+          "readCalls": 4,
+          "readBytes": 302,
+          "recordReadCalls": 0,
+          "recordReadBytes": 0,
+          "recordOpens": 0,
+          "recordJsonParses": 0,
+          "elapsedMs": 20.509
+        },
+        {
+          "operation": "append",
+          "repeat": 0,
+          "readCalls": 6,
+          "readBytes": 694,
+          "recordReadCalls": 2,
+          "recordReadBytes": 392,
+          "recordOpens": 1,
+          "recordJsonParses": 1,
+          "elapsedMs": 20.726
+        },
+        {
+          "operation": "append",
+          "repeat": 1,
+          "readCalls": 8,
+          "readBytes": 1136,
+          "recordReadCalls": 4,
+          "recordReadBytes": 834,
+          "recordOpens": 2,
+          "recordJsonParses": 2,
+          "elapsedMs": 22.656
+        },
+        {
+          "operation": "append",
+          "repeat": 2,
+          "readCalls": 10,
+          "readBytes": 8247,
+          "recordReadCalls": 6,
+          "recordReadBytes": 7945,
+          "recordOpens": 3,
+          "recordJsonParses": 3,
+          "elapsedMs": 20.839
+        },
+        {
+          "operation": "append",
+          "repeat": 3,
+          "readCalls": 12,
+          "readBytes": 8693,
+          "recordReadCalls": 8,
+          "recordReadBytes": 8391,
+          "recordOpens": 4,
+          "recordJsonParses": 4,
+          "elapsedMs": 20.945
+        },
+        {
+          "operation": "append",
+          "repeat": 4,
+          "readCalls": 14,
+          "readBytes": 15812,
+          "recordReadCalls": 10,
+          "recordReadBytes": 15510,
+          "recordOpens": 5,
+          "recordJsonParses": 5,
+          "elapsedMs": 21.829
+        },
+        {
+          "operation": "append",
+          "repeat": 5,
+          "readCalls": 16,
+          "readBytes": 16255,
+          "recordReadCalls": 12,
+          "recordReadBytes": 15953,
+          "recordOpens": 6,
+          "recordJsonParses": 6,
+          "elapsedMs": 25.219
+        },
+        {
+          "operation": "append",
+          "repeat": 6,
+          "readCalls": 18,
+          "readBytes": 23368,
+          "recordReadCalls": 14,
+          "recordReadBytes": 23066,
+          "recordOpens": 7,
+          "recordJsonParses": 7,
+          "elapsedMs": 21.702
+        },
+        {
+          "operation": "append",
+          "repeat": 7,
+          "readCalls": 20,
+          "readBytes": 23811,
+          "recordReadCalls": 16,
+          "recordReadBytes": 23509,
+          "recordOpens": 8,
+          "recordJsonParses": 8,
+          "elapsedMs": 26.705
+        },
+        {
+          "operation": "append",
+          "repeat": 8,
+          "readCalls": 22,
+          "readBytes": 30924,
+          "recordReadCalls": 18,
+          "recordReadBytes": 30622,
+          "recordOpens": 9,
+          "recordJsonParses": 9,
+          "elapsedMs": 23.078
+        },
+        {
+          "operation": "append",
+          "repeat": 9,
+          "readCalls": 24,
+          "readBytes": 31373,
+          "recordReadCalls": 20,
+          "recordReadBytes": 31070,
+          "recordOpens": 10,
+          "recordJsonParses": 10,
+          "elapsedMs": 23.808
+        },
+        {
+          "operation": "append",
+          "repeat": 10,
+          "readCalls": 26,
+          "readBytes": 31727,
+          "recordReadCalls": 22,
+          "recordReadBytes": 31424,
+          "recordOpens": 11,
+          "recordJsonParses": 11,
+          "elapsedMs": 21.857
+        },
+        {
+          "operation": "append",
+          "repeat": 11,
+          "readCalls": 28,
+          "readBytes": 32172,
+          "recordReadCalls": 24,
+          "recordReadBytes": 31869,
+          "recordOpens": 12,
+          "recordJsonParses": 12,
+          "elapsedMs": 21.863
+        },
+        {
+          "operation": "append",
+          "repeat": 12,
+          "readCalls": 30,
+          "readBytes": 32539,
+          "recordReadCalls": 26,
+          "recordReadBytes": 32236,
+          "recordOpens": 13,
+          "recordJsonParses": 13,
+          "elapsedMs": 21.982
+        },
+        {
+          "operation": "finish",
+          "repeat": 0,
+          "readCalls": 32,
+          "readBytes": 32870,
+          "recordReadCalls": 28,
+          "recordReadBytes": 32567,
+          "recordOpens": 14,
+          "recordJsonParses": 14,
+          "elapsedMs": 21.742
+        }
+      ]
+    },
+    {
+      "priorTurns": 8,
+      "priorMessages": 112,
+      "historyHash": "0516a8bd21b2671a6f7ff23f9d9c24ff5400bb85dee54169f4fac185c17a8d8c",
+      "inputHash": "8d34635eace1899a0821e3c4edfb3986d610e72b988b8008ee37909bcdee35de",
+      "finalFrontier": {
+        "sequence": 135,
+        "hash": "5a6dc43f6993b3ad98f85d9d4380bce3d429df5b386eb7de7f30bcecb99a3afd"
+      },
+      "probes": [
+        {
+          "operation": "getFrontier",
+          "repeat": 0,
+          "readCalls": 244,
+          "readBytes": 263324,
+          "recordReadCalls": 240,
+          "recordReadBytes": 263020,
+          "recordOpens": 120,
+          "recordJsonParses": 120,
+          "elapsedMs": 17.554
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 1,
+          "readCalls": 244,
+          "readBytes": 263324,
+          "recordReadCalls": 240,
+          "recordReadBytes": 263020,
+          "recordOpens": 120,
+          "recordJsonParses": 120,
+          "elapsedMs": 13.628
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 2,
+          "readCalls": 244,
+          "readBytes": 263324,
+          "recordReadCalls": 240,
+          "recordReadBytes": 263020,
+          "recordOpens": 120,
+          "recordJsonParses": 120,
+          "elapsedMs": 14.841
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 3,
+          "readCalls": 244,
+          "readBytes": 263324,
+          "recordReadCalls": 240,
+          "recordReadBytes": 263020,
+          "recordOpens": 120,
+          "recordJsonParses": 120,
+          "elapsedMs": 20.894
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 4,
+          "readCalls": 244,
+          "readBytes": 263324,
+          "recordReadCalls": 240,
+          "recordReadBytes": 263020,
+          "recordOpens": 120,
+          "recordJsonParses": 120,
+          "elapsedMs": 10.973
+        },
+        {
+          "operation": "beginTurn",
+          "repeat": 0,
+          "readCalls": 244,
+          "readBytes": 263324,
+          "recordReadCalls": 240,
+          "recordReadBytes": 263020,
+          "recordOpens": 120,
+          "recordJsonParses": 120,
+          "elapsedMs": 36.561
+        },
+        {
+          "operation": "append",
+          "repeat": 0,
+          "readCalls": 246,
+          "readBytes": 263718,
+          "recordReadCalls": 242,
+          "recordReadBytes": 263414,
+          "recordOpens": 121,
+          "recordJsonParses": 121,
+          "elapsedMs": 42.206
+        },
+        {
+          "operation": "append",
+          "repeat": 1,
+          "readCalls": 248,
+          "readBytes": 264162,
+          "recordReadCalls": 244,
+          "recordReadBytes": 263858,
+          "recordOpens": 122,
+          "recordJsonParses": 122,
+          "elapsedMs": 29.894
+        },
+        {
+          "operation": "append",
+          "repeat": 2,
+          "readCalls": 250,
+          "readBytes": 271275,
+          "recordReadCalls": 246,
+          "recordReadBytes": 270971,
+          "recordOpens": 123,
+          "recordJsonParses": 123,
+          "elapsedMs": 31.823
+        },
+        {
+          "operation": "append",
+          "repeat": 3,
+          "readCalls": 252,
+          "readBytes": 271723,
+          "recordReadCalls": 248,
+          "recordReadBytes": 271419,
+          "recordOpens": 124,
+          "recordJsonParses": 124,
+          "elapsedMs": 30.856
+        },
+        {
+          "operation": "append",
+          "repeat": 4,
+          "readCalls": 254,
+          "readBytes": 278844,
+          "recordReadCalls": 250,
+          "recordReadBytes": 278540,
+          "recordOpens": 125,
+          "recordJsonParses": 125,
+          "elapsedMs": 27.9
+        },
+        {
+          "operation": "append",
+          "repeat": 5,
+          "readCalls": 256,
+          "readBytes": 279289,
+          "recordReadCalls": 252,
+          "recordReadBytes": 278985,
+          "recordOpens": 126,
+          "recordJsonParses": 126,
+          "elapsedMs": 28.67
+        },
+        {
+          "operation": "append",
+          "repeat": 6,
+          "readCalls": 258,
+          "readBytes": 286404,
+          "recordReadCalls": 254,
+          "recordReadBytes": 286100,
+          "recordOpens": 127,
+          "recordJsonParses": 127,
+          "elapsedMs": 31.938
+        },
+        {
+          "operation": "append",
+          "repeat": 7,
+          "readCalls": 260,
+          "readBytes": 286849,
+          "recordReadCalls": 256,
+          "recordReadBytes": 286545,
+          "recordOpens": 128,
+          "recordJsonParses": 128,
+          "elapsedMs": 55.46
+        },
+        {
+          "operation": "append",
+          "repeat": 8,
+          "readCalls": 262,
+          "readBytes": 293964,
+          "recordReadCalls": 258,
+          "recordReadBytes": 293660,
+          "recordOpens": 129,
+          "recordJsonParses": 129,
+          "elapsedMs": 41.605
+        },
+        {
+          "operation": "append",
+          "repeat": 9,
+          "readCalls": 264,
+          "readBytes": 294413,
+          "recordReadCalls": 260,
+          "recordReadBytes": 294109,
+          "recordOpens": 130,
+          "recordJsonParses": 130,
+          "elapsedMs": 51.518
+        },
+        {
+          "operation": "append",
+          "repeat": 10,
+          "readCalls": 266,
+          "readBytes": 294768,
+          "recordReadCalls": 262,
+          "recordReadBytes": 294464,
+          "recordOpens": 131,
+          "recordJsonParses": 131,
+          "elapsedMs": 78.751
+        },
+        {
+          "operation": "append",
+          "repeat": 11,
+          "readCalls": 268,
+          "readBytes": 295214,
+          "recordReadCalls": 264,
+          "recordReadBytes": 294910,
+          "recordOpens": 132,
+          "recordJsonParses": 132,
+          "elapsedMs": 36.656
+        },
+        {
+          "operation": "append",
+          "repeat": 12,
+          "readCalls": 270,
+          "readBytes": 295583,
+          "recordReadCalls": 266,
+          "recordReadBytes": 295279,
+          "recordOpens": 133,
+          "recordJsonParses": 133,
+          "elapsedMs": 32.871
+        },
+        {
+          "operation": "finish",
+          "repeat": 0,
+          "readCalls": 272,
+          "readBytes": 295915,
+          "recordReadCalls": 268,
+          "recordReadBytes": 295611,
+          "recordOpens": 134,
+          "recordJsonParses": 134,
+          "elapsedMs": 28.832
+        }
+      ]
+    },
+    {
+      "priorTurns": 24,
+      "priorMessages": 336,
+      "historyHash": "c127c3b61b8d25d94659e591f437e11ca21f2fd2d7c360a50ae3aafc1ed926f0",
+      "inputHash": "5959542e43b3ce921fa441e06b15970c7cc7263be4f5022905406d50baeb12c1",
+      "finalFrontier": {
+        "sequence": 375,
+        "hash": "4e64a9f7b0e36e90c47e11aa46e328e3747d8073cd8df4ae4a1aeabdce0567ea"
+      },
+      "probes": [
+        {
+          "operation": "getFrontier",
+          "repeat": 0,
+          "readCalls": 724,
+          "readBytes": 790016,
+          "recordReadCalls": 720,
+          "recordReadBytes": 789712,
+          "recordOpens": 360,
+          "recordJsonParses": 360,
+          "elapsedMs": 42.215
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 1,
+          "readCalls": 724,
+          "readBytes": 790016,
+          "recordReadCalls": 720,
+          "recordReadBytes": 789712,
+          "recordOpens": 360,
+          "recordJsonParses": 360,
+          "elapsedMs": 58.434
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 2,
+          "readCalls": 724,
+          "readBytes": 790016,
+          "recordReadCalls": 720,
+          "recordReadBytes": 789712,
+          "recordOpens": 360,
+          "recordJsonParses": 360,
+          "elapsedMs": 46.818
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 3,
+          "readCalls": 724,
+          "readBytes": 790016,
+          "recordReadCalls": 720,
+          "recordReadBytes": 789712,
+          "recordOpens": 360,
+          "recordJsonParses": 360,
+          "elapsedMs": 29.318
+        },
+        {
+          "operation": "getFrontier",
+          "repeat": 4,
+          "readCalls": 724,
+          "readBytes": 790016,
+          "recordReadCalls": 720,
+          "recordReadBytes": 789712,
+          "recordOpens": 360,
+          "recordJsonParses": 360,
+          "elapsedMs": 22.244
+        },
+        {
+          "operation": "beginTurn",
+          "repeat": 0,
+          "readCalls": 724,
+          "readBytes": 790016,
+          "recordReadCalls": 720,
+          "recordReadBytes": 789712,
+          "recordOpens": 360,
+          "recordJsonParses": 360,
+          "elapsedMs": 48.54
+        },
+        {
+          "operation": "append",
+          "repeat": 0,
+          "readCalls": 726,
+          "readBytes": 790410,
+          "recordReadCalls": 722,
+          "recordReadBytes": 790106,
+          "recordOpens": 361,
+          "recordJsonParses": 361,
+          "elapsedMs": 41.417
+        },
+        {
+          "operation": "append",
+          "repeat": 1,
+          "readCalls": 728,
+          "readBytes": 790855,
+          "recordReadCalls": 724,
+          "recordReadBytes": 790551,
+          "recordOpens": 362,
+          "recordJsonParses": 362,
+          "elapsedMs": 43.7
+        },
+        {
+          "operation": "append",
+          "repeat": 2,
+          "readCalls": 730,
+          "readBytes": 797969,
+          "recordReadCalls": 726,
+          "recordReadBytes": 797665,
+          "recordOpens": 363,
+          "recordJsonParses": 363,
+          "elapsedMs": 40.958
+        },
+        {
+          "operation": "append",
+          "repeat": 3,
+          "readCalls": 732,
+          "readBytes": 798418,
+          "recordReadCalls": 728,
+          "recordReadBytes": 798114,
+          "recordOpens": 364,
+          "recordJsonParses": 364,
+          "elapsedMs": 42.878
+        },
+        {
+          "operation": "append",
+          "repeat": 4,
+          "readCalls": 734,
+          "readBytes": 805540,
+          "recordReadCalls": 730,
+          "recordReadBytes": 805236,
+          "recordOpens": 365,
+          "recordJsonParses": 365,
+          "elapsedMs": 52.771
+        },
+        {
+          "operation": "append",
+          "repeat": 5,
+          "readCalls": 736,
+          "readBytes": 805986,
+          "recordReadCalls": 732,
+          "recordReadBytes": 805682,
+          "recordOpens": 366,
+          "recordJsonParses": 366,
+          "elapsedMs": 47.921
+        },
+        {
+          "operation": "append",
+          "repeat": 6,
+          "readCalls": 738,
+          "readBytes": 813102,
+          "recordReadCalls": 734,
+          "recordReadBytes": 812798,
+          "recordOpens": 367,
+          "recordJsonParses": 367,
+          "elapsedMs": 55.103
+        },
+        {
+          "operation": "append",
+          "repeat": 7,
+          "readCalls": 740,
+          "readBytes": 813548,
+          "recordReadCalls": 736,
+          "recordReadBytes": 813244,
+          "recordOpens": 368,
+          "recordJsonParses": 368,
+          "elapsedMs": 40.868
+        },
+        {
+          "operation": "append",
+          "repeat": 8,
+          "readCalls": 742,
+          "readBytes": 820664,
+          "recordReadCalls": 738,
+          "recordReadBytes": 820360,
+          "recordOpens": 369,
+          "recordJsonParses": 369,
+          "elapsedMs": 42.729
+        },
+        {
+          "operation": "append",
+          "repeat": 9,
+          "readCalls": 744,
+          "readBytes": 821114,
+          "recordReadCalls": 740,
+          "recordReadBytes": 820810,
+          "recordOpens": 370,
+          "recordJsonParses": 370,
+          "elapsedMs": 42.834
+        },
+        {
+          "operation": "append",
+          "repeat": 10,
+          "readCalls": 746,
+          "readBytes": 821470,
+          "recordReadCalls": 742,
+          "recordReadBytes": 821166,
+          "recordOpens": 371,
+          "recordJsonParses": 371,
+          "elapsedMs": 43.078
+        },
+        {
+          "operation": "append",
+          "repeat": 11,
+          "readCalls": 748,
+          "readBytes": 821917,
+          "recordReadCalls": 744,
+          "recordReadBytes": 821613,
+          "recordOpens": 372,
+          "recordJsonParses": 372,
+          "elapsedMs": 56.856
+        },
+        {
+          "operation": "append",
+          "repeat": 12,
+          "readCalls": 750,
+          "readBytes": 822286,
+          "recordReadCalls": 746,
+          "recordReadBytes": 821982,
+          "recordOpens": 373,
+          "recordJsonParses": 373,
+          "elapsedMs": 49.908
+        },
+        {
+          "operation": "finish",
+          "repeat": 0,
+          "readCalls": 752,
+          "readBytes": 822619,
+          "recordReadCalls": 748,
+          "recordReadBytes": 822315,
+          "recordOpens": 374,
+          "recordJsonParses": 374,
+          "elapsedMs": 45.913
+        }
+      ]
+    }
+  ]
+}
