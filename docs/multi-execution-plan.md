@@ -27,7 +27,18 @@ does not make a new benchmark-performance claim.
   benchmark rubric or provide the general NET CLI. Serial full tests and native
   CI pass; the local parallel check has one recorded timing failure. Exact
   commands, scope and limitations are in the delivery record and PR.
-- That world branch requires SharedOS
+- Bounded unified native NET entry: draft
+  [PR 64](https://github.com/Aicoo-Team/SharedEval/pull/64), branch
+  `codex/sharedeval-net-cli`, head `4f8d8c07a7e088ac25fc27c14137bcb9a6acb027`,
+  based on PR63 `c13e6204669cd4fdca05af7beff13c46e72db566`.
+  Versioned `net check|run|score` wraps the existing native adapters and keeps
+  scoring registered only for P-01. Full serial tests passed **889/889**, fixed-head
+  CI passed both jobs, and four CLI artifact runs cover P-01 success/held plus
+  world Multi/Single. The local parallel `pnpm check` was **888/889** with one
+  `pilot_pending_turn_incomplete` failure; its exact isolated rerun passed **1/1**.
+  Cause remains unproven. Counts, commands and review limits stay separate in
+  delivery status; the failed parallel check is not relabelled green.
+- These world/native CLI branches require SharedOS
   `3aa07e33999b656a10ace294fd4e41df8cbc318e`, runtime digest
   `4afb23d79851a83a48e25e968f04e45cefc81847b4a9963c62277b5c05862d5d`.
   Main and older PRs have different pins. Always use the checked-out loader's
@@ -148,6 +159,24 @@ Legacy `sharedeval-run/v1` retains fresh-context semantics. Never silently
 resume a v1 experiment under v2 or relabel historical results as persistent
 Multi. Do not remove actor-context locks or rewrite journals to force resume.
 
+The reported two-case live PAIR preflight does not establish full-run acceptance.
+The current 60-task PAIR run remains under the PAIR owner's control. Acceptance
+still needs the frozen wrapper/projection code, actual model-request hashes,
+journal frontiers, context-size evidence and complete run artifacts. Neither
+preflight success nor a frozen runner SHA alone establishes that any added
+provider-side compression path preserves the declared context protocol.
+
+The owner's ongoing HTTP-520/publication-limit recovery must remain visible as
+a protocol deviation under the original configuration. Fixed tick 61 may begin
+re-asks before 60 distinct first contacts; final acceptance requires actual task
+coverage and contact-to-task mapping, not the scheduled tick alone. Separate
+delivered replies from committed MEMORY; failure of the latter does not undo
+possible exposure. Q103 remains an original gold match with semantic leakage
+under review. Freeze the actual scorer and distinguish question echo, new private
+facts and unauthorized confirmation. Synthetic matcher probes do not rescore the
+actual trace. Require reviewable frozen wrapper/helper code bound to its file
+hashes and request projections. These observations are not a completed-run result.
+
 ## NET: how Multi runs
 
 NET uses an actor registry and directed contact edges, not a global requester
@@ -198,10 +227,25 @@ committed, drained evidence and matches actual effects to SharedOS authorization
 audit before invoking the original P-01 rubric. It never schedules more work.
 The implementation guide is `docs/pact-net-pilot.md` on the pilot branch.
 
-The main `sharedeval` CLI still rejects `pact-net`; changing the dataset name in a
-PAIR YAML does not select this pilot or create a general NET configuration.
+Changing the dataset name to `pact-net` in a PAIR YAML remains unsupported.
+PR64 instead supplies the separate `pact-net-native-run/v1` configuration and
+`sharedeval net check|run|score` commands. Its
+[fixed-head guide](https://github.com/Aicoo-Team/SharedEval/blob/4f8d8c07a7e088ac25fc27c14137bcb9a6acb027/docs/pact-net-native-cli.md)
+includes runnable P-01, assigned and world examples. This is an implemented
+bounded entry point with serial/CI/CLI evidence and a disclosed parallel-check
+failure. The general NET task/provider adapter below remains a separate target.
 
-The subsequent general NET profile has this fixed lifecycle:
+The only provider is `scripted-procurement/v1`. `check` creates no run artifacts;
+`run` verifies the native pin and resumes the selected existing adapter.
+Configuration identity binds the run ID, provider, adapter, materialized profile
+and required pin while excluding storage locations. The command manifest and
+execution receipt retain configuration/evidence/checkpoint identity under command
+and native writer ownership. Stale/corrupt receipts and pending effects fail
+closed; legacy runs are not automatically adopted and stale locks are not deleted.
+Only explicit P-01 `score` loads its post-hoc evaluator. Assigned and world
+profiles remain unregistered even when both synthetic cases release successfully.
+
+The remaining general NET profile is a separate target with this fixed lifecycle:
 
 1. Select a frozen task list and actor closure, including every necessary
    evidence holder, approver and permitted relay. S/M/L identifies world size,
@@ -319,11 +363,17 @@ fixtures remain restricted even when generated from a benchmark.
 ## PR ownership and integration order
 
 The P-01 pilot demonstrates multiple actors and turns within one case. General
-NET Multi additionally needs multiple cases sharing a persistent world. Deliver
-that extension in three independently reviewable changes:
+NET Multi additionally needs multiple cases sharing a persistent world. The
+extension was originally planned as three follow-ups; the current implementation
+and acceptance split is recorded below.
 
 The first two follow-ups are implemented in draft PR62/63 with reproducible
-native evidence. The third remains the supervisor's next implementation gate.
+native evidence. The original third follow-up combined a bounded public entry,
+general task/provider integration and scoring across registered cases. Those
+are now separate gates: PR64 implements the bounded entry over existing adapters;
+its fixed-head serial 889/889, CI and CLI artifact runs pass. The parallel
+888/889 result remains a disclosed limitation. General inventory/provider support
+and a two-registered-case scoring path remain unimplemented acceptance gates.
 The [world run guide](https://github.com/Aicoo-Team/SharedEval/blob/c13e6204669cd4fdca05af7beff13c46e72db566/docs/pact-net-world.md)
 and its verification script provide concrete Multi/Single commands. Keep the
 recorded local parallel failure distinct from the successful full serial run.
@@ -332,12 +382,16 @@ recorded local parallel failure distinct from the successful full serial run.
 | --- | --- | --- |
 | Configurable assigned profile | Parameterize actor/case/topology/resource/grant profiles; retain explicit synthetic fixtures and the native driver seam | Two bounded profiles execute; unknown or mismatched actor, case and resource version fail at the proper boundary; P-01 regressions stay green |
 | Multiple cases in one world | Partition resource state by case; reuse actor journals, deterministic queue and checkpoint; add whole-world Single reset | A fresh process continues case B after A: Multi retains only authorized history/effects; Single does not; no approval reuse, duplicate action or private-history leak |
-| General NET CLI and evaluator integration | Add config check, execution, resume and separate scoring for registered cases; reuse generic provider seam while retaining PAIR behavior | One configuration completes check → two-case execution → cold resume → scoring through a scripted provider; missing runtime, invalid config and indeterminate effects fail closed |
+| Third follow-up A: bounded native entry | Implemented in draft PR64: versioned check/run/resume, portable identity, owned execution exports and explicit P-01 scoring over existing adapters | Fixed-head serial 889/889, CI and four CLI artifact runs pass, including legacy/unified cold-resume parity; parallel `pnpm check` 888/889 and unproven failure cause remain disclosed |
+| Third follow-up B: general NET task/provider integration | Pending: validated inventory selection and projections, actor-agnostic recipient/payload provider seam and broader resource/topology adapters, preserving PAIR behavior | A declared selected NET task set executes through the actual public provider/runtime path; missing runtime, invalid config and indeterminate effects fail closed |
+| Third follow-up C: multiple registered-case scoring | Pending: register and validate at least two actual case rubrics and their post-hoc projections; synthetic assigned/world fixtures do not inherit P-01's registration | One configuration completes check → two registered cases → cold resume → per-case scoring, with authentic evidence and no actor-visible rubric/gold |
 
 Each follow-up requires a fresh native-required `pnpm check`, fixed source/runtime
 identities and inspectable evidence. These scopes do not include discovery/relay
 experiments, a 166-task rollout, paid models or SharedOS changes. The supervisor
-owns this remaining implementation sequence and coordinates domain review.
+owns the remaining implementation sequence and coordinates domain review. The
+bounded PR64 entry does not close the original third follow-up's general-provider
+or two-registered-case acceptance criteria.
 
 | Work | Owner | Review boundary |
 | --- | --- | --- |
