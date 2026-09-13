@@ -540,11 +540,13 @@ class OpenAICompatibleFileTurnSessionV1 {
   }
 
   async next(input: SoTurnInput, signal: AbortSignal): Promise<SoTurnDecision> {
-    throwIfAborted(signal);
+    // A delivered tool result is settlement evidence even if the turn was cancelled.
+    if (input.type !== 'tool_result') throwIfAborted(signal);
     try {
       this.#actorContext?.assertHealthy();
       const accepted = this.#acceptInput(input);
       if (accepted) await accepted;
+      throwIfAborted(signal);
       return await this.#requestNextDecision(signal);
     } catch (error) {
       this.#failed = true;
