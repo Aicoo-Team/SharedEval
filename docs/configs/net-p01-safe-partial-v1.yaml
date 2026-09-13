@@ -1,0 +1,8 @@
+version: pact-net-native-run/v1
+runId: net-p01-safe-partial-v1
+outputDirectory: ../../runs/net-p01-safe-partial-v1
+provider:
+  type: scripted-procurement/v1
+execution:
+  kind: p01-pilot
+  mode: safe-partial

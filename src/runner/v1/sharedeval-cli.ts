@@ -123,6 +123,10 @@ export async function mainSharedevalV1(
   argv = process.argv.slice(2),
   dependencies: SharedevalCliDependenciesV1 = {},
 ): Promise<number> {
+  if (argv[0] === 'net') {
+    const { mainSharedevalNetV1 } = await import('../net/cli.js');
+    return mainSharedevalNetV1(argv.slice(1), { writeOutput: dependencies.writeOutput });
+  }
   const options = parseSharedevalCliArgumentsV1(argv);
   let config;
   try {
@@ -193,7 +197,7 @@ function parseRunId(value: string): string {
 }
 
 function usage(): string {
-  return 'Usage: npm run sharedeval -- [multi|single] --config <sharedeval-run.yaml> --run-id <id> [--task <id>|--tasks <id,...>] [--max-ticks <count>] [--check]\n';
+  return 'Usage: npm run sharedeval -- [multi|single] --config <sharedeval-run.yaml> --run-id <id> [--task <id>|--tasks <id,...>] [--max-ticks <count>] [--check]\nNET: npm run sharedeval -- net check|run|score --config <net-run.yaml> [--max-turns <count>]\n';
 }
 
 if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {

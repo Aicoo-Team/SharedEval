@@ -5,6 +5,10 @@ per-task-isolation mode. Both use the same SharedOS execution boundary.
 New `sharedeval-run/v2` configurations retain both actors' conversations across
 ticks and tasks. Existing `v1` configurations remain reset-context experiments.
 
+For the bounded scripted NET adapters, use the separate
+[`net check|run|score` commands and `pact-net-native-run/v1` configuration](pact-net-native-cli.md).
+The PACT-Pair configuration below does not select a NET adapter.
+
 ## 1. Install and validate
 
 Use Node.js 24 for the test suite and pinned runtime. The package accepts Node

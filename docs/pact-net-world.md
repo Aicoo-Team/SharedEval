@@ -7,6 +7,9 @@ the same three actors and fresh case/resource/evidence identities for each case.
 world for each case. Both conditions use the same case order, context budget, and
 explicit public-state disclosure policy.
 
+The [native NET commands](pact-net-native-cli.md) provide a versioned configuration
+for this adapter. The dedicated script below remains available for legacy runs.
+
 The complete PAIR and NET execution plan is maintained in
 [the governance PR](https://github.com/Aicoo-Team/SharedEval/pull/58).
 This adapter implements its persistent NET world and Single reset stage.
@@ -89,7 +92,7 @@ private model observations; the CLI harness checks persisted effects and context
 frontiers. Run against a clean commit when recording acceptance evidence.
 
 This evidence is scripted native integration. The fixtures have no registered
-benchmark rubric, so P-01 evaluation is not applicable. General NET CLI/provider
+benchmark rubric, so P-01 evaluation is not applicable. Broader NET task/provider
 integration, real-model execution, broad task coverage, and practitioner validation
 remain separate work. The ordinary CI job may skip native tests when SharedOS is
 absent; the dedicated pinned-runtime CI job requires them.

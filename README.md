@@ -19,8 +19,11 @@ SharedEval exposes two workflows:
 - `multi`: one run-scoped session processes an ordered task set;
 - `single`: every task receives an isolated session.
 
-PACT-Pair is the executable benchmark suite. PACT-Net remains available for
-data and evaluator validation, but is not an execution target in this release.
+PACT-Pair is the general executable benchmark workflow. The versioned
+`sharedeval net check|run|score` commands also expose bounded, scripted native
+procurement adapters: P-01, one assigned case, and a procurement world. General
+NET dataset execution remains unsupported. See the
+[native NET command guide](docs/pact-net-native-cli.md).
 
 ## Quick start
 
@@ -73,6 +76,7 @@ an unavailable or mismatched build fails before model spend.
 - [Datasets](docs/datasets.md)
 - [PACT-Pair data](dataset/pact-pair/BENCHMARK_DATA.md)
 - [PACT-Pair evaluation tools](docs/pact-pair-evaluation-tools.md)
+- [Native NET configuration, execution and registered scoring](docs/pact-net-native-cli.md)
 - [PACT-Net P-01 native pilot and post-hoc evaluation](docs/pact-net-pilot.md)
 - [Assigned NET procurement profiles](docs/pact-net-assigned-profiles.md)
 - [NET multi-case worlds and Single reset](docs/pact-net-world.md)

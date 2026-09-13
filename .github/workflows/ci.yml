@@ -116,3 +116,9 @@ jobs:
           SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
           SHAREDEVAL_REQUIRE_SHAREDOS: '1'
         run: npm exec -- tsx --test --test-concurrency=2 tests/suites/pact-net/world-*.test.ts
+
+      - name: Verify unified NET CLI resume and post-hoc evidence binding
+        env:
+          SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
+          SHAREDEVAL_REQUIRE_SHAREDOS: '1'
+        run: npm exec -- tsx --test --test-concurrency=1 tests/runner-v1/net-native-*.test.ts tests/suites/pact-net/pilot-score.test.ts
