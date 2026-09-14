@@ -23,6 +23,11 @@ import {
   type OpenAICompatibleFileTurnDriverV1Options,
 } from './file-model-driver.js';
 import {
+  CODEX_HARNESS_PROVIDER_ID_V1,
+  createCodexResponderTurnDriverV1,
+  type CodexResponderTurnDriverV1Options,
+} from './codex/codex-responder-driver.js';
+import {
   pactModelIdentifierV1,
   resolvePactRunModelApiKeyV1,
   type PactModelConfigV1,
@@ -83,6 +88,7 @@ export type SharedevalProductionDependenciesV1 = Readonly<{
   loadSharedOs?: typeof loadSharedOsModulesV1;
   createSessionFactory?: typeof createPreloadedSharedOsFileSessionFactoryV1;
   createDriver?: typeof createOpenAICompatibleFileTurnDriverV1;
+  createCodexDriver?: typeof createCodexResponderTurnDriverV1;
   prepareRunDirectories?: typeof prepareSharedevalRunDirectoriesV1;
   runFiles?: typeof runSharedevalPactPairFilesV1;
 }>;
@@ -143,12 +149,26 @@ export async function runSharedevalProductionV1(
   const requesterModel = options.config.actors
     ? actorModel(options.config.actors.requester.model)
     : responderModel;
+  const codexHarness = options.config.harness;
+  if (codexHarness && options.config.model.provider !== 'openai-compatible') {
+    throw new Error('The codex responder harness requires an openai-compatible model');
+  }
+  const codexModel = options.config.model.provider === 'openai-compatible'
+    ? options.config.model
+    : undefined;
+  // With the Codex harness the responder's provenance names the harness as
+  // its provider; the model identity is still the responder's model, which
+  // Codex is configured to call through the same endpoint.
+  const responderProvenance = codexHarness
+    ? Object.freeze({ ...responderModel.provenance, provider: CODEX_HARNESS_PROVIDER_ID_V1 })
+    : responderModel.provenance;
   const runProvenance: FileWorkflowHostRunProvenanceV1 = deepFreeze({
     ...datasetAuthority,
-    models: { requester: requesterModel.provenance, responder: responderModel.provenance },
+    models: { requester: requesterModel.provenance, responder: responderProvenance },
     backend: { adapterId: 'sharedos-runtime', executor: 'sharedos-executor' },
   });
   const createDriver = dependencies.createDriver ?? createOpenAICompatibleFileTurnDriverV1;
+  const createCodexDriver = dependencies.createCodexDriver ?? createCodexResponderTurnDriverV1;
   // One ledger per served model and one rate-limit gate per run: providers
   // may vary freely, the served model may not, and concurrent tasks queue
   // behind one 429 (both actors share the one allowlisted egress host).
@@ -175,13 +195,24 @@ export async function runSharedevalProductionV1(
       references: responderReferences(options.config.benchmark.policy),
     },
     tasks,
-    createDriver: ({ role }) => createDriver({
-      model: role === 'requester' ? requesterModel.config : responderModel.config,
-      requestedModel: role === 'requester' ? requesterModel.id : responderModel.id,
-      environment: driverEnvironment,
-      servedModelLedger: role === 'requester' ? requesterLedger : responderLedger,
-      rateLimitGate,
-    } satisfies OpenAICompatibleFileTurnDriverV1Options),
+    createDriver: ({ role }) => {
+      if (role === 'responder' && codexHarness && codexModel) {
+        return createCodexDriver({
+          harness: codexHarness.codex,
+          model: codexModel,
+          requestedModel: responderModel.id,
+          environment: driverEnvironment,
+        } satisfies CodexResponderTurnDriverV1Options);
+      }
+      const actor = role === 'requester' ? requesterModel : responderModel;
+      return createDriver({
+        model: actor.config,
+        requestedModel: actor.id,
+        environment: driverEnvironment,
+        servedModelLedger: role === 'requester' ? requesterLedger : responderLedger,
+        rateLimitGate,
+      } satisfies OpenAICompatibleFileTurnDriverV1Options);
+    },
     createSharedOsSession,
     createSessionResources: input => ({
       pactWorkspace: createPactPairWorkspaceV1(),

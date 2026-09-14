@@ -1030,6 +1030,16 @@ function promptFromPayload(payload: JsonValue): string {
   return JSON.stringify(payload);
 }
 
+/**
+ * The bootstrap text a turn starts from. Exported so an alternative
+ * responder harness (the Codex bridge) starts from the identical text.
+ */
+export function renderFileTurnPromptV1(
+  message: Parameters<SoTurnDriver['open']>[0]['message'],
+): string {
+  return promptFromMessage(message);
+}
+
 function promptFromMessage(
   message: Parameters<SoTurnDriver['open']>[0]['message'],
 ): string {

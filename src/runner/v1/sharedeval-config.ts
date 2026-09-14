@@ -8,6 +8,7 @@ import {
   safeRelativePathSchema,
 } from '../../contracts/json.js';
 import { pactModelConfigV1Schema, pactModelEndpointHostV1 } from './model-config.js';
+import { sharedevalHarnessV1Schema } from './codex/codex-harness-config.js';
 import {
   PACT_PAIR_GRADING_MODES_V1,
   PACT_PAIR_POLICIES_V1,
@@ -163,9 +164,22 @@ export const sharedevalRunConfigV1Schema = z
       })
       .strict()
       .default({ directory: 'runs', saveTraces: false }),
+    // Optional and additive: absent, the key never enters the canonical JSON
+    // and every pre-existing configDigest is unchanged. Present, it is part of
+    // the run identity like any other field.
+    harness: sharedevalHarnessV1Schema.optional(),
   })
   .strict()
   .superRefine((config, context) => {
+    // The harness only ever replaces the responder, whose model is the
+    // top-level `model` (a requester override never affects it).
+    if (config.harness && config.model.provider !== 'openai-compatible') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['harness'],
+        message: 'the codex responder harness requires an openai-compatible model',
+      });
+    }
     const requesterModel = config.actors?.requester.model;
     if (!requesterModel) return;
     // A run's egress is allowlisted to exactly one endpoint host

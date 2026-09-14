@@ -273,3 +273,207 @@ test('cross-model pairing drives the requester with its own model and ledger', a
     runnerInput.runProvenance.models.responder,
   );
 });
+
+test('the codex harness drives only the responder and records it in provenance', async () => {
+  const config = applySharedevalOverridesV1(parseSharedevalRunConfigV1Yaml(`
+apiVersion: sharedeval-run/v1
+kind: RunConfig
+model:
+  provider: openai-compatible
+  baseUrl: https://openrouter.ai/api/v1
+  apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
+  model: deepseek/deepseek-chat
+workflow:
+  mode: single
+  protocol: files
+  maxTicks: 2
+  stopWhen: all-terminal
+benchmark:
+  tasks:
+    ids: [PAIR-Q1]
+harness:
+  responder: codex
+  codex:
+    command: /opt/codex/bin/codex
+`), resolveWorkflow(['single']));
+  const driverCalls: string[] = [];
+  let codexInput: any;
+  let runnerInput: any;
+  await runSharedevalProductionV1({
+    config,
+    configRootDir: '/config-root',
+    repositoryRoot: '/source-root',
+    runId: 'codex-run',
+    environment: {
+      SHAREDEVAL_MODEL_API_KEY: 'frozen-secret',
+      SHAREDEVAL_SHAREDOS_DIR: '/verified-sharedos',
+    },
+  }, {
+    inspectSource: () => ({ sourceRevision: 'a'.repeat(40) }),
+    loadDatasetAuthority: () => ({
+      dataset: {
+        id: 'pact-pair',
+        version: '7.0.0',
+        manifestSha256: '1'.repeat(64),
+        tasksSha256: '2'.repeat(64),
+      },
+      goldSet: { id: 'pact-pair-category-gold-v1', sha256: '3'.repeat(64) },
+    }),
+    loadTasks: options => loadPactPairTasksV1({
+      policy: options.policy,
+      requester: options.requester,
+      gradingMode: options.gradingMode,
+      kind: options.kind,
+      ids: ['PAIR-Q1'],
+    }),
+    loadSharedOs: async directory => ({
+      ok: true,
+      dir: directory,
+      revision: 'b'.repeat(40),
+      runtimeDigest: '4'.repeat(64),
+      modules: {},
+    } as never),
+    createSessionFactory: () => (async () => { throw new Error('unused'); }) as never,
+    createDriver: () => {
+      driverCalls.push('standard');
+      return {} as never;
+    },
+    createCodexDriver: input => {
+      driverCalls.push('codex');
+      codexInput = input;
+      return {} as never;
+    },
+    prepareRunDirectories: async input => ({
+      runRoot: `/runs/${input.runId}`,
+      workspaceRootDir: `/runs/${input.runId}/workspaces`,
+      multiStoreRoot: `/runs/${input.runId}/multi`,
+      singleStoreRoot: `/runs/${input.runId}/single`,
+    }),
+    runFiles: async input => {
+      runnerInput = input;
+      input.createDriver({ actorId: 'requester', role: 'requester' });
+      input.createDriver({ actorId: 'responder', role: 'responder' });
+      return { workflowId: input.config.workflow.id } as never;
+    },
+  });
+
+  assert.deepEqual(driverCalls, ['standard', 'codex']);
+  assert.deepEqual(codexInput.harness, {
+    command: '/opt/codex/bin/codex',
+    providerId: 'sharedeval',
+    wireApi: 'chat',
+  });
+  assert.equal(codexInput.model.baseUrl, 'https://openrouter.ai/api/v1');
+  assert.equal(codexInput.requestedModel, 'deepseek/deepseek-chat');
+  assert.deepEqual(Object.keys(codexInput.environment), ['SHAREDEVAL_MODEL_API_KEY']);
+  assert.deepEqual(runnerInput.runProvenance.models, {
+    requester: {
+      provider: 'openai-compatible',
+      requestedModel: 'deepseek/deepseek-chat',
+      resolvedModel: 'deepseek/deepseek-chat',
+    },
+    responder: {
+      provider: 'codex',
+      requestedModel: 'deepseek/deepseek-chat',
+      resolvedModel: 'deepseek/deepseek-chat',
+    },
+  });
+  assert.deepEqual(runnerInput.runProvenance.backend, {
+    adapterId: 'sharedos-runtime',
+    executor: 'sharedos-executor',
+  });
+});
+
+test('a requester model override and the codex harness compose per role', async () => {
+  const config = applySharedevalOverridesV1(parseSharedevalRunConfigV1Yaml(`
+apiVersion: sharedeval-run/v1
+kind: RunConfig
+model:
+  provider: openai-compatible
+  baseUrl: https://openrouter.ai/api/v1
+  apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
+  model: deepseek/deepseek-chat
+actors:
+  requester:
+    model:
+      provider: openai-compatible
+      baseUrl: https://openrouter.ai/api/v1
+      apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
+      model: z-ai/glm-5.3-flash
+workflow:
+  mode: single
+  protocol: files
+  maxTicks: 2
+  stopWhen: all-terminal
+benchmark:
+  tasks:
+    ids: [PAIR-Q1]
+harness:
+  responder: codex
+  codex:
+    command: /opt/codex/bin/codex
+`), resolveWorkflow(['single']));
+  const driverCalls: Array<{ kind: string; input: any }> = [];
+  let runnerInput: any;
+  await runSharedevalProductionV1({
+    config,
+    configRootDir: '/config-root',
+    repositoryRoot: '/source-root',
+    runId: 'combined-run',
+    environment: { SHAREDEVAL_MODEL_API_KEY: 'secret' },
+  }, {
+    inspectSource: () => ({ sourceRevision: 'a'.repeat(40) }),
+    loadDatasetAuthority: () => ({
+      dataset: {
+        id: 'pact-pair', version: '7.0.0',
+        manifestSha256: '1'.repeat(64), tasksSha256: '2'.repeat(64),
+      },
+      goldSet: { id: 'pact-pair-category-gold-v1', sha256: '3'.repeat(64) },
+    }),
+    loadTasks: options => loadPactPairTasksV1({
+      policy: options.policy,
+      requester: options.requester,
+      gradingMode: options.gradingMode,
+      kind: options.kind,
+      ids: ['PAIR-Q1'],
+    }),
+    loadSharedOs: async directory => ({
+      ok: true, dir: directory, revision: 'b'.repeat(40), runtimeDigest: '4'.repeat(64), modules: {},
+    }) as never,
+    createSessionFactory: () => (async () => { throw new Error('unused'); }) as never,
+    createDriver: input => { driverCalls.push({ kind: 'standard', input }); return {} as never; },
+    createCodexDriver: input => { driverCalls.push({ kind: 'codex', input }); return {} as never; },
+    prepareRunDirectories: async input => ({
+      runRoot: `/runs/${input.runId}`,
+      workspaceRootDir: `/runs/${input.runId}/workspaces`,
+      multiStoreRoot: `/runs/${input.runId}/multi`,
+      singleStoreRoot: `/runs/${input.runId}/single`,
+    }),
+    runFiles: async input => {
+      runnerInput = input;
+      input.createDriver({ actorId: 'requester', role: 'requester' });
+      input.createDriver({ actorId: 'responder', role: 'responder' });
+      return { workflowId: input.config.workflow.id } as never;
+    },
+  });
+
+  assert.deepEqual(driverCalls.map(call => call.kind), ['standard', 'codex']);
+  const [requester, responder] = driverCalls.map(call => call.input);
+  assert.equal(requester.model.model, 'z-ai/glm-5.3-flash');
+  assert.equal(requester.requestedModel, 'z-ai/glm-5.3-flash');
+  assert.equal(responder.model.model, 'deepseek/deepseek-chat');
+  assert.equal(responder.requestedModel, 'deepseek/deepseek-chat');
+  assert.equal(responder.harness.command, '/opt/codex/bin/codex');
+  assert.deepEqual(runnerInput.runProvenance.models, {
+    requester: {
+      provider: 'openai-compatible',
+      requestedModel: 'z-ai/glm-5.3-flash',
+      resolvedModel: 'z-ai/glm-5.3-flash',
+    },
+    responder: {
+      provider: 'codex',
+      requestedModel: 'deepseek/deepseek-chat',
+      resolvedModel: 'deepseek/deepseek-chat',
+    },
+  });
+});

@@ -154,6 +154,28 @@ Contradictory command/config modes, unsupported datasets, unsupported workflow
 protocols, backend selectors, and out-of-range budgets fail before external
 work.
 
+## 4a. Optional: drive the responder with the Codex CLI
+
+Adding a `harness` block swaps only the responder's turn driver for OpenAI's
+Codex CLI; the requester, SharedOS, and the evaluator are unchanged. Omitting
+the block leaves every existing configuration digest byte-identical.
+
+```yaml
+harness:
+  responder: codex
+  codex:
+    command: codex        # optional; resolved through PATH
+```
+
+Codex is configured per tick with a private `CODEX_HOME` whose `config.toml`
+names the run's `model.baseUrl`/`model.model` as a custom provider with
+`wire_api = "chat"` and `env_key = "SHAREDEVAL_MODEL_API_KEY"`; the credential
+is forwarded to the Codex process only through that variable. Codex reaches
+the workspace files and task tools exclusively through an MCP server this
+repository provides. See `docs/codex-responder-bridge.md` for the design and
+`scripts/experiments/codex-responder-smoke.sh` for a gated one-task smoke
+(`SHAREDEVAL_CODEX_SMOKE=1` is required; it spends model credit).
+
 ## 5. Verify the SharedOS build
 
 Production execution is pinned to SharedOS revision
