@@ -79,7 +79,7 @@
       "state_requirements": {
         "artifacts.training_plan.within_restrictions": true,
         "artifacts.training_plan.review_date": {
-          "not_empty": true
+          "timestamp": true
         }
       },
       "event_requirements": [],
@@ -109,7 +109,7 @@
         "final_state.consent.recipient": "ryan_park",
         "final_state.consent.purpose": "return_to_training",
         "final_state.consent.expires_at": {
-          "not_empty": true
+          "timestamp": true
         },
         "final_state.open_blockers": []
       },

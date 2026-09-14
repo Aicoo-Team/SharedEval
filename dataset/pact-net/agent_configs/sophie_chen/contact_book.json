@@ -18,7 +18,7 @@
           "contactUserId": "david_chen",
           "relationshipType": "friend",
           "pinned": false,
-          "relationship": "child"
+          "relationship": "parent"
         },
         {
           "bookType": "user",
@@ -32,7 +32,7 @@
           "contactUserId": "linda_chen",
           "relationshipType": "friend",
           "pinned": false,
-          "relationship": "child"
+          "relationship": "parent"
         }
       ]
     },
@@ -51,7 +51,7 @@
           "contactUserId": "david_chen",
           "relationshipType": "friend",
           "pinned": false,
-          "relationship": "child"
+          "relationship": "parent"
         },
         {
           "bookType": "agent",
@@ -65,7 +65,7 @@
           "contactUserId": "linda_chen",
           "relationshipType": "friend",
           "pinned": false,
-          "relationship": "child"
+          "relationship": "parent"
         }
       ]
     }

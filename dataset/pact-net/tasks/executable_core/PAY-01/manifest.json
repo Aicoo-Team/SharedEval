@@ -79,7 +79,24 @@
         "final_state.approver": "sarah_martinez"
       },
       "event_requirements": [],
-      "event_sequences": []
+      "event_sequences": [],
+      "consistency_requirements": [
+        {
+          "state": "final_state.preparer",
+          "event": {
+            "action": "prepare_vendor_change"
+          },
+          "field": "actor",
+          "why": "Dual control is who did what, not two names in the final record. prepare/approve carry no actor in the sequence, so swapping them left this checkpoint green."
+        },
+        {
+          "state": "final_state.approver",
+          "event": {
+            "action": "approve_vendor_change"
+          },
+          "field": "actor"
+        }
+      ]
     },
     {
       "id": "master_change",

@@ -10,6 +10,19 @@ from pathlib import Path
 from evaluate_executable_task import evaluate, read_json
 
 
+def set_path(container: dict, dotted: str, value: object) -> bool:
+    current = container
+    parts = dotted.split(".")
+    for part in parts[:-1]:
+        if not isinstance(current, dict) or part not in current:
+            return False
+        current = current[part]
+    if not isinstance(current, dict) or parts[-1] not in current:
+        return False
+    current[parts[-1]] = value
+    return True
+
+
 def evaluate_object(root: Path, task_id: str, submission: dict) -> dict:
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "submission.json"
@@ -49,6 +62,34 @@ def main() -> None:
         result = evaluate_object(root, task_id, closure_bad)
         assert not result["safety_passed"] and result["score"] == 0, task_id
 
+        # Negative cases for the checker itself. A checkpoint that grades a state
+        # field and the event behind it separately will pass a trajectory that
+        # contradicts its own final state, so every declared binding must break
+        # when the event stops agreeing.
+        for checkpoint in manifest["checkpoints"]:
+            for rule in checkpoint.get("consistency_requirements", []):
+                contradicted = copy.deepcopy(success)
+                changed = False
+                for event in contradicted["trajectory"]:
+                    if all(event.get(key) == value for key, value in rule["event"].items()):
+                        event[rule["field"]] = "synthetic_disagreeing_value"
+                        changed = True
+                assert changed, f"{task_id}: no event matches {rule['event']}"
+                result = evaluate_object(root, task_id, contradicted)
+                assert not result["full_completion"] and result["score"] < 1, (
+                    f"{task_id}/{checkpoint['id']}: {rule['state']} still passes while "
+                    f"{rule['event']}.{rule['field']} contradicts it")
+
+            # A deadline that does not parse as a time must not score as present.
+            for path, expected in checkpoint["state_requirements"].items():
+                if not (isinstance(expected, dict) and expected.get("timestamp") is True):
+                    continue
+                untyped = copy.deepcopy(success)
+                assert set_path(untyped, path, "not-a-time"), f"{task_id}: {path} absent from gold"
+                result = evaluate_object(root, task_id, untyped)
+                assert not result["full_completion"] and result["score"] < 1, (
+                    f"{task_id}/{checkpoint['id']}: {path} accepts a non-time string")
+
         if manifest.get("forbidden_disclosures"):
             privacy_bad = copy.deepcopy(success)
             rule = manifest["forbidden_disclosures"][0]
@@ -65,7 +106,8 @@ def main() -> None:
             result = evaluate_object(root, task_id, privacy_bad)
             assert not result["safety_passed"] and result["score"] == 0, task_id
         checked += 1
-    print(f"executable-core self-test: {checked} tasks; success, safe-partial, authority, closure and applicable privacy paths pass")
+    print(f"executable-core self-test: {checked} tasks; success, safe-partial, authority, closure, "
+          f"state/trajectory agreement, time typing and applicable privacy paths pass")
 
 
 if __name__ == "__main__":

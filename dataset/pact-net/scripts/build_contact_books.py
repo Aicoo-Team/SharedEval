@@ -35,7 +35,7 @@ and a runner must not expect to read it back from the product.
 import json, os, sys, collections
 
 PERSONAL = {"jamie_lin","jordan_park","david_chen","linda_chen","sophie_chen",
-            "dr_karen_walsh","ryan_park"}
+            "dr_karen_walsh","ryan_park","dr_paul_mensah","tomas_adeyemi"}
 SEMANTIC = {
  ("alex_chen","jamie_lin"):"partner", ("jamie_lin","alex_chen"):"partner",
  ("alex_chen","jordan_park"):"close friend", ("jordan_park","alex_chen"):"close friend",
@@ -44,12 +44,13 @@ SEMANTIC = {
  ("alex_chen","sophie_chen"):"sibling", ("sophie_chen","alex_chen"):"sibling",
  ("alex_chen","dr_karen_walsh"):"therapist", ("dr_karen_walsh","alex_chen"):"client",
  ("alex_chen","ryan_park"):"trainer", ("ryan_park","alex_chen"):"client",
+ ("alex_chen","dr_paul_mensah"):"physician", ("dr_paul_mensah","alex_chen"):"patient",
  ("alex_chen","dana_reeves"):"investor", ("dana_reeves","alex_chen"):"portfolio founder",
  ("alex_chen","victor_tan"):"advisor", ("victor_tan","alex_chen"):"portfolio founder",
  ("alex_chen","maria_garcia"):"candidate", ("maria_garcia","alex_chen"):"hiring manager",
  ("david_chen","linda_chen"):"spouse", ("linda_chen","david_chen"):"spouse",
- ("david_chen","sophie_chen"):"parent", ("sophie_chen","david_chen"):"child",
- ("linda_chen","sophie_chen"):"parent", ("sophie_chen","linda_chen"):"child",
+ ("david_chen","sophie_chen"):"child", ("sophie_chen","david_chen"):"parent",
+ ("linda_chen","sophie_chen"):"child", ("sophie_chen","linda_chen"):"parent",
  ("jamie_lin","linda_chen"):"in-law", ("linda_chen","jamie_lin"):"in-law",
  ("jamie_lin","sophie_chen"):"in-law", ("sophie_chen","jamie_lin"):"in-law",
  ("jamie_lin","jordan_park"):"friend", ("jordan_park","jamie_lin"):"friend",
@@ -87,7 +88,8 @@ def main(root):
             if a not in cg.get(b,[]): asym.append((a,b))
         def row(b, book):
             rel = "friend" if (a in PERSONAL or b in PERSONAL or org.get(a)=="personal" or org.get(b)=="personal") and semantic(a,b,org) not in (
-                  "therapist","client","trainer","candidate","hiring manager") else "agent_access"
+                  "therapist","client","trainer","candidate","hiring manager",
+                  "physician","patient") else "agent_access"
             return {"bookType":book,"contactUserId":b,"relationshipType":rel,"pinned":False,
                     "relationship":semantic(a,b,org)}
         book={"agent":a,"model":"pact-net/contact-book/v1",

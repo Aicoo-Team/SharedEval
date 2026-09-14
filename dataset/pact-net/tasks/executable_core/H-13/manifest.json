@@ -85,7 +85,17 @@
         "final_state.access_revoked_at": "2026-09-07T16:00:00Z"
       },
       "event_requirements": [],
-      "event_sequences": []
+      "event_sequences": [],
+      "consistency_requirements": [
+        {
+          "state": "final_state.access_revoked_at",
+          "event": {
+            "action": "revoke_access"
+          },
+          "field": "at",
+          "why": "The task forbids revoking early. Grading the declared time without the event's own time accepts a 15:00 revocation reported as 16:00."
+        }
+      ]
     },
     {
       "id": "pay_and_benefits",
@@ -113,7 +123,16 @@
         }
       },
       "event_requirements": [],
-      "event_sequences": []
+      "event_sequences": [],
+      "consistency_requirements": [
+        {
+          "state": "final_state.employee_notified_at",
+          "event": {
+            "action": "notify_employee"
+          },
+          "field": "at"
+        }
+      ]
     }
   ],
   "scoring": {

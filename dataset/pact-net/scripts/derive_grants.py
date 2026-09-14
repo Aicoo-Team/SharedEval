@@ -80,9 +80,12 @@ def load(root):
 def rel_class(owner, req, systems):
     o = systems.get(owner,{}).get("organisation")
     r = systems.get(req,{}).get("organisation")
+    # "personal" marks an individual with no employer, not an organisation.
+    # Two private individuals are not colleagues, so this must precede o == r;
+    # otherwise a spouse derives the same_org class while a child derives personal.
+    if "personal" in (o,r): return "personal"
     if o and r and o == r: return "same_org"
     if o in MULTI_AGENT_ORGS and r in MULTI_AGENT_ORGS: return "cross_org"
-    if "personal" in (o,r): return "personal"
     return "external"
 
 def folder_sensitivities(notes):

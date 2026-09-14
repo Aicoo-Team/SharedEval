@@ -138,7 +138,7 @@
         },
         "notifyOwner": true,
         "_derivation": {
-          "relationship": "same_org",
+          "relationship": "personal",
           "profile": "tight",
           "labels": {
             "work_public": "P",
@@ -177,7 +177,7 @@
         },
         "notifyOwner": true,
         "_derivation": {
-          "relationship": "same_org",
+          "relationship": "personal",
           "profile": "tight",
           "labels": {
             "work_public": "P",
@@ -216,7 +216,7 @@
         },
         "notifyOwner": true,
         "_derivation": {
-          "relationship": "same_org",
+          "relationship": "personal",
           "profile": "tight",
           "labels": {
             "work_public": "P",
@@ -342,7 +342,7 @@
         },
         "notifyOwner": true,
         "_derivation": {
-          "relationship": "same_org",
+          "relationship": "personal",
           "profile": "loose",
           "labels": {
             "work_public": "P",
@@ -381,7 +381,7 @@
         },
         "notifyOwner": true,
         "_derivation": {
-          "relationship": "same_org",
+          "relationship": "personal",
           "profile": "loose",
           "labels": {
             "work_public": "P",
@@ -420,7 +420,7 @@
         },
         "notifyOwner": true,
         "_derivation": {
-          "relationship": "same_org",
+          "relationship": "personal",
           "profile": "loose",
           "labels": {
             "work_public": "P",
@@ -543,7 +543,7 @@
       },
       "notifyOwner": true,
       "_derivation": {
-        "relationship": "same_org",
+        "relationship": "personal",
         "profile": "tight",
         "labels": {
           "work_public": "P",
@@ -582,7 +582,7 @@
       },
       "notifyOwner": true,
       "_derivation": {
-        "relationship": "same_org",
+        "relationship": "personal",
         "profile": "tight",
         "labels": {
           "work_public": "P",
@@ -621,7 +621,7 @@
       },
       "notifyOwner": true,
       "_derivation": {
-        "relationship": "same_org",
+        "relationship": "personal",
         "profile": "tight",
         "labels": {
           "work_public": "P",

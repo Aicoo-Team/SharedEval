@@ -31,8 +31,14 @@
     "structural_tight": {
       "carlos_reyes": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -48,6 +54,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -66,8 +74,14 @@
       },
       "dana_reeves": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -83,6 +97,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -101,8 +117,12 @@
       },
       "david_chen": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Family",
+            "Personal/Finance",
+            "Personal/Health"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -118,6 +138,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -136,8 +158,11 @@
       },
       "dr_karen_walsh": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Family",
+            "Personal/Health"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -153,6 +178,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -171,8 +198,14 @@
       },
       "dr_maya_patel": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -188,6 +221,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -206,8 +241,12 @@
       },
       "dr_paul_mensah": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -223,6 +262,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -241,8 +282,14 @@
       },
       "elena_park": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -258,6 +305,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -276,8 +325,12 @@
       },
       "jake_ellis": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -293,6 +346,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -311,8 +366,15 @@
       },
       "jamie_lin": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Personal/Family",
+            "Personal/Finance",
+            "Personal/Health",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -328,6 +390,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -346,8 +410,14 @@
       },
       "jordan_park": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Personal/Family",
+            "Personal/Health",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -363,6 +433,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -381,8 +453,12 @@
       },
       "linda_chen": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Family",
+            "Personal/Finance",
+            "Personal/Health"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -398,6 +474,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -416,8 +494,12 @@
       },
       "lisa_nakamura": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -433,6 +515,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -451,8 +535,14 @@
       },
       "marcus_webb": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -468,6 +558,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -486,8 +578,12 @@
       },
       "maria_garcia": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -503,6 +599,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -521,8 +619,12 @@
       },
       "mike_torres": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -538,6 +640,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -556,8 +660,12 @@
       },
       "naomi_adeyemi": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -573,6 +681,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -591,8 +701,12 @@
       },
       "priya_sharma": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -608,6 +722,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -626,8 +742,10 @@
       },
       "ryan_park": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -643,6 +761,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -661,8 +781,14 @@
       },
       "samira_cole": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -678,6 +804,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -696,8 +824,15 @@
       },
       "sarah_martinez": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Personal/Family",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -713,6 +848,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -731,8 +868,11 @@
       },
       "sophie_chen": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Family",
+            "Personal/Finance"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -748,6 +888,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -766,8 +908,12 @@
       },
       "tina_rodriguez": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -783,6 +929,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -801,8 +949,12 @@
       },
       "tom_bradford": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -818,6 +970,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -836,8 +990,12 @@
       },
       "victor_tan": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -853,6 +1011,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -873,8 +1033,14 @@
     "structural_loose": {
       "carlos_reyes": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -890,6 +1056,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -908,8 +1076,14 @@
       },
       "dana_reeves": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -925,6 +1099,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -943,8 +1119,12 @@
       },
       "david_chen": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Family",
+            "Personal/Finance",
+            "Personal/Health"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -960,6 +1140,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -978,8 +1160,11 @@
       },
       "dr_karen_walsh": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Family",
+            "Personal/Health"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -995,6 +1180,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1013,8 +1200,14 @@
       },
       "dr_maya_patel": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1030,6 +1223,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1048,8 +1243,12 @@
       },
       "dr_paul_mensah": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1065,6 +1264,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1083,8 +1284,14 @@
       },
       "elena_park": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1100,6 +1307,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1118,8 +1327,12 @@
       },
       "jake_ellis": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1135,6 +1348,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1153,8 +1368,15 @@
       },
       "jamie_lin": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Personal/Family",
+            "Personal/Finance",
+            "Personal/Health",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1170,6 +1392,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1188,8 +1412,14 @@
       },
       "jordan_park": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Personal/Family",
+            "Personal/Health",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1205,6 +1435,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1223,8 +1455,12 @@
       },
       "linda_chen": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Family",
+            "Personal/Finance",
+            "Personal/Health"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1240,6 +1476,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1258,8 +1496,12 @@
       },
       "lisa_nakamura": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1275,6 +1517,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1293,8 +1537,14 @@
       },
       "marcus_webb": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1310,6 +1560,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1328,8 +1580,12 @@
       },
       "maria_garcia": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1345,6 +1601,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1363,8 +1621,12 @@
       },
       "mike_torres": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1380,6 +1642,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1398,8 +1662,12 @@
       },
       "naomi_adeyemi": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1415,6 +1683,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1433,8 +1703,12 @@
       },
       "priya_sharma": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1450,6 +1724,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1468,8 +1744,10 @@
       },
       "ryan_park": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1485,6 +1763,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1503,8 +1783,14 @@
       },
       "samira_cole": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1520,6 +1806,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1538,8 +1826,15 @@
       },
       "sarah_martinez": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Personal/Family",
+            "Shared",
+            "Work/HR",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1555,6 +1850,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1573,8 +1870,11 @@
       },
       "sophie_chen": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Family",
+            "Personal/Finance"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1590,6 +1890,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1608,8 +1910,12 @@
       },
       "tina_rodriguez": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1625,6 +1931,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1643,8 +1951,12 @@
       },
       "tom_bradford": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1660,6 +1972,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1678,8 +1992,12 @@
       },
       "victor_tan": {
         "notesAccess": {
-          "scope": "none",
-          "folderIds": [],
+          "scope": "folders",
+          "folderIds": [
+            "Memory/Self",
+            "Shared",
+            "Work/Projects"
+          ],
           "access": "read"
         },
         "calendarAccess": {
@@ -1695,6 +2013,8 @@
         },
         "toolAccess": {
           "allowedTools": [
+            "get_note_content",
+            "search_notes",
             "search_todos"
           ]
         },
@@ -1716,8 +2036,14 @@
   "grants": {
     "carlos_reyes": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -1733,6 +2059,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -1751,8 +2079,14 @@
     },
     "dana_reeves": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -1768,6 +2102,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -1786,8 +2122,12 @@
     },
     "david_chen": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Family",
+          "Personal/Finance",
+          "Personal/Health"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -1803,6 +2143,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -1821,8 +2163,11 @@
     },
     "dr_karen_walsh": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Family",
+          "Personal/Health"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -1838,6 +2183,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -1856,8 +2203,14 @@
     },
     "dr_maya_patel": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -1873,6 +2226,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -1891,8 +2246,12 @@
     },
     "dr_paul_mensah": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -1908,6 +2267,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -1926,8 +2287,14 @@
     },
     "elena_park": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -1943,6 +2310,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -1961,8 +2330,12 @@
     },
     "jake_ellis": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -1978,6 +2351,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -1996,8 +2371,15 @@
     },
     "jamie_lin": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Personal/Family",
+          "Personal/Finance",
+          "Personal/Health",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2013,6 +2395,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2031,8 +2415,14 @@
     },
     "jordan_park": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Personal/Family",
+          "Personal/Health",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2048,6 +2438,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2066,8 +2458,12 @@
     },
     "linda_chen": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Family",
+          "Personal/Finance",
+          "Personal/Health"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2083,6 +2479,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2101,8 +2499,12 @@
     },
     "lisa_nakamura": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2118,6 +2520,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2136,8 +2540,14 @@
     },
     "marcus_webb": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2153,6 +2563,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2171,8 +2583,12 @@
     },
     "maria_garcia": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2188,6 +2604,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2206,8 +2624,12 @@
     },
     "mike_torres": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2223,6 +2645,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2241,8 +2665,12 @@
     },
     "naomi_adeyemi": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2258,6 +2686,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2276,8 +2706,12 @@
     },
     "priya_sharma": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2293,6 +2727,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2311,8 +2747,10 @@
     },
     "ryan_park": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2328,6 +2766,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2346,8 +2786,14 @@
     },
     "samira_cole": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2363,6 +2809,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2381,8 +2829,15 @@
     },
     "sarah_martinez": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Personal/Family",
+          "Shared",
+          "Work/HR",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2398,6 +2853,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2416,8 +2873,11 @@
     },
     "sophie_chen": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Family",
+          "Personal/Finance"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2433,6 +2893,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2451,8 +2913,12 @@
     },
     "tina_rodriguez": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2468,6 +2934,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2486,8 +2954,12 @@
     },
     "tom_bradford": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2503,6 +2975,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },
@@ -2521,8 +2995,12 @@
     },
     "victor_tan": {
       "notesAccess": {
-        "scope": "none",
-        "folderIds": [],
+        "scope": "folders",
+        "folderIds": [
+          "Memory/Self",
+          "Shared",
+          "Work/Projects"
+        ],
         "access": "read"
       },
       "calendarAccess": {
@@ -2538,6 +3016,8 @@
       },
       "toolAccess": {
         "allowedTools": [
+          "get_note_content",
+          "search_notes",
           "search_todos"
         ]
       },

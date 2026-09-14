@@ -85,7 +85,7 @@
       "state_requirements": {
         "final_state.notification_clock.owner": "nora_fields",
         "final_state.notification_clock.due_at": {
-          "not_empty": true
+          "timestamp": true
         }
       },
       "event_requirements": [],
@@ -121,7 +121,7 @@
           ]
         },
         "final_state.next_review_at": {
-          "not_empty": true
+          "timestamp": true
         }
       },
       "event_requirements": [],

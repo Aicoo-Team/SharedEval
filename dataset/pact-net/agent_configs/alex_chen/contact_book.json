@@ -46,7 +46,7 @@
           "contactUserId": "dr_paul_mensah",
           "relationshipType": "agent_access",
           "pinned": false,
-          "relationship": "counterparty (cross-organisation)"
+          "relationship": "physician"
         },
         {
           "bookType": "user",
@@ -212,7 +212,7 @@
           "contactUserId": "dr_paul_mensah",
           "relationshipType": "agent_access",
           "pinned": false,
-          "relationship": "counterparty (cross-organisation)"
+          "relationship": "physician"
         },
         {
           "bookType": "agent",
