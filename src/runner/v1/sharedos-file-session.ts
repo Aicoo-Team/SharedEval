@@ -259,8 +259,12 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
       ],
       signal,
     });
-    this.router.assertTraceSettled({ traceId: input.traceId });
+    // Health first: a failed route records the real cause (a provider timeout,
+    // say) in fatalByTrace, and the trace also stays active because it never
+    // settled. Asserting settled first masks that cause behind a generic
+    // indeterminate-route error.
     this.router.assertTraceHealthy({ traceId: input.traceId });
+    this.router.assertTraceSettled({ traceId: input.traceId });
     const decision = decisionFor(execution);
     const requesterReceipts = await this.fileProvider.readReceipts({
       actorId: this.options.requester.actorId,

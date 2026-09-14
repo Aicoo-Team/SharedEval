@@ -172,3 +172,49 @@ test('rejects invalid overrides and command/config contradictions', () => {
 function withBudget(maxToolCalls: number, maxRuntimeMs: number): string {
   return `${validConfig}budget:\n  maxToolCalls: ${maxToolCalls}\n  maxRuntimeMs: ${maxRuntimeMs}\n`;
 }
+
+test('parses taskConcurrency for the single workflow and keeps absence out of the parse', () => {
+  const single = validConfig
+    .replace('mode: multi', 'mode: single')
+    .replace('stopWhen: all-terminal', 'stopWhen: all-terminal\n  taskConcurrency: 8');
+  assert.equal(parseSharedevalRunConfigV1Yaml(single).workflow.taskConcurrency, 8);
+
+  const absent = parseSharedevalRunConfigV1Yaml(validConfig);
+  assert.equal('taskConcurrency' in absent.workflow, false);
+});
+
+test('rejects taskConcurrency outside its bounds or on the multi workflow', () => {
+  const withConcurrency = (mode: string, value: number) => validConfig
+    .replace('mode: multi', `mode: ${mode}`)
+    .replace('stopWhen: all-terminal', `stopWhen: all-terminal\n  taskConcurrency: ${value}`);
+
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withConcurrency('single', 0)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withConcurrency('single', 33)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withConcurrency('single', 1.5)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withConcurrency('multi', 2)), ZodError);
+  assert.equal(
+    parseSharedevalRunConfigV1Yaml(withConcurrency('multi', 1)).workflow.taskConcurrency,
+    1,
+  );
+});
+
+test('written taskConcurrency is part of the digest and absence leaves it unchanged', () => {
+  const single = validConfig.replace('mode: multi', 'mode: single');
+  const digestOf = (source: string) => applySharedevalOverridesV1(
+    parseSharedevalRunConfigV1Yaml(source),
+    resolveWorkflow(['single']),
+  ).configDigest;
+  const absent = digestOf(single);
+  const explicitOne = digestOf(single.replace(
+    'stopWhen: all-terminal',
+    'stopWhen: all-terminal\n  taskConcurrency: 1',
+  ));
+  const explicitEight = digestOf(single.replace(
+    'stopWhen: all-terminal',
+    'stopWhen: all-terminal\n  taskConcurrency: 8',
+  ));
+
+  assert.notEqual(explicitOne, absent);
+  assert.notEqual(explicitEight, explicitOne);
+  assert.equal(absent, digestOf(single));
+});

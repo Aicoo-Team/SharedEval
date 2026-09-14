@@ -838,6 +838,7 @@ function lifecycleLedgerFactory(
       inspectRecovery: () => ledger.inspectRecovery(),
       beginHeartbeat: start => ledger.beginHeartbeat(start),
       commitHeartbeat: payload => ledger.commitHeartbeat(payload),
+      commitQuarantine: () => ledger.commitQuarantine(),
       readRecords: () => ledger.readRecords(),
       repairPublicProjections: () => ledger.repairPublicProjections(),
       finalize: async final => {

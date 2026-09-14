@@ -27,6 +27,7 @@ import {
   fileWorkflowHostRunProvenanceV1Schema,
   fileWorkflowRunBindingV1Schema,
   fileWorkflowSelectedTaskDigestV1,
+  isFileWorkflowQuarantinePayloadV1,
   type FileWorkflowContactAuthorityV1,
   type FileWorkflowHostRunProvenanceV1,
   type FileWorkflowRunBindingV1,
@@ -157,7 +158,7 @@ export type FileDrivenPairTickV1 = Readonly<{
   executionId?: string;
   executionStatus?: SharedOsFileTurnResultV1['executionStatus'];
   decision?: FileTurnDecisionV1;
-  errorCode?: 'FILE_TURN_FAILED';
+  errorCode?: 'FILE_TURN_FAILED' | 'INDETERMINATE_EXTERNAL_OPERATION';
   requesterReads: readonly FileReadReceiptV1[];
   requesterMemoryVersion?: number;
   providerUsage?: SharedOsFileTurnResultV1['providerUsage'];
@@ -213,7 +214,7 @@ export type FileDrivenPairSessionV1 = Readonly<{
     responder: AgentWorkspaceRegistryReferencesV1;
   }>;
   stopReason: FileDrivenPairStopReasonV1;
-  fatalErrorCode?: 'FILE_SESSION_FAILED';
+  fatalErrorCode?: 'FILE_SESSION_FAILED' | 'INDETERMINATE_EXTERNAL_OPERATION';
   ticks: readonly FileDrivenPairTickV1[];
   contacts: readonly FileDrivenPairContactV1[];
   outcomes: readonly FileDrivenPairTaskOutcomeV1[];
@@ -238,7 +239,7 @@ export type PublicFileDrivenPairSessionV1 = Readonly<{
   selectedTaskIds: readonly string[];
   registryReferences: FileDrivenPairSessionV1['registryReferences'];
   stopReason: FileDrivenPairStopReasonV1;
-  fatalErrorCode?: 'FILE_SESSION_FAILED';
+  fatalErrorCode?: 'FILE_SESSION_FAILED' | 'INDETERMINATE_EXTERNAL_OPERATION';
   tickCount: number;
   initial: FileDrivenPairSessionV1['initial'];
   final: FileDrivenPairSessionV1['final'];
@@ -440,22 +441,30 @@ export async function runOneFileDrivenPairSessionV1(
   try {
     const recovery = await ledger.inspectRecovery();
     if (recovery.kind === 'indeterminate_external_operation') {
-      throw new FileDrivenPairIndeterminateExternalOperationErrorV1();
+      if (!isolatableIndeterminateSession(options)) {
+        throw new FileDrivenPairIndeterminateExternalOperationErrorV1();
+      }
+      // files-single: the unresolved heartbeat start belongs to this session's
+      // one task alone, so its unprovable external work is sealed as a typed
+      // terminal error (never re-executed) instead of failing the whole run.
+      await ledger.commitQuarantine();
     }
     await ledger.repairPublicProjections();
     let records = [...await ledger.readRecords()];
     state = hydrateCommittedRecords({ binding, records, tasks: options.tasks });
-    restoreCommittedPactPairState(
-      options.pactWorkspace,
-      state.actionSnapshots,
-      binding.scheduler.initialActionSha256,
-    );
-    await assertCommittedWorkspaceAuthority({
-      binding,
-      state,
-      requesterWorkspace,
-      responderWorkspace,
-    });
+    if (!state.quarantined) {
+      restoreCommittedPactPairState(
+        options.pactWorkspace,
+        state.actionSnapshots,
+        binding.scheduler.initialActionSha256,
+      );
+      await assertCommittedWorkspaceAuthority({
+        binding,
+        state,
+        requesterWorkspace,
+        responderWorkspace,
+      });
+    }
 
     while (!state.stopReason) {
       const tick = records.length + 1;
@@ -539,7 +548,16 @@ export async function runOneFileDrivenPairSessionV1(
         },
       });
       if (heartbeat.kind === 'indeterminate_external_operation') {
-        throw new FileDrivenPairIndeterminateExternalOperationErrorV1();
+        if (!isolatableIndeterminateSession(options)) {
+          throw new FileDrivenPairIndeterminateExternalOperationErrorV1();
+        }
+        // The turn died without provable external effects. Seal this single
+        // task as a typed terminal error; the started heartbeat is never
+        // re-executed, and the batch scheduler keeps its other tasks alive.
+        const sealed = await ledger.commitQuarantine();
+        records = [...records, sealed.record];
+        state = hydrateCommittedRecords({ binding, records, tasks: options.tasks });
+        continue;
       }
       const existing = records[heartbeat.record.sequence];
       if (existing) {
@@ -583,10 +601,18 @@ export async function runOneFileDrivenPairSessionV1(
     try {
       await ledger.finalize({
         stopReason: state.stopReason,
-        finalFiles: {
-          requester: bindingFileSet(finalSnapshots.requester.final.files),
-          responder: bindingFileSet(finalSnapshots.responder.final.files),
-        },
+        // A quarantined session may hold unproven workspace writes from the
+        // lost turn; the durable final authority records the last committed
+        // state instead of claiming those bytes.
+        finalFiles: state.quarantined
+          ? {
+            requester: structuredClone(state.expectedWorkspace.requester.files),
+            responder: structuredClone(state.expectedWorkspace.responder.files),
+          }
+          : {
+            requester: bindingFileSet(finalSnapshots.requester.final.files),
+            responder: bindingFileSet(finalSnapshots.responder.final.files),
+          },
       });
     } catch (error) {
       failures.push(error);
@@ -615,7 +641,11 @@ export async function runOneFileDrivenPairSessionV1(
     },
     stopReason: state.stopReason,
     ...(state.stopReason === 'fatal_error'
-      ? { fatalErrorCode: 'FILE_SESSION_FAILED' as const }
+      ? {
+        fatalErrorCode: state.quarantined
+          ? 'INDETERMINATE_EXTERNAL_OPERATION' as const
+          : 'FILE_SESSION_FAILED' as const,
+      }
       : {}),
     ticks: state.ticks,
     contacts: state.contacts,
@@ -778,6 +808,8 @@ type HydratedFileWorkflowStateV1 = Readonly<{
     requester: ExpectedWorkspaceAuthorityV1;
     responder: ExpectedWorkspaceAuthorityV1;
   }>;
+  /** True when the history ends in a committed quarantine record. */
+  quarantined: boolean;
   stopReason?: FileDrivenPairStopReasonV1;
 }>;
 
@@ -869,10 +901,42 @@ function hydrateCommittedRecords(input: {
     },
   };
   let stopReason: FileDrivenPairStopReasonV1 | undefined;
+  let quarantined = false;
 
   for (const [index, record] of input.records.entries()) {
     if (record.sequence !== index || record.payload.event.tick !== index + 1) {
       throw new Error('Committed heartbeat history is not scheduler-contiguous');
+    }
+    if (isFileWorkflowQuarantinePayloadV1(record.payload)) {
+      // The quarantine record proves only that the turn's external effects
+      // are unprovable: no contact, MEMORY, or workspace authority to apply.
+      quarantined = true;
+      ticks.push(Object.freeze({
+        tick: record.payload.event.tick,
+        eventId: record.payload.event.eventId,
+        traceId: record.payload.event.traceId,
+        status: 'failed' as const,
+        errorCode: record.payload.quarantine.errorCode,
+        requesterReads: Object.freeze([]),
+      }));
+      for (const transition of record.payload.transitions) {
+        if (outcomes.has(transition.taskId)) {
+          throw new Error('Committed heartbeat history repeats terminal task authority');
+        }
+        const task = input.tasks.find(candidate => candidate.taskId === transition.taskId);
+        if (!task) throw new Error('Committed terminal authority is outside selected tasks');
+        outcomes.set(transition.taskId, Object.freeze({
+          taskId: transition.taskId,
+          kind: transition.result.kind,
+          status: transition.result.status,
+          terminalTick: transition.result.terminalTick,
+          evaluation: null,
+          evaluationResult: null,
+          publicEvaluation: null,
+        }));
+      }
+      stopReason = record.payload.sessionStopReason;
+      continue;
     }
     const evidence = record.payload.privateEvidence;
     if (!evidence) throw new Error('Recoverable scheduler records require retained private evidence');
@@ -963,6 +1027,7 @@ function hydrateCommittedRecords(input: {
     contactAuthorities,
     actionSnapshots,
     expectedWorkspace: expected,
+    quarantined,
     ...(stopReason ? { stopReason } : {}),
   });
 }
@@ -1168,6 +1233,18 @@ async function heartbeatTerminalOutcome(input: {
       : {}),
     fullEvaluation: evaluated.evaluation,
   };
+}
+
+/**
+ * Only a files-single session may contain an indeterminate heartbeat as one
+ * task's typed terminal error: its session holds exactly one task with its
+ * own ledger and PACT workspace, so nothing else can be tainted. files-multi
+ * shares both across tasks and keeps the run-level fail-closed stop.
+ */
+function isolatableIndeterminateSession(
+  options: RunOneFileDrivenPairSessionV1Options,
+): boolean {
+  return options.workflowId === 'files-single' && options.tasks.length === 1;
 }
 
 async function assertCommittedWorkspaceAuthority(input: {

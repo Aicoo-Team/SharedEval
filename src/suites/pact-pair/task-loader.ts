@@ -38,6 +38,13 @@ export const PACT_PAIR_POLICIES_V1 = [
   'A_CATEGORY_EXAMPLES',
   'D2R_PRINCIPLES',
   'D6_PRINCIPLES_TIGHT',
+  // D2R_PRINCIPLES verbatim, preceded by a runtime-verified caller identity.
+  // D2R_PRINCIPLES cannot be graded on its own across requesters: it asks the
+  // responder to place the caller, but nothing trusted tells it who that is.
+  'D2R_ID_R0',
+  'D2R_ID_R1',
+  'D2R_ID_R2',
+  'D2R_ID_R3',
   'REL_R0',
   'REL_R1',
   'REL_R2',

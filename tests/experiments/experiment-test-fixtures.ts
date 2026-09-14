@@ -32,7 +32,7 @@ export function experimentCellInput(
     provenance: {
       configDigest: 'a'.repeat(64),
       taskSetDigest: 'b'.repeat(64),
-      sharedosRevision: 'a303d97fe974c149d4575b1f5d6426aee6f37367',
+      sharedosRevision: '3aa07e33999b656a10ace294fd4e41df8cbc318e',
       sharedosRuntimeDigest: 'c'.repeat(64),
     },
     ...overrides,

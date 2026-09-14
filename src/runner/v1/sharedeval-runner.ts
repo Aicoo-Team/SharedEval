@@ -119,6 +119,9 @@ export function runSharedevalPactPairFilesV1(
   };
   return runPactPairFilesSingleV1({
     ...common,
+    ...(options.config.workflow.taskConcurrency === undefined
+      ? {}
+      : { taskConcurrency: options.config.workflow.taskConcurrency }),
     pactWorkspaceForTask: (task, index) => resourcesForTask(task, index).pactWorkspace,
     storeRootForTask: (task, index) => resourcesForTask(task, index).storeRoot,
   });

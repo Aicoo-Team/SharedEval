@@ -5,7 +5,11 @@ import type {
   SoToolDefinition,
 } from '../../src/execution/sharedos/v1/contracts.js';
 import {
+  MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1,
+  PARALLEL_TOOL_CALL_DENIAL_V1,
   createOpenAICompatibleFileTurnDriverV1,
+  createProviderRateLimitGateV1,
+  createServedModelConsistencyLedgerV1,
 } from '../../src/runner/v1/file-model-driver.js';
 import {
   SHAREDEVAL_MODEL_API_KEY_ENV_V1,
@@ -108,7 +112,10 @@ test('projects only SharedOS-visible tool syntax and returns tool work to Shared
       'After messages.request returns, you must successfully call files.replace on MEMORY.md before returning final output. expectedVersion is the exact string version from the latest files.read result and content is the complete file with exactly one line per existing task in the same order: TASK-ID [pending|answered|refused|error] — single-line note. Add no headings, fences, blank lines, or extra text.',
     ].join('\n'),
   }]);
-  assert.equal(firstBody.parallel_tool_calls, false);
+  // Sending parallel_tool_calls resolves to zero endpoints for every model that
+  // does not declare it once providerRouting.requireParameters is on -- all but
+  // five on OpenRouter. The single-call rule is enforced in the driver instead.
+  assert.equal('parallel_tool_calls' in firstBody, false);
   assert.equal(firstBody.tool_choice, 'auto');
   for (const privateField of [
     'requiredCapability',
@@ -498,7 +505,250 @@ test('uses the SharedOS timeout or cancellation signal for in-flight provider wo
   abort.abort(new Error('sharedos cancelled the turn'));
 
   await assert.rejects(pending, /sharedos cancelled the turn/);
-  assert.equal(observedSignal, abort.signal);
+  // The driver hands fetch a derived signal (the caller's, combined with this
+  // attempt's own deadline), so assert that cancellation still propagates
+  // rather than that the very same object was forwarded.
+  assert.equal(observedSignal?.aborted, true);
+});
+
+test('bounds each provider attempt so one stalled request cannot drain the task budget', async () => {
+  const outer = new AbortController();
+  let calls = 0;
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: async (_input, init) => {
+      calls += 1;
+      const signal = init?.signal as AbortSignal;
+      if (calls === 1) {
+        // Stall the way a silently wedged provider connection does: never
+        // respond, and settle only once some deadline aborts this request.
+        // A real stall holds a live socket; this fake one must hold the event
+        // loop itself, because the attempt deadline's AbortSignal.timeout
+        // timer is unref'd and cannot keep the process alive on its own.
+        return await new Promise<Response>((_resolve, reject) => {
+          const keepAlive = setTimeout(() => {}, 10_000);
+          signal.addEventListener('abort', () => {
+            clearTimeout(keepAlive);
+            reject(signal.reason ?? new Error('aborted'));
+          }, { once: true });
+        });
+      }
+      return completion({
+        content: null,
+        tool_calls: [{
+          id: 'provider-call-1',
+          type: 'function',
+          function: {
+            name: 'files.read',
+            arguments: JSON.stringify({ path: ['MEMORY.md'] }),
+          },
+        }],
+      });
+    },
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(
+    turnRequest({ options: { maxSteps: 4, maxToolCalls: 3, timeoutMs: 50 } }),
+    outer.signal,
+  );
+
+  const decision = await session.next({ type: 'start' }, outer.signal);
+
+  // The stalled attempt was abandoned on its own deadline and the next attempt
+  // ran, instead of the whole task budget draining into the first request.
+  assert.equal(calls, 2);
+  assert.equal(decision.type, 'tool_call');
+  assert.equal(outer.signal.aborted, false);
+});
+
+test('accepts any provider while one run-shared ledger holds the served model fixed', async () => {
+  const ledger = createServedModelConsistencyLedgerV1();
+  const first = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: 'from provider a' }, { provider: 'provider-a' }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+  const second = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: 'from provider b' }, { provider: 'provider-b' }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+
+  const firstSession = await first.open(turnRequest(), neverAbort());
+  const secondSession = await second.open(turnRequest(), neverAbort());
+
+  assert.equal((await firstSession.next({ type: 'start' }, neverAbort())).type, 'complete');
+  assert.equal((await secondSession.next({ type: 'start' }, neverAbort())).type, 'complete');
+  assert.equal(second.getFileProviderTelemetryV1().requests[0]?.provider, 'provider-b');
+});
+
+test('fails the turn when a response reports a different served model than the run', async () => {
+  const ledger = createServedModelConsistencyLedgerV1();
+  const establishing = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([completion({ content: 'establishes identity' })], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+  const diverging = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: 'wrong model' }, { model: 'some-other-model' }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+
+  const establishingSession = await establishing.open(turnRequest(), neverAbort());
+  const divergingSession = await diverging.open(turnRequest(), neverAbort());
+  assert.equal(
+    (await establishingSession.next({ type: 'start' }, neverAbort())).type,
+    'complete',
+  );
+
+  // The fixture's served model embeds the API key, so the mismatch message
+  // must pass through credential redaction like every other provider string.
+  assert.deepEqual(await divergingSession.next({ type: 'start' }, neverAbort()), {
+    type: 'fail',
+    error: {
+      code: 'model_identity_mismatch',
+      message: 'File model provider served "some-other-model" in a run that '
+        + 'established "served-[REDACTED]-model"',
+    },
+  });
+  // The divergent response is still fully recorded before the turn fails.
+  assert.equal(
+    diverging.getFileProviderTelemetryV1().requests[0]?.servedModel,
+    'some-other-model',
+  );
+});
+
+test('a response with no served model completes but is recorded as unverified', async () => {
+  const ledger = createServedModelConsistencyLedgerV1();
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: 'anonymous response' }, { model: undefined }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+
+  assert.equal((await session.next({ type: 'start' }, neverAbort())).type, 'complete');
+  // The invariant went unchecked for this request and telemetry must say so;
+  // it is not a free pass, and the ledger stays unseeded.
+  const request = driver.getFileProviderTelemetryV1().requests[0];
+  assert.equal(request?.servedModelVerified, false);
+  assert.equal(request?.servedModel, undefined);
+  assert.deepEqual(ledger.observe('later-model'), { consistent: true });
+});
+
+test('a verified response records servedModelVerified true, and no ledger records nothing', async () => {
+  const ledger = createServedModelConsistencyLedgerV1();
+  const governed = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([completion({ content: 'ok' })], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    servedModelLedger: ledger,
+  });
+  const governedSession = await governed.open(turnRequest(), neverAbort());
+  assert.equal((await governedSession.next({ type: 'start' }, neverAbort())).type, 'complete');
+  assert.equal(governed.getFileProviderTelemetryV1().requests[0]?.servedModelVerified, true);
+
+  const ungoverned = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([completion({ content: 'ok' })], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const ungovernedSession = await ungoverned.open(turnRequest(), neverAbort());
+  assert.equal((await ungovernedSession.next({ type: 'start' }, neverAbort())).type, 'complete');
+  assert.equal(
+    'servedModelVerified' in (ungoverned.getFileProviderTelemetryV1().requests[0] ?? {}),
+    false,
+  );
+});
+
+test('stalls and rate limits spend separate budgets instead of one shared cap', async () => {
+  let calls = 0;
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: async (_input, init) => {
+      calls += 1;
+      const signal = init?.signal as AbortSignal;
+      if (calls === 1 || calls === 3) {
+        return await new Promise<Response>((_resolve, reject) => {
+          const keepAlive = setTimeout(() => {}, 10_000);
+          signal.addEventListener('abort', () => {
+            clearTimeout(keepAlive);
+            reject(signal.reason ?? new Error('aborted'));
+          }, { once: true });
+        });
+      }
+      if (calls === 2) {
+        return new Response('busy', { status: 429, headers: { 'retry-after': '0' } });
+      }
+      return completion({ content: 'survived both failure modes' });
+    },
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(
+    turnRequest({ options: { maxSteps: 4, maxToolCalls: 3, timeoutMs: 60 } }),
+    neverAbort(),
+  );
+
+  // stall, 429, stall, success: the old single three-attempt cap would have
+  // failed before the fourth request; separate budgets let it settle.
+  const decision = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(decision.type, 'complete');
+  assert.equal(calls, 4);
+  assert.equal(driver.getFileProviderTelemetryV1().requests[0]?.attempts, 4);
+});
+
+test('model.attemptTimeoutMs overrides the scaled per-attempt deadline', async () => {
+  let calls = 0;
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: pactModelConfigV1Schema.parse({
+      provider: 'openai-compatible',
+      baseUrl: 'https://api.example.com/v1',
+      apiKeyEnv: SHAREDEVAL_MODEL_API_KEY_ENV_V1,
+      model: 'example-model',
+      attemptTimeoutMs: 1_000,
+    }),
+    fetch: async (_input, init) => {
+      calls += 1;
+      const signal = init?.signal as AbortSignal;
+      if (calls === 1) {
+        return await new Promise<Response>((_resolve, reject) => {
+          const keepAlive = setTimeout(() => {}, 30_000);
+          signal.addEventListener('abort', () => {
+            clearTimeout(keepAlive);
+            reject(signal.reason ?? new Error('aborted'));
+          }, { once: true });
+        });
+      }
+      return completion({ content: 'after the configured bound' });
+    },
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  // Task budget is far above the override; without the override the scaled
+  // bound (max(90s, budget/3)) would stall this test for 20 seconds.
+  const session = await driver.open(
+    turnRequest({ options: { maxSteps: 4, maxToolCalls: 3, timeoutMs: 60_000 } }),
+    neverAbort(),
+  );
+
+  const startedAt = Date.now();
+  const decision = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(decision.type, 'complete');
+  assert.equal(calls, 2);
+  assert.ok(Date.now() - startedAt < 10_000, 'override did not bound the stalled attempt');
 });
 
 type ProviderMessage = {
@@ -652,3 +902,162 @@ function turnRequest(
 function neverAbort(): AbortSignal {
   return new AbortController().signal;
 }
+
+test('rate-limit gate lets unblocked work pass and holds callers through a block', async () => {
+  const gate = createProviderRateLimitGateV1();
+  await gate.wait(neverAbort());
+
+  gate.block(60);
+  const startedAt = Date.now();
+  await gate.wait(neverAbort());
+  assert.ok(Date.now() - startedAt >= 45, 'wait returned before the block cleared');
+
+  gate.block(5_000);
+  const controller = new AbortController();
+  const waiting = assert.rejects(gate.wait(controller.signal), /cancelled|abort/i);
+  controller.abort();
+  await waiting;
+});
+
+test('one 429 blocks the shared gate and every driver still settles through it', async () => {
+  const gate = createProviderRateLimitGateV1();
+  const limited = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      new Response('busy', { status: 429, headers: { 'retry-after': '0.05' } }),
+      completion({ content: 'recovered' }),
+    ], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    rateLimitGate: gate,
+  });
+  const limitedSession = await limited.open(turnRequest(), neverAbort());
+  const limitedStart = Date.now();
+
+  assert.equal(
+    (await limitedSession.next({ type: 'start' }, neverAbort())).type,
+    'complete',
+  );
+  assert.ok(Date.now() - limitedStart >= 40, '429 retry skipped the blocked window');
+  assert.equal(limited.getFileProviderTelemetryV1().requests[0]?.attempts, 2);
+
+  // A sibling driver arriving while the gate is blocked waits the window out.
+  gate.block(60);
+  const sibling = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([completion({ content: 'after the window' })], []),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    rateLimitGate: gate,
+  });
+  const siblingSession = await sibling.open(turnRequest(), neverAbort());
+  const siblingStart = Date.now();
+  assert.equal(
+    (await siblingSession.next({ type: 'start' }, neverAbort())).type,
+    'complete',
+  );
+  assert.ok(Date.now() - siblingStart >= 45, 'sibling ignored the shared block');
+});
+
+const parallelBatch = [
+  {
+    id: 'batched-call-1',
+    type: 'function' as const,
+    function: { name: 'files.read', arguments: JSON.stringify({ path: ['AGENT.md'] }) },
+  },
+  {
+    id: 'batched-call-2',
+    type: 'function' as const,
+    function: { name: 'files.read', arguments: JSON.stringify({ path: ['POLICY.md'] }) },
+  },
+];
+
+test('denies a parallel tool-call batch and accepts the corrected single call', async () => {
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      completion({ content: null, tool_calls: parallelBatch }),
+      completion({
+        content: null,
+        tool_calls: [{
+          id: 'corrected-call',
+          type: 'function',
+          function: {
+            name: 'files.read',
+            arguments: JSON.stringify({ path: ['AGENT.md'] }),
+          },
+        }],
+      }),
+      completion({ content: 'done after correction' }),
+    ], requests),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+
+  // The batch costs a round trip, not the task.
+  const call = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(call.type, 'tool_call');
+  assert.equal(call.type === 'tool_call' ? call.call.tool : '', 'files.read');
+  assert.equal(requests.length, 2);
+
+  // The transcript records what the model actually emitted -- both calls -- and
+  // answers each one, because the protocol requires every tool_call to be
+  // resolved before the next assistant turn.
+  const retryMessages = requests[1]?.body.messages ?? [];
+  const assistant = retryMessages.find(m => m.role === 'assistant');
+  assert.deepEqual(assistant?.tool_calls, parallelBatch);
+  const denials = retryMessages.filter(m => m.role === 'tool');
+  assert.equal(denials.length, 2);
+  assert.deepEqual(
+    denials.map(m => m.tool_call_id),
+    ['batched-call-1', 'batched-call-2'],
+  );
+  for (const denial of denials) {
+    assert.equal(denial.content, PARALLEL_TOOL_CALL_DENIAL_V1);
+  }
+
+  // Only the executed call counts as a tool step.
+  const complete = await session.next({
+    type: 'tool_result',
+    result: {
+      callId: call.type === 'tool_call' ? call.call.id : 'unreachable',
+      tool: 'files.read',
+      status: 'succeeded',
+      output: { content: 'agent bytes' },
+      completedAt: '2026-08-26T00:00:01.000Z',
+    },
+  }, neverAbort());
+  assert.deepEqual(complete, {
+    type: 'complete',
+    output: {
+      type: 'completed',
+      content: 'done after correction',
+      toolSteps: 1,
+      contactCalls: 0,
+    },
+  });
+});
+
+test('a model that keeps batching fails with its own code, not a generic one', async () => {
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch(
+      Array.from(
+        { length: MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 + 1 },
+        () => completion({ content: null, tool_calls: parallelBatch }),
+      ),
+      requests,
+    ),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+
+  const decision = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(decision.type, 'fail');
+  assert.match(
+    JSON.stringify(decision),
+    /model_parallel_tool_calls_unresolved/,
+  );
+  // Bounded: it re-asks a fixed number of times and then reports.
+  assert.equal(requests.length, MAX_PARALLEL_TOOL_CALL_CORRECTIONS_V1 + 1);
+});
