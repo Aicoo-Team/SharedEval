@@ -173,6 +173,11 @@ export function pactModelIdentifierV1(model: PactModelConfigV1): string {
   return model.provider === 'azure-openai' ? model.deployment : model.model;
 }
 
+/** The one egress host a run's model traffic leaves through. */
+export function pactModelEndpointHostV1(model: PactModelConfigV1): string {
+  return new URL(model.provider === 'azure-openai' ? model.endpoint : model.baseUrl).hostname;
+}
+
 export function resolvePactRunModelApiKeyV1(
   model: PactModelConfigV1,
   environment: Record<string, string | undefined> = process.env,

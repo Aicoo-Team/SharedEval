@@ -159,7 +159,21 @@ test('resolves requester R0 to its workspace persona and proceeds', async () => 
   assert.ok(calls.includes('source'), 'R0 must reach source inspection');
 });
 
-function effectiveConfig(mode: 'multi' | 'single', requester: 'R0' | 'R1' = 'R1') {
+function effectiveConfig(
+  mode: 'multi' | 'single',
+  requester: 'R0' | 'R1' = 'R1',
+  requesterModelOverride = false,
+) {
+  const actors = requesterModelOverride
+    ? `
+actors:
+  requester:
+    model:
+      provider: openai-compatible
+      baseUrl: https://api.example.com/v1
+      apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
+      model: z-ai/glm-5.3-flash`
+    : '';
   return applySharedevalOverridesV1(parseSharedevalRunConfigV1Yaml(`
 apiVersion: sharedeval-run/v1
 kind: RunConfig
@@ -167,7 +181,7 @@ model:
   provider: openai-compatible
   baseUrl: https://api.example.com/v1
   apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
-  model: example-model
+  model: example-model${actors}
 workflow:
   mode: ${mode}
   protocol: files
@@ -179,3 +193,83 @@ benchmark:
     ids: [PAIR-Q1]
 `), resolveWorkflow([mode]));
 }
+
+test('cross-model pairing drives the requester with its own model and ledger', async () => {
+  const drivers: Array<{ role: string; input: any }> = [];
+  let runnerInput: any;
+  const run = async (override: boolean) => {
+    drivers.length = 0;
+    await runSharedevalProductionV1({
+      config: effectiveConfig('single', 'R1', override),
+      configRootDir: '/config-root',
+      repositoryRoot: '/source-root',
+      runId: 'cross-model-run',
+      environment: { SHAREDEVAL_MODEL_API_KEY: 'secret' },
+    }, {
+      inspectSource: () => ({ sourceRevision: 'a'.repeat(40) }),
+      loadDatasetAuthority: () => ({
+        dataset: {
+          id: 'pact-pair', version: '7.0.0',
+          manifestSha256: '1'.repeat(64), tasksSha256: '2'.repeat(64),
+        },
+        goldSet: { id: 'pact-pair-category-gold-v1', sha256: '3'.repeat(64) },
+      }),
+      loadTasks: options => loadPactPairTasksV1({
+        policy: options.policy,
+        requester: options.requester,
+        gradingMode: options.gradingMode,
+        kind: options.kind,
+        ids: ['PAIR-Q1'],
+      }),
+      loadSharedOs: async directory => ({
+        ok: true, dir: directory, revision: 'b'.repeat(40), runtimeDigest: '4'.repeat(64), modules: {},
+      }) as never,
+      createSessionFactory: () => (async () => { throw new Error('unused'); }) as never,
+      createDriver: input => { drivers.at(-1)!.input = input; return {} as never; },
+      prepareRunDirectories: async input => ({
+        runRoot: `/runs/${input.runId}`,
+        workspaceRootDir: `/runs/${input.runId}/workspaces`,
+        multiStoreRoot: `/runs/${input.runId}/multi`,
+        singleStoreRoot: `/runs/${input.runId}/single`,
+      }),
+      runFiles: async input => {
+        runnerInput = input;
+        for (const role of ['requester', 'responder'] as const) {
+          drivers.push({ role, input: undefined });
+          input.createDriver({ actorId: role, role });
+        }
+        return { workflowId: input.config.workflow.id } as never;
+      },
+    });
+  };
+
+  await run(true);
+  const [requester, responder] = drivers.map(driver => driver.input);
+  assert.equal(requester.model.model, 'z-ai/glm-5.3-flash');
+  assert.equal(requester.requestedModel, 'z-ai/glm-5.3-flash');
+  assert.equal(responder.model.model, 'example-model');
+  assert.equal(responder.requestedModel, 'example-model');
+  assert.notEqual(requester.servedModelLedger, responder.servedModelLedger);
+  assert.equal(requester.rateLimitGate, responder.rateLimitGate);
+  assert.deepEqual(runnerInput.runProvenance.models, {
+    requester: {
+      provider: 'openai-compatible',
+      requestedModel: 'z-ai/glm-5.3-flash',
+      resolvedModel: 'z-ai/glm-5.3-flash',
+    },
+    responder: {
+      provider: 'openai-compatible',
+      requestedModel: 'example-model',
+      resolvedModel: 'example-model',
+    },
+  });
+
+  await run(false);
+  const [plainRequester, plainResponder] = drivers.map(driver => driver.input);
+  assert.equal(plainRequester.model, plainResponder.model);
+  assert.equal(plainRequester.servedModelLedger, plainResponder.servedModelLedger);
+  assert.deepEqual(
+    runnerInput.runProvenance.models.requester,
+    runnerInput.runProvenance.models.responder,
+  );
+});
