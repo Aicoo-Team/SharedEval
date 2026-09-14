@@ -48,10 +48,13 @@ test('scripts contain only the supported exporter and experiment launchers', () 
     'export-pact-pair.mjs',
   ]);
   assert.deepEqual(readdirSync(join(repoRoot, 'scripts', 'experiments')).sort(), [
+    'aggregate-flip-stats.mjs',
     'build-image.sh',
     'egress-probe.mjs',
     'egress-probe.sh',
+    'gen-mt-configs.mjs',
     'merge-grid-metrics.mjs',
+    'mt-lane.sh',
     'run-cell-lib.mjs',
     'run-cell.sh',
     'run-grid.sh',

@@ -439,6 +439,59 @@ test('retries only a definitive provider rate-limit rejection', async () => {
   assert.equal(driver.getFileProviderTelemetryV1().requests[0]?.attempts, 2);
 });
 
+test('survives seven consecutive rate-limit rejections before succeeding', async () => {
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      ...Array.from({ length: 7 }, () => (
+        new Response('busy', { status: 429, headers: { 'retry-after': '0' } })
+      )),
+      completion({ content: 'done' }),
+    ], requests),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+
+  assert.deepEqual(await session.next({ type: 'start' }, neverAbort()), {
+    type: 'complete',
+    output: {
+      type: 'completed',
+      content: 'done',
+      toolSteps: 0,
+      contactCalls: 0,
+    },
+  });
+  assert.equal(requests.length, 8);
+  assert.equal(driver.getFileProviderTelemetryV1().requests[0]?.attempts, 8);
+});
+
+test('fails retryable once the eighth rate-limit attempt is also rejected', async () => {
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      ...Array.from({ length: 8 }, () => (
+        new Response('busy', { status: 429, headers: { 'retry-after': '0' } })
+      )),
+      completion({ content: 'must not be used' }),
+    ], requests),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+
+  const decision = await session.next({ type: 'start' }, neverAbort());
+  assert.equal(decision.type, 'fail');
+  assert.equal(
+    decision.type === 'fail' ? decision.error.retryable : undefined,
+    true,
+  );
+  assert.equal(requests.length, 8);
+  const telemetry = driver.getFileProviderTelemetryV1().requests[0];
+  assert.equal(telemetry?.attempts, 8);
+  assert.equal(telemetry?.httpStatus, 429);
+});
+
 test('never retries a provider operation whose external completion is unknown', async () => {
   const requests: ProviderRequest[] = [];
   const driver = createOpenAICompatibleFileTurnDriverV1({

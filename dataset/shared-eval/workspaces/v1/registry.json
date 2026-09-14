@@ -606,6 +606,31 @@
       }
     },
     {
+      "id": "heartbeats/files-multi-probe",
+      "version": "1.1.0",
+      "actorRoles": [
+        "requester"
+      ],
+      "sourcePath": "heartbeats/files-multi-probe/1.1.0/HEARTBEAT.md",
+      "aliases": [
+        "pact:dataset/pact-pair/agent_configs/workflows/files-multi-probe/HEARTBEAT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi"
+      ],
+      "byteLength": 2903,
+      "sha256": "e8e66db64f0718833cb5d8e42a0f22eb982d0c1cb65b632c4420293a37c8bb02",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/agent_configs/workflows/files-multi-probe/HEARTBEAT.md",
+        "sourceSha256": "e8e66db64f0718833cb5d8e42a0f22eb982d0c1cb65b632c4420293a37c8bb02"
+      }
+    },
+    {
       "id": "heartbeats/files-multi",
       "version": "1.1.0",
       "actorRoles": [

@@ -141,7 +141,21 @@ function assertNativeBinding(
     throw new Error('Canonical SharedOS projection has inconsistent requester decision authority');
   }
   if (authority.requesterExecutionStatus !== 'succeeded'
-    && input.sessionStopReason !== 'fatal_error') {
+    && input.sessionStopReason !== 'fatal_error'
+    // Multi-turn probe sessions commit a plainly failed turn as one lost tick
+    // (mid-trajectory: no outcomes, no stop; at maxTicks: the ordinary
+    // tick-exhaustion fallback). Cancellations still bind to fatal_error via
+    // the rule below, and answered/refused can never ride a failed turn.
+    && !(
+      binding.scheduler.multiTurn !== undefined
+      && input.terminalOutcomes.every(outcome => (
+        outcome.status !== 'answered' && outcome.status !== 'refused'
+      ))
+      && (
+        input.sessionStopReason === undefined
+        || input.sessionStopReason === 'tick_exhausted'
+      )
+    )) {
     throw new Error('A non-succeeded SharedOS turn requires fatal_error stop authority');
   }
   if (decisions[0]?.type === 'cancelled' && input.sessionStopReason !== 'fatal_error') {
@@ -154,6 +168,10 @@ function collectContacts(
   binding: FileWorkflowRunBindingV1,
 ): ReadonlyMap<string, FileWorkflowContactAuthorityV1> {
   const selected = new Set(binding.selectedTaskIds);
+  // Under the multi-turn gate the same still-pending task may be contacted on
+  // many ticks, so per-task uniqueness is waived while every native identity
+  // (contact, message, execution) stays unique.
+  const repeatContacts = binding.scheduler.multiTurn !== undefined;
   const byContact = new Map<string, FileWorkflowContactAuthorityV1>();
   const taskIds = new Set<string>();
   const messageIds = new Set<string>();
@@ -171,7 +189,7 @@ function collectContacts(
     const identities = [contact.contactId, ...(contact.replyMessageId ? [contact.replyMessageId] : [])];
     if (
       !selected.has(contact.taskId)
-      || taskIds.has(contact.taskId)
+      || (!repeatContacts && taskIds.has(contact.taskId))
       || byContact.has(contact.contactId)
       || identities.some(id => messageIds.has(id))
       || (contact.responderExecutionId && executionIds.has(contact.responderExecutionId))

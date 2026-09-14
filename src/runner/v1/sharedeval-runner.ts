@@ -101,6 +101,9 @@ export function runSharedevalPactPairFilesV1(
     });
     return runPactPairFilesMultiV1({
       ...common,
+      ...(options.config.workflow.multiTurn
+        ? { multiTurn: structuredClone(options.config.workflow.multiTurn) }
+        : {}),
       ...resources,
     });
   }

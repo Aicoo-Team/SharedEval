@@ -182,8 +182,10 @@ test('Dockerfile pins node:24-slim, lockfile install, proxy env, and SharedOS pr
   );
 });
 
+const mtLanePath = path.join(repoRoot, 'scripts', 'experiments', 'mt-lane.sh');
+
 test('experiment shell scripts parse under bash -n', async () => {
-  for (const scriptPath of [runCellPath, buildImagePath, egressProbeShPath]) {
+  for (const scriptPath of [runCellPath, buildImagePath, egressProbeShPath, mtLanePath]) {
     const syntax = await new Promise<ScriptResult>(resolvePromise => {
       execFile('bash', ['-n', scriptPath], (error, stdout, stderr) => {
         resolvePromise({ code: error === null ? 0 : 1, stdout, stderr });
@@ -234,6 +236,59 @@ test('run-cell.sh refuses plain-http model endpoints before touching docker', as
   );
   assert.notEqual(result.code, 0);
   assert.match(result.stderr, /plain HTTP model endpoints are refused/);
+});
+
+test('run-cell.sh collision and resume guards fire before any docker dependency', async () => {
+  const home = await makeScratchHome();
+  const configPath = path.join(home, 'cell.yaml');
+  await writeFile(configPath, httpsConfig, 'utf8');
+  const cellsDir = path.join(home, 'cells');
+  const cellDir = path.join(cellsDir, 'cell-test.r1');
+  await mkdir(cellDir, { recursive: true });
+  const invoke = (args: readonly string[]) => runBash(
+    runCellPath,
+    [
+      '--config', configPath,
+      '--run-id', 'cell-test.r1',
+      '--output-dir', cellsDir,
+      '--image', 'sharedeval-experiment:test',
+      ...args,
+    ],
+    baseEnvironment(home),
+  );
+
+  const collision = await invoke([]);
+  assert.notEqual(collision.code, 0);
+  assert.match(collision.stderr, /pass --resume/);
+
+  const missingConfig = await invoke(['--resume']);
+  assert.notEqual(missingConfig.code, 0);
+  assert.match(missingConfig.stderr, /config\.yaml is missing/);
+
+  await writeFile(path.join(cellDir, 'config.yaml'), 'different: bytes\n', 'utf8');
+  const differing = await invoke(['--resume']);
+  assert.notEqual(differing.code, 0);
+  assert.match(differing.stderr, /differs from --config/);
+
+  await writeFile(path.join(cellDir, 'config.yaml'), httpsConfig, 'utf8');
+  await writeFile(
+    path.join(cellDir, 'cell-provenance.json'),
+    JSON.stringify({ cliExitCode: 0 }),
+    'utf8',
+  );
+  const completed = await invoke(['--resume']);
+  assert.notEqual(completed.code, 0);
+  assert.match(completed.stderr, /already completed with cliExitCode 0/);
+
+  // An interrupted cell (non-zero exit) passes the guards; the next failure,
+  // if any, is the docker environment — never the resume guard.
+  await writeFile(
+    path.join(cellDir, 'cell-provenance.json'),
+    JSON.stringify({ cliExitCode: 1 }),
+    'utf8',
+  );
+  const resumable = await invoke(['--resume']);
+  assert.doesNotMatch(resumable.stderr, /cannot resume|refusing to overwrite/);
 });
 
 test('run-cell.sh refuses invalid run ids before doing any work', async () => {

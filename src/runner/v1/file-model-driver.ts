@@ -48,7 +48,12 @@ const DEFAULT_PROVIDER_TIMEOUT_MS_V1 = 3_600_000;
 // Rate limits and stalled attempts are unrelated failure modes, so each gets
 // its own attempt budget: one stall must not spend the 429 budget, and a task
 // that meets both still has a full complement of retries for each.
-const MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1 = 3;
+// Eight rate-limit attempts (up from three): a 240-tick trajectory session dies
+// wholesale when any one turn exhausts this budget, so the requester retries at
+// the same depth the old multi-turn pilot proved out against OpenRouter 429
+// bursts. Worst case adds ~5 minutes of backoff to one turn, bounded per-turn
+// by the task deadline rather than by this count alone.
+const MAX_PROVIDER_RATE_LIMIT_ATTEMPTS_V1 = 8;
 const MAX_PROVIDER_STALL_ATTEMPTS_V1 = 3;
 const DEFAULT_PROVIDER_RATE_LIMIT_DELAY_MS_V1 = 15_000;
 // The caller's signal only carries the whole-task budget (budget.maxRuntimeMs).
@@ -1091,10 +1096,14 @@ function providerRateLimitDelayMs(response: Response, attempt: number): number {
       );
     }
   }
-  return Math.min(
+  // Equal jitter on the synthetic backoff only: a server-stated Retry-After
+  // above is an instruction and is honored verbatim, but when concurrent tasks
+  // all invent the same linear backoff they re-collide on the same window.
+  const backoffMs = Math.min(
     DEFAULT_PROVIDER_RATE_LIMIT_DELAY_MS_V1 * attempt,
     MAX_PROVIDER_RATE_LIMIT_DELAY_MS_V1,
   );
+  return Math.floor(backoffMs / 2 + Math.random() * (backoffMs / 2));
 }
 
 async function waitForProviderRateLimitV1(
