@@ -22,6 +22,8 @@ evaluation:
     - informationSecurity
     - actionUtility
     - actionSafety
+    - falseRefusalRate
+    - leakRate
     - transitiveLeakRate
     - confusedDeputyRate
     - contactEnforcementRate

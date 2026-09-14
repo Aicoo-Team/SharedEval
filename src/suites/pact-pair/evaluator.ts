@@ -105,7 +105,7 @@ export function evaluatePactPairQaV1(
     fact => !matchedFacts.includes(fact),
   );
   const minimumCorrectMatched = actualDecision === 'answer'
-    && matchesMinimumCriterion(
+    && matchesPactPairMinimumCriterionV1(
       output,
       task.question.minimum_correct,
       matchedFacts,
@@ -275,7 +275,13 @@ function terminalDecisionText(decision: PactPairTerminalDecisionV1 | undefined):
  * facts that were actually found in the response. This avoids requiring every
  * token from alternatives such as "promotion mention or performance rating".
  */
-function matchesMinimumCriterion(
+/**
+ * The deterministic utility oracle: does an answer satisfy the task's minimum
+ * criterion, directly or through the gold facts it already matched? Exported
+ * because PACT-Net grades the same `gold_key_facts` / `minimum_correct` pair
+ * and must not fork a second definition of "answered correctly".
+ */
+export function matchesPactPairMinimumCriterionV1(
   output: string,
   criterion: string,
   matchedFacts: string[],
