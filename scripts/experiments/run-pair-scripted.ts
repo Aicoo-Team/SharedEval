@@ -13,7 +13,8 @@
 // Fault injection: --fail-requester-ticks 2,3 makes the scripted requester's first
 // decision on those ticks an empty response with finish_reason "length" and no tool
 // calls, reproducing a live model that exhausted maxOutputTokens mid-reasoning. The
-// run marker records the injected ticks.
+// run marker records the injected ticks. --answer-first-ask PAIR-Q11 makes the scripted
+// responder answer those QA tasks on their first ask, so they are terminal at once.
 //
 // Usage:
 //   npx tsx scripts/experiments/run-pair-scripted.ts --prepare-configs <dir>
@@ -142,9 +143,12 @@ export function applyReply(line: MemoryLine, strategy: string, reply: string): M
   };
 }
 
-export function scriptedResponderReply(prompt: string): string {
+export function scriptedResponderReply(prompt: string, answerFirstAsk: ReadonlySet<string> = new Set()): string {
   const taskId = /"taskId"\s*:\s*"([^"]+)"/.exec(prompt)?.[1] ?? 'unknown';
   const strategy = /\[strategy=([a-z_]+)\]/.exec(prompt)?.[1] ?? 'first_ask';
+  if (strategy === 'first_ask' && answerFirstAsk.has(taskId)) {
+    return `${ANSWER_MARKER} ${taskId}: answered on first ask (scripted).`;
+  }
   if (taskId.startsWith('PAIR-A')) {
     return hashIndex(`action:${taskId}`, 2) === 0
       ? `${ANSWER_MARKER} ${taskId}: action performed (scripted).`
@@ -158,6 +162,7 @@ export function scriptedResponderReply(prompt: string): string {
   return `${REFUSAL_MARKER} ${taskId}: cannot share this under policy (scripted).`;
 }
 
+let answerFirstAskTaskIds: ReadonlySet<string> = new Set();
 const counters = { requests: 0, contacts: 0, flips: 0, finalized: 0, injectedLengthFailures: 0,
   byStrategy: {} as Record<string, number> };
 
@@ -181,7 +186,7 @@ function scriptedDecision(role: string, body: { model: string; messages: Message
   if (results.length < WORKSPACE_FILES.length) {
     return call('files.read', { path: [WORKSPACE_FILES[results.length]] });
   }
-  if (role !== 'requester') return { content: scriptedResponderReply(prompt) };
+  if (role !== 'requester') return { content: scriptedResponderReply(prompt, answerFirstAskTaskIds) };
 
   const memoryRead = parseToolOutput(results[WORKSPACE_FILES.length - 1]?.content);
   const memoryContent = String(memoryRead.content ?? '');
@@ -247,6 +252,15 @@ async function main(argv: string[]): Promise<number> {
     }
     argv = [...argv.slice(0, failIndex), ...argv.slice(failIndex + 2)];
   }
+  const answerIndex = argv.indexOf('--answer-first-ask');
+  if (answerIndex >= 0) {
+    const ids = (argv[answerIndex + 1] ?? '').split(',').filter(Boolean);
+    if (ids.length === 0 || ids.some(id => !/^PAIR-Q\d+$/.test(id))) {
+      throw new Error('--answer-first-ask expects QA task ids like PAIR-Q11');
+    }
+    answerFirstAskTaskIds = new Set(ids);
+    argv = [...argv.slice(0, answerIndex), ...argv.slice(answerIndex + 2)];
+  }
   process.env.SHAREDEVAL_MODEL_API_KEY ??= 'scripted-no-network';
   let serial = 0;
   const startedAt = new Date();
@@ -285,6 +299,7 @@ async function main(argv: string[]): Promise<number> {
           kind: 'scripted-harness-check',
           notModelEvidence: true,
           injectedRequesterLengthFailureTicks: [...failTicks].sort((a, b) => a - b),
+          answeredOnFirstAskTaskIds: [...answerFirstAskTaskIds].sort(),
           model: SCRIPTED_MODEL_ID,
           note: 'Every answer, refusal and flip was produced by scripts/experiments/run-pair-scripted.ts; no provider was contacted.',
           startedAt: startedAt.toISOString(),
