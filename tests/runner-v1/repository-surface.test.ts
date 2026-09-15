@@ -67,6 +67,7 @@ test('package and public docs expose only the retained product surface', () => {
     readFileSync(join(repoRoot, 'package.json'), 'utf8'),
   ) as { scripts: Record<string, string> };
   assert.deepEqual(Object.keys(packageJson.scripts).sort(), [
+    'check',
     'eval:pact-pair',
     'export:huggingface:pact-pair',
     'sharedeval',
