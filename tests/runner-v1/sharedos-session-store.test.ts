@@ -1149,6 +1149,64 @@ test('fails loud on malformed or digest-conflicting usage, message, audit, and b
   );
 });
 
+test('re-verifies already scanned record bytes on every later append in one open session', async t => {
+  const options = await temporaryOptions(t, 'hot-tamper');
+  const store = await openSharedOsSessionStoreV1(options);
+  assert.equal(await store.tryConsume(NAMESPACE_ID, REQUESTER_GRANT_ID, 7), true);
+  assert.equal(await store.tryConsume(NAMESPACE_ID, REQUESTER_GRANT_ID, 7), true);
+  await store.record(auditEvent());
+  await store.record(auditEvent());
+
+  const lanes = [
+    ['usage', () => store.tryConsume(NAMESPACE_ID, REQUESTER_GRANT_ID, 7)],
+    ['audit', () => store.record(auditEvent())],
+  ] as const;
+  for (const [lane, operation] of lanes) {
+    const laneDirectory = sessionPath(options.runDirectory, lane);
+    const oldest = (await readdir(laneDirectory)).filter(name => name.startsWith('record-')).sort()[0];
+    assert.ok(oldest);
+    const original = await readFile(join(laneDirectory, oldest), 'utf8');
+    // The oldest record was already verified by earlier appends on this same
+    // instance; corrupting it must still fail the next append, not just reopen.
+    await writeFile(join(laneDirectory, oldest), '{"malformed":true}\n');
+    await assert.rejects(operation, /malformed|digest|record/i);
+    await writeFile(join(laneDirectory, oldest), original);
+    await operation();
+  }
+});
+
+test('parses each durable audit and usage record once across many appends in one session', async t => {
+  const options = await temporaryOptions(t, 'parse-reuse');
+  const store = await openSharedOsSessionStoreV1(options);
+  const calls = 24;
+  const parses = { audit: 0, usage: 0 };
+  const originalParse = JSON.parse;
+  // Count real parses of committed record bytes; the store is not mocked.
+  JSON.parse = ((text: string, reviver?: Parameters<typeof JSON.parse>[1]) => {
+    if (typeof text === 'string') {
+      if (text.includes('sharedeval-sharedos-audit-record/v1')) parses.audit += 1;
+      else if (text.includes('sharedeval-sharedos-usage-record/v1')) parses.usage += 1;
+    }
+    return originalParse(text, reviver);
+  }) as typeof JSON.parse;
+  let consumed = 0;
+  try {
+    for (let index = 0; index < calls; index += 1) {
+      await store.record(auditEvent());
+      if (await store.tryConsume(NAMESPACE_ID, REQUESTER_GRANT_ID, 7)) consumed += 1;
+    }
+  } finally {
+    JSON.parse = originalParse;
+  }
+  assert.equal(consumed, 7);
+  assert.deepEqual(await store.snapshotAudit(), { nextSequence: calls });
+  assert.equal(await store.getUsage(NAMESPACE_ID, REQUESTER_GRANT_ID), 7);
+  // Rescanning every record on every append costs 0+1+...+23 = 276 audit parses
+  // and 21 + 17*7 = 140 usage parses. Reusing verified bytes parses each once.
+  assert.ok(parses.audit <= calls, `audit record parses grew with history: ${parses.audit}`);
+  assert.ok(parses.usage <= 7, `usage record parses grew with history: ${parses.usage}`);
+});
+
 test('rejects symlinked roots, symlinked authority, special records, and lock substitution', async t => {
   const symlinkOptions = await temporaryOptions(t, 'symlink-root');
   const target = join(dirname(symlinkOptions.runDirectory), 'target');

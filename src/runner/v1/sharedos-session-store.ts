@@ -426,6 +426,13 @@ export class SharedOsSessionStoreV1 implements
   private closing = false;
   private closed = false;
   private closePromise: Promise<void> | undefined;
+  // Verified record bytes from this instance's earlier successful scans; open and
+  // close still perform full, uncached verification.
+  private readonly verifiedLanes = {
+    usage: new Map() as VerifiedLaneV1,
+    messages: new Map() as VerifiedLaneV1,
+    audit: new Map() as VerifiedLaneV1,
+  };
 
   constructor(
     private readonly paths: SessionPaths,
@@ -447,7 +454,7 @@ export class SharedOsSessionStoreV1 implements
       }
       await assertAuthorityFiles(this.paths, this.authority);
       if (!contextMatchesBinding(context, this.authority.binding)) return [];
-      const messages = await scanMessageRecords(this.paths);
+      const messages = await scanMessageRecords(this.paths, this.verifiedLanes.messages);
       const bindings = await scanResponderBindings(this.paths, this.authority);
       assertResponderBindingsReferenceMessages(bindings, messages, this.authority);
       const traceGrantIds = new Set(
@@ -471,7 +478,7 @@ export class SharedOsSessionStoreV1 implements
     this.assertUsageRequest(namespaceId, grantId);
     return await this.enqueue(async () => withMutationLock(this.paths, async () => {
       await assertAuthorityFiles(this.paths, this.authority);
-      const records = await scanUsageRecords(this.paths, this.authority);
+      const records = await scanUsageRecords(this.paths, this.authority, this.verifiedLanes.usage);
       return records.filter(record => record.grantId === grantId).length;
     }));
   }
@@ -492,7 +499,7 @@ export class SharedOsSessionStoreV1 implements
         return false;
       }
       await assertAuthorityFiles(this.paths, this.authority);
-      const records = await scanUsageRecords(this.paths, this.authority);
+      const records = await scanUsageRecords(this.paths, this.authority, this.verifiedLanes.usage);
       if (records.filter(record => record.grantId === grantId).length >= maximumUses) {
         return false;
       }
@@ -520,7 +527,7 @@ export class SharedOsSessionStoreV1 implements
         throw new Error('SharedOS session is closed');
       }
       await assertAuthorityFiles(this.paths, this.authority);
-      const records = await scanAuditRecords(this.paths, this.authority);
+      const records = await scanAuditRecords(this.paths, this.authority, this.verifiedLanes.audit);
       await appendRecord(this.paths, this.paths.audit, auditRecordSchema, {
         apiVersion: 'sharedeval-sharedos-audit-record/v1',
         sequence: records.length,
@@ -560,7 +567,7 @@ export class SharedOsSessionStoreV1 implements
         return failedDelivery(envelope, 'SESSION_CLOSED', 'SharedOS session is closed');
       }
       await assertAuthorityFiles(this.paths, this.authority);
-      const records = await scanMessageRecords(this.paths);
+      const records = await scanMessageRecords(this.paths, this.verifiedLanes.messages);
       const sameId = records.find(record => record.envelope.id === envelope.id);
       if (sameId) {
         if (isDeepStrictEqual(sameId.envelope, envelope)) return acceptedDelivery(envelope);
@@ -598,7 +605,7 @@ export class SharedOsSessionStoreV1 implements
     const parsedId = identifierSchema.parse(messageId);
     return this.enqueue(async () => withMutationLock(this.paths, async () => {
       await assertAuthorityFiles(this.paths, this.authority);
-      const match = (await scanMessageRecords(this.paths))
+      const match = (await scanMessageRecords(this.paths, this.verifiedLanes.messages))
         .find(record => record.envelope.id === parsedId);
       return match ? structuredClone(match.envelope) : null;
     }));
@@ -633,7 +640,7 @@ export class SharedOsSessionStoreV1 implements
         throw new Error('SharedOS session is closed');
       }
       await assertAuthorityFiles(this.paths, this.authority);
-      const messages = await scanMessageRecords(this.paths);
+      const messages = await scanMessageRecords(this.paths, this.verifiedLanes.messages);
       const request = messages.find(record => record.envelope.id === parsed.requestMessageId)
         ?.envelope;
       if (!request || request.replyTo !== undefined) {
@@ -690,7 +697,7 @@ export class SharedOsSessionStoreV1 implements
   snapshotAudit(): Promise<{ nextSequence: number }> {
     return this.enqueue(async () => withMutationLock(this.paths, async () => {
       await assertAuthorityFiles(this.paths, this.authority);
-      return { nextSequence: (await scanAuditRecords(this.paths, this.authority)).length };
+      return { nextSequence: (await scanAuditRecords(this.paths, this.authority, this.verifiedLanes.audit)).length };
     }));
   }
 
@@ -707,7 +714,7 @@ export class SharedOsSessionStoreV1 implements
     }
     return this.enqueue(async () => withMutationLock(this.paths, async () => {
       await assertAuthorityFiles(this.paths, this.authority);
-      const records = await scanAuditRecords(this.paths, this.authority);
+      const records = await scanAuditRecords(this.paths, this.authority, this.verifiedLanes.audit);
       if (parsed.toSequenceExclusive > records.length) {
         throw new Error('Audit window exceeds the durable sequence');
       }
@@ -1244,8 +1251,9 @@ async function readClosedAuthority(
 async function scanUsageRecords(
   paths: SessionPaths,
   authority: NormalizedAuthority,
+  verified?: VerifiedLaneV1,
 ): Promise<readonly UsageRecord[]> {
-  const records = await scanDigestChain(paths.usage, usageRecordSchema, 'usage');
+  const records = await scanDigestChain(paths.usage, usageRecordSchema, 'usage', verified);
   for (const record of records) {
     if (
       record.namespaceId !== authority.binding.namespaceId
@@ -1257,15 +1265,19 @@ async function scanUsageRecords(
   return records;
 }
 
-function scanMessageRecords(paths: SessionPaths): Promise<readonly MessageRecord[]> {
-  return scanDigestChain(paths.messages, messageRecordSchema, 'message');
+function scanMessageRecords(
+  paths: SessionPaths,
+  verified?: VerifiedLaneV1,
+): Promise<readonly MessageRecord[]> {
+  return scanDigestChain(paths.messages, messageRecordSchema, 'message', verified);
 }
 
 async function scanAuditRecords(
   paths: SessionPaths,
   authority: NormalizedAuthority,
+  verified?: VerifiedLaneV1,
 ): Promise<readonly AuditRecord[]> {
-  const records = await scanDigestChain(paths.audit, auditRecordSchema, 'audit');
+  const records = await scanDigestChain(paths.audit, auditRecordSchema, 'audit', verified);
   for (const record of records) assertAuditBinding(record.event, authority.binding);
   return records;
 }
@@ -1274,6 +1286,7 @@ async function scanDigestChain<Schema extends z.ZodTypeAny>(
   directory: string,
   schema: Schema,
   label: string,
+  verified?: VerifiedLaneV1,
 ): Promise<readonly z.infer<Schema>[]> {
   await assertDirectory(directory, `SharedOS ${label} directory`);
   const entries = await readdir(directory);
@@ -1283,6 +1296,7 @@ async function scanDigestChain<Schema extends z.ZodTypeAny>(
     return { name, sequence: Number(match[1]) };
   }).sort((left, right) => left.sequence - right.sequence);
   const records: z.infer<Schema>[] = [];
+  const scanned: VerifiedLaneV1 = new Map();
   let previousRecordDigest: string | null = null;
   for (const [index, entry] of indexed.entries()) {
     if (entry.sequence !== index) throw new Error(`SharedOS ${label} record sequence has a gap`);
@@ -1291,27 +1305,55 @@ async function scanDigestChain<Schema extends z.ZodTypeAny>(
       MAX_RECORD_BYTES,
       `SharedOS ${label} record`,
     );
+    // Every record's bytes are reread and hashed on every scan. Only bytes identical
+    // to a record this store instance already fully verified may skip parsing and
+    // canonical digest recomputation; sequence and chain linkage are still checked.
+    const wireHash = createHash('sha256').update(source).digest('hex');
+    const cached = verified?.get(entry.name);
     let record: z.infer<Schema>;
-    try {
-      record = schema.parse(JSON.parse(source));
-    } catch {
-      throw new Error(`SharedOS ${label} record is malformed`);
+    if (cached !== undefined && cached.wireHash === wireHash) {
+      record = cached.record as z.infer<Schema>;
+      if (record.sequence !== index || record.previousRecordDigest !== previousRecordDigest) {
+        throw new Error(`SharedOS ${label} record digest chain is invalid`);
+      }
+    } else {
+      try {
+        record = schema.parse(JSON.parse(source));
+      } catch {
+        throw new Error(`SharedOS ${label} record is malformed`);
+      }
+      const { recordDigest: parsedDigest, ...withoutDigest } = record as {
+        recordDigest: string;
+        [key: string]: JsonValue;
+      };
+      if (
+        record.sequence !== index
+        || record.previousRecordDigest !== previousRecordDigest
+        || parsedDigest !== digestCanonical(withoutDigest)
+      ) {
+        throw new Error(`SharedOS ${label} record digest chain is invalid`);
+      }
+      deepFreezeV1(record);
     }
-    const { recordDigest, ...withoutDigest } = record as {
-      recordDigest: string;
-      [key: string]: JsonValue;
-    };
-    if (
-      record.sequence !== index
-      || record.previousRecordDigest !== previousRecordDigest
-      || recordDigest !== digestCanonical(withoutDigest)
-    ) {
-      throw new Error(`SharedOS ${label} record digest chain is invalid`);
-    }
+    scanned.set(entry.name, { wireHash, record });
     records.push(record);
-    previousRecordDigest = recordDigest;
+    previousRecordDigest = (record as { recordDigest: string }).recordDigest;
+  }
+  // Replace the cache only after the whole chain verified, so a failed scan never
+  // leaves a partially trusted prefix behind.
+  if (verified !== undefined) {
+    verified.clear();
+    for (const [name, value] of scanned) verified.set(name, value);
   }
   return records;
+}
+
+type VerifiedLaneV1 = Map<string, { wireHash: string; record: unknown }>;
+
+function deepFreezeV1(value: unknown): void {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return;
+  Object.freeze(value);
+  for (const child of Object.values(value as Record<string, unknown>)) deepFreezeV1(child);
 }
 
 async function scanResponderBindings(
