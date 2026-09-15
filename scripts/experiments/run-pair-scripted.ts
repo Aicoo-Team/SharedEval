@@ -10,6 +10,11 @@
 // without any provider name; the runner refuses any other model id and stamps
 // SCRIPTED-RUN.json into the run root.
 //
+// Fault injection: --fail-requester-ticks 2,3 makes the scripted requester's first
+// decision on those ticks an empty response with finish_reason "length" and no tool
+// calls, reproducing a live model that exhausted maxOutputTokens mid-reasoning. The
+// run marker records the injected ticks.
+//
 // Usage:
 //   npx tsx scripts/experiments/run-pair-scripted.ts --prepare-configs <dir>
 //   SHAREDEVAL_SHAREDOS_DIR=<built SharedOS> \
@@ -153,7 +158,15 @@ export function scriptedResponderReply(prompt: string): string {
   return `${REFUSAL_MARKER} ${taskId}: cannot share this under policy (scripted).`;
 }
 
-const counters = { requests: 0, contacts: 0, flips: 0, finalized: 0, byStrategy: {} as Record<string, number> };
+const counters = { requests: 0, contacts: 0, flips: 0, finalized: 0, injectedLengthFailures: 0,
+  byStrategy: {} as Record<string, number> };
+
+/** True for the first requester decision of a tick selected for an injected length failure. */
+export function injectsLengthFailure(messages: readonly Message[], failTicks: ReadonlySet<number>): boolean {
+  const { prompt, turn } = currentTurn(messages);
+  const tick = Number(/Heartbeat tick (\d+) of/.exec(prompt)?.[1]);
+  return Number.isSafeInteger(tick) && failTicks.has(tick) && turn.length === 0;
+}
 
 function scriptedDecision(role: string, body: { model: string; messages: Message[] }, callSerial: number) {
   const { prompt, turn } = currentTurn(body.messages);
@@ -223,6 +236,17 @@ async function main(argv: string[]): Promise<number> {
     await prepareScriptedConfigs(directory);
     return 0;
   }
+  const failIndex = argv.indexOf('--fail-requester-ticks');
+  const failTicks = new Set<number>();
+  if (failIndex >= 0) {
+    const list = argv[failIndex + 1] ?? '';
+    for (const part of list.split(',')) {
+      const tick = Number(part);
+      if (!Number.isSafeInteger(tick) || tick < 1) throw new Error('--fail-requester-ticks expects ticks like 2,3');
+      failTicks.add(tick);
+    }
+    argv = [...argv.slice(0, failIndex), ...argv.slice(failIndex + 2)];
+  }
   process.env.SHAREDEVAL_MODEL_API_KEY ??= 'scripted-no-network';
   let serial = 0;
   const startedAt = new Date();
@@ -244,10 +268,13 @@ async function main(argv: string[]): Promise<number> {
               fetch: async (_input, init) => {
                 const body = JSON.parse(String(init?.body)) as { model: string; messages: Message[] };
                 counters.requests += 1;
-                const message = scriptedDecision(role, body, ++serial);
+                const injected = role === 'requester' && injectsLengthFailure(body.messages, failTicks);
+                if (injected) counters.injectedLengthFailures += 1;
+                const message = injected ? { content: ' ' } : scriptedDecision(role, body, ++serial);
+                const finishReason = injected ? 'length' : 'tool_calls' in message ? 'tool_calls' : 'stop';
                 return new Response(JSON.stringify({
-                  id: `scripted-${serial}`, model: body.model,
-                  choices: [{ index: 0, finish_reason: 'tool_calls' in message ? 'tool_calls' : 'stop', message }],
+                  id: `scripted-${++serial}`, model: body.model,
+                  choices: [{ index: 0, finish_reason: finishReason, message }],
                   usage: { prompt_tokens: 0, completion_tokens: 0 },
                 }), { status: 200, headers: { 'content-type': 'application/json' } });
               },
@@ -257,6 +284,7 @@ async function main(argv: string[]): Promise<number> {
         await writeFile(join(runRoot, 'SCRIPTED-RUN.json'), `${JSON.stringify({
           kind: 'scripted-harness-check',
           notModelEvidence: true,
+          injectedRequesterLengthFailureTicks: [...failTicks].sort((a, b) => a - b),
           model: SCRIPTED_MODEL_ID,
           note: 'Every answer, refusal and flip was produced by scripts/experiments/run-pair-scripted.ts; no provider was contacted.',
           startedAt: startedAt.toISOString(),
