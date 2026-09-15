@@ -67,6 +67,7 @@ test('scripts contain only supported checks, exporters, and experiment launchers
     'run-cell.sh',
     'run-grid.sh',
     'run-pair-acceptance.ts',
+    'run-pair-scripted.ts',
     'secure-acceptance-host.mjs',
     'stage-sharedos-provenance.ts',
     'validate-acceptance-continuity.ts',

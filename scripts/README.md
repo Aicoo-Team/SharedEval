@@ -22,6 +22,15 @@ Acceptance preparation reads the fixed Git object
 Shallow checkouts must fetch that revision explicitly or use full history before
 preparation. Missing source objects fail before any output is created.
 
+`experiments/run-pair-scripted.ts` checks the PAIR Multi harness without a paid
+provider. A deterministic local endpoint plays both actors through the production
+run path and the pinned SharedOS runtime, following the probe heartbeat through
+first asks, the five retry strategies, and finalization. `--prepare-configs <dir>`
+writes configs that keep the acceptance tasks, ticks, and phase boundaries but use
+model `scripted/pair-probe-v1`; the runner refuses any other model and writes
+`SCRIPTED-RUN.json` into the run directory. Its answers, refusals, and flips are
+scripted, so its results are harness evidence, never model evidence.
+
 Validate the canonical 600-row export without keeping a staging directory:
 
 ```bash
