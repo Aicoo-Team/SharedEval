@@ -23,9 +23,16 @@ function flag(name: string, fallback: string): string {
 const harness = flag('--harness', 'deepseek');
 const projection = flag('--projection', 'raw');
 const maxCostUsd = Number(flag('--max-cost-usd', '25'));
+// One fixed OpenRouter provider per run, never fallbacks. Every listed provider's
+// DeepSeek v4-flash-0731 price is at or below the conservative reserve rates below
+// (0.0000001 USD per request byte, 0.0000003 USD per output token), so the cost cap
+// stays conservative whichever route a run pins.
+const DEEPSEEK_FIXED_PROVIDERS = ['Inceptron', 'OpenInference', 'Relace', 'DeepInfra', 'StreamLake', 'Baidu'];
+const provider = flag('--provider', 'Inceptron');
 if (!['deepseek', 'codex'].includes(harness)
   || !['raw', 'deduplicate'].includes(projection)
-  || !Number.isFinite(maxCostUsd) || maxCostUsd <= 0) throw new Error('invalid_acceptance_options');
+  || !Number.isFinite(maxCostUsd) || maxCostUsd <= 0
+  || !DEEPSEEK_FIXED_PROVIDERS.includes(provider)) throw new Error('invalid_acceptance_options');
 
 const key = process.env.SHAREDEVAL_MODEL_API_KEY ?? '';
 const redact = (value: string) => (key ? value.replaceAll(key, '[REDACTED]') : value)
@@ -119,6 +126,7 @@ try {
       }
       await json(join(runRoot, 'acceptance-manifest.json'), {
         protocol: 'pair-live-acceptance/v1', harness, projection, startedAt,
+        ...(harness === 'deepseek' ? { provider } : {}),
         overlaySha256: overlay, configDigest: options.config.configDigest,
         taskIds: options.config.benchmark.tasks.ids,
         maxTicks: options.config.workflow.maxTicks, maxCostUsd,
@@ -176,10 +184,10 @@ try {
                 || target.pathname !== '/api/v1/chat/completions') throw new Error('unexpected_provider_target');
               if (body.model !== 'deepseek/deepseek-v4-flash-0731'
                 || body.provider?.allow_fallbacks !== false
-                || JSON.stringify(body.provider?.only) !== '["Inceptron"]') {
+                || JSON.stringify(body.provider?.only) !== JSON.stringify([provider])) {
                 throw new Error('acceptance_cost_route_not_fixed');
               }
-              // Conservative bytes-as-tokens reserve for the fixed Inceptron route.
+              // Conservative bytes-as-tokens reserve for the fixed provider route.
               const reserve = Buffer.byteLength(requestBody) * 0.0000001
                 + Number(body.max_tokens ?? 4096) * 0.0000003;
               if (observedCostUsd + unreconciledCostReserveUsd + reserve > maxCostUsd) {
