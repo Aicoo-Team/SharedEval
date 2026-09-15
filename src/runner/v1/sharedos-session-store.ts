@@ -433,6 +433,7 @@ export class SharedOsSessionStoreV1 implements
     messages: new Map() as VerifiedLaneV1,
     audit: new Map() as VerifiedLaneV1,
   };
+  private readonly verifiedAuthority: VerifiedAuthorityBytesV1 = {};
 
   constructor(
     private readonly paths: SessionPaths,
@@ -452,7 +453,7 @@ export class SharedOsSessionStoreV1 implements
         this.closed = true;
         return [];
       }
-      await assertAuthorityFiles(this.paths, this.authority);
+      await assertAuthorityFiles(this.paths, this.authority, this.verifiedAuthority);
       if (!contextMatchesBinding(context, this.authority.binding)) return [];
       const messages = await scanMessageRecords(this.paths, this.verifiedLanes.messages);
       const bindings = await scanResponderBindings(this.paths, this.authority);
@@ -477,7 +478,7 @@ export class SharedOsSessionStoreV1 implements
   async getUsage(namespaceId: string, grantId: string): Promise<number> {
     this.assertUsageRequest(namespaceId, grantId);
     return await this.enqueue(async () => withMutationLock(this.paths, async () => {
-      await assertAuthorityFiles(this.paths, this.authority);
+      await assertAuthorityFiles(this.paths, this.authority, this.verifiedAuthority);
       const records = await scanUsageRecords(this.paths, this.authority, this.verifiedLanes.usage);
       return records.filter(record => record.grantId === grantId).length;
     }));
@@ -498,7 +499,7 @@ export class SharedOsSessionStoreV1 implements
         this.closed = true;
         return false;
       }
-      await assertAuthorityFiles(this.paths, this.authority);
+      await assertAuthorityFiles(this.paths, this.authority, this.verifiedAuthority);
       const records = await scanUsageRecords(this.paths, this.authority, this.verifiedLanes.usage);
       if (records.filter(record => record.grantId === grantId).length >= maximumUses) {
         return false;
@@ -526,7 +527,7 @@ export class SharedOsSessionStoreV1 implements
         this.closed = true;
         throw new Error('SharedOS session is closed');
       }
-      await assertAuthorityFiles(this.paths, this.authority);
+      await assertAuthorityFiles(this.paths, this.authority, this.verifiedAuthority);
       const records = await scanAuditRecords(this.paths, this.authority, this.verifiedLanes.audit);
       await appendRecord(this.paths, this.paths.audit, auditRecordSchema, {
         apiVersion: 'sharedeval-sharedos-audit-record/v1',
@@ -566,7 +567,7 @@ export class SharedOsSessionStoreV1 implements
         this.closed = true;
         return failedDelivery(envelope, 'SESSION_CLOSED', 'SharedOS session is closed');
       }
-      await assertAuthorityFiles(this.paths, this.authority);
+      await assertAuthorityFiles(this.paths, this.authority, this.verifiedAuthority);
       const records = await scanMessageRecords(this.paths, this.verifiedLanes.messages);
       const sameId = records.find(record => record.envelope.id === envelope.id);
       if (sameId) {
@@ -604,7 +605,7 @@ export class SharedOsSessionStoreV1 implements
   readMessage(messageId: string): Promise<SoMessageEnvelope | null> {
     const parsedId = identifierSchema.parse(messageId);
     return this.enqueue(async () => withMutationLock(this.paths, async () => {
-      await assertAuthorityFiles(this.paths, this.authority);
+      await assertAuthorityFiles(this.paths, this.authority, this.verifiedAuthority);
       const match = (await scanMessageRecords(this.paths, this.verifiedLanes.messages))
         .find(record => record.envelope.id === parsedId);
       return match ? structuredClone(match.envelope) : null;
@@ -639,7 +640,7 @@ export class SharedOsSessionStoreV1 implements
         this.closed = true;
         throw new Error('SharedOS session is closed');
       }
-      await assertAuthorityFiles(this.paths, this.authority);
+      await assertAuthorityFiles(this.paths, this.authority, this.verifiedAuthority);
       const messages = await scanMessageRecords(this.paths, this.verifiedLanes.messages);
       const request = messages.find(record => record.envelope.id === parsed.requestMessageId)
         ?.envelope;
@@ -696,7 +697,7 @@ export class SharedOsSessionStoreV1 implements
 
   snapshotAudit(): Promise<{ nextSequence: number }> {
     return this.enqueue(async () => withMutationLock(this.paths, async () => {
-      await assertAuthorityFiles(this.paths, this.authority);
+      await assertAuthorityFiles(this.paths, this.authority, this.verifiedAuthority);
       return { nextSequence: (await scanAuditRecords(this.paths, this.authority, this.verifiedLanes.audit)).length };
     }));
   }
@@ -713,7 +714,7 @@ export class SharedOsSessionStoreV1 implements
       return Promise.reject(new Error('Audit window sequences are reversed'));
     }
     return this.enqueue(async () => withMutationLock(this.paths, async () => {
-      await assertAuthorityFiles(this.paths, this.authority);
+      await assertAuthorityFiles(this.paths, this.authority, this.verifiedAuthority);
       const records = await scanAuditRecords(this.paths, this.authority, this.verifiedLanes.audit);
       if (parsed.toSequenceExclusive > records.length) {
         throw new Error('Audit window exceeds the durable sequence');
@@ -728,7 +729,7 @@ export class SharedOsSessionStoreV1 implements
     if (this.closePromise) return this.closePromise;
     this.closing = true;
     this.closePromise = this.enqueue(async () => withMutationLock(this.paths, async () => {
-      await assertAuthorityFiles(this.paths, this.authority);
+      await assertAuthorityFiles(this.paths, this.authority, this.verifiedAuthority);
       await scanUsageRecords(this.paths, this.authority);
       const messages = await scanMessageRecords(this.paths);
       await scanAuditRecords(this.paths, this.authority);
@@ -1178,23 +1179,32 @@ async function establishImmutableJson(
 async function assertAuthorityFiles(
   paths: SessionPaths,
   authority: NormalizedAuthority,
+  verified?: VerifiedAuthorityBytesV1,
 ): Promise<void> {
+  // Both files are reread and hashed on every call. The in-memory authority is
+  // immutable, so bytes identical to ones this store instance already fully
+  // verified would reach the same verdict; only those skip parsing, canonical
+  // digests, and deep comparison. Any byte change takes the full path below.
   const bindingSource = await readBoundedRegular(
     paths.binding,
     MAX_AUTHORITY_BYTES,
     'session binding',
   );
-  let bindingEnvelope: z.infer<typeof bindingEnvelopeSchema>;
-  try {
-    bindingEnvelope = bindingEnvelopeSchema.parse(JSON.parse(bindingSource));
-  } catch {
-    throw new Error('Session binding is malformed');
-  }
-  if (bindingEnvelope.bindingDigest !== digestCanonical(bindingEnvelope.binding)) {
-    throw new Error('Session binding digest does not match its committed bytes');
-  }
-  if (!isDeepStrictEqual(bindingEnvelope, authority.bindingEnvelope)) {
-    throw new Error('Session binding conflicts with immutable authority');
+  const bindingWireHash = createHash('sha256').update(bindingSource).digest('hex');
+  if (verified?.binding !== bindingWireHash) {
+    let bindingEnvelope: z.infer<typeof bindingEnvelopeSchema>;
+    try {
+      bindingEnvelope = bindingEnvelopeSchema.parse(JSON.parse(bindingSource));
+    } catch {
+      throw new Error('Session binding is malformed');
+    }
+    if (bindingEnvelope.bindingDigest !== digestCanonical(bindingEnvelope.binding)) {
+      throw new Error('Session binding digest does not match its committed bytes');
+    }
+    if (!isDeepStrictEqual(bindingEnvelope, authority.bindingEnvelope)) {
+      throw new Error('Session binding conflicts with immutable authority');
+    }
+    if (verified !== undefined) verified.binding = bindingWireHash;
   }
 
   const grantSource = await readBoundedRegular(
@@ -1202,22 +1212,30 @@ async function assertAuthorityFiles(
     MAX_AUTHORITY_BYTES,
     'grant manifest',
   );
-  let manifest: z.infer<typeof grantManifestSchema>;
-  try {
-    manifest = grantManifestSchema.parse(JSON.parse(grantSource));
-  } catch {
-    throw new Error('Grant manifest is malformed');
-  }
-  if (
-    manifest.bindingDigest !== bindingEnvelope.bindingDigest
-    || manifest.grantsDigest !== digestCanonical(manifest.grants)
-  ) {
-    throw new Error('Grant manifest digest does not match its committed bytes');
-  }
-  if (!isDeepStrictEqual(manifest, authority.grantManifest)) {
-    throw new Error('Grant manifest conflicts with immutable authority');
+  const grantsWireHash = createHash('sha256').update(grantSource).digest('hex');
+  if (verified?.grants !== grantsWireHash) {
+    let manifest: z.infer<typeof grantManifestSchema>;
+    try {
+      manifest = grantManifestSchema.parse(JSON.parse(grantSource));
+    } catch {
+      throw new Error('Grant manifest is malformed');
+    }
+    // The binding above equals the immutable authority, so its digest is the
+    // authority's binding digest whether it was freshly parsed or byte-identical.
+    if (
+      manifest.bindingDigest !== authority.bindingEnvelope.bindingDigest
+      || manifest.grantsDigest !== digestCanonical(manifest.grants)
+    ) {
+      throw new Error('Grant manifest digest does not match its committed bytes');
+    }
+    if (!isDeepStrictEqual(manifest, authority.grantManifest)) {
+      throw new Error('Grant manifest conflicts with immutable authority');
+    }
+    if (verified !== undefined) verified.grants = grantsWireHash;
   }
 }
+
+type VerifiedAuthorityBytesV1 = { binding?: string; grants?: string };
 
 async function readClosedAuthority(
   paths: SessionPaths,

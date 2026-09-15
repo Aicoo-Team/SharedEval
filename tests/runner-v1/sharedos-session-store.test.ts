@@ -1207,6 +1207,54 @@ test('parses each durable audit and usage record once across many appends in one
   assert.ok(parses.usage <= 7, `usage record parses grew with history: ${parses.usage}`);
 });
 
+test('parses unchanged binding and grant manifest bytes at most once across many operations', async t => {
+  const options = await temporaryOptions(t, 'authority-reuse');
+  const store = await openSharedOsSessionStoreV1(options);
+  const calls = 24;
+  const parses = { binding: 0, grants: 0 };
+  const originalParse = JSON.parse;
+  // Count real parses of the committed authority files; the store is not mocked.
+  JSON.parse = ((text: string, reviver?: Parameters<typeof JSON.parse>[1]) => {
+    if (typeof text === 'string') {
+      if (text.includes('sharedeval-sharedos-binding-authority/v1')) parses.binding += 1;
+      if (text.includes('sharedeval-sharedos-grant-manifest/v1')) parses.grants += 1;
+    }
+    return originalParse(text, reviver);
+  }) as typeof JSON.parse;
+  try {
+    for (let index = 0; index < calls; index += 1) await store.record(auditEvent());
+  } finally {
+    JSON.parse = originalParse;
+  }
+  assert.deepEqual(await store.snapshotAudit(), { nextSequence: calls });
+  // Re-establishing unchanged authority by parsing costs one binding and one grant
+  // manifest parse per operation; reusing verified bytes parses each at most once.
+  assert.ok(parses.binding <= 1, `binding authority parses grew with operations: ${parses.binding}`);
+  assert.ok(parses.grants <= 1, `grant manifest parses grew with operations: ${parses.grants}`);
+});
+
+test('rejects authority files changed after earlier successful operations in one session', async t => {
+  const options = await temporaryOptions(t, 'authority-hot-tamper');
+  const store = await openSharedOsSessionStoreV1(options);
+  await store.record(auditEvent());
+  await store.record(auditEvent());
+  const files = [
+    ['binding.json', /binding.*(?:digest|conflict)|(?:digest|conflict).*binding/i],
+    ['grants.json', /grant manifest/i],
+  ] as const;
+  for (const [file, expected] of files) {
+    const filePath = sessionPath(options.runDirectory, file);
+    const original = await readFile(filePath, 'utf8');
+    const changed = JSON.parse(original) as Record<string, unknown>;
+    changed.bindingDigest = createHash('sha256').update('foreign').digest('hex');
+    await writeFile(filePath, `${JSON.stringify(changed)}\n`);
+    await assert.rejects(() => store.record(auditEvent()), expected);
+    await writeFile(filePath, original);
+    await store.record(auditEvent());
+  }
+  assert.deepEqual(await store.snapshotAudit(), { nextSequence: 4 });
+});
+
 test('rejects symlinked roots, symlinked authority, special records, and lock substitution', async t => {
   const symlinkOptions = await temporaryOptions(t, 'symlink-root');
   const target = join(dirname(symlinkOptions.runDirectory), 'target');
