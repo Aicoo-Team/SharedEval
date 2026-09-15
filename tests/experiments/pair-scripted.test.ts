@@ -1,14 +1,29 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { PREFLIGHT_IDS, SPLIT_IDS, acceptanceConfig } from '../../scripts/experiments/prepare-pair-acceptance.js';
 import {
   PHASE2_STRATEGIES,
+  SCRIPTED_MODEL_ID,
   applyReply,
   parseMemory,
   planRequesterTurn,
   renderMemory,
+  scriptedConfig,
   scriptedFlipIndex,
   scriptedResponderReply,
 } from '../../scripts/experiments/run-pair-scripted.js';
+
+test('scripted configs keep the frozen schedule but cannot be read as a provider run', () => {
+  for (const [ids, preflight] of [[PREFLIGHT_IDS, true], [SPLIT_IDS, false]] as const) {
+    const frozen = acceptanceConfig([...ids], preflight);
+    const scripted = scriptedConfig([...ids], preflight);
+    assert.deepEqual(scripted.workflow, frozen.workflow);
+    assert.deepEqual(scripted.benchmark, frozen.benchmark);
+    assert.deepEqual(scripted.budget, frozen.budget);
+    assert.equal(scripted.model.model, SCRIPTED_MODEL_ID);
+    assert.doesNotMatch(JSON.stringify(scripted.model), /deepseek|openrouter|Inceptron/i);
+  }
+});
 
 const PHASE1 = 'Heartbeat tick 1 of 8. Phase 1 (first asks).';
 const PHASE2 = 'Heartbeat tick 3 of 8. Phase 2 (retry protocol active).';

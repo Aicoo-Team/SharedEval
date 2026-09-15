@@ -5,17 +5,30 @@
 // without spending on a paid provider. It is not a model result: every answer,
 // refusal, and flip below is scripted.
 //
+// Scripted runs must never be mistaken for model evidence, so configs carry the
+// model id `scripted/pair-probe-v1`, an unresolvable base URL, and file names
+// without any provider name; the runner refuses any other model id and stamps
+// SCRIPTED-RUN.json into the run root.
+//
 // Usage:
+//   npx tsx scripts/experiments/run-pair-scripted.ts --prepare-configs <dir>
 //   SHAREDEVAL_SHAREDOS_DIR=<built SharedOS> \
-//   npx tsx scripts/experiments/run-pair-scripted.ts --config <run.yaml> --run-id <id>
+//   npx tsx scripts/experiments/run-pair-scripted.ts --config <dir>/scripted-pair-preflight.yaml --run-id <id>
 import { createHash } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { stringify } from 'yaml';
 import { mainSharedevalV1 } from '../../src/runner/v1/sharedeval-cli.js';
 import { runSharedevalProductionV1 } from '../../src/runner/v1/sharedeval-production.js';
 import { createOpenAICompatibleFileTurnDriverV1 } from '../../src/runner/v1/file-model-driver.js';
+import { PREFLIGHT_IDS, SPLIT_IDS, acceptanceConfig } from './prepare-pair-acceptance.js';
 
 type Message = { role: string; content?: string | null; tool_calls?: ToolCall[]; tool_call_id?: string };
 type ToolCall = { id: string; type: 'function'; function: { name: string; arguments: string } };
 
+export const SCRIPTED_MODEL_ID = 'scripted/pair-probe-v1';
+const SCRIPTED_BASE_URL = 'https://scripted.invalid/v1';
 const WORKSPACE_FILES = ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'] as const;
 export const PHASE2_STRATEGIES = [
   'repeat', 'business_justification', 'urgency', 'social_appeal', 'decomposition',
@@ -23,10 +36,18 @@ export const PHASE2_STRATEGIES = [
 const REFUSAL_MARKER = 'SCRIPTED-REFUSAL';
 const ANSWER_MARKER = 'SCRIPTED-ANSWER';
 
-process.env.SHAREDEVAL_MODEL_API_KEY ??= 'scripted-no-network';
-
 const hashIndex = (value: string, modulo: number) =>
   createHash('sha256').update(value).digest().readUInt32BE(0) % modulo;
+
+/**
+ * The frozen acceptance configs (same tasks, ticks, phase boundaries, budget)
+ * relabelled so no artifact can be read as a provider run.
+ */
+export function scriptedConfig(ids: string[], preflight = false) {
+  const config = acceptanceConfig(ids, preflight);
+  const { providerRouting: _routing, ...model } = config.model as typeof config.model & { providerRouting?: unknown };
+  return { ...config, model: { ...model, baseUrl: SCRIPTED_BASE_URL, model: SCRIPTED_MODEL_ID } };
+}
 
 /**
  * Which strategy (if any) makes the scripted responder flip for one QA task.
@@ -181,34 +202,80 @@ function scriptedDecision(role: string, body: { model: string; messages: Message
   return call('files.replace', { path: ['MEMORY.md'], expectedVersion: memoryVersion, content: renderMemory(lines) });
 }
 
-const isEntrypoint = process.argv[1]?.endsWith('run-pair-scripted.ts');
-if (isEntrypoint) {
+async function prepareScriptedConfigs(outputDirectory: string) {
+  const out = resolve(outputDirectory);
+  await mkdir(out, { recursive: true, mode: 0o700 });
+  const files = [
+    ['scripted-pair-preflight.yaml', scriptedConfig(PREFLIGHT_IDS, true)],
+    ['scripted-pair-60x300.yaml', scriptedConfig(SPLIT_IDS)],
+  ] as const;
+  for (const [name, config] of files) {
+    await writeFile(join(out, name), stringify(config, { lineWidth: 0 }), { flag: 'wx', mode: 0o600 });
+  }
+  process.stdout.write(`${JSON.stringify({ configs: files.map(([name]) => join(out, name)) }, null, 2)}\n`);
+}
+
+async function main(argv: string[]): Promise<number> {
+  const prepareIndex = argv.indexOf('--prepare-configs');
+  if (prepareIndex >= 0) {
+    const directory = argv[prepareIndex + 1];
+    if (!directory) throw new Error('--prepare-configs requires a directory');
+    await prepareScriptedConfigs(directory);
+    return 0;
+  }
+  process.env.SHAREDEVAL_MODEL_API_KEY ??= 'scripted-no-network';
   let serial = 0;
-  const startedAt = Date.now();
+  const startedAt = new Date();
   try {
-    process.exitCode = await mainSharedevalV1(process.argv.slice(2), {
-      runProduction: options => runSharedevalProductionV1(options, {
-        createDriver: driverOptions => {
-          const role = driverOptions.actorContext?.actorId ?? 'unknown';
-          return createOpenAICompatibleFileTurnDriverV1({
-            ...driverOptions,
-            fetch: async (_input, init) => {
-              const body = JSON.parse(String(init?.body)) as { model: string; messages: Message[] };
-              counters.requests += 1;
-              const message = scriptedDecision(role, body, ++serial);
-              return new Response(JSON.stringify({
-                id: `scripted-${serial}`, model: body.model,
-                choices: [{ index: 0, finish_reason: 'tool_calls' in message ? 'tool_calls' : 'stop', message }],
-                usage: { prompt_tokens: 0, completion_tokens: 0 },
-              }), { status: 200, headers: { 'content-type': 'application/json' } });
-            },
-          });
-        },
-      }),
+    return await mainSharedevalV1(argv, {
+      runProduction: async options => {
+        const model = options.config.model;
+        if (model.provider !== 'openai-compatible' || model.model !== SCRIPTED_MODEL_ID) {
+          const label = model.provider === 'openai-compatible' ? model.model : model.provider;
+          throw new Error(`run-pair-scripted refuses model "${label}"; `
+            + `use a config from --prepare-configs (model ${SCRIPTED_MODEL_ID}).`);
+        }
+        const runRoot = join(options.configRootDir, options.config.output.directory, options.runId);
+        const result = await runSharedevalProductionV1(options, {
+          createDriver: driverOptions => {
+            const role = driverOptions.actorContext?.actorId ?? 'unknown';
+            return createOpenAICompatibleFileTurnDriverV1({
+              ...driverOptions,
+              fetch: async (_input, init) => {
+                const body = JSON.parse(String(init?.body)) as { model: string; messages: Message[] };
+                counters.requests += 1;
+                const message = scriptedDecision(role, body, ++serial);
+                return new Response(JSON.stringify({
+                  id: `scripted-${serial}`, model: body.model,
+                  choices: [{ index: 0, finish_reason: 'tool_calls' in message ? 'tool_calls' : 'stop', message }],
+                  usage: { prompt_tokens: 0, completion_tokens: 0 },
+                }), { status: 200, headers: { 'content-type': 'application/json' } });
+              },
+            });
+          },
+        });
+        await writeFile(join(runRoot, 'SCRIPTED-RUN.json'), `${JSON.stringify({
+          kind: 'scripted-harness-check',
+          notModelEvidence: true,
+          model: SCRIPTED_MODEL_ID,
+          note: 'Every answer, refusal and flip was produced by scripts/experiments/run-pair-scripted.ts; no provider was contacted.',
+          startedAt: startedAt.toISOString(),
+          finishedAt: new Date().toISOString(),
+          counters,
+        }, null, 2)}\n`, { mode: 0o600 });
+        return result;
+      },
       writeOutput: source => process.stdout.write(source),
     });
   } finally {
     process.stderr.write(`${JSON.stringify({ event: 'scripted_summary', ...counters,
-      elapsedMs: Date.now() - startedAt, exitCode: process.exitCode ?? 0 })}\n`);
+      elapsedMs: Date.now() - startedAt.getTime() })}\n`);
   }
+}
+
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  main(process.argv.slice(2)).then(code => { process.exitCode = code; }).catch(error => {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exitCode = 1;
+  });
 }
