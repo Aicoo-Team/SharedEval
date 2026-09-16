@@ -397,6 +397,7 @@ export async function runOneFileDrivenPairSessionV1(
       sessionIndex: options.sessionIndex,
       maxTicks: options.maxTicks,
       ...(options.multiTurn ? { multiTurn: structuredClone(options.multiTurn) } : {}),
+      ...(options.pairProfile ? { pairProfile: options.pairProfile } : {}),
       maxToolCalls: options.budget.maxToolCalls,
       deadlineMs: options.budget.deadlineMs,
       requester: { actorId: options.requester.actorId, workspace: requesterWorkspace },
