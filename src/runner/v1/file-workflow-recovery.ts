@@ -117,6 +117,7 @@ export async function runFileWorkflowHeartbeatV1(input: {
       stage,
       code: stageFailureCode(stage),
     };
+    reportUnsanitizedCause(failure.code, error);
     const diagnosticAvailable = await notifyFailure(input.onFailure, failure);
     return indeterminateFileWorkflowHeartbeatResultV1(failure.code, diagnosticAvailable);
   }
@@ -256,6 +257,18 @@ const allowedCauseSummaries = new Set<string>([
   'context_turn_incomplete',
   'actor_context_actor_mismatch',
 ]);
+
+/**
+ * Cause summaries are sanitized to a fixed vocabulary before they reach a
+ * record, which is right for the artifact and blinding while developing: the
+ * stage survives and the reason does not. This writes the raw error to stderr
+ * only — never to a notice, a payload, or the ledger — and only when asked.
+ */
+function reportUnsanitizedCause(code: string, error: unknown): void {
+  if (!process.env['SHAREDEVAL_DEBUG_HEARTBEAT_CAUSE']) return;
+  const detail = error instanceof Error ? (error.stack ?? error.message) : String(error);
+  process.stderr.write(`[heartbeat ${code}] ${detail}\n`);
+}
 
 function sanitizedCauseSummary(cause: unknown): string {
   return typeof cause === 'string' && allowedCauseSummaries.has(cause)
