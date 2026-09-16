@@ -162,9 +162,19 @@ export function buildPactPairSharedOsGrantManifestV1(
     // than a single descendants grant. The point is unchanged: every grant is
     // held for the whole run, none is deferred, and nothing is activated per
     // contact. Relationship, not task id, is what varies.
+    // Standing reach means the same reach: both surfaces and every action, for
+    // every task. Narrowing a QA task to a read on its own surface would leave
+    // the responder holding nine tools it is not authorized to call, since the
+    // tool set is now constant while these capabilities are what a call checks.
     for (const task of tasks) {
-      for (const descriptor of taskCapabilityDescriptors(input, task)) {
-        grants.push(createGrant(input, { ...descriptor, responderTaskId: undefined }));
+      for (const surface of ['notes', 'todos'] as const) {
+        grants.push(createGrant(input, {
+          subjectId: input.responderId,
+          resourceNamespace: 'pact-pair',
+          resourcePath: ['task', task.taskId, surface],
+          actions: ['create', 'read', 'update'],
+          maxUses: perContact(input.maxToolCalls) * tasks.length,
+        }));
       }
     }
     grants.sort((left, right) => compareCodeUnits(left.id, right.id));

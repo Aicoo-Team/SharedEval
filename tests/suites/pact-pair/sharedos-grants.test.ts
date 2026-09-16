@@ -206,6 +206,42 @@ test('builds the exact root grant matrix with bounded uses', () => {
   ]);
 });
 
+test('simple issues one standing datastore reach for every task and defers nothing', () => {
+  const manifest = build({ pairProfile: 'simple' });
+
+  // Nothing is activated per contact, so the router has no set to bind.
+  assert.deepEqual(manifest.responderGrantSets, []);
+
+  const pact = manifest.grants
+    .filter(grant => grant.capabilities[0]?.resource.namespace === 'pact-pair')
+    .map(grant => {
+      const capability = grant.capabilities[0]!;
+      return [
+        capability.resource.path[1]!,
+        capability.resource.path[2]!,
+        capability.actions.join(','),
+      ];
+    })
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+
+  // Both surfaces and every action, identically for a QA task, a QA task whose
+  // surface is unknown, and an action task: the tool set is constant now, so a
+  // capability narrowed by task kind would leave tools that cannot be called.
+  assert.deepEqual(pact, [
+    ['PAIR-A1', 'notes', 'create,read,update'],
+    ['PAIR-A1', 'todos', 'create,read,update'],
+    ['PAIR-Q1', 'notes', 'create,read,update'],
+    ['PAIR-Q1', 'todos', 'create,read,update'],
+    ['PAIR-Q2', 'notes', 'create,read,update'],
+    ['PAIR-Q2', 'todos', 'create,read,update'],
+  ]);
+
+  // Strict is untouched: it still narrows by surface and kind.
+  const strict = build();
+  assert.ok(strict.responderGrantSets.length > 0);
+  assert.deepEqual(projectPactCapabilities(strict, 'PAIR-Q1'), [['PAIR-Q1', 'notes', 'read', 8]]);
+});
+
 test('multiTurn scales contact-shaped use counts without changing grant identities', () => {
   const single = build({ maxTicks: 5 });
   const multi = build({ maxTicks: 5, multiTurn: { phase2StartTick: 2, finalizeTick: 5 } });

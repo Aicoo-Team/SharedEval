@@ -531,21 +531,19 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     contact: SharedOsMessageContactResultV1,
     traceId: string,
   ): SharedOsFileTurnResultV1['contact'] {
-    if (!contact.taskId || !this.options.tasks.some(task => task.taskId === contact.taskId)) {
-      // A contact naming no selected task was already refused by the router: no
-      // responder ran, no grant set bound, no side effect. Under 'simple' that
-      // is provably nothing, so the turn reports no contact and the tick commits
-      // as a failed contact instead of ending the whole trajectory.
-      if (this.options.pairProfile === 'simple') return undefined;
-      throw new Error('SharedOS contact does not bind one selected task');
-    }
+    const taskId = selectedContactTaskIdV1({
+      taskId: contact.taskId,
+      taskIds: this.options.tasks.map(task => task.taskId),
+      ...(this.options.pairProfile ? { pairProfile: this.options.pairProfile } : {}),
+    });
+    if (taskId === undefined) return undefined;
     const responderUsage = this.responderUsageByTrace.get(traceId);
     if (contact.responderExecutionId !== undefined && responderUsage === undefined) {
       throw new Error('SharedOS responder execution lost its provider telemetry');
     }
     this.responderUsageByTrace.delete(traceId);
     return Object.freeze({
-      taskId: contact.taskId,
+      taskId,
       requestMessageId: contact.requestMessageId,
       ...(contact.replyMessageId ? { replyMessageId: contact.replyMessageId } : {}),
       ...(contact.responderExecutionId
@@ -605,6 +603,31 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
  * function of (tick, maxTicks, phase boundaries) — deterministic across
  * resume replays because every input is committed run configuration.
  */
+/**
+ * The selected task a contact binds, and what an unselected one costs.
+ *
+ * A contact naming no selected task was already refused by the router: no
+ * responder ran, no grant set was bound, nothing happened outside the process.
+ * Under 'simple' that is provably nothing, so the turn reports no contact and
+ * the tick commits as a failed contact — one malformed task id costs its own
+ * task, not the trajectory. Under 'strict' it stays fatal, because a run whose
+ * contact evidence cannot be placed cannot be scored.
+ *
+ * Returns the bound task id, or undefined when a 'simple' run drops the
+ * contact; throws when a 'strict' run must end. Returning the id rather than a
+ * boolean keeps the caller's narrowing in the type system instead of in a
+ * non-null assertion that no later edit would be checked against.
+ */
+export function selectedContactTaskIdV1(input: Readonly<{
+  taskId: string | undefined;
+  taskIds: readonly string[];
+  pairProfile?: 'strict' | 'simple';
+}>): string | undefined {
+  if (input.taskId && input.taskIds.includes(input.taskId)) return input.taskId;
+  if (input.pairProfile === 'simple') return undefined;
+  throw new Error('SharedOS contact does not bind one selected task');
+}
+
 export function heartbeatInstructionText(
   tick: number,
   options: Pick<CreateSharedOsFileSessionV1Options, 'maxTicks' | 'multiTurn'>,

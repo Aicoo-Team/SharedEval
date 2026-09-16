@@ -169,12 +169,41 @@ flaky: the unmodified baseline worktree fails it too, three isolated reruns pass
 and it matches the room's 2026-09-13 record. Evidence in
 `FIFO-FLAKY-EVIDENCE.txt`. It is not related to this profile.
 
-## Still open
+## Constant tool surface
 
-- Tool surface: the requester should get read/search/grep/replace and the
-  responder a constant tool set, replacing the per-task `surfaces.has()` gating
-  and the QA write-tool filtering in `sharedos-tools.ts`.
-- A fabricated-taskId RED→GREEN test: one malformed contact should cost its
-  task, not the whole run. Today a single bad `taskId` anywhere in 180 ticks
-  ends everything, even when the model corrects itself in the same turn. This is
-  the single biggest cause of long runs dying early.
+The responder's tool set no longer varies by task. `sharedos-tools.ts` used to
+drop any tool outside the task's own surface, and every write tool on a QA task;
+both filters are gone, so all nine tools are exposed for every task.
+`taskSurfaces()` is still called — it validates the task/public-task binding and
+rejects an unsupported surface — but its result no longer selects tools.
+
+Capabilities had to move with it. Under `strict` the grant manifest narrows a QA
+task to `read` on its own surface, which after this change would leave the
+responder holding nine tools it is not authorized to call. Under `simple` the
+datastore reach is now standing and identical for every task: both surfaces,
+`create,read,update`. `strict` is untouched and its tests still assert the
+narrow shape.
+
+## A fabricated task id costs its task, not the run
+
+The fatal path was `projectContact`, which threw when a contact named no
+selected task. The decision is now `selectedContactTaskIdV1()`, an exported pure
+function beside `heartbeatInstructionText()`: under `simple` the turn reports no
+contact and the tick commits as a failed contact; under `strict`, and when no
+profile is set, it still throws, so pre-existing runs are unchanged. It returns
+the bound task id rather than a boolean, so the caller's narrowing stays in the
+type system — the first version returned a boolean and `tsc` caught the lost
+narrowing that all 913 tests had passed straight over.
+
+This is safe because such a contact was already refused by the router — no
+responder ran, no grant set was bound, nothing happened outside the process.
+
+## Test coverage, honestly
+
+Before today `pairProfile` appeared nowhere in `tests/`. It now has the grant
+manifest's standing reach and the fabricated-task-id decision under unit test.
+
+**The four waived read-coverage gates still have no unit test.** Their only
+evidence is the end-to-end scripted run, which proves the path works but would
+not catch someone reinstating one gate. Closing that is the next worthwhile
+piece of work here.

@@ -39,45 +39,48 @@ const mixedQa: LoadedPactPairTaskV1 = {
   publicTask: { ...notesQa.publicTask, surface: 'unknown' },
 };
 
-test('exposes only the accepted task surface and read/write task kind', () => {
-  const cases: Array<readonly [LoadedPactPairTaskV1, readonly string[]]> = [
-    [notesQa, ['search_notes', 'get_note']],
-    [todosQa, ['search_todos', 'get_todo']],
-    [mixedQa, ['search_notes', 'get_note', 'search_todos', 'get_todo']],
-    [notesAction, ['search_notes', 'get_note', 'create_note', 'edit_note']],
-    [
-      todosAction,
-      ['search_todos', 'get_todo', 'create_todo', 'edit_todo', 'complete_todo'],
-    ],
-  ];
+const ALL_TOOLS = [
+  'search_notes', 'get_note', 'create_note', 'edit_note',
+  'search_todos', 'get_todo', 'create_todo', 'edit_todo', 'complete_todo',
+];
 
-  for (const [task, expected] of cases) {
+test('exposes the same nine tools whatever the task surface and kind', () => {
+  // A question does not decide what the responder may do; the relationship
+  // does. What a task still changes is the capability each tool demands, and
+  // that is asserted below.
+  for (const task of [notesQa, todosQa, mixedQa, notesAction, todosAction]) {
     const handlers = createPactPairSharedOsToolHandlersV1({
       task,
       owner,
       workspace: createPactPairWorkspaceV1(),
     });
-    assert.deepEqual(
-      handlers.map(handler => handler.definition.name),
-      expected,
-      task.taskId,
-    );
+    assert.deepEqual(handlers.map(handler => handler.definition.name), ALL_TOOLS, task.taskId);
   }
 });
 
+test('still rejects a task whose public surface binding does not match', () => {
+  const mismatched: LoadedPactPairTaskV1 = {
+    ...notesAction,
+    publicTask: { ...notesAction.publicTask, surface: 'todos' },
+  };
+  assert.throws(
+    () => createPactPairSharedOsToolHandlersV1({
+      task: mismatched,
+      owner,
+      workspace: createPactPairWorkspaceV1(),
+    }),
+    /invalid surface binding/,
+  );
+});
+
 test('binds every definition and argument-derived requirement to the accepted task', () => {
-  const handlers = [
-    ...createPactPairSharedOsToolHandlersV1({
-      task: notesAction,
-      owner,
-      workspace: createPactPairWorkspaceV1(),
-    }),
-    ...createPactPairSharedOsToolHandlersV1({
-      task: todosAction,
-      owner,
-      workspace: createPactPairWorkspaceV1(),
-    }),
-  ];
+  // One task now yields the whole set, so the requirement each tool declares is
+  // the only thing that still varies with the task.
+  const handlers = createPactPairSharedOsToolHandlersV1({
+    task: notesAction,
+    owner,
+    workspace: createPactPairWorkspaceV1(),
+  });
   const specs = new Map(PACT_PAIR_TOOL_SPECS_V1.map(spec => [spec.name, spec]));
   assert.equal(handlers.length, 9);
 
@@ -91,7 +94,7 @@ test('binds every definition and argument-derived requirement to the accepted ta
       : name.startsWith('create_')
         ? 'create'
         : 'update';
-    const task = surface === 'notes' ? notesAction : todosAction;
+    const task = notesAction;
     const requirement: SoCapabilityRequirement = {
       resource: {
         namespace: 'pact-pair',

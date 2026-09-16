@@ -111,7 +111,11 @@ export function createPactPairSharedOsToolHandlersV1(options: {
   owner: SoAddress;
   workspace: PactPairWorkspaceV1;
 }): readonly SoToolHandler[] {
-  const surfaces = taskSurfaces(options.task);
+  // Called for its checks, not its result: the responder's tool set no longer
+  // varies by task. A question does not decide what an agent may do — the
+  // relationship does — so every task exposes the same nine tools, and what a
+  // task changes is which capabilities the grant manifest issues.
+  taskSurfaces(options.task);
   const owner = structuredClone(options.owner);
 
   return PACT_PAIR_TOOL_SPECS_V1.flatMap(spec => {
@@ -120,8 +124,6 @@ export function createPactPairSharedOsToolHandlersV1(options: {
       throw new Error(`Unsupported PACT-Pair tool specification: ${name}`);
     }
     const binding = TOOL_BINDINGS[name];
-    if (!surfaces.has(binding.surface)) return [];
-    if (options.task.kind === 'qa' && binding.action !== 'read') return [];
 
     const requirement = taskRequirement(
       options.task.taskId,
