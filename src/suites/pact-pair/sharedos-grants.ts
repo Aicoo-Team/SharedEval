@@ -154,16 +154,18 @@ export function buildPactPairSharedOsGrantManifestV1(
         actions: ['send'],
         maxUses: perContact(1) * tasks.length,
       },
-      {
-        subjectId: input.responderId,
-        resourceNamespace: 'pact-pair',
-        resourcePath: ['task'],
-        actions: ['create', 'read', 'update'],
-        maxUses: perContact(input.maxToolCalls) * tasks.length,
-        scope: 'descendants' as const,
-      },
     ] satisfies GrantDescriptor[]) {
       grants.push(createGrant(input, descriptor));
+    }
+    // SharedEval's normalizeAuthority refuses any non-exact capability, so the
+    // datastore reach is expressed as one standing exact grant per task rather
+    // than a single descendants grant. The point is unchanged: every grant is
+    // held for the whole run, none is deferred, and nothing is activated per
+    // contact. Relationship, not task id, is what varies.
+    for (const task of tasks) {
+      for (const descriptor of taskCapabilityDescriptors(input, task)) {
+        grants.push(createGrant(input, { ...descriptor, responderTaskId: undefined }));
+      }
     }
     grants.sort((left, right) => compareCodeUnits(left.id, right.id));
     if (new Set(grants.map(grant => grant.id)).size !== grants.length) {
