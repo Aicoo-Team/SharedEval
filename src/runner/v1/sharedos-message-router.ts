@@ -89,6 +89,10 @@ export type SharedOsMessageContactResultV1 = Readonly<{
 export type CreateSharedOsMessageRequestRouterV1Options = Readonly<{
   namespaceId: string;
   purpose: string;
+  // 'simple' injects the four workspace files into the turn prompt, so a
+  // contact is not preceded by the model's own reads and the coverage gate
+  // would refuse every request.
+  pairProfile?: 'strict' | 'simple';
   requesterActorId: string;
   responderActorId: string;
   tasks: readonly LoadedPactPairTaskV1[];
@@ -121,6 +125,7 @@ export function createSharedOsMessageRequestRouterV1(
 type NormalizedOptions = Readonly<{
   namespaceId: string;
   purpose: string;
+  pairProfile?: 'strict' | 'simple';
   requesterActorId: string;
   responderActorId: string;
   tasksById: ReadonlyMap<string, LoadedPactPairTaskV1>;
@@ -277,7 +282,10 @@ class RunScopedMessageRequestRouter implements SharedOsMessageRequestRouterV1 {
       this.options.requesterActorId,
       request.traceId,
     );
-    if (!hasCompleteReadCoverage(requesterReads)) {
+    // Under 'simple' the same four files are injected into the turn prompt and
+    // their digests are recorded, so requiring the model to have read them
+    // again through the file tools would refuse every contact.
+    if (this.options.pairProfile !== 'simple' && !hasCompleteReadCoverage(requesterReads)) {
       return this.fail({
         traceId: request.traceId,
         requestMessageId: request.id,
@@ -709,6 +717,7 @@ function normalizeOptions(input: CreateSharedOsMessageRequestRouterV1Options): N
   return Object.freeze({
     namespaceId,
     purpose,
+    ...(input.pairProfile ? { pairProfile: input.pairProfile } : {}),
     requesterActorId,
     responderActorId,
     tasksById,

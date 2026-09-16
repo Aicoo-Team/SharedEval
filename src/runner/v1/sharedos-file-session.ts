@@ -20,6 +20,7 @@ import type {
   SoToolHandler,
   SoTurnDriver,
 } from '../../execution/sharedos/v1/contracts.js';
+import type { FileWorkspacePortV1 } from './file-workspace.js';
 import { buildPactPairSharedOsGrantManifestV1 } from '../../suites/pact-pair/sharedos-grants.js';
 import { createPactPairSharedOsToolHandlersV1 } from '../../suites/pact-pair/sharedos-tools.js';
 import type { LoadedPactPairTaskV1 } from '../../suites/pact-pair/task-loader.js';
@@ -55,6 +56,16 @@ import {
 } from './sharedos-session-store.js';
 
 const FILE_TOOL_NAMES = new Set(['files.read', 'files.replace']);
+const INJECTED_WORKSPACE_FILES = ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'] as const;
+
+function promptTextOf(payload: unknown): string {
+  if (typeof payload === 'string') return payload;
+  if (payload !== null && typeof payload === 'object' && 'text' in payload) {
+    const text = (payload as { text?: unknown }).text;
+    if (typeof text === 'string') return text;
+  }
+  return JSON.stringify(payload);
+}
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
@@ -136,6 +147,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     const router = createSharedOsMessageRequestRouterV1({
       namespaceId: options.namespaceId,
       purpose: SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
+      ...(options.pairProfile ? { pairProfile: options.pairProfile } : {}),
       requesterActorId: options.requester.actorId,
       responderActorId: options.responder.actorId,
       tasks: options.tasks,
@@ -247,7 +259,12 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
         receiver: { kind: 'agent', agentId: this.options.requester.actorId },
         purpose: SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
         payload: {
-          text: heartbeatInstructionText(input.tick, this.options, input.multiTurnProgress),
+          text: await this.withInjectedWorkspace(
+            heartbeatInstructionText(input.tick, this.options, input.multiTurnProgress),
+            this.options.requester.actorId,
+            this.options.requester.workspace,
+            signal,
+          ),
         },
         traceId: input.traceId,
         createdAt: now,
@@ -316,6 +333,34 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     });
   }
 
+  /**
+   * Under 'simple' the agent is given its own AGENT.md, HEARTBEAT.md, POLICY.md
+   * and current MEMORY.md in the turn prompt instead of being required to fetch
+   * them with four tool calls before it may act. Content comes from the
+   * workspace port, whose receipts are keyed by (actorId, traceId) in the file
+   * provider, so this never counts as a read the model performed.
+   */
+  private async withInjectedWorkspace(
+    text: string,
+    actorId: string,
+    workspace: FileWorkspacePortV1,
+    signal: AbortSignal,
+  ): Promise<string> {
+    if (this.options.pairProfile !== 'simple') return text;
+    const sections: string[] = [text, ''];
+    let memoryVersion: number | undefined;
+    for (const path of INJECTED_WORKSPACE_FILES) {
+      const read = await workspace.read({ actorId, path, signal });
+      if (path === 'MEMORY.md') memoryVersion = read.receipt.version;
+      sections.push(`--- ${path} ---`, read.content, '');
+    }
+    sections.push(
+      `MEMORY.md expectedVersion for files.replace: ${String(memoryVersion ?? 0)}`,
+      'These four files are current as of this turn; you do not need to read them again.',
+    );
+    return sections.join('\n');
+  }
+
   private async executeResponderTurn(
     input: Readonly<{
       task: LoadedPactPairTaskV1;
@@ -335,6 +380,19 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
       workspace: this.options.pactWorkspace,
     });
     const kernel = this.createKernel(undefined, taskHandlers);
+    const message = this.options.pairProfile === 'simple'
+      ? {
+        ...structuredClone(input.message),
+        payload: {
+          text: await this.withInjectedWorkspace(
+            promptTextOf(input.message.payload),
+            this.options.responder.actorId,
+            this.options.responder.workspace,
+            signal,
+          ),
+        },
+      }
+      : input.message;
     let execution: SoExecutionResult;
     try {
       execution = await this.execute({
@@ -343,7 +401,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
         executionId: input.executionId,
         actorId: this.options.responder.actorId,
         context: input.context,
-        message: input.message,
+        message,
         tools: [
           ...this.fileToolDefinitions(),
           ...taskHandlers.map(handler => structuredClone(handler.definition)),
