@@ -138,8 +138,8 @@ export type RunOneFileDrivenPairSessionV1Options = Readonly<{
 }>;
 
 export class FileDrivenPairSessionPreparationErrorV1 extends Error {
-  constructor() {
-    super('File-driven SharedOS session preparation failed');
+  constructor(options?: { cause?: unknown }) {
+    super('File-driven SharedOS session preparation failed', options);
     this.name = 'FileDrivenPairSessionPreparationErrorV1';
   }
 }
@@ -416,8 +416,10 @@ export async function runOneFileDrivenPairSessionV1(
         return driver;
       } : options.createDriver,
     });
-  } catch {
-    throw new FileDrivenPairSessionPreparationErrorV1();
+  } catch (cause) {
+    // Keep the underlying reason: a bare catch here hides grant, router and
+    // store failures behind one opaque message.
+    throw new FileDrivenPairSessionPreparationErrorV1({ cause });
   }
   let binding: FileWorkflowRunBindingV1;
   try {

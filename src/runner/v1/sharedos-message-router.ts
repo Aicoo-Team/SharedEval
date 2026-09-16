@@ -694,9 +694,15 @@ function normalizeOptions(input: CreateSharedOsMessageRequestRouterV1Options): N
     }
     grantIdsByTask.set(taskId, Object.freeze([...grantIds]));
   }
+  // No grant sets at all means the responder holds standing capabilities and
+  // nothing is activated per contact (pairProfile 'simple'); that is the one
+  // legitimate empty shape. Any partial mapping is still a mismatch.
   if (
-    tasksById.size !== grantIdsByTask.size
-    || [...tasksById.keys()].some(taskId => !grantIdsByTask.has(taskId))
+    grantIdsByTask.size > 0
+    && (
+      tasksById.size !== grantIdsByTask.size
+      || [...tasksById.keys()].some(taskId => !grantIdsByTask.has(taskId))
+    )
   ) {
     throw new Error('Message router tasks and responder grant sets must match exactly');
   }
