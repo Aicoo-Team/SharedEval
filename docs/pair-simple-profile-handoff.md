@@ -39,6 +39,22 @@ breaks all of them at once:
 | Evidence projection | `:977` → `assertRequesterReadsPrecedeContact` | reads ordered *before* contact authorization |
 | Ledger | `file-workflow-ledger.ts:1055/1068` | coverage again on the committed contact |
 
+The same shape bit again with the tool surface. "A QA task exposes only read
+tools" is also written more than once, and the second copy only fires once a
+write is actually attempted:
+
+| Layer | Location | What it demands |
+|---|---|---|
+| Evidence — catalog | `file-workflow-sharedos-evidence.ts:579` | a QA task may expose only read tools |
+| Evidence — invocations | `:1211` | a QA task may only have *called* read tools |
+
+Waiving the first and not the second produces a run that starts fine and dies
+the moment the responder writes. Both now check `binding.scheduler.pairProfile`.
+A tool outside the PACT set stays fatal under either profile, and a QA-task
+mutation stays visible — it is still collected as mutation evidence and still
+has to agree with the action snapshot, so accepting the new failure mode does
+not make the benchmark blind to it.
+
 Waiving only the first one produces a failure that points nowhere near the
 cause: every request is refused, no contact survives, the requester still writes
 `MEMORY.md`, and the run dies on `Every requester terminal MEMORY delta requires
@@ -207,3 +223,15 @@ manifest's standing reach and the fabricated-task-id decision under unit test.
 evidence is the end-to-end scripted run, which proves the path works but would
 not catch someone reinstating one gate. Closing that is the next worthwhile
 piece of work here.
+
+Note that `npm test` does **not** typecheck — `type-check` is a separate script.
+All 913 tests passed over a lost type narrowing that `tsc` caught immediately.
+Run both.
+
+## Still open
+
+- **The requester's tool surface is unchanged.** It still gets exactly
+  `files.read`, `files.replace` and `messages.request`; the intended
+  search/grep-style tools do not exist yet. Only the responder's surface was
+  made constant.
+- A live provider run. Everything above is scripted-harness evidence.

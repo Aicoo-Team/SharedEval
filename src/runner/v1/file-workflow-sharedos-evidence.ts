@@ -571,7 +571,12 @@ function assertAdmittedToolCatalogs(
           throw new Error('Responder SharedOS tool catalog cannot expose messages.request');
         }
         const pactBinding = resolvePactPairSharedOsToolBindingV1(tool);
-        if (!pactBinding || (taskKind === 'qa' && pactBinding.action !== 'read')) {
+        // A tool outside the PACT set is never admissible, under any profile.
+        // Restricting a QA task to read-only tools is a per-task rule, and
+        // under 'simple' the responder holds one constant tool set: what it can
+        // reach is decided by its standing capabilities, not by the question.
+        const narrowsByTask = binding.scheduler.pairProfile !== 'simple';
+        if (!pactBinding || (narrowsByTask && taskKind === 'qa' && pactBinding.action !== 'read')) {
           throw new Error('Responder SharedOS tool catalog exposes a non-canonical PACT tool');
         }
       }
@@ -1203,7 +1208,13 @@ function assertPactPairAuditTopology(
       || authorization.index >= tool.index
       || tool.index >= nestedEnd
       || !catalog!.visibleTools.has(tool.event.tool!)
-      || (contact!.authority.kind === 'qa' && toolBinding.action !== 'read')
+      // Same per-task rule as the catalog check above, applied to what was
+      // actually called. Under 'simple' a QA task holds write tools, so using
+      // one is a fact about the responder's behaviour, not malformed evidence.
+      // It stays visible: the mutation is still collected below and still has
+      // to agree with the action snapshot.
+      || (binding.scheduler.pairProfile !== 'simple'
+        && contact!.authority.kind === 'qa' && toolBinding.action !== 'read')
     ) {
       throw new Error('PACT tool pair conflicts with responder admission or nested request topology');
     }
