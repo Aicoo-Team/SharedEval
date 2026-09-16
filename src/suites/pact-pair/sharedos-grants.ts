@@ -45,6 +45,7 @@ export type BuildPactPairSharedOsGrantManifestV1Options = Readonly<{
   // the gate is on.
   multiTurn?: Readonly<FileMultiTurn>;
   maxToolCalls: number;
+  pairProfile?: 'strict' | 'simple';
   tasks: readonly PactPairSharedOsGrantTaskV1[];
 }>;
 
@@ -65,6 +66,7 @@ type GrantDescriptor = Readonly<{
   actions: readonly string[];
   maxUses: number;
   responderTaskId?: string;
+  scope?: 'exact' | 'descendants';
 }>;
 
 /**
@@ -118,6 +120,62 @@ export function buildPactPairSharedOsGrantManifestV1(
   const perContact = (maxUses: number): number => (
     input.multiTurn ? maxUses * input.maxTicks : maxUses
   );
+  if (input.pairProfile === 'simple') {
+    // PACT-Pair measures whether the responder chooses to disclose, not whether
+    // it can reach its own datastore, so capabilities are standing and identical
+    // for every task. Relationship (policy/requester profile), not task id, is
+    // what varies. One descendants grant covers ['task', <any task>, <surface>].
+    for (const descriptor of [
+      {
+        subjectId: input.responderId,
+        resourceNamespace: 'sharedos.execution',
+        resourcePath: ['agent', input.responderId],
+        actions: ['invoke'],
+        maxUses: perContact(1) * tasks.length,
+      },
+      ...WORKSPACE_FILES.map(filename => ({
+        subjectId: input.responderId,
+        resourceNamespace: 'files',
+        resourcePath: [filename],
+        actions: ['read'],
+        maxUses: perContact(input.maxToolCalls) * tasks.length,
+      })),
+      {
+        subjectId: input.responderId,
+        resourceNamespace: 'files',
+        resourcePath: ['MEMORY.md'],
+        actions: ['replace'],
+        maxUses: perContact(input.maxToolCalls) * tasks.length,
+      },
+      {
+        subjectId: input.responderId,
+        resourceNamespace: 'sharedos.messaging',
+        resourcePath: ['agent', input.requesterId],
+        actions: ['send'],
+        maxUses: perContact(1) * tasks.length,
+      },
+      {
+        subjectId: input.responderId,
+        resourceNamespace: 'pact-pair',
+        resourcePath: ['task'],
+        actions: ['create', 'read', 'update'],
+        maxUses: perContact(input.maxToolCalls) * tasks.length,
+        scope: 'descendants' as const,
+      },
+    ] satisfies GrantDescriptor[]) {
+      grants.push(createGrant(input, descriptor));
+    }
+    grants.sort((left, right) => compareCodeUnits(left.id, right.id));
+    if (new Set(grants.map(grant => grant.id)).size !== grants.length) {
+      throw new Error('SharedOS grant ID collision');
+    }
+    // No deferred sets: nothing is activated per contact, so the router binds nothing.
+    return Object.freeze({
+      grants: Object.freeze(grants),
+      responderGrantSets: Object.freeze([]),
+    });
+  }
+
   const responderGrantSets = tasks.map(task => {
     const descriptors: GrantDescriptor[] = [
       {
@@ -225,7 +283,7 @@ function createGrant(
         owner: { ...SHAREDEVAL_SERVICE_ADDRESS_V1 },
       },
       actions,
-      scope: 'exact',
+      scope: descriptor.scope ?? 'exact',
     }],
     constraints: {
       purposes: [SHAREDEVAL_PACT_PAIR_PURPOSE_V1],

@@ -87,6 +87,9 @@ export type CreateSharedOsFileSessionV1Options = Readonly<{
   // Multi-turn probe gate: absent preserves today's session behavior
   // (single-contact grants, fixed heartbeat instruction) byte for byte.
   multiTurn?: Readonly<FileMultiTurn>;
+  // 'simple' issues one standing responder capability set instead of one
+  // deferred set per task; absent means 'strict' and changes nothing.
+  pairProfile?: 'strict' | 'simple';
   maxToolCalls: number;
   deadlineMs: number;
   requester: Readonly<{

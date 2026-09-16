@@ -122,6 +122,7 @@ export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   tasks: readonly LoadedPactPairTaskV1[];
   maxTicks: number;
   multiTurn?: FileDrivenPairMultiTurnV1;
+  pairProfile?: 'strict' | 'simple';
   world?: WorldProfile;
   configurationDigest?: string;
   budget: FileDrivenPairBudgetV1;

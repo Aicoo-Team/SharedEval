@@ -52,6 +52,11 @@ export const sharedevalWorkflowV1Schema = z
       .max(MAX_SHAREDEVAL_TASK_CONCURRENCY_V1)
       .optional(),
     multiTurn: sharedevalMultiTurnV1Schema.optional(),
+    // Capability profile. Absent means 'strict' and stays absent, so every
+    // pre-existing config keeps its configDigest byte for byte. 'simple'
+    // gives the responder one standing capability set for all tasks: PACT-Pair
+    // measures the disclosure decision, not whether the datastore is reachable.
+    pairProfile: z.enum(['strict', 'simple']).optional(),
   })
   .strict()
   .superRefine(validateWorkflow);

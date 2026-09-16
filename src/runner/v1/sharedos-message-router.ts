@@ -261,8 +261,11 @@ class RunScopedMessageRequestRouter implements SharedOsMessageRequestRouterV1 {
       });
     }
     const task = this.options.tasksById.get(parsedPayload.data.taskId);
+    // With standing responder capabilities there are no per-task grant sets to
+    // look up; an empty map means nothing is bound per contact.
+    const deferredBinding = this.options.grantIdsByTask.size > 0;
     const grantIds = this.options.grantIdsByTask.get(parsedPayload.data.taskId);
-    if (!task || !grantIds) {
+    if (!task || (deferredBinding && !grantIds)) {
       return this.fail({
         traceId: request.traceId,
         requestMessageId: request.id,
@@ -283,14 +286,16 @@ class RunScopedMessageRequestRouter implements SharedOsMessageRequestRouterV1 {
       });
     }
 
-    let bindingOutcome: 'created' | 'replayed';
+    let bindingOutcome: 'created' | 'replayed' = 'created';
     try {
-      bindingOutcome = await this.options.store.bindResponderGrantSet({
-        traceId: request.traceId,
-        requestMessageId: request.id,
-        taskId: task.taskId,
-        grantIds,
-      });
+      if (deferredBinding) {
+        bindingOutcome = await this.options.store.bindResponderGrantSet({
+          traceId: request.traceId,
+          requestMessageId: request.id,
+          taskId: task.taskId,
+          grantIds: grantIds ?? [],
+        });
+      }
     } catch (error) {
       if (error instanceof SharedOsResponderTaskAlreadyBoundErrorV1) {
         return this.fail({

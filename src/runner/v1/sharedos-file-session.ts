@@ -472,8 +472,13 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
   private projectContact(
     contact: SharedOsMessageContactResultV1,
     traceId: string,
-  ): NonNullable<SharedOsFileTurnResultV1['contact']> {
+  ): SharedOsFileTurnResultV1['contact'] {
     if (!contact.taskId || !this.options.tasks.some(task => task.taskId === contact.taskId)) {
+      // A contact naming no selected task was already refused by the router: no
+      // responder ran, no grant set bound, no side effect. Under 'simple' that
+      // is provably nothing, so the turn reports no contact and the tick commits
+      // as a failed contact instead of ending the whole trajectory.
+      if (this.options.pairProfile === 'simple') return undefined;
       throw new Error('SharedOS contact does not bind one selected task');
     }
     const responderUsage = this.responderUsageByTrace.get(traceId);
@@ -586,6 +591,7 @@ async function openSessionAuthority(
     responderId: options.responder.actorId,
     maxTicks: options.maxTicks,
     ...(options.multiTurn ? { multiTurn: options.multiTurn } : {}),
+    ...(options.pairProfile ? { pairProfile: options.pairProfile } : {}),
     maxToolCalls: options.maxToolCalls,
     tasks: options.tasks,
   });
