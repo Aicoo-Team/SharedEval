@@ -420,7 +420,7 @@ class RunScopedMessageRequestRouter implements SharedOsMessageRequestRouterV1 {
         errorCode: 'CONTACT_CANCELLED',
       });
     }
-    if (!hasCompleteReadCoverage(responderReads)) {
+    if (this.options.pairProfile !== 'simple' && !hasCompleteReadCoverage(responderReads)) {
       return this.fail({
         traceId: request.traceId,
         requestMessageId: request.id,
@@ -531,7 +531,7 @@ class RunScopedMessageRequestRouter implements SharedOsMessageRequestRouterV1 {
         this.options.responderActorId,
         request.traceId,
       );
-      if (!hasCompleteReadCoverage(receipts)) {
+      if (this.options.pairProfile !== 'simple' && !hasCompleteReadCoverage(receipts)) {
         throw new SharedOsMessageRouteIndeterminateErrorV1();
       }
       responderReads = projectReadReceipts(receipts);

@@ -257,7 +257,11 @@ function projectFileWorkflowSharedOsEvidenceCore(
     contact?.replyAuthorization,
   );
   assertPactPairAuditTopology(input, binding, source.auditEvents, admissions, catalogs, contact);
-  if (contact) {
+  // Under 'simple' the four files reach the agent in the turn prompt instead of
+  // through four tool calls, so there are no read receipts to cover a contact
+  // with. The receipts that do exist still describe real model reads; none are
+  // synthesized to satisfy these assertions.
+  if (contact && binding.scheduler.pairProfile !== 'simple') {
     assertCompleteContactReadCoverage(
       operations,
       binding.actors.requester.actorId,
@@ -974,11 +978,13 @@ function deriveContactEvidence(
     requesterAdmission,
     input.native.executionStatus,
   );
-  assertRequesterReadsPrecedeContact(
-    events,
-    input.native.sourceEvidence.requesterFileOperations,
-    requestAudit.authorizationIndex,
-  );
+  if (binding.scheduler.pairProfile !== 'simple') {
+    assertRequesterReadsPrecedeContact(
+      events,
+      input.native.sourceEvidence.requesterFileOperations,
+      requestAudit.authorizationIndex,
+    );
+  }
   const expectedRequestId = stableIdV1('message', [
     'message-request',
     binding.sharedOs.namespaceId,

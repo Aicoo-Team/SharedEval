@@ -930,6 +930,9 @@ function buildRunBinding(input: {
       ...(input.options.multiTurn
         ? { multiTurn: structuredClone(input.options.multiTurn) }
         : {}),
+      ...(input.options.pairProfile
+        ? { pairProfile: input.options.pairProfile }
+        : {}),
     },
     dataset: structuredClone(input.runProvenance.dataset),
     goldSet: structuredClone(input.runProvenance.goldSet),

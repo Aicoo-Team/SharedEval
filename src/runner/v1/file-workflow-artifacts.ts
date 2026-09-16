@@ -210,6 +210,12 @@ export const fileWorkflowRunBindingV1Schema = z.object({
     // bindings and their digests are unchanged; the ledger keys every relaxed
     // multi-turn check off this field, never off runtime options.
     multiTurn: fileMultiTurnBindingSchema.optional(),
+    // Capability profile, absent for every pre-existing run so committed
+    // bindings and their digests are unchanged. Under 'simple' the runtime
+    // hands the agent its four workspace files in the turn prompt, so the
+    // four-file read coverage the evidence and ledger layers demand of an
+    // authoritative contact is not produced and is not required.
+    pairProfile: z.enum(['strict', 'simple']).optional(),
   }).strict(),
   dataset: datasetProvenanceSchema,
   goldSet: goldSetProvenanceSchema,

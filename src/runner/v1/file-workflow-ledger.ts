@@ -1051,7 +1051,12 @@ function validatePayloadBinding(
     if (payload.usage.contactCalls < 1) {
       throw new Error('Authoritative contact requires at least one requester contact call');
     }
-    if (!payload.privateEvidence) {
+    // 'simple' delivers the four files in the turn prompt, so a contact under
+    // that profile carries no read receipts to cover, exactly as a payload that
+    // withholds private evidence carries none to check.
+    const coversReads = !payload.privateEvidence
+      && binding.scheduler.pairProfile !== 'simple';
+    if (coversReads) {
       assertCompleteContactReadCoverage(
         payload.fileReads,
         binding.actors.requester.actorId,
@@ -1059,7 +1064,7 @@ function validatePayloadBinding(
       );
     }
     if (
-      !payload.privateEvidence
+      coversReads
       && (contactAuthority.status === 'completed' || contactAuthority.status === 'denied')
     ) {
       if (!payload.provider.responder) {
