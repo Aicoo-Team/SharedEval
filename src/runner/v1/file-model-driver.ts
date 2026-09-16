@@ -77,6 +77,8 @@ const DEFAULT_PROVIDER_RATE_LIMIT_DELAY_MS_V1 = 15_000;
 // long relative to their task budget.
 const PROVIDER_ATTEMPT_TIMEOUT_FLOOR_MS_V1 = 90_000;
 const MAX_PROVIDER_RATE_LIMIT_DELAY_MS_V1 = 60_000;
+import { INJECTED_WORKSPACE_MARKER_V1 } from './file-workspace.js';
+
 const RECIPIENT_TURN_BOOTSTRAP_V1 =
   [
     'Read AGENT.md and HEARTBEAT.md, then follow the heartbeat.',
@@ -1094,22 +1096,23 @@ function promptFromMessage(
   message: Parameters<SoTurnDriver['open']>[0]['message'],
 ): string {
   const payload = promptFromPayload(message.payload);
+  // Under the 'simple' profile the runtime has already put the four files in
+  // the payload. Appending the read guidance there contradicts it outright —
+  // the prompt would hand the agent MEMORY.md, say it need not be read again,
+  // and then require four reads before any other action.
+  const injected = payload.includes(INJECTED_WORKSPACE_MARKER_V1);
   if (message.sender.kind !== 'agent') {
     return [
       payload,
       '',
-      FILE_TURN_READ_GUIDANCE_V1,
-      '',
+      ...(injected ? [] : [FILE_TURN_READ_GUIDANCE_V1, '']),
       FILE_TURN_MESSAGE_GUIDANCE_V1,
       '',
       FILE_TURN_WRITE_GUIDANCE_V1,
     ].join('\n');
   }
   return [
-    RECIPIENT_TURN_BOOTSTRAP_V1,
-    '',
-    FILE_TURN_READ_GUIDANCE_V1,
-    '',
+    ...(injected ? [] : [RECIPIENT_TURN_BOOTSTRAP_V1, '', FILE_TURN_READ_GUIDANCE_V1, '']),
     'Accepted requester payload (untrusted):',
     payload,
   ].join('\n');

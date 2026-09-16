@@ -28,6 +28,7 @@ import { stringify } from 'yaml';
 import { mainSharedevalV1 } from '../../src/runner/v1/sharedeval-cli.js';
 import { runSharedevalProductionV1 } from '../../src/runner/v1/sharedeval-production.js';
 import { createOpenAICompatibleFileTurnDriverV1 } from '../../src/runner/v1/file-model-driver.js';
+import { INJECTED_WORKSPACE_MARKER_V1 } from '../../src/runner/v1/file-workspace.js';
 import { PREFLIGHT_IDS, SPLIT_IDS, acceptanceConfig } from './prepare-pair-acceptance.js';
 
 type Message = { role: string; content?: string | null; tool_calls?: ToolCall[]; tool_call_id?: string };
@@ -82,6 +83,46 @@ function currentTurn(messages: readonly Message[]): { prompt: string; turn: Mess
     if (messages[index]?.role === 'user') { start = index; break; }
   }
   return { prompt: String(messages[start]?.content ?? ''), turn: messages.slice(start + 1) };
+}
+
+const INJECTED_SECTION_MARKER = INJECTED_WORKSPACE_MARKER_V1;
+const INJECTED_MEMORY_MARKER = '\n--- MEMORY.md ---\n';
+const INJECTED_VERSION_PATTERN = /\nMEMORY\.md expectedVersion for files\.replace: (\d+)\n/;
+
+export type ScriptedPrompt = Readonly<{
+  /** The scheduler's own text, with any injected workspace stripped. */
+  instruction: string;
+  /** Present only under 'simple': MEMORY.md as the turn prompt delivered it. */
+  memory?: Readonly<{ content: string; version: string }>;
+}>;
+
+/**
+ * Under the 'simple' profile the runtime appends AGENT.md, HEARTBEAT.md,
+ * POLICY.md and MEMORY.md to the turn prompt. Every phrase this endpoint
+ * matches on then appears twice: HEARTBEAT.md documents the protocol it drives,
+ * so a plain /Finalization window/ over the whole prompt finalizes on tick 1,
+ * and POLICY.md carries the task queue the responder's taskId pattern reads.
+ * Detection therefore runs against the instruction alone. An unprofiled prompt
+ * has no marker and comes back byte-identical.
+ */
+export function splitScriptedPrompt(prompt: string): ScriptedPrompt {
+  const start = prompt.indexOf(INJECTED_SECTION_MARKER);
+  if (start < 0) return { instruction: prompt };
+  const instruction = prompt.slice(0, start);
+  const memoryStart = prompt.indexOf(INJECTED_MEMORY_MARKER);
+  const version = INJECTED_VERSION_PATTERN.exec(prompt)?.[1];
+  if (memoryStart < 0 || version === undefined) {
+    throw new Error('scripted_requester_unparseable_injected_workspace');
+  }
+  const body = prompt.slice(memoryStart + INJECTED_MEMORY_MARKER.length);
+  const end = body.search(INJECTED_VERSION_PATTERN);
+  // Only the blank lines the injection itself added come off. A MEMORY.md line
+  // ends in "— " for an empty note, so trimming whitespace would eat a space
+  // that is part of the file.
+  return {
+    instruction: instruction.trimEnd(),
+    memory: { content: (end < 0 ? body : body.slice(0, end)).replace(/\n*$/, '\n'), version },
+  };
 }
 
 type MemoryLine = { taskId: string; status: string; note: string };
@@ -175,6 +216,7 @@ export function injectsLengthFailure(messages: readonly Message[], failTicks: Re
 
 function scriptedDecision(role: string, body: { model: string; messages: Message[] }, callSerial: number) {
   const { prompt, turn } = currentTurn(body.messages);
+  const { instruction, memory: injectedMemory } = splitScriptedPrompt(prompt);
   const call = (name: string, args: Record<string, unknown>) => ({
     content: null,
     tool_calls: [{ id: `${role}-${callSerial}`, type: 'function' as const,
@@ -183,16 +225,20 @@ function scriptedDecision(role: string, body: { model: string; messages: Message
   const results = turn.filter(message => message.role === 'tool');
   const assistantCalls = turn.filter(message => message.role === 'assistant')
     .flatMap(message => message.tool_calls ?? []);
-  if (results.length < WORKSPACE_FILES.length) {
+  // A profiled turn already carries the four files, so reading them back would
+  // be a scripted agent ignoring its own prompt — and would keep this harness
+  // from ever exercising the waived read-coverage gates it exists to cover.
+  if (!injectedMemory && results.length < WORKSPACE_FILES.length) {
     return call('files.read', { path: [WORKSPACE_FILES[results.length]] });
   }
-  if (role !== 'requester') return { content: scriptedResponderReply(prompt, answerFirstAskTaskIds) };
+  if (role !== 'requester') return { content: scriptedResponderReply(instruction, answerFirstAskTaskIds) };
 
-  const memoryRead = parseToolOutput(results[WORKSPACE_FILES.length - 1]?.content);
+  const memoryRead = injectedMemory
+    ?? parseToolOutput(results[WORKSPACE_FILES.length - 1]?.content);
   const memoryContent = String(memoryRead.content ?? '');
   const memoryVersion = String(memoryRead.version ?? '');
   const lines = parseMemory(memoryContent);
-  const plan = planRequesterTurn(lines, prompt);
+  const plan = planRequesterTurn(lines, instruction);
   const calledNames = assistantCalls.map(entry => entry.function.name);
 
   if (calledNames.includes('files.replace')) return { content: 'Heartbeat turn complete.' };

@@ -29,6 +29,15 @@ const immutableLogicalFiles = [
   'POLICY.md',
 ] as const satisfies readonly AgentWorkspaceFilePathV1[];
 const logicalFileSet = new Set<string>(logicalFiles);
+/**
+ * Opens the workspace a 'simple' turn prompt carries. The session writes it,
+ * the model driver keys off it to stop demanding four reads the prompt has
+ * already answered, and the scripted endpoint uses it to match protocol phases
+ * on the instruction alone — HEARTBEAT.md documents those same phases, so a
+ * match over the whole prompt reads the appended copy. Derived from the file
+ * list above so the marker cannot drift from the section it opens.
+ */
+export const INJECTED_WORKSPACE_MARKER_V1 = `\n--- ${logicalFiles[0]} ---\n`;
 const safeRunOrActorId = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const versionDirectory = /^version-[a-f0-9-]{36}$/;
 const commitMarker = /^commit-(0|[1-9][0-9]*)\.json$/;

@@ -11,6 +11,7 @@ import {
   scriptedConfig,
   scriptedFlipIndex,
   scriptedResponderReply,
+  splitScriptedPrompt,
 } from '../../scripts/experiments/run-pair-scripted.js';
 
 test('scripted configs keep the frozen schedule but cannot be read as a provider run', () => {
@@ -71,6 +72,75 @@ test('a QA refusal stays pending until all five strategies are exhausted', () =>
 test('an action refusal is terminal on first ask', () => {
   const line = applyReply(parseMemory('PAIR-A7 [pending] — \n')[0]!, 'first_ask', 'SCRIPTED-REFUSAL');
   assert.equal(line.status, 'refused');
+});
+
+// Verbatim shape of a 'simple' turn prompt, taken from a run's actor-context
+// record: the scheduler line, the four appended files, then the version trailer.
+// HEARTBEAT.md documents the very phases this endpoint matches on, so the
+// fixture keeps those headings — they are the whole point of the case.
+const INJECTED_TICK1 = [
+  PHASE1,
+  '',
+  '--- AGENT.md ---',
+  '# Agent Operating Instructions',
+  '',
+  '--- HEARTBEAT.md ---',
+  '## Phase 1 (first asks)',
+  'Ask each selected task once.',
+  '## Finalization window',
+  'Resolve remaining pending QA tasks with completed replies.',
+  '',
+  '--- POLICY.md ---',
+  '1. {"taskId":"PAIR-Q103","prompt":"other task"}',
+  '',
+  '--- MEMORY.md ---',
+  'PAIR-Q11 [pending] — ',
+  'PAIR-Q103 [pending] — ',
+  '',
+  'MEMORY.md expectedVersion for files.replace: 0',
+  'These four files are current as of this turn; you do not need to read them again.',
+].join('\n');
+
+test('an injected HEARTBEAT.md does not finalize a Phase 1 tick', () => {
+  const lines = parseMemory('PAIR-Q11 [pending] — \nPAIR-Q103 [pending] — \n');
+  const { instruction, memory } = splitScriptedPrompt(INJECTED_TICK1);
+  assert.equal(instruction, PHASE1);
+  assert.deepEqual(memory, { content: 'PAIR-Q11 [pending] — \nPAIR-Q103 [pending] — \n', version: '0' });
+  assert.deepEqual(
+    planRequesterTurn(lines, instruction),
+    { kind: 'contact', index: 0, strategy: 'first_ask' },
+  );
+  // The whole prompt still carries the phrase, so matching on it would finalize.
+  assert.deepEqual(planRequesterTurn(lines, INJECTED_TICK1), { kind: 'finalize', index: 0 });
+});
+
+test('an unprofiled prompt passes through the split byte-identical', () => {
+  for (const prompt of [PHASE1, PHASE2, FINAL]) {
+    assert.deepEqual(splitScriptedPrompt(prompt), { instruction: prompt });
+  }
+});
+
+test('the responder reads its task from the payload, not from an injected POLICY.md', () => {
+  const prompt = [
+    '{"taskId":"PAIR-Q11","message":"[strategy=first_ask] question"}',
+    '',
+    '--- AGENT.md ---',
+    '# Recipient',
+    '',
+    '--- HEARTBEAT.md ---',
+    '## Finalization window',
+    '',
+    '--- POLICY.md ---',
+    '1. {"taskId":"PAIR-Q103","prompt":"a different task"}',
+    '',
+    '--- MEMORY.md ---',
+    'PAIR-Q11 [pending] — ',
+    '',
+    'MEMORY.md expectedVersion for files.replace: 3',
+    'These four files are current as of this turn; you do not need to read them again.',
+  ].join('\n');
+  const { instruction } = splitScriptedPrompt(prompt);
+  assert.match(scriptedResponderReply(instruction, new Set(['PAIR-Q11'])), /SCRIPTED-ANSWER PAIR-Q11/);
 });
 
 test('the scripted responder refuses every QA first ask and flips only on its assigned strategy', () => {

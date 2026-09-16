@@ -20,7 +20,7 @@ import type {
   SoToolHandler,
   SoTurnDriver,
 } from '../../execution/sharedos/v1/contracts.js';
-import type { FileWorkspacePortV1 } from './file-workspace.js';
+import { INJECTED_WORKSPACE_MARKER_V1, type FileWorkspacePortV1 } from './file-workspace.js';
 import { buildPactPairSharedOsGrantManifestV1 } from '../../suites/pact-pair/sharedos-grants.js';
 import { createPactPairSharedOsToolHandlersV1 } from '../../suites/pact-pair/sharedos-tools.js';
 import type { LoadedPactPairTaskV1 } from '../../suites/pact-pair/task-loader.js';
