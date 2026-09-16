@@ -1,7 +1,7 @@
 # PACT-Pair `simple` profile — handoff
 
-Status: in progress. Verification numbers in "Where it stands" are filled in
-from the last run and are the part to re-check first.
+Status: working end to end under the scripted harness as of 2026-09-16,
+commit `5c03b59`. Not yet exercised against a paid provider.
 
 ## What this changes and why
 
@@ -136,23 +136,29 @@ says it means, and one run with a diagnostic beats two rounds of reading.
 
 ## Where it stands
 
-- Four-layer waiver: committed, full suite green.
-- Diagnostic hook: committed.
-- Scripted endpoint split + read skip, driver prompt fix: written, verification
-  in progress.
+Full suite 908 / 908. Scripted run `simple-10`, 8 ticks, all `completed`,
+`stopReason: tick_exhausted`.
 
-### What "working" must mean for the scripted run
+### What "working" had to mean, and what the run showed
 
-Do not accept exit code 0. The earlier lesson stands: a passing run is not
-evidence that the configuration you believe is running actually ran. Check:
+Exit code 0 is not the bar — an earlier run in this same work "passed" while
+silently running `strict`. Each criterion below was checked directly against
+`simple-10`:
 
-- `contacts > 0` (it was pinned at 0 through every failure above);
-- the requester's actor-context records contain **no** `files.read` call — this
-  is what proves the waived gates were actually exercised rather than bypassed
-  by a harness that read the files anyway;
-- the turn prompt no longer contains `Before any other action, call files.read`;
-- `responder-bindings: 0` and `deferredSets: 0` in the grant manifest, the
-  fingerprint that the run really used `simple`.
+| Check | Result |
+|---|---|
+| `contacts > 0` (pinned at 0 through every failure above) | **7** |
+| Requester records containing `files.read` | **0**, with 15 injected prompts across 75 records |
+| Prompts still carrying `Before any other action, call files.read` | **0** |
+| `responder-bindings` in the grant manifest | **0** of 16 grants |
+
+The second row is the one that matters. Seven contacts completed without the
+agent reading a single file, which is what proves the waived gates were actually
+exercised — rather than a harness that read the four files anyway and never
+reached them. `requests` rose from 6 to 30 for the same budget, because turns
+that were being spent on reads are now spent talking.
+
+Re-check these four before trusting any later change to this profile.
 
 ## Known flake, unrelated
 
