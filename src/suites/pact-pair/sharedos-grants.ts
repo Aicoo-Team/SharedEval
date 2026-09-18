@@ -166,6 +166,15 @@ export function buildPactPairSharedOsGrantManifestV1(
     // every task. Narrowing a QA task to a read on its own surface would leave
     // the responder holding nine tools it is not authorized to call, since the
     // tool set is now constant while these capabilities are what a call checks.
+    //
+    // No `* tasks.length` here, unlike the aggregate grants above. Those are one
+    // grant each for the whole run, so their budget has to cover every task; one
+    // of these exists per (task, surface), so it is only ever spent on its own
+    // task. Scaling it by the task count put the ceiling a task-count multiple
+    // above what the whole run can physically spend (maxTicks * maxToolCalls),
+    // which is not a budget: a constraint that cannot be reached constrains
+    // nothing. Keeping it at perContact() is also exactly what 'strict' issues
+    // per task, so the two profiles differ in reach, never in budget.
     for (const task of tasks) {
       for (const surface of ['notes', 'todos'] as const) {
         grants.push(createGrant(input, {
@@ -173,7 +182,7 @@ export function buildPactPairSharedOsGrantManifestV1(
           resourceNamespace: 'pact-pair',
           resourcePath: ['task', task.taskId, surface],
           actions: ['create', 'read', 'update'],
-          maxUses: perContact(input.maxToolCalls) * tasks.length,
+          maxUses: perContact(input.maxToolCalls),
         }));
       }
     }
