@@ -1284,19 +1284,22 @@ function assertCompleteContactReadCoverage(
     evidence: 'model-read-receipts',
     pairProfile,
     observed: toTurnObservationsV1(receipts),
-    required: {
-      actorId,
-      paths: OBSERVED_TURN_FILES_V1,
-      // Only the ledger demands this, and only of the responder: a reply may
-      // straddle the requester's CAS boundary but nothing further. Keeping it
-      // as one visible line of the requirement — rather than an extra branch
-      // buried in a private helper — is why the projector and the ledger can
-      // share a predicate while still demanding different things.
-      contiguousVersions: label === 'responder',
-    },
+    required: { actorId, paths: OBSERVED_TURN_FILES_V1 },
   });
   if (unmet) throw new Error(contactReadCoverageFailureV1(unmet, label));
 }
+
+// The responder's reads used to be checked here for spanning more than one
+// adjacent pair of workspace versions. That check is gone rather than moved:
+// the evidence projector refuses a turn whose reads span several versions
+// without a same-turn MEMORY CAS before the ledger sees the payload, and
+// assertCallerProjectionsMatchNativeEvidence refuses any payload whose
+// fileReads disagree with that source evidence, so no input reaches the
+// ledger's own copy. The test that appeared to cover it was passing on the
+// projector's refusal, which its matcher was loose enough to accept.
+//
+// If someone constructs a payload that reaches the ledger with a version gap,
+// this belongs back here — with that payload as its test.
 
 function assertNextHeartbeatLinearity(
   records: readonly FileWorkflowLedgerRecordV1[],

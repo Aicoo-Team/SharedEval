@@ -4,22 +4,20 @@ import type { AgentWorkspaceFilePathV1 } from './agent-workspace.js';
  * One contract: an actor may act on a workspace file only on evidence that the
  * actor observed that file in this turn.
  *
- * It is enforced at eleven points across four layers — the file provider
- * (live turn state), the message router (live receipts), the SharedOS evidence
- * projector (projected operations) and the ledger (persisted payload). Those
- * layers hold four different shapes, so each adapts what it holds into
- * `TurnObservationV1` and asks the one predicate below. Nothing here knows
- * about roles, protocols or error codes: it answers what is unmet, and every
- * call site keeps its own wording so a rejection still says who refused.
+ * It is enforced across four layers — the file provider (live turn state), the
+ * message router (live receipts), the SharedOS evidence projector (projected
+ * operations) and the ledger (persisted payload). Those layers hold four
+ * different shapes, so each adapts what it holds into `TurnObservationV1` and
+ * asks the one predicate below. Nothing here knows about roles, protocols or
+ * error codes: it answers what is unmet, and every call site keeps its own
+ * wording so a rejection still says who refused.
  *
- * Adding a twelfth enforcement point means writing an adapter, not editing
- * this file.
+ * Adding an enforcement point means writing an adapter, not editing this file.
  */
 
 /**
  * The files every actor turn observes. The provider, the router, the projector
- * and the ledger each had their own copy of this list; a contract whose subject
- * is copy-pasted drifts exactly the way its judgement does.
+ * and the ledger each had their own copy of this list.
  */
 export const OBSERVED_TURN_FILES_V1 = [
   'AGENT.md',
@@ -38,38 +36,31 @@ export type TurnObservationV1 = Readonly<{
 }>;
 
 /**
- * What a call site demands the actor have observed. Every field is the call
- * site's own declaration: the predicate adds nothing a caller did not ask for,
- * so two layers that demand different things say so in one visible line
- * instead of in two near-identical forty-line helpers.
+ * One observation that must match exactly. Only the fields named are compared,
+ * because the provider knows the version it expects before it knows the bytes
+ * behind it.
  */
-export type TurnObservationRequirementV1 = Readonly<{
-  actorId: string;
-  /** Files that must appear among the observations. */
-  paths?: readonly AgentWorkspaceFilePathV1[];
-  /**
-   * One observation that must match exactly. Only the fields named here are
-   * compared, because the provider knows the version it expects before it
-   * knows the bytes behind it.
-   */
-  at?: Readonly<{
-    path: AgentWorkspaceFilePathV1;
-    version: number;
-    sha256?: string;
-    byteLength?: number;
-  }>;
-  /**
-   * Reject observations spread over more than two versions, or over two that
-   * are not adjacent. A turn may straddle at most its own CAS boundary.
-   */
-  contiguousVersions?: boolean;
+export type RequiredTurnObservationV1 = Readonly<{
+  path: AgentWorkspaceFilePathV1;
+  version: number;
+  sha256?: string;
+  byteLength?: number;
 }>;
+
+/**
+ * What a call site demands the actor have observed: coverage of some paths, a
+ * specific state, or both. A requirement that demands neither would pass for
+ * every input, so the type does not allow one to be written.
+ */
+export type TurnObservationRequirementV1 = Readonly<{ actorId: string }> & Readonly<
+  | { paths: readonly AgentWorkspaceFilePathV1[]; at?: RequiredTurnObservationV1 }
+  | { paths?: readonly AgentWorkspaceFilePathV1[]; at: RequiredTurnObservationV1 }
+>;
 
 /** Why the observations do not satisfy the requirement. */
 export type UnmetTurnObservationV1 = Readonly<
   | { reason: 'incomplete_coverage'; path: AgentWorkspaceFilePathV1 }
   | { reason: 'conflicting_observations'; path: AgentWorkspaceFilePathV1; version: number }
-  | { reason: 'version_gap'; versions: readonly number[] }
   | { reason: 'unobserved_state'; path: AgentWorkspaceFilePathV1; version: number }
 >;
 
@@ -145,14 +136,6 @@ function unmetObservation(
     return { reason: 'unobserved_state', path: at.path, version: at.version };
   }
 
-  if (required.contiguousVersions) {
-    const versions = [...new Set(mine.map(observation => observation.version))]
-      .sort((left, right) => left - right);
-    if (versions.length > 2 || (versions.length === 2 && versions[1] !== versions[0]! + 1)) {
-      return { reason: 'version_gap', versions };
-    }
-  }
-
   return undefined;
 }
 
@@ -175,9 +158,7 @@ export function unmetTurnObservationV1(input: Readonly<{
 }
 
 /**
- * Adapts anything already shaped like a read receipt. The four layers differ in
- * what else they carry — an outcome, previous-version columns, a trace — but
- * every one of them names the actor, the path and the version cursor it read.
+ * Adapts anything already shaped like a read receipt.
  *
  * The `action: 'read'` field is load-bearing: a replacement receipt also names
  * an actor, a path and a version, and counting one as an observation would let
