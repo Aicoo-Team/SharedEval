@@ -51,6 +51,14 @@ import {
   type FileWorkflowRunBindingV1,
 } from './file-workflow-artifacts.js';
 import {
+  OBSERVED_TURN_FILES_V1,
+  toTurnObservationsV1,
+  turnObservationEvidenceIsCompleteV1,
+  unmetTurnObservationV1,
+  type PairProfileV1,
+} from './file-turn-observation.js';
+import {
+  contactReadCoverageFailureV1,
   projectFileWorkflowRetainedSharedOsEvidenceV1,
   type FileWorkflowSharedOsProjectionV1,
 } from './file-workflow-sharedos-evidence.js';
@@ -1051,18 +1059,27 @@ function validatePayloadBinding(
     if (payload.usage.contactCalls < 1) {
       throw new Error('Authoritative contact requires at least one requester contact call');
     }
-    // 'simple' delivers the four files in the turn prompt, so a contact under
-    // that profile carries no read receipts to cover, exactly as a payload that
-    // withholds private evidence carries none to check.
-    const coversReads = !payload.privateEvidence
-      && binding.scheduler.pairProfile !== 'simple';
-    if (coversReads) {
+    // A payload that withholds private evidence carries no read receipts to
+    // check at all. Whether the receipts it does carry can answer the question
+    // belongs to the coverage assertion, which asks the one waiver itself —
+    // stating the waiver a second time here would make each copy individually
+    // unfalsifiable, since neither alone changes what the ledger accepts.
+    const carriesReadEvidence = !payload.privateEvidence;
+    if (carriesReadEvidence) {
       assertCompleteContactReadCoverage(
         payload.fileReads,
         binding.actors.requester.actorId,
         'requester',
+        binding.scheduler.pairProfile,
       );
     }
+    // The responder-provenance check is unrelated to read coverage, but it has
+    // always ridden on the same condition and so has never run under 'simple'.
+    // That coupling is preserved on purpose: breaking it would start enforcing
+    // provenance on payloads the ledger already accepted without it, which is a
+    // change to what the ledger accepts, not to where this contract lives.
+    const coversReads = carriesReadEvidence
+      && turnObservationEvidenceIsCompleteV1('model-read-receipts', binding.scheduler.pairProfile);
     if (
       coversReads
       && (contactAuthority.status === 'completed' || contactAuthority.status === 'denied')
@@ -1070,10 +1087,16 @@ function validatePayloadBinding(
       if (!payload.provider.responder) {
         throw new Error('Completed or denied contact authority requires responder provider provenance');
       }
+    }
+    if (
+      carriesReadEvidence
+      && (contactAuthority.status === 'completed' || contactAuthority.status === 'denied')
+    ) {
       assertCompleteContactReadCoverage(
         payload.fileReads,
         binding.actors.responder.actorId,
         'responder',
+        binding.scheduler.pairProfile,
       );
     }
   }
@@ -1255,46 +1278,24 @@ function assertCompleteContactReadCoverage(
   receipts: FileWorkflowHeartbeatPayloadV1['fileReads'],
   actorId: string,
   label: 'requester' | 'responder',
+  pairProfile: PairProfileV1 | undefined,
 ): void {
-  const actorReceipts = receipts.filter(receipt => receipt.actorId === actorId);
-  const byVersion = new Map<number, Set<typeof actorReceipts[number]['path']>>();
-  const byVersionPath = new Map<string, { sha256: string; byteLength: number }>();
-  for (const receipt of actorReceipts) {
-    const paths = byVersion.get(receipt.version) ?? new Set();
-    paths.add(receipt.path);
-    byVersion.set(receipt.version, paths);
-    const key = `${receipt.version}:${receipt.path}`;
-    const existing = byVersionPath.get(key);
-    if (
-      existing
-      && (
-        existing.sha256 !== receipt.sha256
-        || existing.byteLength !== receipt.byteLength
-      )
-    ) {
-      throw new Error(`${label} contact reads conflict at one workspace version cursor`);
-    }
-    byVersionPath.set(key, {
-      sha256: receipt.sha256,
-      byteLength: receipt.byteLength,
-    });
-  }
-  const logicalPaths = ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'] as const;
-  const observedPaths = new Set(actorReceipts.map(receipt => receipt.path));
-  if (!logicalPaths.every(path => observedPaths.has(path))) {
-    throw new Error(
-      `Authoritative contact requires complete ${label} four-file read coverage`,
-    );
-  }
-  if (label === 'responder') {
-    const versions = [...byVersion.keys()].sort((left, right) => left - right);
-    if (
-      versions.length > 2
-      || (versions.length === 2 && versions[1] !== versions[0]! + 1)
-    ) {
-      throw new Error('Responder contact reads contain an unbound workspace version gap');
-    }
-  }
+  const unmet = unmetTurnObservationV1({
+    evidence: 'model-read-receipts',
+    pairProfile,
+    observed: toTurnObservationsV1(receipts),
+    required: {
+      actorId,
+      paths: OBSERVED_TURN_FILES_V1,
+      // Only the ledger demands this, and only of the responder: a reply may
+      // straddle the requester's CAS boundary but nothing further. Keeping it
+      // as one visible line of the requirement — rather than an extra branch
+      // buried in a private helper — is why the projector and the ledger can
+      // share a predicate while still demanding different things.
+      contiguousVersions: label === 'responder',
+    },
+  });
+  if (unmet) throw new Error(contactReadCoverageFailureV1(unmet, label));
 }
 
 function assertNextHeartbeatLinearity(
@@ -1404,17 +1405,26 @@ function assertActorMemoryTransitionFrom(
   if (transition.newVersion !== transition.previousVersion + 1) {
     throw new Error('MEMORY CAS version must advance by exactly one');
   }
-  const observedPrevious = reads.some(receipt => (
-    receipt.version === transition.previousVersion
-    && receipt.sha256 === transition.previousSha256
-    && receipt.byteLength === cursor.byteLength
-  ));
-  // Under 'simple' the host delivers MEMORY.md in the turn prompt, so the actor
-  // holds no read receipt to match. The CAS chain itself is untouched above:
-  // the transition must still start at the committed cursor and advance by
-  // exactly one, and the file provider still refused any replacement whose
-  // expectedVersion disagreed with what the host actually observed this turn.
-  if (!observedPrevious && binding.scheduler.pairProfile !== 'simple') {
+  // The CAS chain itself is untouched above: the transition must still start at
+  // the committed cursor and advance by exactly one, and the file provider still
+  // refused any replacement whose expectedVersion disagreed with what the host
+  // actually observed this turn. What the shared predicate may waive here is the
+  // provenance receipt, never the chain.
+  const unmetPrevious = unmetTurnObservationV1({
+    evidence: 'model-read-receipts',
+    pairProfile: binding.scheduler.pairProfile,
+    observed: toTurnObservationsV1(reads),
+    required: {
+      actorId,
+      at: {
+        path: 'MEMORY.md',
+        version: transition.previousVersion,
+        sha256: transition.previousSha256,
+        byteLength: cursor.byteLength,
+      },
+    },
+  });
+  if (unmetPrevious) {
     throw new Error(`MEMORY CAS requires a matching ${role} read receipt`);
   }
   if (reads.some(receipt => !(

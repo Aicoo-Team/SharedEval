@@ -594,10 +594,64 @@ test('requires complete requester and responder four-file reads for an accepted 
     }
     refreshAudit(input);
 
+    // Exact messages, not an alternation: removing a requester read trips the
+    // ordering gate (reads must precede the contact authorization) while
+    // removing a responder read trips the coverage gate. An alternation over
+    // both cannot tell which of the two is still standing.
     assert.throws(
       () => projectFileWorkflowSharedOsEvidenceV1(input),
-      /complete.*four-file read coverage|complete requester file read set/i,
+      (error: unknown) => error instanceof Error && error.message === (actorId === 'requester'
+        ? 'Authoritative contact requires one complete requester file read set before contact authorization'
+        : 'Authoritative contact requires complete responder four-file read coverage'),
       actorId,
+    );
+  }
+});
+
+/**
+ * The waiver half. Without it, deleting the 'simple' arm of the projector's
+ * three gates leaves the suite green while every simple-profile heartbeat is
+ * refused at evidence_projection — which is the failure GREEN/GREEN2 actually
+ * hit, found by running the experiment rather than by a test.
+ */
+test('waives the four-file read gates under simple, where the host delivered the files', () => {
+  for (const [actorId, path] of [
+    ['requester', 'HEARTBEAT.md'],
+    ['responder', 'POLICY.md'],
+  ] as const) {
+    const input: any = nativeQaInput(`projector-${actorId}-read-coverage-simple`);
+    input.binding = {
+      ...input.binding,
+      scheduler: { ...input.binding.scheduler, pairProfile: 'simple' },
+    };
+    const operations = actorId === 'requester'
+      ? input.turn.sourceEvidence.requesterFileOperations
+      : input.turn.sourceEvidence.responderFileOperations;
+    const index = operations.findIndex((operation: any) => (
+      operation.action === 'read' && operation.path === path
+    ));
+    const [removed] = operations.splice(index, 1);
+    input.turn.sourceEvidence.auditEvents = input.turn.sourceEvidence.auditEvents.filter(
+      (event: any) => event.operationId !== removed.operationId,
+    );
+    if (actorId === 'requester') {
+      input.turn.requesterReads = input.turn.requesterReads.filter(
+        (receipt: any) => receipt.path !== path,
+      );
+      input.turn.decision.toolSteps -= 1;
+    } else {
+      input.turn.contact.responderReads = input.turn.contact.responderReads.filter(
+        (receipt: any) => receipt.path !== path,
+      );
+    }
+    refreshAudit(input);
+
+    const projection = projectFileWorkflowSharedOsEvidenceV1(input);
+    assert.equal(
+      projection.fileReads.filter((row: any) => row.path === path && row.actorId.includes(actorId))
+        .length,
+      0,
+      'A_WAIVED_READ_MUST_NOT_REAPPEAR_AS_A_READ_THE_MODEL_MADE',
     );
   }
 });
