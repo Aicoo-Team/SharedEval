@@ -1355,7 +1355,7 @@ function assertMemoryTransitionsFrom(
     const actorId = binding.actors[role].actorId;
     const cursor = cursors.get(actorId);
     if (!cursor) throw new Error(`Missing ${role} MEMORY cursor`);
-    assertActorMemoryTransitionFrom(payload, cursor, actorId, role);
+    assertActorMemoryTransitionFrom(payload, cursor, actorId, role, binding);
   }
 }
 
@@ -1364,6 +1364,7 @@ function assertActorMemoryTransitionFrom(
   cursor: FileWorkflowMemoryCursor,
   actorId: string,
   role: 'requester' | 'responder',
+  binding: FileWorkflowRunBindingV1,
 ): void {
   // The projector owns same-turn read/CAS ordering. The ledger only pins those
   // projected versions and hashes to the durable cursor from earlier heartbeats.
@@ -1408,7 +1409,12 @@ function assertActorMemoryTransitionFrom(
     && receipt.sha256 === transition.previousSha256
     && receipt.byteLength === cursor.byteLength
   ));
-  if (!observedPrevious) {
+  // Under 'simple' the host delivers MEMORY.md in the turn prompt, so the actor
+  // holds no read receipt to match. The CAS chain itself is untouched above:
+  // the transition must still start at the committed cursor and advance by
+  // exactly one, and the file provider still refused any replacement whose
+  // expectedVersion disagreed with what the host actually observed this turn.
+  if (!observedPrevious && binding.scheduler.pairProfile !== 'simple') {
     throw new Error(`MEMORY CAS requires a matching ${role} read receipt`);
   }
   if (reads.some(receipt => !(

@@ -262,6 +262,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
           text: await this.withInjectedWorkspace(
             heartbeatInstructionText(input.tick, this.options, input.multiTurnProgress),
             this.options.requester.actorId,
+            input.traceId,
             this.options.requester.workspace,
             signal,
           ),
@@ -339,10 +340,19 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
    * them with four tool calls before it may act. Content comes from the
    * workspace port, whose receipts are keyed by (actorId, traceId) in the file
    * provider, so this never counts as a read the model performed.
+   *
+   * The provider is told about the MEMORY.md delivery separately. Its
+   * replacement path requires MEMORY to have been observed at the expected
+   * version in this turn, and that requirement is not one of the six read
+   * gates the profile waives: it is the optimistic-concurrency check that
+   * keeps a stale write out. Handing the file over in the prompt and then
+   * refusing the write leaves the agent unable to record anything, so every
+   * tick re-asks the same task from an unchanged MEMORY.
    */
   private async withInjectedWorkspace(
     text: string,
     actorId: string,
+    traceId: string,
     workspace: FileWorkspacePortV1,
     signal: AbortSignal,
   ): Promise<string> {
@@ -351,7 +361,15 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     let memoryVersion: number | undefined;
     for (const path of INJECTED_WORKSPACE_FILES) {
       const read = await workspace.read({ actorId, path, signal });
-      if (path === 'MEMORY.md') memoryVersion = read.receipt.version;
+      if (path === 'MEMORY.md') {
+        memoryVersion = read.receipt.version;
+        this.fileProvider.noteHostDeliveredMemoryV1({
+          actorId,
+          traceId,
+          content: read.content,
+          receipt: read.receipt,
+        });
+      }
       sections.push(`--- ${path} ---`, read.content, '');
     }
     sections.push(
@@ -387,6 +405,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
           text: await this.withInjectedWorkspace(
             promptTextOf(input.message.payload),
             this.options.responder.actorId,
+            input.message.traceId,
             this.options.responder.workspace,
             signal,
           ),

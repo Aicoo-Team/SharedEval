@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import type { FileReadReceiptV1 } from '../../src/runner/v1/file-workspace.js';
 import test from 'node:test';
 
 import { stableIdV1 } from '../../src/contracts/json.js';
@@ -1208,6 +1209,15 @@ class FakeFileProvider implements SharedOsFileProviderV1 {
 
   invoke(_operation: SoResourceOperation, _signal: AbortSignal): Promise<SoResourceResult> {
     throw new Error('router tests do not invoke the provider directly');
+  }
+
+  noteHostDeliveredMemoryV1(_input: {
+    actorId: string;
+    traceId: string;
+    content: string;
+    receipt: FileReadReceiptV1;
+  }): void {
+    // The router never injects; these tests only need the interface satisfied.
   }
 
   async readReceipts(input: { actorId: string; traceId: string }) {

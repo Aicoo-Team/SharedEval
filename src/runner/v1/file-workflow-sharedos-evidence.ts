@@ -819,7 +819,14 @@ function deriveMemoryEvidence(
       && receipt.sha256 === operation.previousSha256
       && receipt.byteLength === operation.previousByteLength
     ));
-    if (priorRead < 0) {
+    // Under 'simple' the host hands MEMORY.md to the agent in the turn prompt,
+    // so no model read precedes the commit and there is no receipt to find.
+    // The property this receipt was standing in for — that the replacement
+    // targets the version this turn actually observed — is still enforced, by
+    // the file provider, against the observation the host recorded when it
+    // delivered the file. Waiving the receipt here does not weaken it; adding a
+    // receipt the model never earned would have.
+    if (priorRead < 0 && binding.scheduler.pairProfile !== 'simple') {
       throw new Error('Committed MEMORY requires its exact preceding same-turn read receipt');
     }
     const previous = decodeMemory(operation.previousBytesBase64, 'previous MEMORY');
