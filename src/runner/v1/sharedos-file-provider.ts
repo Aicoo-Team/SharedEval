@@ -9,6 +9,10 @@ import type {
 import type { JsonObject } from '../../contracts/json.js';
 import type { AgentWorkspaceFilePathV1 } from './agent-workspace.js';
 import { FileMemoryFormatErrorV1 } from './file-memory.js';
+import {
+  toTurnObservationsV1,
+  unmetTurnObservationV1,
+} from './file-turn-observation.js';
 import type {
   FileReadReceiptV1,
   FileWorkspacePortV1,
@@ -408,7 +412,22 @@ class ActorOwnedFileProvider implements SharedOsFileProviderV1 {
       );
     }
     const previous = state.memoryObservation;
-    if (!previous || previous.receipt.version !== expectedVersion) {
+    // The same contract every downstream layer checks, asked of the one
+    // evidence source that is complete under every profile: this turn's own
+    // state holds both what the model read and what the host delivered, so
+    // there is no profile to consult and nothing here is ever waived.
+    const unmetObservation = unmetTurnObservationV1({
+      evidence: 'turn-state',
+      pairProfile: undefined,
+      observed: toTurnObservationsV1(previous ? [previous.receipt] : []),
+      required: {
+        actorId: validated.actorId,
+        at: { path: MEMORY_PATH, version: expectedVersion },
+      },
+    });
+    // No observation cannot satisfy a requirement, so `!previous` is already
+    // covered above; it is repeated here to narrow the type for the reads below.
+    if (!previous || unmetObservation) {
       return deniedResult(
         operation,
         'file_read_required',
