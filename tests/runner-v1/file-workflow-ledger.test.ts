@@ -866,7 +866,11 @@ test('rejects incomplete contact read coverage and responder version gaps', asyn
   });
   await assert.rejects(
     () => commitStartedHeartbeat(responderStore, responderPayload),
-    /responder|version|gap|coherent/i,
+    // Exact, and named for the layer that actually refuses. The previous
+    // matcher (/responder|version|gap|coherent/i) accepted this message too,
+    // which is why the ledger's own version-gap branch looked covered while
+    // never being reached.
+    /SharedOS actor has multiple read versions without a same-turn MEMORY CAS/,
     'ACCEPTED_RESPONDER_CONTACT_READ_VERSION_GAP',
   );
   await responderStore.close();

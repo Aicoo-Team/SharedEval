@@ -781,8 +781,6 @@ export function contactReadCoverageFailureV1(
   switch (unmet.reason) {
     case 'conflicting_observations':
       return `${label} contact reads conflict at one workspace version cursor`;
-    case 'version_gap':
-      return 'Responder contact reads contain an unbound workspace version gap';
     default:
       return `Authoritative contact requires complete ${label} four-file read coverage`;
   }

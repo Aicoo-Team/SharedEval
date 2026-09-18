@@ -192,7 +192,10 @@ test('an exact state requirement compares only the fields it names', () => {
   );
 });
 
-test('contiguous versions are demanded only when a caller asks for them', () => {
+test('the predicate never demands version contiguity of its own accord', () => {
+  // Straddling a CAS boundary and skipping versions entirely both satisfy a
+  // coverage requirement. Whether either is acceptable is the ledger's
+  // question about the responder, and it asks it itself.
   const straddling = [
     ...fourFiles,
     observed('MEMORY.md', { version: 4, sha256: sha('cd') }),
@@ -211,25 +214,6 @@ test('contiguous versions are demanded only when a caller asks for them', () => 
       'A_REQUIREMENT_DEMANDED_SOMETHING_ITS_CALLER_DID_NOT_ASK_FOR',
     );
   }
-  assert.equal(
-    unmetTurnObservationV1({
-      evidence: 'model-read-receipts',
-      pairProfile: 'strict',
-      observed: straddling,
-      required: { actorId: ACTOR, paths: OBSERVED_TURN_FILES_V1, contiguousVersions: true },
-    }),
-    undefined,
-    'A_TURN_MAY_STRADDLE_ITS_OWN_CAS_BOUNDARY',
-  );
-  assert.deepEqual(
-    unmetTurnObservationV1({
-      evidence: 'model-read-receipts',
-      pairProfile: 'strict',
-      observed: gapped,
-      required: { actorId: ACTOR, paths: OBSERVED_TURN_FILES_V1, contiguousVersions: true },
-    }),
-    { reason: 'version_gap', versions: [3, 6] },
-  );
 });
 
 test('the four files the contract is about are the four the workspace has', () => {
