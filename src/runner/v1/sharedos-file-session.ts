@@ -20,7 +20,7 @@ import type {
   SoToolHandler,
   SoTurnDriver,
 } from '../../execution/sharedos/v1/contracts.js';
-import { INJECTED_WORKSPACE_MARKER_V1, type FileWorkspacePortV1 } from './file-workspace.js';
+import type { FileWorkspacePortV1, InjectedWorkspaceDeclarationV1 } from './file-workspace.js';
 import { buildPactPairSharedOsGrantManifestV1 } from '../../suites/pact-pair/sharedos-grants.js';
 import { createPactPairSharedOsToolHandlersV1 } from '../../suites/pact-pair/sharedos-tools.js';
 import type { LoadedPactPairTaskV1 } from '../../suites/pact-pair/task-loader.js';
@@ -57,6 +57,16 @@ import {
 
 const FILE_TOOL_NAMES = new Set(['files.read', 'files.replace']);
 const INJECTED_WORKSPACE_FILES = ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'] as const;
+
+/**
+ * One turn prompt: the text a model reads, plus what the host already did for
+ * it. Under 'strict' only `text` is present, so the payload is byte-identical to
+ * the one that shipped before the declaration existed.
+ */
+type TurnPromptPayloadV1 = {
+  text: string;
+  injectedWorkspace?: InjectedWorkspaceDeclarationV1;
+};
 
 function promptTextOf(payload: unknown): string {
   if (typeof payload === 'string') return payload;
@@ -258,15 +268,13 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
         sender: structuredClone(SHAREDEVAL_SERVICE_ADDRESS_V1),
         receiver: { kind: 'agent', agentId: this.options.requester.actorId },
         purpose: SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
-        payload: {
-          text: await this.withInjectedWorkspace(
-            heartbeatInstructionText(input.tick, this.options, input.multiTurnProgress),
-            this.options.requester.actorId,
-            input.traceId,
-            this.options.requester.workspace,
-            signal,
-          ),
-        },
+        payload: await this.withInjectedWorkspace(
+          heartbeatInstructionText(input.tick, this.options, input.multiTurnProgress),
+          this.options.requester.actorId,
+          input.traceId,
+          this.options.requester.workspace,
+          signal,
+        ),
         traceId: input.traceId,
         createdAt: now,
         provenance: {
@@ -355,8 +363,8 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     traceId: string,
     workspace: FileWorkspacePortV1,
     signal: AbortSignal,
-  ): Promise<string> {
-    if (this.options.pairProfile !== 'simple') return text;
+  ): Promise<TurnPromptPayloadV1> {
+    if (this.options.pairProfile !== 'simple') return { text };
     const sections: string[] = [text, ''];
     let memoryVersion: number | undefined;
     for (const path of INJECTED_WORKSPACE_FILES) {
@@ -376,7 +384,17 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
       `MEMORY.md expectedVersion for files.replace: ${String(memoryVersion ?? 0)}`,
       'These four files are current as of this turn; you do not need to read them again.',
     );
-    return sections.join('\n');
+    // The rendered text is what the model reads; the declaration beside it is
+    // what the host reads. Nothing downstream has to find a fence in the prose to
+    // learn that this prompt already carries the workspace. The text itself is
+    // byte for byte what it was when that was a substring search.
+    return {
+      text: sections.join('\n'),
+      injectedWorkspace: {
+        files: [...INJECTED_WORKSPACE_FILES],
+        memoryVersion: memoryVersion ?? 0,
+      },
+    };
   }
 
   private async executeResponderTurn(
@@ -401,15 +419,13 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     const message = this.options.pairProfile === 'simple'
       ? {
         ...structuredClone(input.message),
-        payload: {
-          text: await this.withInjectedWorkspace(
-            promptTextOf(input.message.payload),
-            this.options.responder.actorId,
-            input.message.traceId,
-            this.options.responder.workspace,
-            signal,
-          ),
-        },
+        payload: await this.withInjectedWorkspace(
+          promptTextOf(input.message.payload),
+          this.options.responder.actorId,
+          input.message.traceId,
+          this.options.responder.workspace,
+          signal,
+        ),
       }
       : input.message;
     let execution: SoExecutionResult;

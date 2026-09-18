@@ -77,7 +77,7 @@ const DEFAULT_PROVIDER_RATE_LIMIT_DELAY_MS_V1 = 15_000;
 // long relative to their task budget.
 const PROVIDER_ATTEMPT_TIMEOUT_FLOOR_MS_V1 = 90_000;
 const MAX_PROVIDER_RATE_LIMIT_DELAY_MS_V1 = 60_000;
-import { INJECTED_WORKSPACE_MARKER_V1 } from './file-workspace.js';
+import { injectedWorkspaceOfPayloadV1 } from './file-workspace.js';
 
 const RECIPIENT_TURN_BOOTSTRAP_V1 =
   [
@@ -1100,7 +1100,12 @@ function promptFromMessage(
   // the payload. Appending the read guidance there contradicts it outright —
   // the prompt would hand the agent MEMORY.md, say it need not be read again,
   // and then require four reads before any other action.
-  const injected = payload.includes(INJECTED_WORKSPACE_MARKER_V1);
+  //
+  // Read from the declaration, never from the prose. Whether a prompt carries the
+  // workspace is the host's own statement about what it did; a substring of the
+  // prompt is content, and content that happened to contain the fence used to
+  // answer this question.
+  const injected = injectedWorkspaceOfPayloadV1(message.payload) !== undefined;
   if (message.sender.kind !== 'agent') {
     return [
       payload,
