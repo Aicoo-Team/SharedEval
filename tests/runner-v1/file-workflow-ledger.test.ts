@@ -3376,3 +3376,68 @@ function spawnLockProcess(input: {
     done,
   };
 }
+
+test('the committed-MEMORY read receipt is required under strict and waived under simple', async t => {
+  const root = await temporaryRoot(t, 'memory-read-profile');
+  const base = binding('files-multi', 'memory-read-profile', ['PAIR-Q-1']);
+
+  // A host-delivered workspace leaves the actor with no MEMORY read of its own,
+  // so the receipt these gates look for is simply absent. Strict must still
+  // refuse: it is the only control arm, and a waiver that leaked into it would
+  // quietly drop the provenance evidence out of every baseline comparison.
+  const withoutMemoryRead = (runBinding: typeof base) => {
+    const payload = heartbeatPayloadFor(runBinding, 1, [], qaContactEvidence('completed'));
+    payload.privateEvidence.fullEvaluations = [];
+    removeFileReadEvidence(payload, (operation: any) => (
+      operation.actorId === runBinding.actors.requester.actorId
+      && operation.path === 'MEMORY.md'
+    ));
+    return payload;
+  };
+
+  const strictStore = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'strict'),
+    binding: base,
+    retainPrivate: false,
+  });
+  // Exact, not a family of messages. The same payload trips more than one gate,
+  // so a loose matcher cannot say which one refused — and a test that cannot
+  // say which gate it pins does not pin one.
+  await assert.rejects(
+    () => commitStartedHeartbeat(strictStore, withoutMemoryRead(base)),
+    /Committed MEMORY requires its exact preceding same-turn read receipt/,
+    'STRICT_ACCEPTED_A_COMMITTED_MEMORY_WITHOUT_ITS_READ_RECEIPT',
+  );
+  await strictStore.close();
+
+  const simpleBinding = {
+    ...base,
+    scheduler: { ...base.scheduler, pairProfile: 'simple' as const },
+  };
+  const simpleStore = await openFileWorkflowLedgerV1({
+    runDirectory: join(root, 'simple'),
+    binding: simpleBinding,
+    retainPrivate: false,
+  });
+  await assert.doesNotReject(
+    () => commitStartedHeartbeat(simpleStore, withoutMemoryRead(simpleBinding)),
+    'SIMPLE_REFUSED_A_HOST_DELIVERED_MEMORY_COMMIT',
+  );
+  await simpleStore.close();
+});
+
+// The ledger's own MEMORY CAS receipt check (file-workflow-ledger.ts, "MEMORY
+// CAS requires a matching ... read receipt") has no test here on purpose, and
+// the reason is worth recording rather than leaving as an omission.
+//
+// It cannot be reached through commitStartedHeartbeat. Two things stand in
+// front of it: the evidence projector refuses a committed MEMORY with no
+// preceding read before the ledger looks at all, and assertCallerProjections-
+// MatchNativeEvidence refuses any payload whose fileReads disagree with the
+// native source evidence — so the receipt cannot be removed from the ledger's
+// view alone. The check is defence in depth behind a gate that already holds.
+//
+// Its profile branch is therefore unexercised, which is a fact about the
+// branch, not about the profile: whether that branch should exist at all is a
+// question for the contract consolidation, which is the first thing able to
+// see all of these gates together.

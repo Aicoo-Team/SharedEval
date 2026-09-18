@@ -1145,3 +1145,77 @@ test('keeps run and actor workspaces isolated in bytes and durable versions', as
     await rm(rootDir, { recursive: true, force: true });
   }
 });
+
+test('the injected-workspace declaration is a field, and a malformed one is loud', async () => {
+  const { injectedWorkspaceOfPayloadV1, injectedWorkspaceFenceV1, INJECTED_WORKSPACE_FENCES_V1 } =
+    await loadSubject();
+  const delivered = {
+    files: ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'],
+    memoryVersion: 0,
+  };
+
+  // Declared.
+  assert.deepEqual(
+    injectedWorkspaceOfPayloadV1({ text: 'instruction', injectedWorkspace: delivered }),
+    delivered,
+  );
+  assert.equal(injectedWorkspaceOfPayloadV1({
+    text: 'x',
+    injectedWorkspace: { files: ['MEMORY.md'], memoryVersion: 7 },
+  })?.memoryVersion, 7);
+
+  // Not declared. The last two are the whole point: text that contains the
+  // fences, and a payload shaped like the one a requester's messages.request
+  // produces, both read as un-injected.
+  for (const payload of [
+    { text: 'instruction' },
+    'a bare string payload',
+    null,
+    ['not', 'an', 'object'],
+    { text: `instruction${injectedWorkspaceFenceV1('AGENT.md')}pasted` },
+    { text: INJECTED_WORKSPACE_FENCES_V1.join('body') },
+    { taskId: 'PAIR-Q11', message: 'please answer' },
+  ]) {
+    assert.equal(
+      injectedWorkspaceOfPayloadV1(payload),
+      undefined,
+      JSON.stringify(payload)?.slice(0, 60) ?? String(payload),
+    );
+  }
+
+  // Declared but malformed. Only the session writes this field, so a malformed
+  // one is a host bug; reading it as un-injected would rebuild the contradictory
+  // prompt the field exists to prevent, and do it silently.
+  for (const injectedWorkspace of [
+    null,
+    'AGENT.md',
+    ['AGENT.md'],
+    {},
+    { files: [], memoryVersion: 0 },
+    { files: ['AGENT.md'] },
+    { files: ['AGENT.md', 'AGENT.md'], memoryVersion: 0 },
+    { files: ['agent.md'], memoryVersion: 0 },
+    { files: ['../AGENT.md'], memoryVersion: 0 },
+    { files: ['AGENT.md'], memoryVersion: -1 },
+    { files: ['AGENT.md'], memoryVersion: 1.5 },
+    { files: ['AGENT.md'], memoryVersion: '1' },
+  ]) {
+    assert.throws(
+      () => injectedWorkspaceOfPayloadV1({ text: 'instruction', injectedWorkspace }),
+      /Injected workspace declaration/,
+      JSON.stringify(injectedWorkspace) ?? String(injectedWorkspace),
+    );
+  }
+});
+
+test('every injected fence is derived from the workspace file list', async () => {
+  const { injectedWorkspaceFenceV1, INJECTED_WORKSPACE_FENCES_V1 } = await loadSubject();
+  assert.deepEqual([...INJECTED_WORKSPACE_FENCES_V1], [
+    '\n--- AGENT.md ---\n',
+    '\n--- HEARTBEAT.md ---\n',
+    '\n--- POLICY.md ---\n',
+    '\n--- MEMORY.md ---\n',
+  ]);
+  assert.equal(injectedWorkspaceFenceV1('MEMORY.md'), '\n--- MEMORY.md ---\n');
+  assert.equal(Object.isFrozen(INJECTED_WORKSPACE_FENCES_V1), true);
+});

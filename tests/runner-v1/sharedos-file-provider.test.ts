@@ -927,3 +927,119 @@ class FakeWorkspace implements FileWorkspacePortV1 {
 function sha256Text(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
 }
+
+// --- Host-delivered MEMORY observation (the 'simple' capability profile) ---
+//
+// Under that profile the host hands the agent its four workspace files in the
+// turn prompt, so no model read precedes the replacement and the provider has
+// no observation to check the expected version against. These cover the seam
+// that lets the host record its own read, and the three ways it must refuse.
+
+test('a host-delivered MEMORY observation lets a replacement commit without a model read', async () => {
+  const requester = new FakeWorkspace('requester');
+  const responder = new FakeWorkspace('responder');
+  const provider = createProvider(requester, responder);
+  const signal = new AbortController().signal;
+  const delivered = await requester.read({ actorId: 'requester', path: 'MEMORY.md', signal });
+
+  provider.noteHostDeliveredMemoryV1({
+    actorId: 'requester',
+    traceId: 'trace-host-1',
+    content: delivered.content,
+    receipt: delivered.receipt,
+  });
+
+  const result = await provider.invoke(replaceOperation({
+    traceId: 'trace-host-1',
+    operationId: 'call-host-1',
+    expectedVersion: encodeFileVersionV1(delivered.receipt.version),
+    content: 'requester:MEMORY.md:v1',
+  }), signal);
+
+  assert.equal(result.status, 'succeeded');
+  // The point of the profile: the model itself never called files.read, and the
+  // receipts the host projects for evidence must still say so.
+  const receipts = await provider.readReceipts({ actorId: 'requester', traceId: 'trace-host-1' });
+  assert.equal(receipts.filter(receipt => receipt.action === 'read').length, 0);
+  await provider.close();
+});
+
+test('a replacement is still refused when no observation was delivered or read', async () => {
+  const requester = new FakeWorkspace('requester');
+  const provider = createProvider(requester, new FakeWorkspace('responder'));
+  const signal = new AbortController().signal;
+
+  const result = await provider.invoke(replaceOperation({
+    traceId: 'trace-host-2',
+    operationId: 'call-host-2',
+    expectedVersion: encodeFileVersionV1(0),
+    content: 'requester:MEMORY.md:v1',
+  }), signal);
+
+  assert.equal(result.status, 'denied');
+  await provider.close();
+});
+
+test('host-delivered MEMORY content must match the receipt it is delivered with', async () => {
+  const requester = new FakeWorkspace('requester');
+  const provider = createProvider(requester, new FakeWorkspace('responder'));
+  const signal = new AbortController().signal;
+  const delivered = await requester.read({ actorId: 'requester', path: 'MEMORY.md', signal });
+
+  // On the read path these two travel together and cannot disagree. Passed
+  // separately they can, and a mismatched pair would otherwise reach the
+  // artifact schema before anything rejected it.
+  assert.throws(() => provider.noteHostDeliveredMemoryV1({
+    actorId: 'requester',
+    traceId: 'trace-host-3',
+    content: 'not what the receipt describes',
+    receipt: delivered.receipt,
+  }), /does not match its read receipt/);
+
+  const digest = createHash('sha256').update(delivered.content, 'utf8').digest('hex');
+  assert.throws(() => provider.noteHostDeliveredMemoryV1({
+    actorId: 'requester',
+    traceId: 'trace-host-3',
+    content: delivered.content,
+    receipt: { ...delivered.receipt, sha256: digest, byteLength: delivered.receipt.byteLength + 1 },
+  }), /does not match its read receipt/);
+  await provider.close();
+});
+
+test('re-delivering MEMORY after a publication does not reopen the one-publication limit', async () => {
+  const requester = new FakeWorkspace('requester');
+  const provider = createProvider(requester, new FakeWorkspace('responder'));
+  const signal = new AbortController().signal;
+  const delivered = await requester.read({ actorId: 'requester', path: 'MEMORY.md', signal });
+
+  provider.noteHostDeliveredMemoryV1({
+    actorId: 'requester',
+    traceId: 'trace-host-4',
+    content: delivered.content,
+    receipt: delivered.receipt,
+  });
+  const first = await provider.invoke(replaceOperation({
+    traceId: 'trace-host-4',
+    operationId: 'call-host-4a',
+    expectedVersion: encodeFileVersionV1(delivered.receipt.version),
+    content: 'requester:MEMORY.md:v1',
+  }), signal);
+  assert.equal(first.status, 'succeeded');
+
+  const republished = await requester.read({ actorId: 'requester', path: 'MEMORY.md', signal });
+  provider.noteHostDeliveredMemoryV1({
+    actorId: 'requester',
+    traceId: 'trace-host-4',
+    content: republished.content,
+    receipt: republished.receipt,
+  });
+  const second = await provider.invoke(replaceOperation({
+    traceId: 'trace-host-4',
+    operationId: 'call-host-4b',
+    expectedVersion: encodeFileVersionV1(republished.receipt.version),
+    content: 'requester:MEMORY.md:v2',
+  }), signal);
+
+  assert.equal(second.status, 'denied');
+  await provider.close();
+});

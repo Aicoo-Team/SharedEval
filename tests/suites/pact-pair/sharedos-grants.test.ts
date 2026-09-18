@@ -212,34 +212,106 @@ test('simple issues one standing datastore reach for every task and defers nothi
   // Nothing is activated per contact, so the router has no set to bind.
   assert.deepEqual(manifest.responderGrantSets, []);
 
-  const pact = manifest.grants
-    .filter(grant => grant.capabilities[0]?.resource.namespace === 'pact-pair')
-    .map(grant => {
-      const capability = grant.capabilities[0]!;
-      return [
-        capability.resource.path[1]!,
-        capability.resource.path[2]!,
-        capability.actions.join(','),
-      ];
-    })
-    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  // maxUses is part of this projection on purpose. It was dropped here once, and
+  // the per-task budget silently grew by a factor of the task count with every
+  // assertion in the suite still green.
+  const pact = standingPactCapabilities(manifest);
 
   // Both surfaces and every action, identically for a QA task, a QA task whose
   // surface is unknown, and an action task: the tool set is constant now, so a
   // capability narrowed by task kind would leave tools that cannot be called.
+  // 8 is maxToolCalls for one turn on one task, the same budget strict issues.
   assert.deepEqual(pact, [
-    ['PAIR-A1', 'notes', 'create,read,update'],
-    ['PAIR-A1', 'todos', 'create,read,update'],
-    ['PAIR-Q1', 'notes', 'create,read,update'],
-    ['PAIR-Q1', 'todos', 'create,read,update'],
-    ['PAIR-Q2', 'notes', 'create,read,update'],
-    ['PAIR-Q2', 'todos', 'create,read,update'],
+    ['PAIR-A1', 'notes', 'create,read,update', 8],
+    ['PAIR-A1', 'todos', 'create,read,update', 8],
+    ['PAIR-Q1', 'notes', 'create,read,update', 8],
+    ['PAIR-Q1', 'todos', 'create,read,update', 8],
+    ['PAIR-Q2', 'notes', 'create,read,update', 8],
+    ['PAIR-Q2', 'todos', 'create,read,update', 8],
   ]);
 
   // Strict is untouched: it still narrows by surface and kind.
   const strict = build();
   assert.ok(strict.responderGrantSets.length > 0);
   assert.deepEqual(projectPactCapabilities(strict, 'PAIR-Q1'), [['PAIR-Q1', 'notes', 'read', 8]]);
+});
+
+test('a per-task grant is budgeted per task, an aggregate grant by the task count', () => {
+  // Two grants that look alike and must not be budgeted alike. The responder's
+  // file-read grant is one grant for the whole run, so it has to cover every
+  // task; a pact-pair datastore grant exists once per (task, surface) and is
+  // only ever spent on its own task. The second one carried the first one's
+  // `* tasks.length`, which is what this pins.
+  const one = build({ pairProfile: 'simple', tasks: [qaTask('PAIR-Q1', 'notes')] });
+  const three = build({ pairProfile: 'simple' });
+
+  // Aggregate: scales with the task count.
+  assert.equal(responderMaxUses(one, 'files', ['AGENT.md'], ['read']), 8);
+  assert.equal(responderMaxUses(three, 'files', ['AGENT.md'], ['read']), 24);
+  assert.equal(responderMaxUses(one, 'sharedos.messaging', ['agent', REQUESTER_ID], ['send']), 1);
+  assert.equal(responderMaxUses(three, 'sharedos.messaging', ['agent', REQUESTER_ID], ['send']), 3);
+
+  // Per task: does not. Adding tasks to a run must not enlarge any one task's
+  // datastore budget.
+  assert.equal(standingPactMaxUses(one, 'PAIR-Q1', 'notes'), 8);
+  assert.equal(standingPactMaxUses(three, 'PAIR-Q1', 'notes'), 8);
+  assert.equal(standingPactMaxUses(three, 'PAIR-A1', 'todos'), 8);
+
+  // And it is the same number strict issues for its own narrow per-task grant:
+  // the profiles differ in reach, never in budget.
+  assert.equal(
+    standingPactMaxUses(three, 'PAIR-Q1', 'notes'),
+    projectPactCapabilities(build(), 'PAIR-Q1')[0]?.[3],
+  );
+});
+
+test('no per-task grant may budget more uses than the run can physically spend', () => {
+  // The shape the multi-turn run is configured for: 60 tasks, 180 ticks, 32 tool
+  // calls per turn. A whole run cannot make more than maxTicks * maxToolCalls
+  // tool calls, so a per-task grant above that ceiling can never be reached.
+  // That is the failure mode this pins: an unreachable constraint constrains
+  // nothing, and because it never trips, no other assertion in this suite can
+  // notice it is wrong.
+  const tasks = Array.from(
+    { length: 60 },
+    (_unused, index) => qaTask(`PAIR-Q${index + 1}`, 'notes'),
+  );
+  const shape = {
+    maxTicks: 180,
+    maxToolCalls: 32,
+    multiTurn: { phase2StartTick: 61, finalizeTick: 170 },
+    tasks,
+  } as const;
+  const runCeiling = shape.maxTicks * shape.maxToolCalls;
+  assert.equal(runCeiling, 5_760);
+
+  for (const pairProfile of [undefined, 'strict', 'simple'] as const) {
+    const label = pairProfile ?? 'absent';
+    const manifest = build({
+      ...shape,
+      ...(pairProfile === undefined ? {} : { pairProfile }),
+    });
+    const perTask = manifest.grants.filter(grant => (
+      grant.capabilities[0]?.resource.namespace === 'pact-pair'
+    ));
+    // strict narrows a notes QA task to its own surface; simple holds both.
+    assert.equal(perTask.length, pairProfile === 'simple' ? 120 : 60, label);
+    for (const grant of perTask) {
+      const uses = grant.constraints.maxUses ?? 0;
+      assert.ok(
+        uses > 0 && uses <= runCeiling,
+        `${label}: ${grant.capabilities[0]!.resource.path.join('/')} budgets ${uses}`
+        + ` against a ${runCeiling} run ceiling`,
+      );
+    }
+    // Every per-task budget is exactly one turn's tool calls across every tick,
+    // whichever profile issued it.
+    assert.deepEqual(
+      [...new Set(perTask.map(grant => grant.constraints.maxUses))],
+      [runCeiling],
+      label,
+    );
+  }
 });
 
 test('multiTurn scales contact-shaped use counts without changing grant identities', () => {
@@ -437,6 +509,50 @@ function grantsForTask(manifest: BuiltManifest, taskId: string): SoCapabilityGra
   const grantIds = manifest.responderGrantSets.find(set => set.taskId === taskId)?.grantIds;
   assert.ok(grantIds);
   return grantIds.map(id => manifest.grants.find(grant => grant.id === id)!);
+}
+
+function responderGrants(manifest: BuiltManifest): SoCapabilityGrant[] {
+  return manifest.grants.filter(grant => (
+    grant.subject.kind === 'agent' && grant.subject.agentId === RESPONDER_ID
+  ));
+}
+
+function responderMaxUses(
+  manifest: BuiltManifest,
+  namespace: string,
+  path: readonly string[],
+  actions: readonly string[],
+): number {
+  return grantFor(responderGrants(manifest), namespace, path, actions).constraints.maxUses!;
+}
+
+/** The 'simple' datastore grants, which are standing rather than per-contact. */
+function standingPactCapabilities(
+  manifest: BuiltManifest,
+): Array<[string, string, string, number]> {
+  return manifest.grants
+    .filter(grant => grant.capabilities[0]?.resource.namespace === 'pact-pair')
+    .map((grant): [string, string, string, number] => {
+      const capability = grant.capabilities[0]!;
+      return [
+        capability.resource.path[1]!,
+        capability.resource.path[2]!,
+        capability.actions.join(','),
+        grant.constraints.maxUses!,
+      ];
+    })
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+}
+
+function standingPactMaxUses(
+  manifest: BuiltManifest,
+  taskId: string,
+  surface: 'notes' | 'todos',
+): number {
+  const rows = standingPactCapabilities(manifest)
+    .filter(row => row[0] === taskId && row[1] === surface);
+  assert.equal(rows.length, 1, `${taskId}/${surface}`);
+  return rows[0]![3];
 }
 
 function grantFor(

@@ -10,6 +10,14 @@ import {
 } from './file-memory.js';
 import type { FileProviderTelemetryV1 } from './file-model-driver.js';
 import {
+  OBSERVED_TURN_FILES_V1,
+  toTurnObservationsV1,
+  unmetTurnObservationV1,
+  type PairProfileV1,
+  type TurnObservationV1,
+  type UnmetTurnObservationV1,
+} from './file-turn-observation.js';
+import {
   fileWorkflowContactAuthorityV1Schema,
   fileWorkflowMemoryAuthorityV1Schema,
   fileWorkflowRunBindingV1Schema,
@@ -257,21 +265,23 @@ function projectFileWorkflowSharedOsEvidenceCore(
     contact?.replyAuthorization,
   );
   assertPactPairAuditTopology(input, binding, source.auditEvents, admissions, catalogs, contact);
-  // Under 'simple' the four files reach the agent in the turn prompt instead of
-  // through four tool calls, so there are no read receipts to cover a contact
-  // with. The receipts that do exist still describe real model reads; none are
-  // synthesized to satisfy these assertions.
-  if (contact && binding.scheduler.pairProfile !== 'simple') {
+  // Whether this evidence can answer at all is decided once, in
+  // file-turn-observation.ts: under 'simple' the four files reach the agent in
+  // the turn prompt and no receipt is synthesized for that delivery, so a
+  // receipt-only view is missing observations that really happened.
+  if (contact) {
     assertCompleteContactReadCoverage(
       operations,
       binding.actors.requester.actorId,
       'requester',
+      binding.scheduler.pairProfile,
     );
     if (contact.authority.status === 'completed' || contact.authority.status === 'denied') {
       assertCompleteContactReadCoverage(
         operations,
         binding.actors.responder.actorId,
         'responder',
+        binding.scheduler.pairProfile,
       );
     }
   }
@@ -759,33 +769,49 @@ function assertFileAuditCausality(
   return tools[0]!.index;
 }
 
+/**
+ * The PACT-Pair wording for a contact that is not backed by a complete read
+ * set. The projector and the ledger check the same requirement against two
+ * different shapes; they must not describe the same failure two ways.
+ */
+export function contactReadCoverageFailureV1(
+  unmet: UnmetTurnObservationV1,
+  label: 'requester' | 'responder',
+): string {
+  switch (unmet.reason) {
+    case 'conflicting_observations':
+      return `${label} contact reads conflict at one workspace version cursor`;
+    case 'version_gap':
+      return 'Responder contact reads contain an unbound workspace version gap';
+    default:
+      return `Authoritative contact requires complete ${label} four-file read coverage`;
+  }
+}
+
+/** Adapter: the projected file operations of one turn. */
+export function turnReadObservationsV1(
+  operations: readonly NativeFileOperation[],
+): readonly TurnObservationV1[] {
+  return toTurnObservationsV1(operations.filter(
+    (operation): operation is Extract<NativeFileOperation, { action: 'read' }> => (
+      operation.action === 'read'
+    ),
+  ));
+}
+
 function assertCompleteContactReadCoverage(
   operations: readonly NativeFileOperation[],
   actorId: string,
   label: 'requester' | 'responder',
+  pairProfile: PairProfileV1 | undefined,
 ): void {
-  const reads = operations.filter(operation => (
-    operation.actorId === actorId && operation.action === 'read'
-  ));
-  const logicalPaths = ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'] as const;
-  const observedPaths = new Set(reads.map(read => read.path));
-  if (!logicalPaths.every(path => observedPaths.has(path))) {
-    throw new Error(
-      `Authoritative contact requires complete ${label} four-file read coverage`,
-    );
-  }
-  const byVersionPath = new Map<string, { sha256: string; byteLength: number }>();
-  for (const read of reads) {
-    const key = `${read.version}:${read.path}`;
-    const existing = byVersionPath.get(key);
-    if (
-      existing
-      && (existing.sha256 !== read.sha256 || existing.byteLength !== read.byteLength)
-    ) {
-      throw new Error(`${label} contact reads conflict at one workspace version cursor`);
-    }
-    byVersionPath.set(key, { sha256: read.sha256, byteLength: read.byteLength });
-  }
+  const unmet = unmetTurnObservationV1({
+    evidence: 'model-read-receipts',
+    pairProfile,
+    observed: turnReadObservationsV1(operations),
+    required: { actorId, paths: OBSERVED_TURN_FILES_V1 },
+  });
+  if (unmet) throw new Error(contactReadCoverageFailureV1(unmet, label));
 }
 
 function deriveMemoryEvidence(
@@ -811,15 +837,30 @@ function deriveMemoryEvidence(
     const operation = committed[0];
     if (!operation || operation.action !== 'replace' || operation.outcome !== 'committed') continue;
     const replaceIndex = actorOperations.indexOf(operation);
-    const priorRead = actorOperations.findIndex((receipt, index) => (
-      index < replaceIndex
-      && receipt.action === 'read'
-      && receipt.path === 'MEMORY.md'
-      && receipt.version === operation.previousVersion
-      && receipt.sha256 === operation.previousSha256
-      && receipt.byteLength === operation.previousByteLength
-    ));
-    if (priorRead < 0) {
+    // Ordering is this layer's own business, so the adapter enforces it by
+    // offering only what this actor observed *before* the commit; the shared
+    // predicate is asked one question, "was that version observed".
+    //
+    // The property the receipt stands in for — that the replacement targets a
+    // version this turn actually observed — is also enforced by the file
+    // provider against the observation the host recorded when it delivered the
+    // file, which is why the receipt may be waived without weakening it.
+    // Adding a receipt the model never earned would have weakened it.
+    const unmet = unmetTurnObservationV1({
+      evidence: 'model-read-receipts',
+      pairProfile: binding.scheduler.pairProfile,
+      observed: turnReadObservationsV1(actorOperations.slice(0, replaceIndex)),
+      required: {
+        actorId,
+        at: {
+          path: 'MEMORY.md',
+          version: operation.previousVersion,
+          sha256: operation.previousSha256,
+          byteLength: operation.previousByteLength,
+        },
+      },
+    });
+    if (unmet) {
       throw new Error('Committed MEMORY requires its exact preceding same-turn read receipt');
     }
     const previous = decodeMemory(operation.previousBytesBase64, 'previous MEMORY');
@@ -983,13 +1024,13 @@ function deriveContactEvidence(
     requesterAdmission,
     input.native.executionStatus,
   );
-  if (binding.scheduler.pairProfile !== 'simple') {
-    assertRequesterReadsPrecedeContact(
-      events,
-      input.native.sourceEvidence.requesterFileOperations,
-      requestAudit.authorizationIndex,
-    );
-  }
+  assertRequesterReadsPrecedeContact(
+    events,
+    input.native.sourceEvidence.requesterFileOperations,
+    requestAudit.authorizationIndex,
+    binding.actors.requester.actorId,
+    binding.scheduler.pairProfile,
+  );
   const expectedRequestId = stableIdV1('message', [
     'message-request',
     binding.sharedOs.namespaceId,
@@ -1351,21 +1392,28 @@ function assertRequesterReadsPrecedeContact(
   events: readonly NativeAuditEvent[],
   operations: readonly NativeFileOperation[],
   requestAuthorizationIndex: number,
+  actorId: string,
+  pairProfile: PairProfileV1 | undefined,
 ): void {
-  const preContactPaths = new Set<string>();
-  for (const operation of operations) {
-    if (operation.action !== 'read') continue;
+  // Ordering belongs to the adapter: only the reads whose tool call landed
+  // before the contact was authorized are offered as observations at all.
+  const beforeContact = operations.filter(operation => {
+    if (operation.action !== 'read') return false;
     const toolIndex = events.findIndex(event => (
       event.type === 'tool.invoked'
       && event.outcome === 'succeeded'
       && event.operationId === operation.operationId
       && event.tool === 'files.read'
     ));
-    if (toolIndex >= 0 && toolIndex < requestAuthorizationIndex) preContactPaths.add(operation.path);
-  }
-  if (!['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'].every(
-    path => preContactPaths.has(path),
-  )) {
+    return toolIndex >= 0 && toolIndex < requestAuthorizationIndex;
+  });
+  const unmet = unmetTurnObservationV1({
+    evidence: 'model-read-receipts',
+    pairProfile,
+    observed: turnReadObservationsV1(beforeContact),
+    required: { actorId, paths: OBSERVED_TURN_FILES_V1 },
+  });
+  if (unmet) {
     throw new Error('Authoritative contact requires one complete requester file read set before contact authorization');
   }
 }

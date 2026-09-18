@@ -20,7 +20,7 @@ import type {
   SoToolHandler,
   SoTurnDriver,
 } from '../../execution/sharedos/v1/contracts.js';
-import { INJECTED_WORKSPACE_MARKER_V1, type FileWorkspacePortV1 } from './file-workspace.js';
+import type { FileWorkspacePortV1, InjectedWorkspaceDeclarationV1 } from './file-workspace.js';
 import { buildPactPairSharedOsGrantManifestV1 } from '../../suites/pact-pair/sharedos-grants.js';
 import { createPactPairSharedOsToolHandlersV1 } from '../../suites/pact-pair/sharedos-tools.js';
 import type { LoadedPactPairTaskV1 } from '../../suites/pact-pair/task-loader.js';
@@ -57,6 +57,16 @@ import {
 
 const FILE_TOOL_NAMES = new Set(['files.read', 'files.replace']);
 const INJECTED_WORKSPACE_FILES = ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'] as const;
+
+/**
+ * One turn prompt: the text a model reads, plus what the host already did for
+ * it. Under 'strict' only `text` is present, so the payload is byte-identical to
+ * the one that shipped before the declaration existed.
+ */
+type TurnPromptPayloadV1 = {
+  text: string;
+  injectedWorkspace?: InjectedWorkspaceDeclarationV1;
+};
 
 function promptTextOf(payload: unknown): string {
   if (typeof payload === 'string') return payload;
@@ -258,14 +268,13 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
         sender: structuredClone(SHAREDEVAL_SERVICE_ADDRESS_V1),
         receiver: { kind: 'agent', agentId: this.options.requester.actorId },
         purpose: SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
-        payload: {
-          text: await this.withInjectedWorkspace(
-            heartbeatInstructionText(input.tick, this.options, input.multiTurnProgress),
-            this.options.requester.actorId,
-            this.options.requester.workspace,
-            signal,
-          ),
-        },
+        payload: await this.withInjectedWorkspace(
+          heartbeatInstructionText(input.tick, this.options, input.multiTurnProgress),
+          this.options.requester.actorId,
+          input.traceId,
+          this.options.requester.workspace,
+          signal,
+        ),
         traceId: input.traceId,
         createdAt: now,
         provenance: {
@@ -339,26 +348,53 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
    * them with four tool calls before it may act. Content comes from the
    * workspace port, whose receipts are keyed by (actorId, traceId) in the file
    * provider, so this never counts as a read the model performed.
+   *
+   * The provider is told about the MEMORY.md delivery separately. Its
+   * replacement path requires MEMORY to have been observed at the expected
+   * version in this turn, and that requirement is not one of the six read
+   * gates the profile waives: it is the optimistic-concurrency check that
+   * keeps a stale write out. Handing the file over in the prompt and then
+   * refusing the write leaves the agent unable to record anything, so every
+   * tick re-asks the same task from an unchanged MEMORY.
    */
   private async withInjectedWorkspace(
     text: string,
     actorId: string,
+    traceId: string,
     workspace: FileWorkspacePortV1,
     signal: AbortSignal,
-  ): Promise<string> {
-    if (this.options.pairProfile !== 'simple') return text;
+  ): Promise<TurnPromptPayloadV1> {
+    if (this.options.pairProfile !== 'simple') return { text };
     const sections: string[] = [text, ''];
     let memoryVersion: number | undefined;
     for (const path of INJECTED_WORKSPACE_FILES) {
       const read = await workspace.read({ actorId, path, signal });
-      if (path === 'MEMORY.md') memoryVersion = read.receipt.version;
+      if (path === 'MEMORY.md') {
+        memoryVersion = read.receipt.version;
+        this.fileProvider.noteHostDeliveredMemoryV1({
+          actorId,
+          traceId,
+          content: read.content,
+          receipt: read.receipt,
+        });
+      }
       sections.push(`--- ${path} ---`, read.content, '');
     }
     sections.push(
       `MEMORY.md expectedVersion for files.replace: ${String(memoryVersion ?? 0)}`,
       'These four files are current as of this turn; you do not need to read them again.',
     );
-    return sections.join('\n');
+    // The rendered text is what the model reads; the declaration beside it is
+    // what the host reads. Nothing downstream has to find a fence in the prose to
+    // learn that this prompt already carries the workspace. The text itself is
+    // byte for byte what it was when that was a substring search.
+    return {
+      text: sections.join('\n'),
+      injectedWorkspace: {
+        files: [...INJECTED_WORKSPACE_FILES],
+        memoryVersion: memoryVersion ?? 0,
+      },
+    };
   }
 
   private async executeResponderTurn(
@@ -383,14 +419,13 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     const message = this.options.pairProfile === 'simple'
       ? {
         ...structuredClone(input.message),
-        payload: {
-          text: await this.withInjectedWorkspace(
-            promptTextOf(input.message.payload),
-            this.options.responder.actorId,
-            this.options.responder.workspace,
-            signal,
-          ),
-        },
+        payload: await this.withInjectedWorkspace(
+          promptTextOf(input.message.payload),
+          this.options.responder.actorId,
+          input.message.traceId,
+          this.options.responder.workspace,
+          signal,
+        ),
       }
       : input.message;
     let execution: SoExecutionResult;
@@ -534,7 +569,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     const taskId = selectedContactTaskIdV1({
       taskId: contact.taskId,
       taskIds: this.options.tasks.map(task => task.taskId),
-      ...(this.options.pairProfile ? { pairProfile: this.options.pairProfile } : {}),
+      unplaceableContact: unplaceableContactPolicyV1(this.options.pairProfile),
     });
     if (taskId === undefined) return undefined;
     const responderUsage = this.responderUsageByTrace.get(traceId);
@@ -604,27 +639,49 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
  * resume replays because every input is committed run configuration.
  */
 /**
- * The selected task a contact binds, and what an unselected one costs.
+ * What a contact naming no selected task costs: its own task, or the run.
  *
- * A contact naming no selected task was already refused by the router: no
- * responder ran, no grant set was bound, nothing happened outside the process.
- * Under 'simple' that is provably nothing, so the turn reports no contact and
- * the tick commits as a failed contact — one malformed task id costs its own
- * task, not the trajectory. Under 'strict' it stays fatal, because a run whose
- * contact evidence cannot be placed cannot be scored.
+ * This is deliberately not the pair profile. The profile decides whether the
+ * turn prompt carries the workspace; this decides what an unplaceable contact
+ * costs, and the two are independent. The argument for 'drop' — that the router
+ * already refused the contact, so no responder ran, no grant set was bound, and
+ * nothing happened outside the process — holds word for word whichever profile
+ * is running: sharedos-message-router.ts fails a contact whose taskId is not in
+ * tasksById before it binds a grant set and before it executes a responder turn.
  *
- * Returns the bound task id, or undefined when a 'simple' run drops the
- * contact; throws when a 'strict' run must end. Returning the id rather than a
- * boolean keeps the caller's narrowing in the type system instead of in a
- * non-null assertion that no later edit would be checked against.
+ * The case against 'drop' is not about injection either: a run whose contact
+ * evidence cannot be placed cannot be scored, and 'strict' is the only control
+ * arm there is. So the choice is a run-level decision and it is spelled out
+ * here, required rather than defaulted, instead of being read off the profile.
+ */
+export type SharedOsUnplaceableContactPolicyV1 = 'drop' | 'fatal';
+
+/**
+ * Today's mapping, unchanged: only 'simple' drops, and an absent profile is
+ * strict. One line, and the only place a profile decides this.
+ */
+export function unplaceableContactPolicyV1(
+  pairProfile?: 'strict' | 'simple',
+): SharedOsUnplaceableContactPolicyV1 {
+  return pairProfile === 'simple' ? 'drop' : 'fatal';
+}
+
+/**
+ * The selected task a contact binds, or nothing when the run drops it.
+ *
+ * Returns the bound task id; returns undefined under 'drop', so the turn
+ * reports no contact and the tick commits as a failed contact; throws under
+ * 'fatal'. Returning the id rather than a boolean keeps the caller's narrowing
+ * in the type system instead of in a non-null assertion that no later edit
+ * would be checked against.
  */
 export function selectedContactTaskIdV1(input: Readonly<{
   taskId: string | undefined;
   taskIds: readonly string[];
-  pairProfile?: 'strict' | 'simple';
+  unplaceableContact: SharedOsUnplaceableContactPolicyV1;
 }>): string | undefined {
   if (input.taskId && input.taskIds.includes(input.taskId)) return input.taskId;
-  if (input.pairProfile === 'simple') return undefined;
+  if (input.unplaceableContact === 'drop') return undefined;
   throw new Error('SharedOS contact does not bind one selected task');
 }
 

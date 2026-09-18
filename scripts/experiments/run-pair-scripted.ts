@@ -28,7 +28,7 @@ import { stringify } from 'yaml';
 import { mainSharedevalV1 } from '../../src/runner/v1/sharedeval-cli.js';
 import { runSharedevalProductionV1 } from '../../src/runner/v1/sharedeval-production.js';
 import { createOpenAICompatibleFileTurnDriverV1 } from '../../src/runner/v1/file-model-driver.js';
-import { INJECTED_WORKSPACE_MARKER_V1 } from '../../src/runner/v1/file-workspace.js';
+import { INJECTED_WORKSPACE_FENCES_V1, injectedWorkspaceFenceV1 } from '../../src/runner/v1/file-workspace.js';
 import { PREFLIGHT_IDS, SPLIT_IDS, acceptanceConfig } from './prepare-pair-acceptance.js';
 
 type Message = { role: string; content?: string | null; tool_calls?: ToolCall[]; tool_call_id?: string };
@@ -85,9 +85,12 @@ function currentTurn(messages: readonly Message[]): { prompt: string; turn: Mess
   return { prompt: String(messages[start]?.content ?? ''), turn: messages.slice(start + 1) };
 }
 
-const INJECTED_SECTION_MARKER = INJECTED_WORKSPACE_MARKER_V1;
-const INJECTED_MEMORY_MARKER = '\n--- MEMORY.md ---\n';
+const INJECTED_SECTION_MARKER = injectedWorkspaceFenceV1('AGENT.md');
+const INJECTED_MEMORY_MARKER = injectedWorkspaceFenceV1('MEMORY.md');
 const INJECTED_VERSION_PATTERN = /\nMEMORY\.md expectedVersion for files\.replace: (\d+)\n/;
+
+const occurrences = (haystack: string, needle: string): number =>
+  haystack.split(needle).length - 1;
 
 export type ScriptedPrompt = Readonly<{
   /** The scheduler's own text, with any injected workspace stripped. */
@@ -103,11 +106,33 @@ export type ScriptedPrompt = Readonly<{
  * so a plain /Finalization window/ over the whole prompt finalizes on tick 1,
  * and POLICY.md carries the task queue the responder's taskId pattern reads.
  * Detection therefore runs against the instruction alone. An unprofiled prompt
- * has no marker and comes back byte-identical.
+ * has no fence and comes back byte-identical.
+ *
+ * This endpoint stands in for a provider, so it receives the rendered prompt and
+ * nothing else: it cannot be handed the payload's injectedWorkspace declaration
+ * the way an in-process consumer is. Parsing text is therefore unavoidable here,
+ * and the fences are forgeable by content — a delivered file, or a requester
+ * message, containing one of these lines would shift the split. So it counts
+ * them: the injection renders each fence once and the version line once, and any
+ * other count is ambiguity, which fails loudly instead of silently splitting at
+ * the wrong offset and scripting a different turn.
  */
 export function splitScriptedPrompt(prompt: string): ScriptedPrompt {
   const start = prompt.indexOf(INJECTED_SECTION_MARKER);
-  if (start < 0) return { instruction: prompt };
+  if (start < 0) {
+    // No opening fence: an un-injected prompt must carry no other fence either,
+    // or the split this returns is wrong in the other direction.
+    if (INJECTED_WORKSPACE_FENCES_V1.some(fence => prompt.includes(fence))) {
+      throw new Error('scripted_requester_ambiguous_injected_workspace');
+    }
+    return { instruction: prompt };
+  }
+  if (
+    INJECTED_WORKSPACE_FENCES_V1.some(fence => occurrences(prompt, fence) !== 1)
+    || occurrences(prompt, '\nMEMORY.md expectedVersion for files.replace: ') !== 1
+  ) {
+    throw new Error('scripted_requester_ambiguous_injected_workspace');
+  }
   const instruction = prompt.slice(0, start);
   const memoryStart = prompt.indexOf(INJECTED_MEMORY_MARKER);
   const version = INJECTED_VERSION_PATTERN.exec(prompt)?.[1];

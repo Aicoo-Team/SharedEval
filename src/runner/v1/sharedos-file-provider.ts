@@ -9,6 +9,10 @@ import type {
 import type { JsonObject } from '../../contracts/json.js';
 import type { AgentWorkspaceFilePathV1 } from './agent-workspace.js';
 import { FileMemoryFormatErrorV1 } from './file-memory.js';
+import {
+  toTurnObservationsV1,
+  unmetTurnObservationV1,
+} from './file-turn-observation.js';
 import type {
   FileReadReceiptV1,
   FileWorkspacePortV1,
@@ -72,6 +76,27 @@ export interface SharedOsFileProviderV1 extends SoResourceProvider {
     actorId: string;
     traceId: string;
   }>): Promise<readonly SharedOsFileOperationReceiptV1[]>;
+  /**
+   * Records that the host delivered MEMORY.md into this actor turn itself,
+   * so a replacement may proceed without the model spending a files.read call
+   * on a file it was already handed.
+   *
+   * The observation carries the receipt the host actually obtained from the
+   * workspace port: the read genuinely happened, it was simply performed by
+   * the host rather than the model. Nothing is synthesized — no receipt is
+   * added to `receipts` and no `tool.invoked` event is created, so the model's
+   * own read evidence stays exactly as sparse as it really is.
+   *
+   * The version travels with the content, so the expectedVersion check on
+   * replacement still compares against a version this turn observed, and a
+   * stale write is refused as before.
+   */
+  noteHostDeliveredMemoryV1(input: Readonly<{
+    actorId: string;
+    traceId: string;
+    content: string;
+    receipt: FileReadReceiptV1;
+  }>): void;
   close(): Promise<void>;
 }
 
@@ -387,7 +412,22 @@ class ActorOwnedFileProvider implements SharedOsFileProviderV1 {
       );
     }
     const previous = state.memoryObservation;
-    if (!previous || previous.receipt.version !== expectedVersion) {
+    // The same contract every downstream layer checks, asked of the one
+    // evidence source that is complete under every profile: this turn's own
+    // state holds both what the model read and what the host delivered, so
+    // there is no profile to consult and nothing here is ever waived.
+    const unmetObservation = unmetTurnObservationV1({
+      evidence: 'turn-state',
+      pairProfile: undefined,
+      observed: toTurnObservationsV1(previous ? [previous.receipt] : []),
+      required: {
+        actorId: validated.actorId,
+        at: { path: MEMORY_PATH, version: expectedVersion },
+      },
+    });
+    // No observation cannot satisfy a requirement, so `!previous` is already
+    // covered above; it is repeated here to narrow the type for the reads below.
+    if (!previous || unmetObservation) {
       return deniedResult(
         operation,
         'file_read_required',
@@ -477,6 +517,32 @@ class ActorOwnedFileProvider implements SharedOsFileProviderV1 {
       },
       completedAt: operation.context.now,
     };
+  }
+
+  noteHostDeliveredMemoryV1(input: Readonly<{
+    actorId: string;
+    traceId: string;
+    content: string;
+    receipt: FileReadReceiptV1;
+  }>): void {
+    // On the read path the content and its receipt come from one workspace
+    // result and cannot disagree. Here they arrive as separate arguments, so
+    // the invariant is restated locally rather than left to the caller: a
+    // mismatched pair would otherwise travel as far as the artifact schema
+    // before anything rejected it.
+    const digest = createHash('sha256').update(input.content, 'utf8').digest('hex');
+    if (digest !== input.receipt.sha256
+      || Buffer.byteLength(input.content, 'utf8') !== input.receipt.byteLength) {
+      throw new Error('Host-delivered MEMORY content does not match its read receipt');
+    }
+    const state = this.turnState(input.actorId, input.traceId);
+    // A turn that already published has consumed its observation on purpose;
+    // re-seeding it would reopen the one-publication-per-turn limit.
+    if (state.publicationCommitted) return;
+    state.memoryObservation = Object.freeze({
+      content: input.content,
+      receipt: Object.freeze(structuredClone(input.receipt)),
+    });
   }
 
   private turnState(actorId: string, traceId: string): TurnState {

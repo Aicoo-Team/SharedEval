@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import type { FileReadReceiptV1 } from '../../src/runner/v1/file-workspace.js';
 import test from 'node:test';
 
 import { stableIdV1 } from '../../src/contracts/json.js';
@@ -281,6 +282,61 @@ test('requires all four responder reads to be produced by this exact responder t
   });
 });
 
+/**
+ * The waiver half of the two tests above. Without these, deleting the 'simple'
+ * arm of this contract leaves the suite green while every simple-profile run
+ * refuses every contact — which is exactly the failure this lane exists to
+ * stop repeating.
+ */
+test('waives the requester read set under simple, where the host delivered the four files', async () => {
+  const harness = createHarness({ pairProfile: 'simple' });
+  harness.provider.receipts.set(
+    `${REQUESTER.agentId}\0${TRACE_ID}`,
+    [],
+  );
+
+  const reply = await harness.router.resolveReply(
+    context(),
+    harness.request,
+    accepted(REQUEST_ID),
+    neverAbort(),
+  );
+
+  assert.equal((reply.payload as { status: string }).status, 'completed');
+  assert.equal(harness.router.readContactResult({ traceId: TRACE_ID })?.status, 'completed');
+});
+
+test('waives the responder read set under simple and still reports the reads it really has', async () => {
+  const harness = createHarness({
+    pairProfile: 'simple',
+    execute: async input => ({
+      // The responder reads nothing: under 'simple' its four files arrived in
+      // the turn prompt. Nothing is synthesized to stand in for them.
+      context: structuredClone(input.context),
+      execution: succeededExecution(
+        input.executionId,
+        input.context.traceId,
+        { type: 'completed', content: 'authorized response', toolSteps: 0, contactCalls: 0 },
+      ),
+    }),
+  });
+  harness.provider.receipts.set(`${REQUESTER.agentId}\0${TRACE_ID}`, []);
+
+  const reply = await harness.router.resolveReply(
+    context(),
+    harness.request,
+    accepted(REQUEST_ID),
+    neverAbort(),
+  );
+
+  assert.equal((reply.payload as { status: string }).status, 'completed');
+  assert.deepEqual(
+    harness.router.readContactResult({ traceId: TRACE_ID })?.responderReads,
+    [],
+    'A_WAIVED_READ_SET_MUST_NOT_BE_REPORTED_AS_READS_THE_MODEL_MADE',
+  );
+});
+
 test('classifies only the store typed duplicate-task outcome and leaves the original contact intact', async () => {
   const harness = createHarness();
   const firstReply = await harness.router.resolveReply(
@@ -343,6 +399,56 @@ test('returns an exact authoritative replay without executing or sending twice',
   assert.equal(harness.executions.length, 1, 'binding replay must not re-execute recipient');
   assert.equal(harness.sent.length, 1, 'binding replay must not resend reply');
   assert.doesNotThrow(() => harness.router.assertTraceHealthy({ traceId: TRACE_ID }));
+});
+
+/**
+ * The replay branch is the only one that re-derives the responder read set from
+ * the provider, and it is reached only by a router that did not witness the
+ * original contact — a recovered process. Both arms of the contract were
+ * unpinned here: neither removing the gate nor removing its 'simple' waiver
+ * turned any test red.
+ */
+test('a recovered router re-derives the responder read set, and simple waives it', async () => {
+  for (const pairProfile of ['strict', 'simple'] as const) {
+    const first = createHarness({ pairProfile });
+    const original = await first.router.resolveReply(
+      context(),
+      first.request,
+      accepted(REQUEST_ID),
+      neverAbort(),
+    );
+
+    // A second router over the same durable state holds no cached contact, so
+    // it must ask the provider again. The receipts of the original turn did not
+    // survive the process that held them.
+    const recovered = createHarness({
+      pairProfile,
+      store: first.store,
+      provider: first.provider,
+    });
+    recovered.provider.receipts.set(`${RESPONDER.agentId}\0${TRACE_ID}`, []);
+
+    if (pairProfile === 'strict') {
+      await assert.rejects(
+        () => recovered.router.resolveReply(
+          context(),
+          structuredClone(first.request),
+          accepted(REQUEST_ID),
+          neverAbort(),
+        ),
+        'STRICT_REPLAYED_A_CONTACT_WITH_NO_RESPONDER_READ_SET',
+      );
+    } else {
+      const replayed = await recovered.router.resolveReply(
+        context(),
+        structuredClone(first.request),
+        accepted(REQUEST_ID),
+        neverAbort(),
+      );
+      assert.deepEqual(replayed, original, 'SIMPLE_REFUSED_A_HOST_DELIVERED_REPLAY');
+    }
+    assert.equal(recovered.executions.length, 0, 'replay must not re-execute the recipient');
+  }
 });
 
 test('replays a cached structured failure or cancellation without upgrading it to fatal', async () => {
@@ -1210,6 +1316,15 @@ class FakeFileProvider implements SharedOsFileProviderV1 {
     throw new Error('router tests do not invoke the provider directly');
   }
 
+  noteHostDeliveredMemoryV1(_input: {
+    actorId: string;
+    traceId: string;
+    content: string;
+    receipt: FileReadReceiptV1;
+  }): void {
+    // The router never injects; these tests only need the interface satisfied.
+  }
+
   async readReceipts(input: { actorId: string; traceId: string }) {
     this.reads += 1;
     return structuredClone(this.receipts.get(`${input.actorId}\0${input.traceId}`) ?? []);
@@ -1223,6 +1338,10 @@ class FakeFileProvider implements SharedOsFileProviderV1 {
 }
 
 function createHarness(overrides: Partial<{
+  pairProfile: 'strict' | 'simple';
+  /** Reuse durable state so a second router can recover a bound trace. */
+  store: FakeStore;
+  provider: FakeFileProvider;
   request: SoMessageEnvelope;
   executionResult: SoExecutionResult;
   returnedContext: (input: ExecutionInput) => SoAccessContext;
@@ -1233,9 +1352,9 @@ function createHarness(overrides: Partial<{
   send: SendSharedOsReplyV1;
 }> = {}) {
   const request = overrides.request ?? requestEnvelope();
-  const store = new FakeStore();
+  const store = overrides.store ?? new FakeStore();
   store.messages.set(request.id, structuredClone(request));
-  const provider = new FakeFileProvider();
+  const provider = overrides.provider ?? new FakeFileProvider();
   provider.setFourReads(REQUESTER.agentId, request.traceId);
   const executions: ExecutionInput[] = [];
   const sent: SentReply[] = [];
@@ -1275,6 +1394,7 @@ function createHarness(overrides: Partial<{
   const router = createSharedOsMessageRequestRouterV1({
     namespaceId: NAMESPACE_ID,
     purpose: PURPOSE,
+    ...(overrides.pairProfile ? { pairProfile: overrides.pairProfile } : {}),
     requesterActorId: REQUESTER.agentId,
     responderActorId: RESPONDER.agentId,
     tasks: [TASK, SECOND_TASK],
