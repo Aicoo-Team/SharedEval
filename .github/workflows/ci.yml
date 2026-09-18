@@ -111,3 +111,12 @@ jobs:
           SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
           SHAREDEVAL_REQUIRE_SHAREDOS: '1'
         run: npm exec -- tsx --test tests/execution/pair-late-operation-driver.test.ts tests/execution/pair-late-operation-delivery.test.ts
+
+      # The validate job runs npm test without a SharedOS build, so every test
+      # guarded on that build skips there and the job still reports green. A test
+      # asserting what the kernel admits is worth nothing unless it is named here.
+      - name: Verify the responder tool surface the kernel admits
+        env:
+          SHAREDEVAL_SHAREDOS_DIR: ${{ github.workspace }}/sharedos-repo
+          SHAREDEVAL_REQUIRE_SHAREDOS: '1'
+        run: npm exec -- tsx --test tests/suites/pact-pair/sharedos-tool-admission.test.ts
