@@ -553,7 +553,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     const taskId = selectedContactTaskIdV1({
       taskId: contact.taskId,
       taskIds: this.options.tasks.map(task => task.taskId),
-      ...(this.options.pairProfile ? { pairProfile: this.options.pairProfile } : {}),
+      unplaceableContact: unplaceableContactPolicyV1(this.options.pairProfile),
     });
     if (taskId === undefined) return undefined;
     const responderUsage = this.responderUsageByTrace.get(traceId);
@@ -623,27 +623,49 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
  * resume replays because every input is committed run configuration.
  */
 /**
- * The selected task a contact binds, and what an unselected one costs.
+ * What a contact naming no selected task costs: its own task, or the run.
  *
- * A contact naming no selected task was already refused by the router: no
- * responder ran, no grant set was bound, nothing happened outside the process.
- * Under 'simple' that is provably nothing, so the turn reports no contact and
- * the tick commits as a failed contact — one malformed task id costs its own
- * task, not the trajectory. Under 'strict' it stays fatal, because a run whose
- * contact evidence cannot be placed cannot be scored.
+ * This is deliberately not the pair profile. The profile decides whether the
+ * turn prompt carries the workspace; this decides what an unplaceable contact
+ * costs, and the two are independent. The argument for 'drop' — that the router
+ * already refused the contact, so no responder ran, no grant set was bound, and
+ * nothing happened outside the process — holds word for word whichever profile
+ * is running: sharedos-message-router.ts fails a contact whose taskId is not in
+ * tasksById before it binds a grant set and before it executes a responder turn.
  *
- * Returns the bound task id, or undefined when a 'simple' run drops the
- * contact; throws when a 'strict' run must end. Returning the id rather than a
- * boolean keeps the caller's narrowing in the type system instead of in a
- * non-null assertion that no later edit would be checked against.
+ * The case against 'drop' is not about injection either: a run whose contact
+ * evidence cannot be placed cannot be scored, and 'strict' is the only control
+ * arm there is. So the choice is a run-level decision and it is spelled out
+ * here, required rather than defaulted, instead of being read off the profile.
+ */
+export type SharedOsUnplaceableContactPolicyV1 = 'drop' | 'fatal';
+
+/**
+ * Today's mapping, unchanged: only 'simple' drops, and an absent profile is
+ * strict. One line, and the only place a profile decides this.
+ */
+export function unplaceableContactPolicyV1(
+  pairProfile?: 'strict' | 'simple',
+): SharedOsUnplaceableContactPolicyV1 {
+  return pairProfile === 'simple' ? 'drop' : 'fatal';
+}
+
+/**
+ * The selected task a contact binds, or nothing when the run drops it.
+ *
+ * Returns the bound task id; returns undefined under 'drop', so the turn
+ * reports no contact and the tick commits as a failed contact; throws under
+ * 'fatal'. Returning the id rather than a boolean keeps the caller's narrowing
+ * in the type system instead of in a non-null assertion that no later edit
+ * would be checked against.
  */
 export function selectedContactTaskIdV1(input: Readonly<{
   taskId: string | undefined;
   taskIds: readonly string[];
-  pairProfile?: 'strict' | 'simple';
+  unplaceableContact: SharedOsUnplaceableContactPolicyV1;
 }>): string | undefined {
   if (input.taskId && input.taskIds.includes(input.taskId)) return input.taskId;
-  if (input.pairProfile === 'simple') return undefined;
+  if (input.unplaceableContact === 'drop') return undefined;
   throw new Error('SharedOS contact does not bind one selected task');
 }
 
