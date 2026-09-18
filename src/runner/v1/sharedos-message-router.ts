@@ -11,10 +11,17 @@ import type {
 } from '../../execution/sharedos/v1/contracts.js';
 import type { LoadedPactPairTaskV1 } from '../../suites/pact-pair/task-loader.js';
 import { fileTurnDecisionV1Schema } from './file-turn-contracts.js';
+import {
+  OBSERVED_TURN_FILES_V1,
+  toTurnObservationsV1,
+  unmetTurnObservationV1,
+  type PairProfileV1,
+} from './file-turn-observation.js';
 import type { FileReadReceiptV1 } from './file-workspace.js';
 import type {
   SharedOsFileOperationReceiptV1,
   SharedOsFileProviderV1,
+  SharedOsFileReadOperationReceiptV1,
 } from './sharedos-file-provider.js';
 import {
   SharedOsResponderTaskAlreadyBoundErrorV1,
@@ -22,7 +29,6 @@ import {
 } from './sharedos-session-store.js';
 import type { FileSessionContactErrorCodeV1 } from './sharedos-file-session-contracts.js';
 
-const logicalFiles = ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'] as const;
 const identifierSchema = z.string().min(1).max(256).refine(
   value => value.trim() === value,
   'identifier must not have leading or trailing whitespace',
@@ -285,7 +291,7 @@ class RunScopedMessageRequestRouter implements SharedOsMessageRequestRouterV1 {
     // Under 'simple' the same four files are injected into the turn prompt and
     // their digests are recorded, so requiring the model to have read them
     // again through the file tools would refuse every contact.
-    if (this.options.pairProfile !== 'simple' && !hasCompleteReadCoverage(requesterReads)) {
+    if (contactReadsUnmet(this.options, this.options.requesterActorId, requesterReads)) {
       return this.fail({
         traceId: request.traceId,
         requestMessageId: request.id,
@@ -420,7 +426,7 @@ class RunScopedMessageRequestRouter implements SharedOsMessageRequestRouterV1 {
         errorCode: 'CONTACT_CANCELLED',
       });
     }
-    if (this.options.pairProfile !== 'simple' && !hasCompleteReadCoverage(responderReads)) {
+    if (contactReadsUnmet(this.options, this.options.responderActorId, responderReads)) {
       return this.fail({
         traceId: request.traceId,
         requestMessageId: request.id,
@@ -531,7 +537,7 @@ class RunScopedMessageRequestRouter implements SharedOsMessageRequestRouterV1 {
         this.options.responderActorId,
         request.traceId,
       );
-      if (this.options.pairProfile !== 'simple' && !hasCompleteReadCoverage(receipts)) {
+      if (contactReadsUnmet(this.options, this.options.responderActorId, receipts)) {
         throw new SharedOsMessageRouteIndeterminateErrorV1();
       }
       responderReads = projectReadReceipts(receipts);
@@ -834,12 +840,24 @@ function readsAddedDuringTurn(
   return after.filter(receipt => !priorIds.has(receipt.operationId));
 }
 
-function hasCompleteReadCoverage(
+/**
+ * The router's adapter for the same-turn file observation contract: this turn's
+ * live provider receipts, asked whether one actor observed the four files a
+ * contact rests on. The judgement itself lives in file-turn-observation.ts.
+ */
+function contactReadsUnmet(
+  options: Readonly<{ pairProfile?: PairProfileV1 }>,
+  actorId: string,
   receipts: readonly SharedOsFileOperationReceiptV1[],
 ): boolean {
-  const observed = new Set(receipts.filter(receipt => receipt.action === 'read')
-    .map(receipt => receipt.path));
-  return logicalFiles.every(path => observed.has(path));
+  return unmetTurnObservationV1({
+    evidence: 'model-read-receipts',
+    pairProfile: options.pairProfile,
+    observed: toTurnObservationsV1(receipts.filter(
+      (receipt): receipt is SharedOsFileReadOperationReceiptV1 => receipt.action === 'read',
+    )),
+    required: { actorId, paths: OBSERVED_TURN_FILES_V1 },
+  }) !== undefined;
 }
 
 function validReceipt(
