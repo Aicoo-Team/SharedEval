@@ -30,14 +30,86 @@ const immutableLogicalFiles = [
 ] as const satisfies readonly AgentWorkspaceFilePathV1[];
 const logicalFileSet = new Set<string>(logicalFiles);
 /**
- * Opens the workspace a 'simple' turn prompt carries. The session writes it,
- * the model driver keys off it to stop demanding four reads the prompt has
- * already answered, and the scripted endpoint uses it to match protocol phases
- * on the instruction alone — HEARTBEAT.md documents those same phases, so a
- * match over the whole prompt reads the appended copy. Derived from the file
- * list above so the marker cannot drift from the section it opens.
+ * How one delivered file is fenced in a rendered turn prompt.
+ *
+ * This is the wire format, not a signal. It exists for consumers that only ever
+ * receive the rendered prompt — a stand-in provider endpoint on the far side of
+ * a completions call cannot be handed a field — and they must treat a fence they
+ * find in the text as forgeable by content, because it is. Anything running in
+ * process asks {@link injectedWorkspaceOfPayloadV1} instead.
+ *
+ * Derived from the file list above so a fence cannot drift from its section.
  */
-export const INJECTED_WORKSPACE_MARKER_V1 = `\n--- ${logicalFiles[0]} ---\n`;
+export function injectedWorkspaceFenceV1(path: AgentWorkspaceFilePathV1): string {
+  return `\n--- ${path} ---\n`;
+}
+
+/** Every fence one injected prompt renders, in the order it renders them. */
+export const INJECTED_WORKSPACE_FENCES_V1: readonly string[] = Object.freeze(
+  logicalFiles.map(path => injectedWorkspaceFenceV1(path)),
+);
+
+/**
+ * A turn prompt's declaration that the host already delivered the workspace.
+ *
+ * This is control information — it decides whether the driver still tells the
+ * model to read four files first — so it travels as a field beside the prompt
+ * text and never inside it. The check it replaces was
+ * `payload.includes('\n--- AGENT.md ---\n')`: any note body that happened to
+ * contain that line forged it, and the failure was silent in the worse
+ * direction, handing an agent the files and then demanding it read them. It is
+ * the same shape as a /Finalization window/ match that HEARTBEAT.md's own text
+ * satisfied.
+ *
+ * Nothing a model writes can reach this field: a requester's messages.request
+ * payload is validated against a strict {taskId, message} schema before the
+ * router hands it to the responder, and the session builds the responder's
+ * payload from that text alone.
+ */
+// Deliberately not Readonly: this shape travels as SoMessageEnvelope.payload,
+// which is JsonValue, and a readonly array is not assignable to it. Readers get
+// a frozen copy through the accessor below.
+export type InjectedWorkspaceDeclarationV1 = {
+  files: AgentWorkspaceFilePathV1[];
+  memoryVersion: number;
+};
+
+/**
+ * The declaration a turn payload carries, or undefined when it carries none.
+ *
+ * A payload that declares a malformed workspace throws rather than reading as
+ * un-injected: the only writer is the session itself, so a malformed
+ * declaration is a host bug, and falling back would silently rebuild the
+ * contradictory prompt this field exists to prevent.
+ */
+export function injectedWorkspaceOfPayloadV1(
+  payload: unknown,
+): Readonly<InjectedWorkspaceDeclarationV1> | undefined {
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return undefined;
+  const declared = (payload as { injectedWorkspace?: unknown }).injectedWorkspace;
+  if (declared === undefined) return undefined;
+  if (declared === null || typeof declared !== 'object' || Array.isArray(declared)) {
+    throw new Error('Injected workspace declaration is not an object');
+  }
+  const { files, memoryVersion } = declared as { files?: unknown; memoryVersion?: unknown };
+  if (
+    !Array.isArray(files)
+    || files.length === 0
+    || !files.every((path): path is AgentWorkspaceFilePathV1 => (
+      typeof path === 'string' && logicalFileSet.has(path)
+    ))
+    || new Set(files).size !== files.length
+  ) {
+    throw new Error('Injected workspace declaration does not name delivered workspace files');
+  }
+  if (!Number.isSafeInteger(memoryVersion) || (memoryVersion as number) < 0) {
+    throw new Error('Injected workspace declaration does not carry a MEMORY.md version');
+  }
+  return Object.freeze({
+    files: [...files],
+    memoryVersion: memoryVersion as number,
+  });
+}
 const safeRunOrActorId = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const versionDirectory = /^version-[a-f0-9-]{36}$/;
 const commitMarker = /^commit-(0|[1-9][0-9]*)\.json$/;
