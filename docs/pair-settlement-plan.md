@@ -1,6 +1,6 @@
 # PAIR 取消结算：机制证据与 P0/P1 实施方案
 
-日期：2026-09-19（Asia/Shanghai）。状态：**P0 draft PR 已交付，独立完整检查有一项失败待诊断；SharedEval 接入未验收**。
+日期：2026-09-19（Asia/Shanghai）。状态：**P0 draft PR 已交付；原 927 独立失败保留，测试后续完整检查通过；SharedEval 接入未验收**。
 本文提出跨层契约及验收顺序，不批准新模型调用或旧世界续跑。历史证据见
 [尾轮诊断](pair-terminal-diagnostic-2026-09-13.md)，既有代码见冻结
 [PR67](https://github.com/Aicoo-Team/SharedEval/pull/67)。
@@ -29,13 +29,28 @@ strict conformance 通过；conformance manifest 为 165 pass / 15 NA / 12 NI。
 9 月 19 日独立普通 clone、Node 24.18.0 / pnpm 9.15.0 的单次 `pnpm check`
 为 **1035/1036，exit 1**：自然 work deadline 测试预期 cancelled + settled，
 实际 cancelled + unsupported。审核者正在核查 session 注册前超时这一前提竞态，
-不能据此直接断言生产 bug，也不能用作者/CI 通过覆盖该失败。完整审核和后续检查
-分列交付；当前不标为独立全通过。
+不能据此直接断言生产 bug，也不能用作者/CI 通过覆盖该失败。后续单案 1 pass /10 filtered skips、release 7/7、监督方补跑 API/conformance
+成功均分列，原 927 完整检查仍为失败。
 
 实现覆盖 validated result-ready 与 audit 分离、非生成 ingestion ACK、有限总
 settlement budget、打开 session 前能力检查、未注册 session 的专用关闭，以及
 报告语义校验；ADR0027 记录兼容边界。旧 d6→33c+2f 静态 review 曾发现清理
 所有权 P2，最终 927 的关闭结论须以完整新 review 为准。
+
+后续有限静态复核已完成：F1 在标准 runtime/controller 的清理所有权范围关闭，
+C2 原列身份及状态约束已补齐，C1 明确要求 host 协调升级。它不是全 executor
+穷尽证明；超出整个 settlement 预算才返回的 open、合法格式但内容不符的 ACK
+摘要等直接用例仍可补强，ACK 的真实存储保证仍属 host。
+
+测试修正另见 [SharedOS PR78](https://github.com/Aicoo-Team/SharedOS/pull/78)，
+head `eb9b054c89a4b91d3830607c5a6e8ae82d6220e7`，基于原 927。仅修改自然
+deadline 测试：暂停计时等待真实 handler publication，再推进原 20ms timer，
+保留一次 decision/ingestion 和 settled 断言，finally drain 并恢复计时。
+该头最终 `pnpm check` exit 0：1036/1036、release 7/7、API 与 strict conformance
+通过；没有生产源码、权限或 timeout 值改动。开发中零测试的未构建环境失败、
+微任务等待不足的 10/11 失败，以及本地 origin 导致 API source links 不可识别的
+首次 full-check 失败均保留在 PR 说明；正确配置 remote 后的通过不覆盖这些记录。
+这不是原 927 独立失败被回写成通过，也不构成 SharedEval host 或模型验收。
 
 功能默认关闭。旧 strict v1 consumer 会拒绝新增 settlement 字段，driver 能力
 协商不等于 HTTP consumer 协商；启用时须同步升级消费者或使用单独本地 port。

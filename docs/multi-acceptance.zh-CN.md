@@ -53,7 +53,8 @@ DeepSeek tick28 的 MEMORY 已发布为 workspace v26（4738 bytes），但 acto
 拒绝仅覆盖发现层，原型错误处理、失败状态与收尾覆盖仍有缺口。
 P0 draft 实现已提交，尚未完成独立验收：[SharedOS PR71](https://github.com/Aicoo-Team/SharedOS/pull/71)，固定 `927f155`：
 作者完整检查 1036/1036、两项 CI 成功；9 月 19 日独立完整检查 **1035/1036**，
-自然 deadline 案的 settled/unsupported 差异仍待诊断。SharedEval host 接入未完成，
+自然 deadline 案的前提竞态在独立测试后续 [SharedOS PR78](https://github.com/Aicoo-Team/SharedOS/pull/78)
+中修正，该头完整 1036/1036 通过，原 927 失败保留。SharedEval host 接入未完成，
 原子恢复回执及存储优化另列 P1。新 room 报告包括两题真实 Phase 2 到达及 simple
 真实预检失败，证据包尚待复核，不构成 60 题或 finalization 通过。
 

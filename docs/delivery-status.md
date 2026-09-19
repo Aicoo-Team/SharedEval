@@ -92,6 +92,22 @@ observed merge source, and rejects missing/duplicate declarations. The follow-up
 commit and its CI require their own validation; the original failure is not a
 runtime-regression or green-result claim.
 
+The CI fix was integrated with current main `8de1d27` in governance commit
+`7c6bd558d3b784c71557e585f3547cab31452822`. The sole text conflict was the obsolete
+workflow pin; the resolved workflow derives it from the loader. Required SharedOS
+`3aa07e3` / digest `4afb23d7`, Node24.18, `pnpm check`: **713/713**, zero
+failures/cancellations/skips, 43.122 seconds, catalog/type checks pass. This is a
+new governance/main tree, not the historical 668-test or e93 combination.
+
+SharedOS's separate test-only [PR78](https://github.com/Aicoo-Team/SharedOS/pull/78)
+at `eb9b054` waits for handler publication before advancing the existing work
+timer. Its final full check passes 1036/1036 plus release7/7 and API/conformance;
+no production timeout or authorization changes. Original 927's full failure and
+the follow-up's documented development/environment failures remain retained.
+The fixed927 F1/C1/C2 static review is now complete within its stated scope:
+cleanup ownership is repaired, consumer upgrade remains host-managed, and schema/
+ACK validation does not prove storage durability. Full host/model acceptance stays open.
+
 ## Combined-tree verification and PAIR helper follow-up
 
 The historical combination includes reviewed PAIR recovery at `c1bedc0` alongside

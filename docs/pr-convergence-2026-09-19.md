@@ -89,3 +89,10 @@ phase2 内 `docs/pair-simple-profile-handoff.md` 的历史叙述已过时：源�
 通用 NET provider、第二个已注册真实任务 rubric，以及数据就绪门槛
 （外部 PAIR corpus、validated gold）仍开放。总协调追踪证据，业务/data owner
 需提供可共享来源与审核；gold 不能成为模型输入或替代执行授权。
+
+## 治理分支先行同步
+
+为修复 PR58 合并测试树的 CI pin 漂移，治理分支已在 `7c6bd55` 同步上述固定
+main；只有 workflow 的旧 pin 出现文本冲突，保留从 loader 读取 revision 的修正。
+required `3aa07e3` 检查 713/713 通过。这是治理候选中的本地整合提交，尚未合入
+远端 main；没有搬入 phase2 或 NET 栈，也不替代第 2–3 步的完整组合。
