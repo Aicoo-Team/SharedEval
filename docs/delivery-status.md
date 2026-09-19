@@ -1,10 +1,11 @@
 # SharedEval delivery acceptance
 
-Updated 2026-09-13. This record distinguishes design, initial implementation,
+Updated 2026-09-19. This record distinguishes design, initial implementation,
 independent execution and remaining expansion gates. See the
 [PAIR/NET execution plan](multi-execution-plan.md),
 [Chinese acceptance overview](multi-acceptance.zh-CN.md), and the
-[provider/second-case follow-up plan](net-provider-execution-plan.md).
+[provider/second-case follow-up plan](net-provider-execution-plan.md), and
+[current PR convergence record](pr-convergence-2026-09-19.md).
 
 | Deliverable | State | Evidence / next gate |
 | --- | --- | --- |
@@ -21,10 +22,10 @@ independent execution and remaining expansion gates. See the
 | NET e2e | Independently reproduced after review fix | Final `a883f51`: full 814/814, success/held/cold-process CLI runs, and native adversarial audit-order denial |
 | NET cross-case e2e | Reproduced at `c13e620` | Both conditions: separate CLI processes 8→9→16 turns, five actions per case, completed reopen unchanged; Multi retains history/effect, Single resets all histories/resources |
 | Repository conventions | Draft [PR58](https://github.com/Aicoo-Team/SharedEval/pull/58) | Tested code baseline and preceding documentation heads have green checks; each publication result is recorded separately below |
-| Real-provider e2e | Both PAIR originals stopped, failed and sealed | DeepSeek 27 committed ticks / 26 replies; Codex 25 committed ticks / 26 deliveries. Neither reached re-ask/action; adaptive behavior unassessed and 60-task acceptance failed. Limited independent package review completed; raw recomputation/full-checkout/full-prompt provenance remain unavailable. No live NET run is claimed |
+| Original real-provider e2e | Both PAIR originals stopped, failed and sealed | DeepSeek 27 committed ticks / 26 replies; Codex 25 committed ticks / 26 deliveries. Neither reached re-ask/action; adaptive behavior unassessed and 60-task acceptance failed. Limited independent package review completed; raw recomputation/full-checkout/full-prompt provenance remain unavailable. No live NET run is claimed |
 | General NET task/provider and multiple-case scoring | Pending | Broader inventory/provider extension and at least two registered case rubrics remain separate gates; assigned/world fixtures are unregistered |
 | General/practitioner-validated NET | Not accepted | Further tasks, topologies, resource evolution, domain-owner validation and experiment cells remain |
-| Integration with current main and PAIR recovery | Combined required check and migration check passed | NET65 `5da` + PAIR67 `c1bedc0` + governance `23a432f` (including main `dc5`) produced tree `e93d46f`: required 1005/1005 and four-mode old-version continuation, 48 scripted native turns. No integration commit/merge; PR60/61 remain excluded. Earlier `8a80569f` evidence is retained separately |
+| Historical main integration and PAIR recovery | Combined required check and migration check passed | NET65 `5da` + PAIR67 `c1bedc0` + governance `23a432f` (including main `dc5`) produced tree `e93d46f`: required 1005/1005 and four-mode old-version continuation, 48 scripted native turns. No main integration commit/merge; exact tree archived locally as `23f3134` on September 19, without new tests/CI. PR60/61 remain excluded. Earlier `8a80569f` evidence is retained separately |
 
 The independent second-case source review supports the remaining source gate
 and refines the [provider plan](net-provider-execution-plan.md). PAY-01's amount
@@ -51,10 +52,24 @@ drivers and gates. An external reviewer independently passed the unchanged seven
 probes in 146.374125 ms with zero failures/cancellations/skips. The review also
 limits the normal-success control to cancellation after execution ended and the
 denial control to discovery, and records prototype error/state/ACK/budget/cleanup
-coverage gaps. These are characterization results, not a production fix. P0 work
-covers versioned result readiness, durable ingestion acknowledgement and finite
-settlement with the missing regressions. Host atomic receipts and storage changes
-remain a separate P1 scope.
+coverage gaps. These are characterization results. Production draft
+[SharedOS PR71](https://github.com/Aicoo-Team/SharedOS/pull/71) implements the proposed P0
+interfaces at `927f1557035dde45454935649aabf6ca1fe1f89c`; the author reports
+1036/1036 plus release 7/7 and both fixed-head CI jobs pass. The supervisor verified
+the sanitized package hashes and exact binary diff identity. A new independent
+full check on September 19 returns **1035/1036, exit 1**: the natural deadline test
+expected cancelled/settled and observed cancelled/unsupported. Independent acceptance remains open. The pre-registration
+timeout hypothesis and final review remain open; author and CI results do not
+erase this failure. SharedEval host integration is unimplemented, while host
+atomic receipts and storage changes remain P1.
+
+Current main is `8de1d27`, whereas merged PRs #68–77 are in PAIR phase2 `f74f038`,
+not main. PR78 is still open above that branch. The original PAIR and NET draft
+stacks remain open. The convergence record assigns their integration sequence
+and keeps PR60/61 separate. Room authors report a two-task real-provider Phase 2
+run and a failed simple-profile real preflight; sanitized evidence is pending,
+and neither establishes real-model finalization or complete 60-task acceptance.
+The old simple handoff and its 908/913 counts do not verify the newer phase2 head.
 
 No PR has been merged by the supervisor. Room review and independent checks are
 recorded separately from author reports. Idle status or a message saying done
@@ -62,7 +77,7 @@ is not an acceptance signal.
 
 ## Combined-tree verification and PAIR helper follow-up
 
-The current combination includes reviewed PAIR recovery at `c1bedc0` alongside
+The historical combination includes reviewed PAIR recovery at `c1bedc0` alongside
 NET65 `5da4785` and governance `23a432f`. Staged tree
 `e93d46f934987f380137a684f244fff9f6e66a43` passes required-runtime `pnpm check`
 **1005/1005**, zero failures/cancellations/skips, **209.387 seconds**, plus catalog

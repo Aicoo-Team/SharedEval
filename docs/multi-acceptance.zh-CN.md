@@ -1,7 +1,8 @@
 # SharedEval Multi 验收总表
 
-更新日期：2026-09-13。这里集中列出方案、代码 PR、测试证据和未完成门槛。
-各 PR 仍为 draft、未合并。程序测试、独立审核和真实模型实验分别记录。
+更新日期：2026-09-19。这里集中列出方案、代码 PR、测试证据和未完成门槛。
+下表的原始交付栈仍为 draft。后续 #68–77 已进入 PAIR phase2 分支，尚未进入 main；
+详见[当前 PR 收敛计划](pr-convergence-2026-09-19.md)。程序测试、独立审核和真实模型实验分别记录。
 
 ## 本次可验收的交付
 
@@ -50,8 +51,11 @@ DeepSeek tick28 的 MEMORY 已发布为 workspace v26（4738 bytes），但 acto
 上的 characterization tests 已由外部审核者独立通过 7/7（146.374125 ms），不代表
 生产修复或原实验唯一根因。审核同时指出：现有正常成功对照在执行结束后才取消，
 拒绝仅覆盖发现层，原型错误处理、失败状态与收尾覆盖仍有缺口。
-P0 正推进版本化的结果就绪、持久化 ACK 和有限结算契约，并补齐这些回归；
-原子恢复回执及存储优化另列 P1。
+P0 draft 实现已提交，尚未完成独立验收：[SharedOS PR71](https://github.com/Aicoo-Team/SharedOS/pull/71)，固定 `927f155`：
+作者完整检查 1036/1036、两项 CI 成功；9 月 19 日独立完整检查 **1035/1036**，
+自然 deadline 案的 settled/unsupported 差异仍待诊断。SharedEval host 接入未完成，
+原子恢复回执及存储优化另列 P1。新 room 报告包括两题真实 Phase 2 到达及 simple
+真实预检失败，证据包尚待复核，不构成 60 题或 finalization 通过。
 
 ## NET Multi 怎么跑
 
@@ -81,7 +85,9 @@ HTTP provider 走真正的传输和运行时路径，验证工程行为。
 组合树输入固定为 NET65 `5da4785`、PAIR67 `c1bedc0`、治理 PR58 `23a432f`，
 后者包含 main `dc5d482`。冲突只涉及 CI、package 检查入口、脚本说明和清单测试。
 组合保留双方全部 native gates、Node 24、SharedOS `3aa07e3`、NET 测试并发设置。
-这是本地 materialized tree；没有创建组合 GitHub CI，也没有合并任何 PR。
+这是当时本地 materialized tree；9 月 19 日另存为本地历史归档 commit `23f3134`，
+精确树未变，详见[归档记录](pr-convergence-2026-09-19.md)。没有新组合 CI，
+本监督任务未合并任何 PR。
 
 原生完整检查运行于 Node **24.18.0**，SharedOS revision
 `3aa07e33999b656a10ace294fd4e41df8cbc318e`，runtime digest

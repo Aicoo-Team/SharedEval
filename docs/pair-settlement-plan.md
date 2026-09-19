@@ -1,6 +1,6 @@
 # PAIR 取消结算：机制证据与 P0/P1 实施方案
 
-日期：2026-09-14（Asia/Shanghai）。状态：**机制 characterization 独立审核通过；P0 生产实现进行中，尚未验收**。
+日期：2026-09-19（Asia/Shanghai）。状态：**P0 draft PR 已交付，独立完整检查有一项失败待诊断；SharedEval 接入未验收**。
 本文提出跨层契约及验收顺序，不批准新模型调用或旧世界续跑。历史证据见
 [尾轮诊断](pair-terminal-diagnostic-2026-09-13.md)，既有代码见冻结
 [PR67](https://github.com/Aicoo-Team/SharedEval/pull/67)。
@@ -9,10 +9,44 @@
 不能用增大 MEMORY、ticks 或执行 deadline 替代结算契约，也不能跳过完整性检查
 或重放完成状态未知的操作。
 
+## P0 固定交付与复验状态
+
+[SharedOS PR71](https://github.com/Aicoo-Team/SharedOS/pull/71) 为 draft，head
+`927f1557035dde45454935649aabf6ca1fe1f89c`，base
+`d6cee613d666ab977f462a38f9633c4a0a1f9b2d`，tree
+`7b3b459fd13d29f98b37f0dcef485896900a12bd`。作者普通 clone 的 `pnpm check`
+通过：47 个 Vitest 文件、1036/1036，release 7/7，format/typecheck/API references/
+strict conformance 通过；conformance manifest 为 165 pass / 15 NA / 12 NI。
+监督方核对了 [CI 34774488112](https://github.com/Aicoo-Team/SharedOS/actions/runs/34774488112)
+在该 head 的 Node 20.11/22 两项成功，未将作者运行计为监督方复跑。
+
+交付 archive 为 63589 bytes，SHA-256
+`db32da01bd6114dcb8b775dda77f9a463df1481e6bf143bb5aa2d64a4015ece8`。
+监督方核对四个正文成员哈希，且 `changes.patch` 与固定 base→head 的
+`git diff --binary` 字节一致（1050075 bytes，SHA-256
+`4a046d3b88f0879d94b658297b0d1f86995f244710cbca9112f7c436ba03b9a7`）。
+
+9 月 19 日独立普通 clone、Node 24.18.0 / pnpm 9.15.0 的单次 `pnpm check`
+为 **1035/1036，exit 1**：自然 work deadline 测试预期 cancelled + settled，
+实际 cancelled + unsupported。审核者正在核查 session 注册前超时这一前提竞态，
+不能据此直接断言生产 bug，也不能用作者/CI 通过覆盖该失败。完整审核和后续检查
+分列交付；当前不标为独立全通过。
+
+实现覆盖 validated result-ready 与 audit 分离、非生成 ingestion ACK、有限总
+settlement budget、打开 session 前能力检查、未注册 session 的专用关闭，以及
+报告语义校验；ADR0027 记录兼容边界。旧 d6→33c+2f 静态 review 曾发现清理
+所有权 P2，最终 927 的关闭结论须以完整新 review 为准。
+
+功能默认关闭。旧 strict v1 consumer 会拒绝新增 settlement 字段，driver 能力
+协商不等于 HTTP consumer 协商；启用时须同步升级消费者或使用单独本地 port。
+ACK/schema 解析不独自证明掉电持久性。**SharedEval driver/journal 尚未接入，
+原子 operation receipt 与 crash recovery 仍属 P1，真实 60 题仍未验收。**
+
 ## 固定来源、运行与机制
 
 监督方核对了新脱敏 archive 及其四个正文成员的字节数、哈希；未访问原始私有 journal。
-监督方基于两份说明整理本文，未自行复跑或复核测试断言；外部审核另列。来源指纹如下：
+本节记录 9 月 14 日诊断包，监督方基于该包两份说明整理本节，未自行复跑或复核
+七项测试断言；外部审核另列。来源指纹如下：
 
 | 文件 | Bytes | SHA-256 |
 | --- | ---: | --- |
@@ -83,7 +117,7 @@ SHA 的静态检查；不声称它是目前的 main，也未在该 SHA 上执行
 
 ## P0：实时结算契约
 
-以下是拟议的三个独立实现单元；接口名示例不是已接受的公开 API。变更公开或持久化
+下表保留原设计的三个独立实现单元；PR71 的实际 API 与测试另按固定头审核。变更公开或持久化
 协议前须提交 ADR，明确版本、兼容和迁移。SharedOS 保持 host-neutral，不导入
 PAIR/NET 数据、MEMORY 格式、gold、任务调度或 host 存储实现。
 
