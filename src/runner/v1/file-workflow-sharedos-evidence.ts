@@ -270,12 +270,17 @@ function projectFileWorkflowSharedOsEvidenceCore(
   // the turn prompt and no receipt is synthesized for that delivery, so a
   // receipt-only view is missing observations that really happened.
   if (contact) {
-    assertCompleteContactReadCoverage(
-      operations,
-      binding.actors.requester.actorId,
-      'requester',
-      binding.scheduler.pairProfile,
-    );
+    // Scoped by disposition, the way the responder half below already is: a
+    // contact the router refused *for this very rule* has already been charged
+    // for it, to itself. Charging it again here charges the whole run.
+    if (contact.authority.errorCode !== 'CONTACT_REQUESTER_FILE_READ_REQUIRED') {
+      assertCompleteContactReadCoverage(
+        operations,
+        binding.actors.requester.actorId,
+        'requester',
+        binding.scheduler.pairProfile,
+      );
+    }
     if (contact.authority.status === 'completed' || contact.authority.status === 'denied') {
       assertCompleteContactReadCoverage(
         operations,
@@ -1024,13 +1029,21 @@ function deriveContactEvidence(
     requesterAdmission,
     input.native.executionStatus,
   );
-  assertRequesterReadsPrecedeContact(
-    events,
-    input.native.sourceEvidence.requesterFileOperations,
-    requestAudit.authorizationIndex,
-    binding.actors.requester.actorId,
-    binding.scheduler.pairProfile,
-  );
+  // One fact, one price. The router enforces this same rule at contact time and
+  // charges it to the contact, which is why CONTACT_REQUESTER_FILE_READ_REQUIRED
+  // exists. Asserting it again here, against a contact that rule already
+  // refused, charges it a second time — to the whole run. A requester that read
+  // only MEMORY.md had its contact correctly failed, finished its turn, and the
+  // run still died in projection with six of eleven tasks settled.
+  if (contact.errorCode !== 'CONTACT_REQUESTER_FILE_READ_REQUIRED') {
+    assertRequesterReadsPrecedeContact(
+      events,
+      input.native.sourceEvidence.requesterFileOperations,
+      requestAudit.authorizationIndex,
+      binding.actors.requester.actorId,
+      binding.scheduler.pairProfile,
+    );
+  }
   const expectedRequestId = stableIdV1('message', [
     'message-request',
     binding.sharedOs.namespaceId,
