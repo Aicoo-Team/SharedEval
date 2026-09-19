@@ -29,17 +29,23 @@ import {
   fileWorkflowFinalFilesV1Schema,
   fileWorkflowHeartbeatPayloadV1Schema,
   fileWorkflowPublicEventV1Schema,
+  fileWorkflowPublicTickV1Schema,
   fileWorkflowPublicEvaluationRecordV1Schema,
   fileWorkflowPublicResultV1Schema,
   fileWorkflowRunBindingV1Schema,
   fileWorkflowRunManifestV1Schema,
+  fileWorkflowQuarantinePayloadV1Schema,
   fileWorkflowSummaryV1Schema,
+  isFileWorkflowQuarantinePayloadV1,
+  zeroFileWorkflowUsageV1,
   type FileWorkflowHeartbeatPayloadV1,
   type FileWorkflowContactAuthorityV1,
   type FileWorkflowFinalFilesV1,
+  type FileWorkflowLedgerPayloadV1,
   type FileWorkflowMemoryAuthorityV1,
   type FileWorkflowPublicEvaluationRecordV1,
   type FileWorkflowPublicResultV1,
+  type FileWorkflowQuarantinePayloadV1,
   type FileWorkflowRunBindingV1,
 } from './file-workflow-artifacts.js';
 import {
@@ -74,12 +80,17 @@ const stageNamePattern = /^stage-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9
 const immutableAuthorityStageNamePattern = /^immutable-authority-stage-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.json$/i;
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
 
+const fileWorkflowLedgerPayloadV1Schema = z.union([
+  fileWorkflowHeartbeatPayloadV1Schema,
+  fileWorkflowQuarantinePayloadV1Schema,
+]);
+
 const fileWorkflowLedgerRecordV1Schema = z.object({
   apiVersion: z.literal('sharedeval-file-heartbeat-record/v1'),
   sequence: z.number().int().safe().nonnegative(),
   bindingDigest: sha256Schema,
   previousRecordDigest: sha256Schema.nullable(),
-  payload: fileWorkflowHeartbeatPayloadV1Schema,
+  payload: fileWorkflowLedgerPayloadV1Schema,
   recordDigest: sha256Schema,
 }).strict();
 
@@ -117,6 +128,7 @@ type WriterClaim = z.infer<typeof writerClaimSchema>;
 type PublicArtifactName =
   | 'run.json'
   | 'events.jsonl'
+  | 'ticks.jsonl'
   | 'results.jsonl'
   | 'summary.json'
   | 'checkpoint.json';
@@ -161,6 +173,16 @@ export interface FileWorkflowLedgerV1 {
   inspectRecovery(): Promise<FileWorkflowLedgerRecoveryInspectionV1>;
   beginHeartbeat(start: FileWorkflowHeartbeatStartV1): Promise<FileWorkflowHeartbeatBeginResultV1>;
   commitHeartbeat(payload: FileWorkflowHeartbeatPayloadV1): Promise<FileWorkflowCommitResultV1>;
+  /**
+   * Resolve the one unresolved heartbeat start marker into a committed
+   * quarantine record: every remaining selected task is sealed as a typed
+   * 'error'/'INDETERMINATE_EXTERNAL_OPERATION' terminal with fatal_error stop
+   * authority, and the marker's tick is never re-executed. Refuses (throws)
+   * when no marker is unresolved, when the ledger already stopped or
+   * finalized, or when a remaining task carries committed changed-action
+   * contact authority (that proven side effect must not be relabeled).
+   */
+  commitQuarantine(): Promise<FileWorkflowCommitResultV1>;
   readRecords(): Promise<readonly FileWorkflowLedgerRecordV1[]>;
   repairPublicProjections(): Promise<void>;
   finalize(input: {
@@ -277,6 +299,10 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
     input: FileWorkflowHeartbeatPayloadV1,
   ): Promise<FileWorkflowCommitResultV1> {
     return this.enqueue(() => this.commitHeartbeatInternal(input));
+  }
+
+  commitQuarantine(): Promise<FileWorkflowCommitResultV1> {
+    return this.enqueue(() => this.commitQuarantineInternal());
   }
 
   readRecords(): Promise<readonly FileWorkflowLedgerRecordV1[]> {
@@ -539,6 +565,111 @@ class FileWorkflowLedgerImpl implements FileWorkflowLedgerV1 {
     );
     assertNextHeartbeatLinearity(records, payload, this.options.binding);
     assertStopBoundary([...records.map(record => record.payload), payload], this.options.binding);
+
+    const sequence = records.length;
+    const previousRecordDigest = records.at(-1)?.recordDigest ?? null;
+    const recordWithoutDigest = {
+      apiVersion: 'sharedeval-file-heartbeat-record/v1' as const,
+      sequence,
+      bindingDigest: this.options.bindingDigest,
+      previousRecordDigest,
+      payload,
+    };
+    const record = fileWorkflowLedgerRecordV1Schema.parse({
+      ...recordWithoutDigest,
+      recordDigest: digestCanonical(recordDigestMaterial(recordWithoutDigest)),
+    });
+    await this.options.assertWriterOwned();
+    await publishRecordNoReplace({
+      recordsDirectory: this.options.recordsDirectory,
+      stagingDirectory: this.options.stagingDirectory,
+      record,
+    });
+    await this.repairPublicProjectionsInternal();
+    return { outcome: 'committed', record: structuredClone(record) };
+  }
+
+  private async commitQuarantineInternal(): Promise<FileWorkflowCommitResultV1> {
+    await this.options.assertWriterOwned();
+    if (await readFinalAuthority(this.options.internalDirectory, this.options.bindingDigest)) {
+      throw new Error('Completed file-workflow ledger cannot quarantine a heartbeat');
+    }
+    const records = await scanRecords(this.options);
+    if (records.at(-1)?.payload.sessionStopReason) {
+      throw new Error('Stopped file-workflow ledger cannot quarantine a heartbeat');
+    }
+    await cleanupHeartbeatStartStages(this.options.heartbeatStartsDirectory);
+    const markers = await scanHeartbeatStarts({
+      heartbeatStartsDirectory: this.options.heartbeatStartsDirectory,
+      binding: this.options.binding,
+      bindingDigest: this.options.bindingDigest,
+    });
+    assertHeartbeatStartHistory(markers, records);
+    const marker = markers[records.length];
+    if (markers.length !== records.length + 1 || !marker) {
+      throw new Error('Quarantine requires exactly one unresolved heartbeat start marker');
+    }
+    const binding = this.options.binding;
+    const terminal = terminalAuthorityByTask(records);
+    const remaining = binding.selectedTasks.filter(task => !terminal.has(task.taskId));
+    if (remaining.length === 0) {
+      throw new Error('Quarantine requires at least one unresolved selected task');
+    }
+    // Every committed contact counts, not only a task's latest: under repeat
+    // contacts a later no-op retry must not hide an earlier proven change.
+    const changedTaskIds = new Set(records.flatMap(record => {
+      const authority = record.payload.contactAuthority;
+      return authority?.stateChanged === true ? [authority.taskId] : [];
+    }));
+    for (const task of remaining) {
+      if (changedTaskIds.has(task.taskId)) {
+        // A committed contact proves this task already changed action state;
+        // sealing it as a plain typed error would erase that proven side
+        // effect, so this stays a loud run-level failure.
+        throw new Error(
+          'Quarantine cannot seal a task with committed changed-action contact authority',
+        );
+      }
+    }
+    const sessionId = binding.scheduler.sessionId;
+    const payload = fileWorkflowQuarantinePayloadV1Schema.parse({
+      quarantine: { errorCode: 'INDETERMINATE_EXTERNAL_OPERATION' },
+      inputDigest: marker.inputDigest,
+      event: structuredClone(marker.event),
+      fileReads: [],
+      memoryTransitions: [],
+      memoryAuthorities: [],
+      transitions: remaining.map(task => ({
+        taskId: task.taskId,
+        result: {
+          apiVersion: 'sharedeval-file-result/v1',
+          workflowId: binding.workflowId,
+          runId: binding.runId,
+          sessionId,
+          taskId: task.taskId,
+          kind: task.kind,
+          status: 'error',
+          terminalTick: marker.event.tick,
+          errorCode: 'INDETERMINATE_EXTERNAL_OPERATION',
+          publicEvaluation: null,
+          selectedTaskDigest: binding.selectedTaskDigest,
+          backend: structuredClone(binding.backend),
+        },
+        evaluation: {
+          apiVersion: 'sharedeval-file-evaluation/v1',
+          workflowId: binding.workflowId,
+          runId: binding.runId,
+          sessionId,
+          taskId: task.taskId,
+          publicEvaluation: null,
+          metrics: [],
+        },
+      })),
+      sessionStopReason: 'fatal_error',
+      usage: zeroFileWorkflowUsageV1(),
+    });
+    validateQuarantinePayloadBinding(payload, binding);
+    assertStopBoundary([...records.map(record => record.payload), payload], binding);
 
     const sequence = records.length;
     const previousRecordDigest = records.at(-1)?.recordDigest ?? null;
@@ -960,6 +1091,43 @@ function validatePayloadBinding(
   }
 }
 
+function validateQuarantinePayloadBinding(
+  payload: FileWorkflowQuarantinePayloadV1,
+  binding: FileWorkflowRunBindingV1,
+): void {
+  if (payload.event.runId !== binding.runId) {
+    throw new Error('Quarantine record carries a foreign run binding');
+  }
+  if (payload.event.actorId !== binding.actors.requester.actorId) {
+    throw new Error('Quarantine record carries a foreign actor binding');
+  }
+  if (
+    payload.event.sessionId !== binding.scheduler.sessionId
+    || payload.event.tick > binding.scheduler.maxTicks
+  ) {
+    throw new Error('Quarantine record carries foreign scheduler authority');
+  }
+  const selectedTasks = new Map(binding.selectedTasks.map(task => [task.taskId, task.kind]));
+  for (const transition of payload.transitions) {
+    if (!selectedTasks.has(transition.taskId)) {
+      throw new Error('Quarantine transition is outside the bound task set');
+    }
+    if (
+      transition.result.workflowId !== binding.workflowId
+      || transition.evaluation.workflowId !== binding.workflowId
+      || transition.result.runId !== binding.runId
+      || transition.evaluation.runId !== binding.runId
+      || transition.result.sessionId !== payload.event.sessionId
+      || transition.evaluation.sessionId !== payload.event.sessionId
+      || transition.result.selectedTaskDigest !== binding.selectedTaskDigest
+      || canonicalJson(transition.result.backend) !== canonicalJson(binding.backend)
+      || transition.result.kind !== selectedTasks.get(transition.taskId)
+    ) {
+      throw new Error('Quarantine transition carries foreign workflow/run/session provenance');
+    }
+  }
+}
+
 function projectPayloadSharedOsEvidence(
   payload: FileWorkflowHeartbeatPayloadV1,
   binding: FileWorkflowRunBindingV1,
@@ -1164,7 +1332,7 @@ function memoryCursorsAfter(
 }
 
 function assertMemoryTransitionsFrom(
-  payload: FileWorkflowHeartbeatPayloadV1,
+  payload: FileWorkflowLedgerPayloadV1,
   cursors: Map<string, FileWorkflowMemoryCursor>,
   binding: FileWorkflowRunBindingV1,
 ): void {
@@ -1177,7 +1345,7 @@ function assertMemoryTransitionsFrom(
 }
 
 function assertActorMemoryTransitionFrom(
-  payload: FileWorkflowHeartbeatPayloadV1,
+  payload: FileWorkflowLedgerPayloadV1,
   cursor: FileWorkflowMemoryCursor,
   actorId: string,
   role: 'requester' | 'responder',
@@ -1354,9 +1522,14 @@ async function scanRecords(input: {
     ) {
       throw new Error(`Ledger record ${index} has foreign binding or broken digest chain`);
     }
-    validatePayloadBinding(record.payload, input.binding, {
-      allowStrippedPrivateEvidence: !input.retainPrivate,
-    });
+    if (isFileWorkflowQuarantinePayloadV1(record.payload)) {
+      validateQuarantinePayloadBinding(record.payload, input.binding);
+    } else {
+      validatePayloadBinding(record.payload, input.binding, {
+        allowStrippedPrivateEvidence: !input.retainPrivate,
+      });
+      assertRetentionConsistency(record.payload, input.retainPrivate, index);
+    }
     const { recordDigest: _digest, ...withoutDigest } = record;
     if (record.recordDigest !== digestCanonical(recordDigestMaterial(withoutDigest))) {
       throw new Error(`Ledger record ${index} digest does not match its committed bytes`);
@@ -1368,7 +1541,6 @@ async function scanRecords(input: {
     ) {
       throw new Error(`Ledger record ${index} private evidence digest does not match its committed bytes`);
     }
-    assertRetentionConsistency(record.payload, input.retainPrivate, index);
     records.push(record);
   }
   terminalAuthorityByTask(records);
@@ -1420,6 +1592,13 @@ function assertLedgerLinearity(
     }
     eventIds.add(record.payload.event.eventId);
     traceIds.add(record.payload.event.traceId);
+    if (isFileWorkflowQuarantinePayloadV1(payload)) {
+      // A quarantine record carries no SharedOS turn evidence: no audit
+      // window, no execution identities, and only typed error transitions.
+      // Its fatal stop authority makes it the final record, which the stop
+      // boundary check below enforces.
+      continue;
+    }
     const audit = payload.sharedOsAuthority.audit;
     if (expectedAuditSequence !== undefined && audit.firstSequence !== expectedAuditSequence) {
       throw new Error('SharedOS audit windows must form one exact contiguous run history');
@@ -1455,11 +1634,17 @@ function assertLedgerLinearity(
 }
 
 function assertContactAuthorityHistory(
-  payloads: readonly FileWorkflowHeartbeatPayloadV1[],
+  payloads: readonly FileWorkflowLedgerPayloadV1[],
   binding: FileWorkflowRunBindingV1,
 ): void {
+  // Under the multi-turn gate byTask is latest-wins (a still-pending task may
+  // be re-contacted on later ticks); changedTasks remembers every committed
+  // changed-action contact so a later no-op retry cannot launder a real side
+  // effect into a plain error terminal.
+  const repeatContacts = binding.scheduler.multiTurn !== undefined;
   const byTask = new Map<string, FileWorkflowContactAuthorityV1>();
   const byContact = new Map<string, FileWorkflowContactAuthorityV1>();
+  const changedTasks = new Set<string>();
   const terminalTasks = new Set<string>();
   const memoryRowsByActor = new Map<string, readonly Pick<FileMemoryRowV1, 'taskId' | 'status'>[]>([
     [binding.actors.requester.actorId,
@@ -1473,11 +1658,15 @@ function assertContactAuthorityHistory(
       if (terminalTasks.has(current.taskId)) {
         throw new Error('Contact authority cannot be appended after terminal task authority');
       }
-      if (byTask.has(current.taskId) || byContact.has(current.contactId)) {
+      if (
+        byContact.has(current.contactId)
+        || (!repeatContacts && byTask.has(current.taskId))
+      ) {
         throw new Error('Distinct duplicate or conflicting contact/snapshot authority');
       }
       byTask.set(current.taskId, current);
       byContact.set(current.contactId, current);
+      if (current.stateChanged === true) changedTasks.add(current.taskId);
     }
     for (const memoryAuthority of payload.memoryAuthorities) {
       const previousRows = memoryRowsByActor.get(memoryAuthority.actorId);
@@ -1488,6 +1677,18 @@ function assertContactAuthorityHistory(
         throw new Error('Sanitized MEMORY authority breaks the ordered task-status history');
       }
       memoryRowsByActor.set(memoryAuthority.actorId, memoryAuthority.newRows);
+    }
+    if (isFileWorkflowQuarantinePayloadV1(payload)) {
+      // Quarantine transitions claim no contact or MEMORY derivation; they
+      // only seal the remaining tasks. A remaining task with a committed
+      // changed-action contact is refused at commit time instead.
+      for (const transition of payload.transitions) {
+        if (terminalTasks.has(transition.taskId)) {
+          throw new Error('Quarantine cannot repeat committed terminal task authority');
+        }
+        terminalTasks.add(transition.taskId);
+      }
+      continue;
     }
     for (const transition of payload.transitions) {
       if (transition.contactId) {
@@ -1552,14 +1753,17 @@ function assertContactAuthorityHistory(
           ) {
             throw new Error('Action evaluation state change conflicts with snapshot authority');
           }
+          const anyStateChanged = repeatContacts
+            ? changedTasks.has(transition.taskId)
+            : authority.stateChanged === true;
           if (
             transition.result.status === 'side_effect_before_failure'
-            && authority.stateChanged !== true
+            && !anyStateChanged
           ) {
             throw new Error('Side-effect failure requires changed action snapshot authority');
           }
           if (
-            authority.stateChanged === true
+            anyStateChanged
             && (
               transition.result.status === 'error'
               || transition.result.status === 'no_response'
@@ -1585,7 +1789,7 @@ function assertContactAuthorityHistory(
 }
 
 function assertStopBoundary(
-  payloads: readonly FileWorkflowHeartbeatPayloadV1[],
+  payloads: readonly FileWorkflowLedgerPayloadV1[],
   binding: FileWorkflowRunBindingV1,
 ): void {
   const terminalTasks = new Set<string>();
@@ -1646,6 +1850,74 @@ async function publishPublicProjections(input: {
     memoryCommitted: record.payload.memoryTransitions.length > 0,
     usage: record.payload.usage,
   }));
+  const multiTurn = input.binding.scheduler.multiTurn;
+  const ticks = multiTurn
+    ? input.records.flatMap(record => {
+      const payload = record.payload;
+      if (isFileWorkflowQuarantinePayloadV1(payload)) return [];
+      const authority = payload.contactAuthority;
+      const reply = authority
+        ? payload.privateEvidence?.sourceEvidence.acceptedMessages.find(message => (
+          message.replyTo === authority.contactId
+        ))
+        : undefined;
+      const replyPayload = reply?.payload;
+      const response = replyPayload
+        && typeof replyPayload === 'object'
+        && !Array.isArray(replyPayload)
+        && typeof (replyPayload as Record<string, unknown>).response === 'string'
+        ? (replyPayload as Record<string, string>).response
+        : undefined;
+      const requesterMemory = payload.memoryAuthorities.find(row => (
+        row.actorId === input.binding.actors.requester.actorId
+      ));
+      const memoryRow = authority
+        ? requesterMemory?.newRows.find(row => row.taskId === authority.taskId)
+        : undefined;
+      const memoryReplace = payload.privateEvidence?.sourceEvidence.requesterFileOperations
+        .find(operation => operation.action === 'replace' && operation.path === 'MEMORY.md');
+      let memoryNote: string | undefined;
+      if (authority && memoryReplace && 'newBytesBase64' in memoryReplace) {
+        try {
+          const rows = parseFileMemoryV1({
+            content: Buffer.from(memoryReplace.newBytesBase64, 'base64').toString('utf8'),
+            selectedTaskIds: input.binding.selectedTaskIds,
+          });
+          memoryNote = rows.find(row => row.taskId === authority.taskId)?.note;
+        } catch {
+          // A malformed MEMORY commit is already surfaced by the ledger's own
+          // validation; the tick row simply omits the note.
+        }
+      }
+      return [fileWorkflowPublicTickV1Schema.parse({
+        apiVersion: 'sharedeval-file-tick/v1',
+        workflowId: input.binding.workflowId,
+        runId: input.binding.runId,
+        sessionId: payload.event.sessionId,
+        tick: payload.event.tick,
+        phase: payload.event.tick < multiTurn.phase2StartTick ? 1 : 2,
+        finalization: payload.event.tick >= multiTurn.finalizeTick,
+        status: payload.sharedOsAuthority.requesterExecutionStatus === 'succeeded'
+          ? 'completed'
+          : 'failed',
+        ...(authority
+          ? {
+            selectedTaskId: authority.taskId,
+            contactId: authority.contactId,
+            contactStatus: authority.status,
+            ...(authority.errorCode ? { contactErrorCode: authority.errorCode } : {}),
+          }
+          : {}),
+        ...(response === undefined ? {} : { response }),
+        ...(memoryRow ? { memoryStatus: memoryRow.status } : {}),
+        ...(memoryNote === undefined ? {} : { memoryNote }),
+        terminalStatuses: payload.transitions.map(transition => ({
+          taskId: transition.taskId,
+          status: transition.result.status,
+        })),
+      })];
+    })
+    : undefined;
   const summary = buildSummary(input.binding, input.records, results, evaluations);
   const run = fileWorkflowRunManifestV1Schema.parse({
     apiVersion: 'sharedeval-file-run/v1',
@@ -1689,6 +1961,7 @@ async function publishPublicProjections(input: {
   const artifacts: Array<[PublicArtifactName, string]> = [
     ['run.json', `${canonicalJson(run)}\n`],
     ['events.jsonl', jsonLines(events)],
+    ...(ticks ? [['ticks.jsonl', jsonLines(ticks)] as [PublicArtifactName, string]] : []),
     ['results.jsonl', jsonLines(results)],
     ['summary.json', `${canonicalJson(summary)}\n`],
     ['checkpoint.json', `${canonicalJson(checkpoint)}\n`],
@@ -2181,6 +2454,7 @@ async function assertPublicLanePaths(runDirectory: string): Promise<void> {
   for (const name of [
     'run.json',
     'events.jsonl',
+    'ticks.jsonl',
     'results.jsonl',
     'summary.json',
     'checkpoint.json',

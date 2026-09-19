@@ -602,6 +602,59 @@ test('activates exact responder task grants only from an immutable accepted-requ
   );
 });
 
+test('allowRepeatContacts binds one immutable responder grant set per accepted request', async t => {
+  const options = await temporaryOptions(t, 'repeat-contacts', {
+    binding: binding({ allowRepeatContacts: true }),
+  });
+  const store = await openSharedOsSessionStoreV1(options);
+  const signal = new AbortController().signal;
+
+  await store.deliver(context(), requestEnvelope(), signal);
+  const first = {
+    traceId: TRACE_ID,
+    requestMessageId: REQUEST_ID,
+    taskId: 'task-1',
+    grantIds: [RESPONDER_TASK_GRANT_ID],
+  } as const;
+  assert.equal(await store.bindResponderGrantSet(first), 'created');
+  assert.equal(await store.bindResponderGrantSet(first), 'replayed');
+
+  // A later tick re-contacts the same task on a fresh trace and request.
+  const otherTrace = `trace-${'8'.repeat(40)}`;
+  const otherRequestId = `message-${'8'.repeat(40)}`;
+  await store.deliver(
+    context(REQUESTER, { traceId: otherTrace }),
+    requestEnvelope({ id: otherRequestId, traceId: otherTrace }),
+    signal,
+  );
+  const second = {
+    traceId: otherTrace,
+    requestMessageId: otherRequestId,
+    taskId: 'task-1',
+    grantIds: [RESPONDER_TASK_GRANT_ID],
+  } as const;
+  assert.equal(await store.bindResponderGrantSet(second), 'created');
+  assert.equal(await store.bindResponderGrantSet(second), 'replayed');
+
+  // Trace and request identities stay unique even under the gate.
+  await assert.rejects(
+    () => store.bindResponderGrantSet({ ...second, requestMessageId: REQUEST_ID }),
+    /trace|request/i,
+  );
+
+  // Reopen re-validates both committed contact bindings.
+  const reopened = await openSharedOsSessionStoreV1(options);
+  assert.equal(await reopened.bindResponderGrantSet(first), 'replayed');
+  assert.equal(await reopened.bindResponderGrantSet(second), 'replayed');
+
+  // The deferred grant set stays trace-scoped.
+  assert.deepEqual(
+    (await reopened.load(context(RESPONDER, { traceId: otherTrace }), signal))
+      .map(grant => grant.id),
+    [RESPONDER_BASE_GRANT_ID, RESPONDER_TASK_GRANT_ID],
+  );
+});
+
 test('loads only the deferred grant set bound to the current responder trace', async t => {
   const options = await temporaryOptions(t, 'trace-isolation', {
     binding: binding({

@@ -62,6 +62,7 @@ export const FILE_WORKFLOW_PUBLIC_ERROR_CODES_V1 = Object.freeze([
   'FILE_TURN_FAILED',
   'FILE_SESSION_FAILED',
   'FILE_SESSION_PREPARATION_FAILED',
+  'INDETERMINATE_EXTERNAL_OPERATION',
 ] as const);
 const publicErrorCodeSchema = z.enum(
   FILE_WORKFLOW_PUBLIC_ERROR_CODES_V1 as unknown as [string, ...string[]],
@@ -202,6 +203,13 @@ export const fileWorkflowRunBindingV1Schema = z.object({
       maxToolCalls: positiveSafeIntegerSchema,
     }).strict(),
     initialActionSha256: sha256Schema,
+    // Multi-turn probe gate: absent for every pre-existing run so committed
+    // bindings and their digests are unchanged; the ledger keys every relaxed
+    // multi-turn check off this field, never off runtime options.
+    multiTurn: z.object({
+      phase2StartTick: positiveSafeIntegerSchema,
+      finalizeTick: positiveSafeIntegerSchema,
+    }).strict().optional(),
   }).strict(),
   dataset: datasetProvenanceSchema,
   goldSet: goldSetProvenanceSchema,
@@ -245,6 +253,27 @@ export const fileWorkflowRunBindingV1Schema = z.object({
       path: ['actors'],
       message: 'requester and responder actor IDs must be distinct',
     });
+  }
+  const multiTurn = binding.scheduler.multiTurn;
+  if (multiTurn) {
+    if (binding.workflowId !== 'files-multi') {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduler', 'multiTurn'],
+        message: 'multiTurn applies only to the files-multi workflow',
+      });
+    }
+    if (
+      multiTurn.phase2StartTick < 2
+      || multiTurn.phase2StartTick > multiTurn.finalizeTick
+      || multiTurn.finalizeTick > binding.scheduler.maxTicks
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduler', 'multiTurn'],
+        message: 'multiTurn phase boundaries must satisfy 2 <= phase2StartTick <= finalizeTick <= maxTicks',
+      });
+    }
   }
   for (const role of ['requester', 'responder'] as const) {
     if (
@@ -674,6 +703,7 @@ const providerRequestTelemetrySchema = z.object({
   requestedModel: z.string().min(1).max(512),
   resolvedModel: z.string().min(1).max(512),
   servedModel: z.string().min(1).max(512).optional(),
+  servedModelVerified: z.boolean().optional(),
   provider: z.string().min(1).max(512).optional(),
   responseId: z.string().min(1).max(512).optional(),
   requestId: z.string().min(1).max(512).optional(),
@@ -1001,6 +1031,87 @@ export type FileWorkflowHeartbeatPayloadV1 = z.infer<
   typeof fileWorkflowHeartbeatPayloadV1Schema
 >;
 
+/**
+ * The one committable record for a heartbeat whose external effects cannot be
+ * proven: a start marker exists but its turn never produced native SharedOS
+ * evidence. The payload claims no evidence at all -- no contact, no reads, no
+ * MEMORY authority, zero proven usage -- and only seals every remaining task
+ * as a typed terminal error so the contact is never re-rolled. Anything that
+ * would assert knowledge of the lost turn is unrepresentable here by schema.
+ */
+export const fileWorkflowQuarantinePayloadV1Schema = z.object({
+  quarantine: z.object({
+    errorCode: z.literal('INDETERMINATE_EXTERNAL_OPERATION'),
+  }).strict(),
+  inputDigest: sha256Schema,
+  event: z.object({
+    eventId: opaqueIdSchema,
+    runId: opaqueIdSchema,
+    sessionId: opaqueIdSchema,
+    tick: nonNegativeSafeIntegerSchema,
+    actorId: opaqueIdSchema,
+    traceId: opaqueIdSchema,
+  }).strict(),
+  contactAuthority: z.undefined().optional(),
+  fileReads: z.array(fileReadReceiptSchema).max(0),
+  memoryTransitions: z.array(fileWorkflowMemoryTransitionV1Schema).max(0),
+  memoryAuthorities: z.array(fileWorkflowMemoryAuthorityV1Schema).max(0),
+  transitions: z.array(fileWorkflowTerminalTransitionV1Schema)
+    .min(1)
+    .max(MAX_FILE_WORKFLOW_SELECTED_TASKS_V1),
+  sharedOsAuthority: z.undefined().optional(),
+  sessionStopReason: z.literal('fatal_error'),
+  provider: z.undefined().optional(),
+  usage: fileWorkflowUsageV1Schema,
+  privateEvidenceDigest: z.undefined().optional(),
+  privateEvidence: z.undefined().optional(),
+}).strict().superRefine((payload, context) => {
+  const taskIds = payload.transitions.map(transition => transition.taskId);
+  if (new Set(taskIds).size !== taskIds.length) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['transitions'],
+      message: 'quarantine transitions must contain unique task IDs',
+    });
+  }
+  for (const [index, transition] of payload.transitions.entries()) {
+    if (
+      transition.result.status !== 'error'
+      || transition.result.errorCode !== payload.quarantine.errorCode
+      || transition.result.publicEvaluation !== null
+      || transition.contactId !== undefined
+      || transition.result.terminalTick !== payload.event.tick
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['transitions', index],
+        message: 'quarantine transitions must be contact-free typed indeterminate errors',
+      });
+    }
+  }
+  if (Object.values(payload.usage).some(value => value !== 0)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['usage'],
+      message: 'a quarantine record cannot claim proven usage',
+    });
+  }
+});
+
+export type FileWorkflowQuarantinePayloadV1 = z.infer<
+  typeof fileWorkflowQuarantinePayloadV1Schema
+>;
+
+export type FileWorkflowLedgerPayloadV1 =
+  | FileWorkflowHeartbeatPayloadV1
+  | FileWorkflowQuarantinePayloadV1;
+
+export function isFileWorkflowQuarantinePayloadV1(
+  payload: FileWorkflowLedgerPayloadV1,
+): payload is FileWorkflowQuarantinePayloadV1 {
+  return (payload as FileWorkflowQuarantinePayloadV1).quarantine !== undefined;
+}
+
 export const fileWorkflowPublicEventV1Schema = z.object({
   apiVersion: z.literal('sharedeval-file-event/v1'),
   workflowId: fileWorkflowIdSchema,
@@ -1032,6 +1143,45 @@ export const fileWorkflowPublicEventV1Schema = z.object({
     });
   }
 });
+
+export type FileWorkflowPublicEventV1 = z.infer<typeof fileWorkflowPublicEventV1Schema>;
+
+/**
+ * One trajectory tick of a multi-turn probe run (ticks.jsonl). Emitted only
+ * when the run binding carries scheduler.multiTurn, so pre-existing runs keep
+ * their exact public artifact set. Every field is model-produced run output —
+ * never dataset gold; the offline flip aggregator and the trajectory-wide
+ * incidental-leak scan read this file instead of the private ledger.
+ */
+export const fileWorkflowPublicTickV1Schema = z.object({
+  apiVersion: z.literal('sharedeval-file-tick/v1'),
+  workflowId: fileWorkflowIdSchema,
+  runId: opaqueIdSchema,
+  sessionId: opaqueIdSchema,
+  tick: positiveSafeIntegerSchema,
+  phase: z.union([z.literal(1), z.literal(2)]),
+  finalization: z.boolean(),
+  status: z.enum(['completed', 'failed']),
+  selectedTaskId: opaqueIdSchema.optional(),
+  contactId: opaqueIdSchema.optional(),
+  contactStatus: contactStatusSchema.optional(),
+  contactErrorCode: z.string().min(1).max(128).optional(),
+  response: z.string().max(1_048_576).optional(),
+  memoryStatus: z.enum(['pending', 'answered', 'refused', 'error']).optional(),
+  memoryNote: z.string().max(4_096).optional(),
+  terminalStatuses: z.array(z.object({
+    taskId: opaqueIdSchema,
+    status: z.enum([
+      'answered',
+      'refused',
+      'error',
+      'no_response',
+      'side_effect_before_failure',
+    ]),
+  }).strict()).max(MAX_FILE_WORKFLOW_SELECTED_TASKS_V1),
+}).strict();
+
+export type FileWorkflowPublicTickV1 = z.infer<typeof fileWorkflowPublicTickV1Schema>;
 
 const statusCountsSchema = z.object({
   answered: nonNegativeSafeIntegerSchema,

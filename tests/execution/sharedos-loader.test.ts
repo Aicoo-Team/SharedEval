@@ -62,10 +62,10 @@ test('loader pins exactly the four production SharedOS packages', () => {
     'os',
     'runtime',
   ]);
-  assert.equal(SHAREDOS_VERIFIED_REVISION_V1, 'a303d97fe974c149d4575b1f5d6426aee6f37367');
+  assert.equal(SHAREDOS_VERIFIED_REVISION_V1, '3aa07e33999b656a10ace294fd4e41df8cbc318e');
   assert.equal(
     SHAREDOS_VERIFIED_RUNTIME_DIGEST_V1,
-    'faefbf2ae61ffdcaf57f76e0c5b9b3f1438790213c0f16b3e02905bdbcba37cb',
+    '4afb23d79851a83a48e25e968f04e45cefc81847b4a9963c62277b5c05862d5d',
   );
 });
 

@@ -172,3 +172,101 @@ test('rejects invalid overrides and command/config contradictions', () => {
 function withBudget(maxToolCalls: number, maxRuntimeMs: number): string {
   return `${validConfig}budget:\n  maxToolCalls: ${maxToolCalls}\n  maxRuntimeMs: ${maxRuntimeMs}\n`;
 }
+
+test('parses taskConcurrency for the single workflow and keeps absence out of the parse', () => {
+  const single = validConfig
+    .replace('mode: multi', 'mode: single')
+    .replace('stopWhen: all-terminal', 'stopWhen: all-terminal\n  taskConcurrency: 8');
+  assert.equal(parseSharedevalRunConfigV1Yaml(single).workflow.taskConcurrency, 8);
+
+  const absent = parseSharedevalRunConfigV1Yaml(validConfig);
+  assert.equal('taskConcurrency' in absent.workflow, false);
+});
+
+test('rejects taskConcurrency outside its bounds or on the multi workflow', () => {
+  const withConcurrency = (mode: string, value: number) => validConfig
+    .replace('mode: multi', `mode: ${mode}`)
+    .replace('stopWhen: all-terminal', `stopWhen: all-terminal\n  taskConcurrency: ${value}`);
+
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withConcurrency('single', 0)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withConcurrency('single', 33)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withConcurrency('single', 1.5)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withConcurrency('multi', 2)), ZodError);
+  assert.equal(
+    parseSharedevalRunConfigV1Yaml(withConcurrency('multi', 1)).workflow.taskConcurrency,
+    1,
+  );
+});
+
+test('parses multiTurn phase boundaries for the multi workflow only', () => {
+  const withMultiTurn = (mode: string, phase2: number, finalize: number, maxTicks = 240) =>
+    validConfig
+      .replace('mode: multi', `mode: ${mode}`)
+      .replace('maxTicks: 240', `maxTicks: ${maxTicks}`)
+      .replace(
+        'stopWhen: all-terminal',
+        `stopWhen: all-terminal\n  multiTurn:\n    phase2StartTick: ${phase2}\n    finalizeTick: ${finalize}`,
+      );
+
+  assert.deepEqual(
+    parseSharedevalRunConfigV1Yaml(withMultiTurn('multi', 61, 230)).workflow.multiTurn,
+    { phase2StartTick: 61, finalizeTick: 230 },
+  );
+  const absent = parseSharedevalRunConfigV1Yaml(validConfig);
+  assert.equal('multiTurn' in absent.workflow, false);
+
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withMultiTurn('single', 61, 230)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withMultiTurn('multi', 231, 230)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withMultiTurn('multi', 61, 241)), ZodError);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(withMultiTurn('multi', 1, 230)), ZodError);
+});
+
+test('multiTurn rejects a maxTicks override below its finalize boundary', () => {
+  const source = validConfig.replace(
+    'stopWhen: all-terminal',
+    'stopWhen: all-terminal\n  multiTurn:\n    phase2StartTick: 4\n    finalizeTick: 7',
+  );
+  const parsed = parseSharedevalRunConfigV1Yaml(source);
+  assert.doesNotThrow(() => applySharedevalOverridesV1(parsed, resolveWorkflow(['multi']), {
+    maxTicks: 8,
+  }));
+  assert.throws(() => applySharedevalOverridesV1(parsed, resolveWorkflow(['multi']), {
+    maxTicks: 6,
+  }), ZodError);
+});
+
+test('written multiTurn is part of the digest and absence leaves it unchanged', () => {
+  const digestOf = (source: string) => applySharedevalOverridesV1(
+    parseSharedevalRunConfigV1Yaml(source),
+    resolveWorkflow(['multi']),
+  ).configDigest;
+  const absent = digestOf(validConfig);
+  const present = digestOf(validConfig.replace(
+    'stopWhen: all-terminal',
+    'stopWhen: all-terminal\n  multiTurn:\n    phase2StartTick: 61\n    finalizeTick: 230',
+  ));
+
+  assert.notEqual(present, absent);
+  assert.equal(absent, digestOf(validConfig));
+});
+
+test('written taskConcurrency is part of the digest and absence leaves it unchanged', () => {
+  const single = validConfig.replace('mode: multi', 'mode: single');
+  const digestOf = (source: string) => applySharedevalOverridesV1(
+    parseSharedevalRunConfigV1Yaml(source),
+    resolveWorkflow(['single']),
+  ).configDigest;
+  const absent = digestOf(single);
+  const explicitOne = digestOf(single.replace(
+    'stopWhen: all-terminal',
+    'stopWhen: all-terminal\n  taskConcurrency: 1',
+  ));
+  const explicitEight = digestOf(single.replace(
+    'stopWhen: all-terminal',
+    'stopWhen: all-terminal\n  taskConcurrency: 8',
+  ));
+
+  assert.notEqual(explicitOne, absent);
+  assert.notEqual(explicitEight, explicitOne);
+  assert.equal(absent, digestOf(single));
+});

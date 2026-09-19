@@ -182,8 +182,10 @@ test('Dockerfile pins node:24-slim, lockfile install, proxy env, and SharedOS pr
   );
 });
 
+const mtLanePath = path.join(repoRoot, 'scripts', 'experiments', 'mt-lane.sh');
+
 test('experiment shell scripts parse under bash -n', async () => {
-  for (const scriptPath of [runCellPath, buildImagePath, egressProbeShPath]) {
+  for (const scriptPath of [runCellPath, buildImagePath, egressProbeShPath, mtLanePath]) {
     const syntax = await new Promise<ScriptResult>(resolvePromise => {
       execFile('bash', ['-n', scriptPath], (error, stdout, stderr) => {
         resolvePromise({ code: error === null ? 0 : 1, stdout, stderr });
@@ -234,6 +236,59 @@ test('run-cell.sh refuses plain-http model endpoints before touching docker', as
   );
   assert.notEqual(result.code, 0);
   assert.match(result.stderr, /plain HTTP model endpoints are refused/);
+});
+
+test('run-cell.sh collision and resume guards fire before any docker dependency', async () => {
+  const home = await makeScratchHome();
+  const configPath = path.join(home, 'cell.yaml');
+  await writeFile(configPath, httpsConfig, 'utf8');
+  const cellsDir = path.join(home, 'cells');
+  const cellDir = path.join(cellsDir, 'cell-test.r1');
+  await mkdir(cellDir, { recursive: true });
+  const invoke = (args: readonly string[]) => runBash(
+    runCellPath,
+    [
+      '--config', configPath,
+      '--run-id', 'cell-test.r1',
+      '--output-dir', cellsDir,
+      '--image', 'sharedeval-experiment:test',
+      ...args,
+    ],
+    baseEnvironment(home),
+  );
+
+  const collision = await invoke([]);
+  assert.notEqual(collision.code, 0);
+  assert.match(collision.stderr, /pass --resume/);
+
+  const missingConfig = await invoke(['--resume']);
+  assert.notEqual(missingConfig.code, 0);
+  assert.match(missingConfig.stderr, /config\.yaml is missing/);
+
+  await writeFile(path.join(cellDir, 'config.yaml'), 'different: bytes\n', 'utf8');
+  const differing = await invoke(['--resume']);
+  assert.notEqual(differing.code, 0);
+  assert.match(differing.stderr, /differs from --config/);
+
+  await writeFile(path.join(cellDir, 'config.yaml'), httpsConfig, 'utf8');
+  await writeFile(
+    path.join(cellDir, 'cell-provenance.json'),
+    JSON.stringify({ cliExitCode: 0 }),
+    'utf8',
+  );
+  const completed = await invoke(['--resume']);
+  assert.notEqual(completed.code, 0);
+  assert.match(completed.stderr, /already completed with cliExitCode 0/);
+
+  // An interrupted cell (non-zero exit) passes the guards; the next failure,
+  // if any, is the docker environment — never the resume guard.
+  await writeFile(
+    path.join(cellDir, 'cell-provenance.json'),
+    JSON.stringify({ cliExitCode: 1 }),
+    'utf8',
+  );
+  const resumable = await invoke(['--resume']);
+  assert.doesNotMatch(resumable.stderr, /cannot resume|refusing to overwrite/);
 });
 
 test('run-cell.sh refuses invalid run ids before doing any work', async () => {
@@ -319,6 +374,25 @@ test('tinyproxy config is CONNECT-only with a single exact-host allowlist', () =
   assert.equal(tinyproxyAllowlistV1('openrouter.ai'), 'openrouter.ai\n');
   assert.throws(() => tinyproxyAllowlistV1('*.openrouter.ai'), /invalid/);
   assert.throws(() => tinyproxyAllowlistV1('openrouter.ai/path'), /invalid/);
+});
+
+test('proxy capacity scales with the cell task concurrency and never silently caps it', () => {
+  assert.match(tinyproxyConfigV1() as string, /^MaxClients 16$/m);
+  assert.match(tinyproxyConfigV1({ taskConcurrency: 6 }) as string, /^MaxClients 16$/m);
+  assert.match(tinyproxyConfigV1({ taskConcurrency: 16 }) as string, /^MaxClients 36$/m);
+  assert.match(tinyproxyConfigV1({ taskConcurrency: 32 }) as string, /^MaxClients 68$/m);
+  assert.throws(() => tinyproxyConfigV1({ taskConcurrency: 0 }), /taskConcurrency/);
+  assert.throws(() => tinyproxyConfigV1({ taskConcurrency: 33 }), /taskConcurrency/);
+
+  const single = httpsConfig
+    .replace('mode: multi', 'mode: single')
+    .replace('stopWhen: all-terminal', 'stopWhen: all-terminal\n  taskConcurrency: 12');
+  assert.equal(deriveCellEndpointV1(single).taskConcurrency, 12);
+  assert.equal(deriveCellEndpointV1(httpsConfig).taskConcurrency, 1);
+  assert.throws(
+    () => deriveCellEndpointV1(single.replace('taskConcurrency: 12', 'taskConcurrency: 40')),
+    /taskConcurrency/,
+  );
 });
 
 test('cell provenance records image digest, allowlist, probe, and exit code', () => {
