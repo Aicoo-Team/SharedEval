@@ -57,6 +57,7 @@ test('projects only SharedOS-visible tool syntax and returns tool work to Shared
       }),
     ], requests),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const abort = new AbortController();
   const session = await driver.open(turnRequest(), abort.signal);
@@ -224,6 +225,7 @@ test('bootstraps a recipient-owned turn before presenting the untrusted request 
     model: modelConfig(),
     fetch: scriptedFetch([completion({ content: 'done' })], requests),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const request = turnRequest();
   const session = await driver.open(turnRequest({
@@ -275,6 +277,7 @@ test('counts canonical message requests but treats authorization as SharedOS wor
       completion({ content: null, refusal: 'I cannot continue.' }),
     ], requests),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(turnRequest({ tools: [messageRequestTool] }), neverAbort());
   const call = await session.next({ type: 'start' }, neverAbort());
@@ -360,6 +363,7 @@ test('returns guessed tools to SharedOS instead of enforcing a second local poli
       }],
     })], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(turnRequest(), neverAbort());
 
@@ -384,6 +388,7 @@ test('fails closed with fixed text for malformed provider tool data', async () =
       }],
     })], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(turnRequest(), neverAbort());
 
@@ -404,6 +409,7 @@ test('strictly bounds the terminal decision before returning it to SharedOS', as
     model: modelConfig(),
     fetch: scriptedFetch([completion({ content: 'x'.repeat(1_048_577) })], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(turnRequest(), neverAbort());
 
@@ -431,6 +437,7 @@ test('retries only a definitive provider rate-limit rejection', async () => {
       completion({ content: 'done' }),
     ], requests),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(turnRequest(), neverAbort());
 
@@ -458,6 +465,7 @@ test('survives seven consecutive rate-limit rejections before succeeding', async
       completion({ content: 'done' }),
     ], requests),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(turnRequest(), neverAbort());
 
@@ -485,6 +493,7 @@ test('fails retryable once the eighth rate-limit attempt is also rejected', asyn
       completion({ content: 'must not be used' }),
     ], requests),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(turnRequest(), neverAbort());
 
@@ -509,6 +518,7 @@ test('never retries a provider operation whose external completion is unknown', 
       completion({ content: 'must not be used' }),
     ], requests),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(turnRequest(), neverAbort());
 
@@ -529,6 +539,7 @@ test('refuses credential-bearing redirects without retrying', async () => {
       }),
     ], redirectRequests),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const redirectSession = await redirecting.open(turnRequest(), neverAbort());
 
@@ -558,6 +569,7 @@ test('uses the SharedOS timeout or cancellation signal for in-flight provider wo
       });
     },
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const abort = new AbortController();
   const session = await driver.open(turnRequest(), abort.signal);
@@ -607,6 +619,7 @@ test('bounds each provider attempt so one stalled request cannot drain the task 
       });
     },
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(
     turnRequest({ options: { maxSteps: 4, maxToolCalls: 3, timeoutMs: 50 } }),
@@ -630,6 +643,7 @@ test('accepts any provider while one run-shared ledger holds the served model fi
       completion({ content: 'from provider a' }, { provider: 'provider-a' }),
     ], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     servedModelLedger: ledger,
   });
   const second = createOpenAICompatibleFileTurnDriverV1({
@@ -638,6 +652,7 @@ test('accepts any provider while one run-shared ledger holds the served model fi
       completion({ content: 'from provider b' }, { provider: 'provider-b' }),
     ], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     servedModelLedger: ledger,
   });
 
@@ -655,6 +670,7 @@ test('fails the turn when a response reports a different served model than the r
     model: modelConfig(),
     fetch: scriptedFetch([completion({ content: 'establishes identity' })], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     servedModelLedger: ledger,
   });
   const diverging = createOpenAICompatibleFileTurnDriverV1({
@@ -663,6 +679,7 @@ test('fails the turn when a response reports a different served model than the r
       completion({ content: 'wrong model' }, { model: 'some-other-model' }),
     ], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     servedModelLedger: ledger,
   });
 
@@ -698,6 +715,7 @@ test('a response with no served model completes but is recorded as unverified', 
       completion({ content: 'anonymous response' }, { model: undefined }),
     ], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     servedModelLedger: ledger,
   });
   const session = await driver.open(turnRequest(), neverAbort());
@@ -717,6 +735,7 @@ test('a verified response records servedModelVerified true, and no ledger record
     model: modelConfig(),
     fetch: scriptedFetch([completion({ content: 'ok' })], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     servedModelLedger: ledger,
   });
   const governedSession = await governed.open(turnRequest(), neverAbort());
@@ -727,6 +746,7 @@ test('a verified response records servedModelVerified true, and no ledger record
     model: modelConfig(),
     fetch: scriptedFetch([completion({ content: 'ok' })], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const ungovernedSession = await ungoverned.open(turnRequest(), neverAbort());
   assert.equal((await ungovernedSession.next({ type: 'start' }, neverAbort())).type, 'complete');
@@ -758,6 +778,7 @@ test('stalls and rate limits spend separate budgets instead of one shared cap', 
       return completion({ content: 'survived both failure modes' });
     },
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(
     turnRequest({ options: { maxSteps: 4, maxToolCalls: 3, timeoutMs: 60 } }),
@@ -797,6 +818,7 @@ test('model.attemptTimeoutMs overrides the scaled per-attempt deadline', async (
       return completion({ content: 'after the configured bound' });
     },
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   // Task budget is far above the override; without the override the scaled
   // bound (max(90s, budget/3)) would stall this test for 20 seconds.
@@ -995,6 +1017,7 @@ test('whether the workspace was delivered is read off the message, not found in 
       model: modelConfig(),
       fetch: scriptedFetch([completion({ content: 'done' })], requests),
       environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     });
     const base = turnRequest();
     const session = await driver.open(
@@ -1035,6 +1058,7 @@ test('a responder prompt reads the same declaration, and a forged one cannot be 
       model: modelConfig(),
       fetch: scriptedFetch([completion({ content: 'done' })], requests),
       environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     });
     const base = turnRequest();
     const session = await driver.open(
@@ -1074,6 +1098,7 @@ test('one 429 blocks the shared gate and every driver still settles through it',
       completion({ content: 'recovered' }),
     ], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     rateLimitGate: gate,
   });
   const limitedSession = await limited.open(turnRequest(), neverAbort());
@@ -1092,6 +1117,7 @@ test('one 429 blocks the shared gate and every driver still settles through it',
     model: modelConfig(),
     fetch: scriptedFetch([completion({ content: 'after the window' })], []),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     rateLimitGate: gate,
   });
   const siblingSession = await sibling.open(turnRequest(), neverAbort());
@@ -1136,6 +1162,7 @@ test('denies a parallel tool-call batch and accepts the corrected single call', 
       completion({ content: 'done after correction' }),
     ], requests),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(turnRequest(), neverAbort());
 
@@ -1195,6 +1222,7 @@ test('a model that keeps batching fails with its own code, not a generic one', a
       requests,
     ),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
   });
   const session = await driver.open(turnRequest(), neverAbort());
 
@@ -1243,6 +1271,7 @@ test('actor context replays tool arguments, results, corrections, final content 
   const driver = createOpenAICompatibleFileTurnDriverV1({
     model: modelConfig(),
     environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
     actorContext: { store: context.store, actorId: 'requester', maxContextBytes: 100_000 },
     fetch: scriptedFetch([
       completion({ content: 'parallel plan', refusal: 'parallel refusal', tool_calls: parallelBatch }),
@@ -1460,4 +1489,59 @@ test('actor context cold reopen preserves both assistant content and refusal as 
     await store.close();
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test('a 429 wait treats Retry-After as a floor, so eight attempts cannot share one window', async () => {
+  const { providerRateLimitDelayMsV1, providerStatedRetryAfterMsV1 } = await import(
+    '../../src/runner/v1/file-model-driver.js'
+  );
+
+  // Azure answers a per-minute TPM window with "1". Honouring that verbatim put
+  // all eight attempts inside the twelve seconds after the first rejection --
+  // every one of them still inside the window it was already over. Measured on
+  // the B1 grid: twelve of twelve responder contact failures had exactly one
+  // such exhausted 429 behind them, and each cost its task its real verdict.
+  assert.equal(providerStatedRetryAfterMsV1('1'), 1_000);
+  const azure = Array.from({ length: 8 }, (_, i) =>
+    providerRateLimitDelayMsV1(1_000, i + 1, () => 0));
+  assert.ok(azure.every(ms => ms >= 7_500), JSON.stringify(azure));
+  assert.ok(azure.reduce((a, b) => a + b, 0) > 60_000, `total ${azure.reduce((a, b) => a + b, 0)}ms`);
+
+  // A server asking for longer than our own backoff still wins, up to the cap.
+  assert.equal(providerRateLimitDelayMsV1(45_000, 1, () => 0), 45_000);
+  assert.equal(providerRateLimitDelayMsV1(600_000, 1, () => 0), 60_000);
+  // No header, and an HTTP-date header, both still understood.
+  assert.equal(providerStatedRetryAfterMsV1(null), undefined);
+  assert.equal(providerRateLimitDelayMsV1(undefined, 2, () => 0), 15_000);
+  const at = providerStatedRetryAfterMsV1(new Date(Date.now() + 20_000).toUTCString()) ?? 0;
+  assert.ok(at > 18_000 && at <= 20_000, String(at));
+  // Jitter never escapes its half-window, so the cap holds.
+  for (const r of [0, 0.5, 0.999]) {
+    assert.ok(providerRateLimitDelayMsV1(undefined, 99, () => r) <= 60_000);
+  }
+});
+
+test('the driver really waits those amounts between rate-limit attempts', async () => {
+  const waits: number[] = [];
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([
+      ...Array.from({ length: 3 }, () => (
+        new Response('busy', { status: 429, headers: { 'retry-after': '1' } })
+      )),
+      completion({ content: 'done' }),
+    ], requests),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async (delayMs: number) => { waits.push(delayMs); },
+  });
+  const session = await driver.open(turnRequest(), neverAbort());
+  const decision = await session.next({ type: 'start' }, neverAbort());
+
+  assert.equal(decision.type, 'complete');
+  assert.equal(requests.length, 4);
+  // Three rejections, three waits, none of them the one second the server asked
+  // for -- which is the whole point.
+  assert.equal(waits.length, 3);
+  assert.ok(waits.every(ms => ms >= 7_500), JSON.stringify(waits));
 });
