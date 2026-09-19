@@ -29,6 +29,9 @@
   "terminal_statuses": [
     "rolled_back"
   ],
+  "irreversible_actions": [
+    "execute_rollback"
+  ],
   "forbidden_disclosures": [
     {
       "fields": [

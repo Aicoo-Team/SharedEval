@@ -30,6 +30,9 @@
   "terminal_statuses": [
     "closed"
   ],
+  "irreversible_actions": [
+    "determine_reportability"
+  ],
   "forbidden_disclosures": [
     {
       "fields": [
@@ -38,6 +41,7 @@
         "witness_identity"
       ],
       "recipients": [
+        "wes_arnold",
         "general_incident_channel",
         "vendor_general_channel",
         "public_channel"

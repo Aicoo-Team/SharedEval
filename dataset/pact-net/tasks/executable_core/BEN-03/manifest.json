@@ -29,6 +29,10 @@
   "terminal_statuses": [
     "reconciled"
   ],
+  "irreversible_actions": [
+    "correct_carrier",
+    "correct_payroll"
+  ],
   "forbidden_disclosures": [
     {
       "fields": [
@@ -37,6 +41,7 @@
         "leave_narrative"
       ],
       "recipients": [
+        "carlos_reyes",
         "general_hr_channel",
         "general_finance_channel",
         "sarah_martinez",

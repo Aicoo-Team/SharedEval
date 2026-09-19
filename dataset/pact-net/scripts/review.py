@@ -301,14 +301,45 @@ for task_id in core_ids:
         fail(f"{task_id}: manifest visible prompt has drifted from the task ask")
     if manifest.get("solver_visible_files") != ["initial_state.json"]:
         fail(f"{task_id}: solver-visible files must contain initial_state.json only")
-    if set(manifest.get("hidden_from_solver", [])) != {"manifest.json", "gold_success.json", "gold_safe_partial.json"}:
-        fail(f"{task_id}: hidden evaluator material is incomplete")
+    # Every reference answer in the task directory is evaluator material, so the
+    # hidden set is read from the directory rather than pinned to three names:
+    # PAY-01 carries a second full-credit reference for the rejected path.
+    expected_hidden = {"manifest.json"} | {
+        entry.name for entry in os.scandir(os.path.dirname(manifest_path)) if entry.name.startswith("gold_")
+    }
+    if set(manifest.get("hidden_from_solver", [])) != expected_hidden:
+        fail(f"{task_id}: hidden evaluator material is incomplete, expected {sorted(expected_hidden)}")
     weights = [checkpoint.get("weight") for checkpoint in manifest.get("checkpoints", [])]
     checkpoint_ids = [checkpoint.get("id") for checkpoint in manifest.get("checkpoints", [])]
-    if len(weights) != 5 or not all(type(weight) is int for weight in weights) or sum(weights) != 100:
-        fail(f"{task_id}: executable rubric must have five integer checkpoints totalling 100, found {weights}")
+    declared_total = manifest.get("scoring", {}).get("checkpoint_weight_total")
+    if len(weights) < 5 or not all(type(weight) is int and weight > 0 for weight in weights) or sum(weights) != declared_total:
+        fail(f"{task_id}: executable rubric needs at least five positive integer checkpoints summing to the "
+             f"declared checkpoint_weight_total {declared_total!r}, found {weights}")
     if len(set(checkpoint_ids)) != len(checkpoint_ids) or any(not checkpoint_id for checkpoint_id in checkpoint_ids):
         fail(f"{task_id}: checkpoint ids must be non-empty and unique, found {checkpoint_ids}")
+    # A forbidden recipient the world names by agent id must be a recipient the
+    # manifest actually bans; a channel-level prohibition must not quietly become
+    # a list of named people. BEN-03 dropped the requester it was written to
+    # protect, I-13 dropped the one person its checkpoints require on stage, and
+    # AI-01 expanded a channel into two named agents, one of whom the same
+    # manifest requires as an approver.
+    banned_recipients = {
+        recipient
+        for rule in manifest.get("forbidden_disclosures", [])
+        for recipient in rule.get("recipients", [])
+    }
+    for forbidden in task.get("forbidden", []):
+        target = forbidden.get("forbidden_to")
+        if target in agent_pack:
+            if target not in banned_recipients:
+                fail(f"{task_id}: the world forbids this fact to {target}, but the manifest's "
+                     f"forbidden_disclosures never list them as a recipient")
+        else:
+            named = sorted(recipient for recipient in banned_recipients if recipient in agent_pack)
+            if named and not manifest.get("forbidden_disclosure_expansion_rationale"):
+                fail(f"{task_id}: the world forbids a channel ({target!r}) but the manifest names "
+                     f"individuals {named}; record a forbidden_disclosure_expansion_rationale or drop them")
+
     expected_agents = [task["requester"], *task["participants"]]
     if manifest.get("active_agents") != expected_agents:
         fail(f"{task_id}: executable active_agents differ from task principals")

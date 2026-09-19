@@ -28,6 +28,9 @@
   "terminal_statuses": [
     "released"
   ],
+  "irreversible_actions": [
+    "release_po"
+  ],
   "forbidden_disclosures": [],
   "checkpoints": [
     {
