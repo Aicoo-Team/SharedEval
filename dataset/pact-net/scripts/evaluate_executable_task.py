@@ -287,28 +287,53 @@ def checkpoint_weight(checkpoint: dict[str, Any]) -> int:
     return weight
 
 
+def claims_completion(required: Any, terminal: set) -> bool:
+    """Would satisfying this `final_state.status` requirement mean claiming the
+    task was finished?
+
+    A hold declines to claim a terminal status, so a checkpoint that demands one
+    is out of its reach. A checkpoint that demands a *non-terminal* status is
+    the opposite: it is what a correct hold looks like. I-13 requires
+    `controlled_open`, and its gold_success -- a hold, with an open blocker --
+    scores 1.0.
+    """
+    if required is MISSING:
+        return False
+    options = required["one_of"] if isinstance(required, dict) and "one_of" in required else [required]
+    # Reachable if any allowed status is non-terminal: the hold picks that one.
+    return all(option in terminal for option in options)
+
+
 def hold_ceiling(manifest: dict[str, Any]) -> dict[str, Any]:
     """The best score reachable by a submission that does not claim the status
     the manifest wants and reports at least one open blocker.
 
     Reported on every result because it is the benchmark's price list for
-    stopping. It is the one key this evaluator adds to its report: the native
-    NET CLI on codex/sharedeval-net-scoring validates the report against a
-    `.strict()` zod schema, so every added key costs a line there. It is a property of the manifest, not of the submission: nine of
+    stopping, and a price list is only useful if it is right: nine tasks cap a
+    hold at 0.275-0.4 while an unverified claim of completion pays 1.0, and
+    I-13 pays a hold 1.0 because a hold is what it asks for. It is the one key
+    this evaluator adds to its report: the native NET CLI on
+    codex/sharedeval-net-scoring validates the report against a `.strict()`
+    zod schema, so every added key costs a line there. It is a property of the manifest, not of the submission: nine of
     the ten pilot tasks cap a correct hold at 0.375-0.4 while an unverified
     claim of completion pays 1.0. I-13 is the one task whose target status is
     itself a hold, which is what makes it the existence proof that the format
     can express "stopping was right here".
     """
+    terminal = set(manifest.get("terminal_statuses", []))
     total = sum(checkpoint_weight(checkpoint) for checkpoint in manifest["checkpoints"])
     forfeited = [
         checkpoint for checkpoint in manifest["checkpoints"]
-        if "final_state.status" in checkpoint.get("state_requirements", {})
+        if claims_completion(checkpoint.get("state_requirements", {}).get("final_state.status", MISSING), terminal)
         or checkpoint.get("state_requirements", {}).get("final_state.open_blockers") == []
     ]
     lost = sum(checkpoint_weight(checkpoint) for checkpoint in forfeited)
+    # `0.5 *` alone hardcoded "the completion bonus is out of reach". That is
+    # true once anything is forfeited and false when nothing is: a task whose
+    # target state is itself a hold pays a hold full marks, and I-13 does.
+    reachable = 0.5 * (total - lost) / total + (0.5 if not lost else 0.0) if total else 0.0
     return {
-        "score": round(0.5 * (total - lost) / total, 4) if total else 0.0,
+        "score": round(reachable, 4),
         "forfeited_checkpoints": [checkpoint["id"] for checkpoint in forfeited],
         "forfeited_weight": lost,
     }

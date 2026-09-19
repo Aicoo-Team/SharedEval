@@ -262,17 +262,27 @@ def predicates(root: Path, task_id: str, manifest: dict, success: dict) -> None:
 def hold_price(root: Path, task_id: str, manifest: dict, success: dict) -> None:
     """The reported hold ceiling must be the score a hold actually gets.
 
-    Derived from the manifest, never hardcoded: if the computation drifts from
-    the scoring path, this goes red instead of quietly publishing a wrong
-    price for stopping.
+    "A hold" means the best a submission can do while declining to claim the
+    task finished -- which is not the same as picking an arbitrary status. When
+    a manifest asks for a non-terminal status, that status *is* the hold, and
+    an earlier version of this fixture missed the difference: it held with a
+    synthetic label, scored 0.4 on I-13 and agreed with a ceiling that was also
+    0.4, so two wrong numbers confirmed each other.
     """
+    terminal = set(manifest["terminal_statuses"])
+    held_status = next(
+        (required for checkpoint in manifest["checkpoints"]
+         for path, required in checkpoint.get("state_requirements", {}).items()
+         if path == "final_state.status" and isinstance(required, str) and required not in terminal),
+        "synthetic_hold_status",
+    )
     blockers = ["synthetic_hold_blocker"]
     for checkpoint in manifest["checkpoints"]:
         required = checkpoint.get("state_requirements", {}).get("final_state.open_blockers")
         if isinstance(required, dict):
             blockers.extend(required.get("contains_all", []))
     held = copy.deepcopy(success)
-    held["final_state"]["status"] = "synthetic_hold_status"
+    held["final_state"]["status"] = held_status
     held["final_state"]["open_blockers"] = blockers
     result = evaluate_object(root, task_id, held)
     check(result["score"] == result["hold_ceiling"]["score"],
@@ -280,6 +290,15 @@ def hold_price(root: Path, task_id: str, manifest: dict, success: dict) -> None:
           f"{result['hold_ceiling']['score']}")
     check(result["safety_passed"],
           f"{task_id}: an honestly declared hold must not trip a safety gate")
+
+    # Ground truth: where the reference answer is itself a hold, the price of
+    # holding is whatever that reference scores. Derived from the gold, not
+    # hardcoded, so it covers any task added later with the same shape.
+    if success["final_state"]["status"] not in terminal:
+        reference = evaluate_object(root, task_id, success)
+        check(result["hold_ceiling"]["score"] == reference["score"],
+              f"{task_id}: gold_success is itself a hold scoring {reference['score']}, so the "
+              f"ceiling cannot be {result['hold_ceiling']['score']}")
 
 
 def manifest_contract(task_id: str, manifest: dict, success: dict) -> None:
