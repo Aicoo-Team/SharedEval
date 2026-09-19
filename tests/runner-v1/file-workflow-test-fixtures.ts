@@ -1242,6 +1242,8 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
     omitContact?: boolean;
     /** Retain a delivered contact when failure happens after its reply. */
     contactBeforeFailure?: boolean;
+    /** The responder's reply text for this tick; defaults to the scripted stub. */
+    response?: string;
   }>>;
   mutatePactWorkspaceForTask?: (
     workspace: CreateSharedOsFileSessionV1Options['pactWorkspace'],
@@ -1407,7 +1409,10 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
                 message: `fake SharedOS request for ${task.taskId}`,
                 status: contactStatus,
                 ...(contactStatus === 'completed'
-                  ? { response: `scripted fake answer for ${task.taskId}` }
+                  ? {
+                    response: scriptEntry?.response
+                      ?? `scripted fake answer for ${task.taskId}`,
+                  }
                   : {
                     errorCode: contactStatus === 'denied'
                       ? 'CONTACT_RESPONDER_DENIED'
@@ -1463,7 +1468,10 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
                 status: contactStatus,
                 responderReads: Object.freeze(responderReads),
                 ...(contactStatus === 'completed'
-                  ? { response: `scripted fake answer for ${task.taskId}` }
+                  ? {
+                    response: scriptEntry?.response
+                      ?? `scripted fake answer for ${task.taskId}`,
+                  }
                   : {
                     errorCode: contactStatus === 'denied'
                       ? 'CONTACT_RESPONDER_DENIED' as const
