@@ -56,14 +56,21 @@ jobs:
   sharedos-loader:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      SHAREDOS_PIN: a303d97fe974c149d4575b1f5d6426aee6f37367
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Read the runtime revision from the checked-out loader
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const source = fs.readFileSync('src/execution/sharedos/v1/load-sharedos.ts', 'utf8');
+          const matches = [...source.matchAll(/export const SHAREDOS_VERIFIED_REVISION_V1\s*=\s*'([0-9a-f]{40})' as const;/g)];
+          if (matches.length !== 1) throw new Error('Expected one literal SharedOS revision in the loader');
+          fs.appendFileSync(process.env.GITHUB_ENV, `SHAREDOS_PIN=${matches[0][1]}\n`);
+          NODE
 
       - name: Check out pinned SharedOS
         uses: actions/checkout@v4

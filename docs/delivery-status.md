@@ -75,6 +75,23 @@ No PR has been merged by the supervisor. Room review and independent checks are
 recorded separately from author reports. Idle status or a message saying done
 is not an acceptance signal.
 
+## September 19 governance CI pin correction
+
+Documentation head `9651a3e` passed local required-runtime `pnpm check` (668/668,
+zero skips). CI run 35441961954 passed `validate` but failed `sharedos-loader`
+(3 pass /7 fail). The actual CI checkout was merge `1884c3846c109cc9588a0e23cf30aa0a5e03f0ba`
+combining that head with main `8de1d27`, not the standalone governance tree.
+Its workflow built SharedOS `ac0f1bb`, while its loader expected `3aa07e3` and
+digest `4afb23d7`; the observed build digest was `849c121d`. Keep this failure.
+
+The workflow now reads exactly one literal verified revision from the checked-out
+loader before SharedOS checkout. The loader still checks revision, executable
+digest and source cleanliness; no acceptance check is weakened. Local execution
+of that workflow step selects a303 for the standalone branch and 3aa for the
+observed merge source, and rejects missing/duplicate declarations. The follow-up
+commit and its CI require their own validation; the original failure is not a
+runtime-regression or green-result claim.
+
 ## Combined-tree verification and PAIR helper follow-up
 
 The historical combination includes reviewed PAIR recovery at `c1bedc0` alongside
