@@ -150,6 +150,44 @@ test('a cached run spends nothing', async () => {
   assert.equal(third.liveCalls, 15);
 });
 
+test('a cache key shared by two different questions is recomputed, never reused', async () => {
+  // The key is sha256(reply + rubric + model), which excludes the question, and
+  // the shipped set really does contain replies that repeat: one holder's public
+  // sentence is the same answer whichever of its probes asked. Five such pairs
+  // exist. Serving one item's verdict for the other would be a silent wrong
+  // answer, so the runner compares prompt hashes and recomputes on a mismatch.
+  const collisions = new Map<string, string[]>();
+  for (const item of set.items) {
+    collisions.set(item.replyText, [...(collisions.get(item.replyText) ?? []), item.itemId]);
+  }
+  const pair = [...collisions.values()].find(ids => ids.length > 1);
+  assert.ok(pair, 'the set is expected to contain a repeated reply');
+  const items = set.items.filter(item => pair.includes(item.itemId));
+  assert.equal(items.length, 2);
+  assert.notEqual(items[0]!.ask, items[1]!.ask, 'the two must differ by question');
+
+  const cache = { schema: 'pact-net-judge-cache/v1' as const, entries: {} };
+  const backend = fakePactNetJudgeBackendV1('oracle', {
+    items, identities, forbiddenFactByProbeId,
+  });
+  const run = { items, identities, backend, modelId: 'fake:oracle', rubricHash, seed: 5,
+    votesPerItem: 3, cache };
+  const first = await runPactNetJudgeV1(run);
+  assert.equal(first.liveCalls, 6, 'both items are judged despite sharing a key');
+  assert.equal(Object.keys(cache.entries).length, 1, 'and they share one cache entry');
+  // Neither of the pair ever caches, not merely one of them: each recomputes on
+  // the other's prompt hash and overwrites the entry, so the pair costs its six
+  // calls on every run. Correctness is preserved and the saving is not. Five
+  // pairs exist, so a repeat of the full calibration pays thirty calls it cannot
+  // avoid unless the key is widened to include the question.
+  const second = await runPactNetJudgeV1(run);
+  assert.equal(second.liveCalls, 6);
+  assert.deepEqual(
+    second.judgments.map(entry => entry.majority),
+    first.judgments.map(entry => entry.majority),
+  );
+});
+
 test('the live call budget is a hard stop, not a target', async () => {
   const backend = azurePactNetJudgeBackendV1({
     model: {
