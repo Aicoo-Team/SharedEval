@@ -62,13 +62,35 @@ def self_naming(run_dir: Path):
     return out
 
 
-def read_run(run_dir: Path):
-    """One run -> {taskId: row}. Prefers the multi world's committed results."""
+def read_one(run_dir: Path):
+    """One run directory -> {taskId: row}, or None when it produced no results."""
     results = run_dir / 'multi' / 'results.jsonl'
     if not results.exists():
         return None
-    return {r['taskId']: r
+    rows = {r['taskId']: r
             for r in (json.loads(l) for l in results.read_text().splitlines() if l.strip())}
+    return rows or None
+
+
+def read_run(cell_dir: Path):
+    """A cell may hold several attempts; return the one that measured the most.
+
+    A cell is retried when a run fails to deliver -- a provider that never
+    settles, a requester that never contacts anyone. Those attempts leave a
+    directory behind, so choosing the cell's result by directory name would pick
+    an empty run at random. Choose it by how much it actually measured, the same
+    way the repair pass decides whether a cell still needs another attempt.
+    Returns (rows, runId) so the deliverable can say which attempt it read."""
+    best = None
+    for run_dir in sorted(cell_dir.glob('*')) if cell_dir.exists() else []:
+        rows = read_one(run_dir)
+        if rows is None:
+            continue
+        scorable = sum(1 for r in rows.values()
+                       if (r.get('publicEvaluation') or {}).get('scorable'))
+        if best is None or scorable > best[0]:
+            best = (scorable, rows, run_dir.name)
+    return (best[1], best[2]) if best else (None, None)
 
 
 def observed_for(rows, cats, owner_truth, seat, use_content: bool):
@@ -132,13 +154,14 @@ def main() -> int:
 
     by_condition, all_gaps, missing = {}, [], []
     naming = {}
+    chosen_run = {}
     for m in manifest:
-        run_dir = run_root / m['name'] / m['runId']
-        rows = read_run(run_dir)
+        rows, chosen = read_run(run_root / m['name'])
         if rows is None:
             missing.append(m['name'])
             continue
-        named = self_naming(run_dir)
+        chosen_run[m['name']] = chosen
+        named = self_naming(run_root / m['name'] / chosen)
         naming[m['name']] = (sum(named.values()), len(named))
         for use_content in (False, True):
             obs, gaps = observed_for(rows, cats, truth, m['requester'], use_content)
@@ -161,7 +184,8 @@ def main() -> int:
     print(f"  {'run':<18} {'scorable':>8} {'asked':>6} {'selected':>9}  statuses")
     total_scorable = total_selected = 0
     for m in manifest:
-        rows = read_run(run_root / m['name'] / m['runId']) or {}
+        rows, chosen = read_run(run_root / m['name'])
+        rows = rows or {}
         counts = {}
         for r in rows.values():
             counts[r.get('status')] = counts.get(r.get('status'), 0) + 1
@@ -171,8 +195,9 @@ def main() -> int:
         total_selected += len(m['tasks'])
         shown = ', '.join(f'{k}={v}' for k, v in sorted(counts.items())) or 'none'
         flag = '' if n_scorable == len(m['tasks']) else '   <-- incomplete'
+        attempt = f"  [{chosen}]" if chosen and chosen != m['runId'] else ''
         print(f"  {m['name']:<18} {n_scorable:>8} {len(rows):>6} "
-              f"{len(m['tasks']):>9}  {shown}{flag}")
+              f"{len(m['tasks']):>9}  {shown}{flag}{attempt}")
     pct = 100 * total_scorable / total_selected if total_selected else 0
     print(f"  {'TOTAL':<18} {total_scorable:>8} {'':>6} {total_selected:>9}  "
           f"{pct:.1f}% of selected tasks are scorable\n")
@@ -190,7 +215,8 @@ def main() -> int:
     # that a J_content above J_decision can never be reported unexamined.
     divergent = []
     for m in manifest:
-        rows = read_run(run_root / m['name'] / m['runId']) or {}
+        rows, chosen = read_run(run_root / m['name'])
+        rows = rows or {}
         for task_id, row in sorted(rows.items()):
             pe = row.get('publicEvaluation') or {}
             if not pe.get('scorable'):
