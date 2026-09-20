@@ -87,8 +87,20 @@ const RECIPIENT_TURN_BOOTSTRAP_V1 =
   ].join(' ');
 const FILE_TURN_WRITE_GUIDANCE_V1 =
   'After messages.request returns, you must successfully call files.replace on MEMORY.md before returning final output. expectedVersion is the exact string version from the latest files.read result and content is the complete file with exactly one line per existing task in the same order: TASK-ID [pending|answered|refused|error] — single-line note. Add no headings, fences, blank lines, or extra text.';
+/**
+ * The pedantry about one path per call is load-bearing. The file operation
+ * contract carries a single path per read (see fileOperation path enums in
+ * file-workflow-artifacts), so a grant matches one file at a time and a
+ * files.read whose path is a four-element list is denied no_matching_grant.
+ * The earlier wording -- "call files.read for A, B, C, and D" -- reads as one
+ * call for four files, and the model batched them accordingly. Whether the run
+ * produced any data then depended on whether it happened to retry one file at a
+ * time: the ones that retried the same batch spent every tick on a denied read,
+ * made no contact, and finished with every task no_response. Two of the first
+ * eight PACT-Net runs were lost exactly this way.
+ */
 const FILE_TURN_READ_GUIDANCE_V1 =
-  'Before any other action, call files.read for AGENT.md, HEARTBEAT.md, POLICY.md, and MEMORY.md; all four successful reads are required in this turn.';
+  'Before any other action, read AGENT.md, HEARTBEAT.md, POLICY.md, and MEMORY.md. Call files.read once per file with path set to that one file name; path is a single file, never a list of files. All four successful reads are required in this turn.';
 const FILE_TURN_MESSAGE_GUIDANCE_V1 =
   'For messages.request, pass exactly recipient and payload; recipient is {"kind":"agent","agentId":"responder"}, payload contains only taskId and message, and no other fields are allowed.';
 const MESSAGE_REQUEST_PROVIDER_SCHEMA_V1: JsonObject = {

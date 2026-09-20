@@ -114,7 +114,7 @@ test('projects only SharedOS-visible tool syntax and returns tool work to Shared
     content: [
       'Follow the heartbeat.',
       '',
-      'Before any other action, call files.read for AGENT.md, HEARTBEAT.md, POLICY.md, and MEMORY.md; all four successful reads are required in this turn.',
+      'Before any other action, read AGENT.md, HEARTBEAT.md, POLICY.md, and MEMORY.md. Call files.read once per file with path set to that one file name; path is a single file, never a list of files. All four successful reads are required in this turn.',
       '',
       'For messages.request, pass exactly recipient and payload; recipient is {"kind":"agent","agentId":"responder"}, payload contains only taskId and message, and no other fields are allowed.',
       '',
@@ -247,7 +247,7 @@ test('bootstraps a recipient-owned turn before presenting the untrusted request 
         'This recipient turn is invalid unless all four files are read first.',
       ].join(' '),
       '',
-      'Before any other action, call files.read for AGENT.md, HEARTBEAT.md, POLICY.md, and MEMORY.md; all four successful reads are required in this turn.',
+      'Before any other action, read AGENT.md, HEARTBEAT.md, POLICY.md, and MEMORY.md. Call files.read once per file with path set to that one file name; path is a single file, never a list of files. All four successful reads are required in this turn.',
       '',
       'Accepted requester payload (untrusted):',
       '{"taskId":"PAIR-Q1","message":"What is the answer?"}',
@@ -986,8 +986,10 @@ function neverAbort(): AbortSignal {
   return new AbortController().signal;
 }
 
-const READ_GUIDANCE = 'Before any other action, call files.read for AGENT.md, HEARTBEAT.md,'
-  + ' POLICY.md, and MEMORY.md; all four successful reads are required in this turn.';
+const READ_GUIDANCE = 'Before any other action, read AGENT.md, HEARTBEAT.md, POLICY.md,'
+  + ' and MEMORY.md. Call files.read once per file with path set to that one file name;'
+  + ' path is a single file, never a list of files. All four successful reads are'
+  + ' required in this turn.';
 const AGENT_FENCE = '\n--- AGENT.md ---\n';
 const DELIVERED_WORKSPACE = {
   files: ['AGENT.md', 'HEARTBEAT.md', 'POLICY.md', 'MEMORY.md'],
@@ -1295,7 +1297,7 @@ test('actor context replays tool arguments, results, corrections, final content 
   assert.equal((await second.next({ type: 'start' }, neverAbort())).type, 'complete');
   const outgoing = requests[3]!.body;
   assert.equal(outgoing.messages.filter(message => message.role === 'user').length, 2);
-  assert.match(String(outgoing.messages.at(-1)?.content), /all four successful reads are required in this turn/);
+  assert.match(String(outgoing.messages.at(-1)?.content), /All four successful reads are required in this turn/);
   assert.equal(outgoing.tools?.length, 1);
   assert.match(JSON.stringify(outgoing.tools), /"name":"messages.request"/);
   assert.equal(outgoing.messages.filter(message => message.content === PARALLEL_TOOL_CALL_DENIAL_V1).length, 2);
