@@ -136,6 +136,71 @@ test('composes explicit multi and single runs through one preloaded SharedOS fac
   }
 });
 
+test('carries the Azure reasoning arm into the run provenance', async () => {
+  // A journalled call with no deliberation is ambiguous on its own: it could
+  // be the arm that asked for none, or the arm that never asked. The run's own
+  // binding is where that is settled, so the arm has to reach provenance --
+  // and an unset config must leave the field off rather than write 'none'.
+  for (const [reasoningEffort, expected] of [
+    ['  reasoningEffort: low\n', 'low'],
+    ['', undefined],
+  ] as const) {
+    let runnerInput: any;
+    await runSharedevalProductionV1({
+      config: azureConfig(reasoningEffort),
+      configRootDir: '/config-root',
+      repositoryRoot: '/source-root',
+      runId: 'azure-run',
+      environment: { SHAREDEVAL_MODEL_API_KEY: 'secret' },
+    }, {
+      inspectSource: () => ({ sourceRevision: 'a'.repeat(40) }),
+      loadDatasetAuthority: () => ({
+        dataset: {
+          id: 'pact-pair',
+          version: '7.0.0',
+          manifestSha256: '1'.repeat(64),
+          tasksSha256: '2'.repeat(64),
+        },
+        goldSet: { id: 'pact-pair-category-gold-v1', sha256: '3'.repeat(64) },
+      }),
+      loadTasks: options => loadPactPairTasksV1({
+        policy: options.policy,
+        requester: options.requester,
+        gradingMode: options.gradingMode,
+        kind: options.kind,
+        ids: ['PAIR-Q1'],
+      }),
+      loadSharedOs: async directory => ({
+        ok: true, dir: directory, revision: 'b'.repeat(40),
+        runtimeDigest: '4'.repeat(64), modules: {},
+      } as never),
+      createSessionFactory: () => (async () => { throw new Error('not invoked'); }) as never,
+      createDriver: () => ({} as never),
+      prepareRunDirectories: async input => ({
+        runRoot: `/runs/${input.runId}`,
+        workspaceRootDir: `/runs/${input.runId}/workspaces`,
+        multiStoreRoot: `/runs/${input.runId}/multi`,
+        singleStoreRoot: `/runs/${input.runId}/single`,
+      }),
+      runFiles: async input => {
+        runnerInput = input;
+        return { workflowId: input.config.workflow.id } as never;
+      },
+    });
+
+    for (const role of ['requester', 'responder'] as const) {
+      const model = runnerInput.runProvenance.models[role];
+      assert.equal(model.provider, 'azure-openai');
+      assert.equal(
+        'reasoningEffort' in model,
+        expected !== undefined,
+        `${role} provenance must ${expected === undefined ? 'omit' : 'state'} the arm`,
+      );
+      if (expected !== undefined) assert.equal(model.reasoningEffort, expected);
+    }
+  }
+});
+
 test('resolves requester R0 to its workspace persona and proceeds', async () => {
   // R0 (Riley Novak, the stranger identity) has a registered requester
   // workspace, so identity resolution no longer rejects it: the run advances
@@ -158,6 +223,28 @@ test('resolves requester R0 to its workspace persona and proceeds', async () => 
   );
   assert.ok(calls.includes('source'), 'R0 must reach source inspection');
 });
+
+function azureConfig(reasoningLine: string) {
+  return applySharedevalOverridesV1(parseSharedevalRunConfigV1Yaml(`
+apiVersion: sharedeval-run/v1
+kind: RunConfig
+model:
+  provider: azure-openai
+  endpoint: https://contoso.openai.azure.com/openai/v1
+  deployment: DeepSeek-V4-Flash-0731
+  apiVersion: preview
+  apiKeyEnv: SHAREDEVAL_MODEL_API_KEY
+${reasoningLine}workflow:
+  mode: multi
+  protocol: files
+  maxTicks: 2
+  stopWhen: all-terminal
+benchmark:
+  requester: R1
+  tasks:
+    ids: [PAIR-Q1]
+`), resolveWorkflow(['multi']));
+}
 
 function effectiveConfig(mode: 'multi' | 'single', requester: 'R0' | 'R1' = 'R1') {
   return applySharedevalOverridesV1(parseSharedevalRunConfigV1Yaml(`

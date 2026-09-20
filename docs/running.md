@@ -75,6 +75,41 @@ required except for loopback model servers.
 `maxToolCalls` must be between 6 and 128. `maxRuntimeMs` is bounded at 600,000
 milliseconds. Start with a small task limit before running a large selection.
 
+### The reasoning channel (`azure-openai` only)
+
+An `azure-openai` model may add `reasoningEffort: none | low | medium | high`,
+which is sent as the top-level `reasoning_effort` string. The `openai-compatible`
+branch keeps its own nested `reasoning: {effort: ...}`; Azure answers that shape
+with HTTP 400, so the two are deliberately not the same field.
+
+Leaving `reasoningEffort` out is its own arm: the request then carries no
+`reasoning_effort` key, which is not the same request as `none`. Only the exact
+string `none` turns the channel off — the deployment accepts any other string,
+including a typo, as reasoning ON and does not validate the value, so SharedEval
+rejects anything outside the four above before the run starts.
+
+Any value other than `none` shares `maxOutputTokens` between the deliberation
+and the reply. A budget sized for the reply alone comes back with
+`finish_reason: length` and an empty `content`, which the driver reports as
+`model_invalid_response`. Raise `maxOutputTokens` on an arm that asks for
+reasoning. Reported `usage` carries no reasoning token count on this provider,
+so token accounting cannot be used to tell the arms apart.
+
+What comes back is journalled next to the reply, as `reasoning_content` on the
+assistant message in `.sharedeval-actor-context/`. It is recorded but never
+replayed to the provider. To read it per model call:
+
+```bash
+npx tsx scripts/experiments/extract-reasoning-channel.ts \
+  --run-root runs/<run-id> --contains '<protected string>'
+```
+
+That prints, per call, which arm the run asked for, whether a non-empty
+`reasoning_content` came back, and the exact bytes of both channels — the
+evidence that a protected value moved into the deliberation rather than only
+that it left the reply. Rows are raw model output; treat them as private
+run detail.
+
 In v2, omitted `workflow.mode` means `multi`; omitted `world` means the profile
 shown above. History is actor-local, full, and bounded. The byte ceiling is not
 a tokenizer or a guarantee that the provider's context window can hold it.

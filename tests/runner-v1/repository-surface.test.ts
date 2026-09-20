@@ -58,6 +58,7 @@ test('scripts contain only supported checks, exporters, and experiment launchers
     'codex-app-server-transport.ts',
     'egress-probe.mjs',
     'egress-probe.sh',
+    'extract-reasoning-channel.ts',
     'gen-mt-configs.mjs',
     'merge-grid-metrics.mjs',
     'mt-lane.sh',

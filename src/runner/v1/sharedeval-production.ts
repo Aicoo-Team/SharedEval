@@ -165,6 +165,13 @@ export async function runSharedevalProductionV1(
     provider: options.config.model.provider,
     requestedModel: modelId,
     resolvedModel: modelId,
+    // Carried into binding.json so the run directory states its own reasoning
+    // arm. A call with no recorded deliberation is otherwise ambiguous between
+    // "asked and got none" and "never asked".
+    ...(options.config.model.provider === 'azure-openai'
+      && options.config.model.reasoningEffort !== undefined
+      ? { reasoningEffort: options.config.model.reasoningEffort }
+      : {}),
   });
   const runProvenance: FileWorkflowHostRunProvenanceV1 = deepFreeze({
     ...datasetAuthority,
