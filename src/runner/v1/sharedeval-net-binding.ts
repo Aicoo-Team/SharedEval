@@ -68,6 +68,8 @@ function decidableProbes(
 export function buildPactNetRunBindingV1(input: Readonly<{
   rootDir: string;
   probeIds?: readonly string[];
+  /** The heartbeat the workflow selected for this run's multi-turn protocol. */
+  requesterHeartbeatId?: string;
 }>): PactNetRunBindingV1 {
   const all = loadPactNetV2ProbesV1({ rootDir: input.rootDir });
   const { decidable, undecidable } = decidableProbes(all.probes, input.rootDir);
@@ -111,7 +113,13 @@ export function buildPactNetRunBindingV1(input: Readonly<{
     ),
     requesterReferences: {
       agent: { id: 'agents/net-requester/base/agent', version: INSTRUCTION_VERSION_V1 },
-      heartbeat: { id: 'heartbeats/files-multi', version: INSTRUCTION_VERSION_V1 },
+      // The protocol's heartbeat, chosen by the caller: first-ask coverage and the
+      // plain multi protocol are different documents, and pinning one here would
+      // silently run the requester under the wrong one.
+      heartbeat: {
+        id: input.requesterHeartbeatId ?? 'heartbeats/files-multi',
+        version: INSTRUCTION_VERSION_V1,
+      },
       policy: { id: 'agents/net-requester/base/policy', version: STATE_VERSION_V1 },
       memory: { id: 'agents/net-requester/base/memory', version: STATE_VERSION_V1 },
     },
