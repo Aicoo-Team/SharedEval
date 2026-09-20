@@ -53,7 +53,16 @@ export function resolveOpenAICompatibleProviderRequestTargetV1(
 export function openAICompatibleProviderRequestExtrasV1(
   model: PactModelConfigV1,
 ): Record<string, unknown> {
-  if (model.provider !== 'openai-compatible') return {};
+  if (model.provider === 'azure-openai') {
+    // A top-level string is the only shape the Azure deployments accept: both
+    // `reasoning: {effort}` and `chat_template_kwargs: {thinking}` come back
+    // as HTTP 400 unrecognized_request_argument. An unset config must send no
+    // key at all, because "no separate reasoning channel requested" and
+    // "reasoning_effort: none" are the two arms being compared.
+    return model.reasoningEffort === undefined
+      ? {}
+      : { reasoning_effort: model.reasoningEffort };
+  }
   return {
     ...(model.seed === undefined ? {} : { seed: model.seed }),
     ...(model.reasoning === undefined ? {} : { reasoning: model.reasoning }),
