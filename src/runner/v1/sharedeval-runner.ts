@@ -154,8 +154,12 @@ function validateRuntimeBoundary(
       || (workflow.mode === 'single' && workflow.id === 'files-single')
     )
   );
-  if (!validWorkflow || options.config.benchmark.dataset !== 'pact-pair') {
-    throw new Error('Sharedeval runner requires an explicit PACT-Pair file workflow');
+  // The gate is on the workflow being an explicitly named file workflow, not on
+  // which dataset supplied the tasks. Both PACT-Pair questions and PACT-Net v2
+  // disclosure probes arrive here already projected into the same loaded-task
+  // shape, so the runtime boundary is identical for either.
+  if (!validWorkflow) {
+    throw new Error('Sharedeval runner requires an explicit file workflow');
   }
   if (
     typeof options.createDriver !== 'function'
