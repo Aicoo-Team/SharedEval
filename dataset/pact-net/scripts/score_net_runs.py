@@ -269,6 +269,10 @@ def main() -> int:
     else:
         print('decision and content agree on every scorable task.\n')
 
+    # The arms are whatever the manifest defines. A hardcoded tuple silently
+    # drops a new arm from every table, which is how the fourth condition went
+    # unreported the first time it was scored.
+    conditions = list(dict.fromkeys(m['condition'] for m in manifest))
     contrast_cats = sorted({c for (_w, c) in truth})
     for definition in ('decision', 'content'):
         print(f'=== J by {definition} '
@@ -276,7 +280,7 @@ def main() -> int:
         header = (f"{'condition':<14} {'category':<24} {'nL':>3} {'nP':>3} "
                   f"{'utility':>8} {'leak':>7} {'J':>7}")
         print(header)
-        for cond in ('c1_claimed', 'c2_id', 'c3_id_tiers'):
+        for cond in conditions:
             per_q = by_condition.get((cond, definition))
             if not per_q:
                 print(f'{cond:<14} (no data)')
