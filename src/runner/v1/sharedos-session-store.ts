@@ -55,19 +55,26 @@ const responderBindingNamePattern = /^task-[a-f0-9]{64}\.json$/;
 const repeatContactBindingNamePattern = /^contact-[a-f0-9]{64}\.json$/;
 const stageNamePattern = /^stage-[0-9a-f-]{36}\.json$/;
 const sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
-const identifierSchema = z.string().trim().min(1).max(256);
+const unpaddedStringSchema = (maximumLength: number) => z
+  .string()
+  .min(1)
+  .max(maximumLength)
+  .refine(value => value.trim() === value, 'must not be padded');
+const identifierSchema = unpaddedStringSchema(256);
+const purposeSchema = unpaddedStringSchema(512);
+const actionSchema = unpaddedStringSchema(128);
 const timestampSchema = z.string().datetime({ offset: true });
 const canonicalUtcTimestampSchema = z.string()
   .datetime({ offset: false, precision: 3 })
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 const grantPathSegmentSchema = z
   .string()
-  .trim()
   .min(1)
   .max(256)
   .regex(/^(?!\.{1,2}$)[^/\\\u0000-\u001f\u007f]+$/u, {
     message: 'grant resource path segments must be canonical',
-  });
+  })
+  .refine(value => value.trim() === value, 'must not be padded');
 const enabledToolNamespacesSchema = z.array(identifierSchema).max(256)
   .superRefine((namespaces, refinement) => {
     if (new Set(namespaces).size !== namespaces.length) {
@@ -98,11 +105,11 @@ const grantSchema: z.ZodType<SoCapabilityGrant> = z.object({
   issuer: addressSchema,
   capabilities: z.array(z.object({
     resource: resourceSchema,
-    actions: z.array(z.string().trim().min(1).max(128)).min(1).max(64),
+    actions: z.array(actionSchema).min(1).max(64),
     scope: z.enum(['exact', 'descendants']),
   }).strict()).min(1).max(64),
   constraints: z.object({
-    purposes: z.array(z.string().trim().min(1).max(512)).min(1).max(64).optional(),
+    purposes: z.array(purposeSchema).min(1).max(64).optional(),
     notBefore: timestampSchema.optional(),
     expiresAt: timestampSchema.optional(),
     maxUses: z.number().int().safe().positive().optional(),
@@ -125,7 +132,7 @@ const sessionBindingSchema = z.object({
   namespaceId: identifierSchema,
   owner: addressSchema,
   authority: addressSchema,
-  purpose: z.string().trim().min(1).max(512),
+  purpose: purposeSchema,
   startedAt: canonicalUtcTimestampSchema,
   toolSurface: z.literal('sharedos-runtime'),
   // Multi-turn probe gate: when committed as true at open, a task may receive
@@ -178,7 +185,7 @@ const messageEnvelopeSchema: z.ZodType<SoMessageEnvelope> = z.object({
   id: identifierSchema,
   sender: addressSchema,
   receiver: addressSchema,
-  purpose: z.string().trim().min(1).max(512),
+  purpose: purposeSchema,
   payload: jsonValueSchema,
   traceId: identifierSchema,
   replyTo: identifierSchema.optional(),
@@ -191,7 +198,7 @@ const accessContextSchema: z.ZodType<SoAccessContext> = z.object({
   actor: addressSchema,
   authority: addressSchema,
   owner: addressSchema,
-  purpose: z.string().trim().min(1).max(512),
+  purpose: purposeSchema,
   traceId: identifierSchema,
   enabledToolNamespaces: enabledToolNamespacesSchema,
   now: timestampSchema,
@@ -217,9 +224,9 @@ const auditEventSchema: z.ZodType<SoAuditEvent> = z.object({
   actor: addressSchema,
   authority: addressSchema,
   owner: addressSchema,
-  purpose: z.string().trim().min(1).max(512),
+  purpose: purposeSchema,
   resource: resourceSchema.optional(),
-  action: z.string().trim().min(1).max(128).optional(),
+  action: actionSchema.optional(),
   grantId: identifierSchema.optional(),
   authorityHash: identifierSchema.optional(),
   operationId: identifierSchema.optional(),
