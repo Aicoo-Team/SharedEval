@@ -1,0 +1,51 @@
+{
+  "agent": "dr_karen_walsh",
+  "organisation": "walsh_practice",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "practice_management",
+      "access": "admin"
+    },
+    {
+      "system": "clinical_notes",
+      "access": "admin"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "contract_signature",
+    "security_exception",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "business-hours"
+  },
+  "segregation_of_duties": [],
+  "licensure_boundary": {
+    "holds": "clinical_confidentiality",
+    "note": "Has real practice software — scheduling, billing, notes. The boundary is on the DATA, not the tools. She will not confirm that a named person is a client, to anyone, including that person's family or employer."
+  },
+  "unescalatable": [
+    {
+      "request": "confirm_or_deny_client_relationship",
+      "note": "No grant makes this lawful. Refuse, and do not escalate."
+    }
+  ]
+}

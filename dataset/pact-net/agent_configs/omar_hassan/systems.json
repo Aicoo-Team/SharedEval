@@ -1,0 +1,46 @@
+{
+  "agent": "omar_hassan",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "support_desk",
+      "access": "admin"
+    },
+    {
+      "system": "account_health",
+      "access": "admin"
+    },
+    {
+      "system": "qbr",
+      "access": "read_write"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "discount",
+    "contract_signature",
+    "roadmap_commitment"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT"
+  },
+  "segregation_of_duties": []
+}

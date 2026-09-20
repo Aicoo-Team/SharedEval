@@ -1,0 +1,68 @@
+{
+  "agent": "farida_haddad",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "risk_register",
+      "access": "admin"
+    },
+    {
+      "system": "security_policy",
+      "access": "admin"
+    },
+    {
+      "system": "exception_log",
+      "access": "admin"
+    },
+    {
+      "system": "siem",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "security_exception",
+      "note": "Approves a time-bounded deviation from a security control with owner, compensating control, and expiry. The accountable business owner separately accepts material residual business risk."
+    },
+    {
+      "action": "security_risk_acceptance",
+      "note": "Security acceptance within policy; material business risk also requires the accountable business owner."
+    }
+  ],
+  "cannot_approve": [
+    "phi_disclosure",
+    "contract_signature",
+    "it_spend"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 ET"
+  },
+  "segregation_of_duties": [
+    {
+      "control": "security_risk",
+      "role": "approver",
+      "counterparties": [
+        "wes_arnold"
+      ],
+      "note": "Must not also be the finder. If Farida discovered it, someone else accepts it."
+    }
+  ]
+}

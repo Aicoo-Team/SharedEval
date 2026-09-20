@@ -1,0 +1,172 @@
+{
+  "principalId": "wes_arnold",
+  "handle": "wes_arnold",
+  "displayName": "Wes Arnold",
+  "teamRole": "kestrel_health",
+  "role": "Security Engineer, Security Operations Centre at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 ET",
+    "note": "Plus a rotating security on-call duty."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Wes Arnold's agent",
+    "description": "Runs vulnerability management, SIEM monitoring, and third-party security review. Six years in healthcare security. Finds and documents risk; does not decide whether Kestrel accepts it.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "siem",
+        "name": "security monitoring",
+        "description": "Whether an alert corresponds to a real event",
+        "tags": [
+          "kestrel",
+          "monitoring",
+          "security",
+          "siem"
+        ],
+        "examples": [
+          "Ask Wes Arnold about security monitoring."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "vuln-scanner",
+        "name": "vulnerability management",
+        "description": "Scan coverage and finding lifecycle — never the open findings themselves",
+        "tags": [
+          "kestrel",
+          "scanning",
+          "security",
+          "vulnerability"
+        ],
+        "examples": [
+          "Ask Wes Arnold about vulnerability management."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "pentest-reports",
+        "name": "penetration testing",
+        "description": "Attestation of testing — never the report body",
+        "tags": [
+          "assurance",
+          "kestrel",
+          "pentest",
+          "security"
+        ],
+        "examples": [
+          "Ask Wes Arnold about penetration testing."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "vendor-questionnaires",
+        "name": "third-party security review",
+        "description": "Assess a vendor and issue findings",
+        "tags": [
+          "assessment",
+          "kestrel",
+          "security",
+          "vendor"
+        ],
+        "examples": [
+          "Ask Wes Arnold about third-party security review."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-risk-acceptance",
+      "type": "denies",
+      "action": "risk_acceptance",
+      "description": "Cannot approve risk acceptance — route to whoever holds it."
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    },
+    {
+      "id": "cannot-it-spend",
+      "type": "denies",
+      "action": "it_spend",
+      "description": "Cannot approve it spend — route to whoever holds it."
+    },
+    {
+      "id": "cannot-vendor-onboarding",
+      "type": "denies",
+      "action": "vendor_onboarding",
+      "description": "Cannot approve vendor onboarding — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

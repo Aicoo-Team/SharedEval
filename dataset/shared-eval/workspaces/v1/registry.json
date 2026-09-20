@@ -737,7 +737,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/alex_chen/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/alex_chen/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/alex_chen/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/alex_chen/POLICY.md"
       ],
       "status": "incomplete",
@@ -752,7 +752,7 @@
       "sha256": "3c6a8e95732ca4e384e5a6e8d4c3de0746c006464b8f4043d84952056c9c01dc",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/alex_chen/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/alex_chen/POLICY.md",
         "sourceSha256": "3c6a8e95732ca4e384e5a6e8d4c3de0746c006464b8f4043d84952056c9c01dc"
       }
     },
@@ -765,7 +765,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/carlos_reyes/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/carlos_reyes/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/carlos_reyes/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/carlos_reyes/POLICY.md"
       ],
       "status": "incomplete",
@@ -780,7 +780,7 @@
       "sha256": "26b12be24af72b7bbd219a5ab54ad2f637190a565e7f83e0b806e9e3638b39f5",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/carlos_reyes/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/carlos_reyes/POLICY.md",
         "sourceSha256": "26b12be24af72b7bbd219a5ab54ad2f637190a565e7f83e0b806e9e3638b39f5"
       }
     },
@@ -793,7 +793,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/dana_reeves/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/dana_reeves/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/dana_reeves/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/dana_reeves/POLICY.md"
       ],
       "status": "incomplete",
@@ -808,7 +808,7 @@
       "sha256": "a94e22580e36c35109a058e6f33895e078d50c38f38b89553017f38d598b8efd",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/dana_reeves/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/dana_reeves/POLICY.md",
         "sourceSha256": "a94e22580e36c35109a058e6f33895e078d50c38f38b89553017f38d598b8efd"
       }
     },
@@ -821,7 +821,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/david_chen/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/david_chen/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/david_chen/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/david_chen/POLICY.md"
       ],
       "status": "incomplete",
@@ -836,7 +836,7 @@
       "sha256": "c04737b1b64f1e3bcd7438603b5bd8816b3ce8b65f759f5ec914cbe2edc7ba6a",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/david_chen/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/david_chen/POLICY.md",
         "sourceSha256": "c04737b1b64f1e3bcd7438603b5bd8816b3ce8b65f759f5ec914cbe2edc7ba6a"
       }
     },
@@ -849,7 +849,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/derek_lam/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/derek_lam/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/derek_lam/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/derek_lam/POLICY.md"
       ],
       "status": "incomplete",
@@ -864,7 +864,7 @@
       "sha256": "43ca8a3102d0c2df495988ef447dc1cedab61b306a7c0193fbb60cf723b8b050",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/derek_lam/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/derek_lam/POLICY.md",
         "sourceSha256": "43ca8a3102d0c2df495988ef447dc1cedab61b306a7c0193fbb60cf723b8b050"
       }
     },
@@ -877,7 +877,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/dr_karen_walsh/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/dr_karen_walsh/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/dr_karen_walsh/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/dr_karen_walsh/POLICY.md"
       ],
       "status": "incomplete",
@@ -892,7 +892,7 @@
       "sha256": "5eabde848f08c02b9a609140e7353d48da5003b6a55fca8a7729f94ebf030cb0",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/dr_karen_walsh/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/dr_karen_walsh/POLICY.md",
         "sourceSha256": "5eabde848f08c02b9a609140e7353d48da5003b6a55fca8a7729f94ebf030cb0"
       }
     },
@@ -905,7 +905,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/elena_park/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/elena_park/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/elena_park/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/elena_park/POLICY.md"
       ],
       "status": "incomplete",
@@ -920,7 +920,7 @@
       "sha256": "755e3da260313844f2c5a62b230fbdf2ad2a48d34d578178c4226215393171a7",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/elena_park/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/elena_park/POLICY.md",
         "sourceSha256": "755e3da260313844f2c5a62b230fbdf2ad2a48d34d578178c4226215393171a7"
       }
     },
@@ -933,7 +933,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/jake_ellis/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/jake_ellis/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/jake_ellis/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/jake_ellis/POLICY.md"
       ],
       "status": "incomplete",
@@ -948,7 +948,7 @@
       "sha256": "600e0181118aee30602cb4194d25b8b7089780f5872f90e1265933b7160b5ca6",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/jake_ellis/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/jake_ellis/POLICY.md",
         "sourceSha256": "600e0181118aee30602cb4194d25b8b7089780f5872f90e1265933b7160b5ca6"
       }
     },
@@ -961,7 +961,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/jamie_lin/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/jamie_lin/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/jamie_lin/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/jamie_lin/POLICY.md"
       ],
       "status": "incomplete",
@@ -976,7 +976,7 @@
       "sha256": "7dbd42314a3d1164536ec61d15776dcb3ebb2f5d214fc2888329907ed31b06b5",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/jamie_lin/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/jamie_lin/POLICY.md",
         "sourceSha256": "7dbd42314a3d1164536ec61d15776dcb3ebb2f5d214fc2888329907ed31b06b5"
       }
     },
@@ -989,7 +989,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/jordan_park/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/jordan_park/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/jordan_park/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/jordan_park/POLICY.md"
       ],
       "status": "incomplete",
@@ -1004,7 +1004,7 @@
       "sha256": "0ef3c00d8334e12984633f086d99380ba66e97b6b70c62912cc2b2d9138d05c7",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/jordan_park/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/jordan_park/POLICY.md",
         "sourceSha256": "0ef3c00d8334e12984633f086d99380ba66e97b6b70c62912cc2b2d9138d05c7"
       }
     },
@@ -1017,7 +1017,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/linda_chen/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/linda_chen/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/linda_chen/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/linda_chen/POLICY.md"
       ],
       "status": "incomplete",
@@ -1032,7 +1032,7 @@
       "sha256": "c8c1813ad8708fe6e32f8f0f0c8887f062c1487ca7360fa4059ab0f24df74dd1",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/linda_chen/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/linda_chen/POLICY.md",
         "sourceSha256": "c8c1813ad8708fe6e32f8f0f0c8887f062c1487ca7360fa4059ab0f24df74dd1"
       }
     },
@@ -1045,7 +1045,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/lisa_nakamura/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/lisa_nakamura/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/lisa_nakamura/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/lisa_nakamura/POLICY.md"
       ],
       "status": "incomplete",
@@ -1060,7 +1060,7 @@
       "sha256": "66641318c6d70f9d750dc67871f5ed29f511a217b4cf49227aa5e54bb660a4a5",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/lisa_nakamura/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/lisa_nakamura/POLICY.md",
         "sourceSha256": "66641318c6d70f9d750dc67871f5ed29f511a217b4cf49227aa5e54bb660a4a5"
       }
     },
@@ -1073,7 +1073,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/marcus_webb/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/marcus_webb/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/marcus_webb/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/marcus_webb/POLICY.md"
       ],
       "status": "incomplete",
@@ -1088,7 +1088,7 @@
       "sha256": "f917ab70bd9c5a62066895a0e8e2858303eb1e9c8c352554ede1ddc13fbdcf20",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/marcus_webb/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/marcus_webb/POLICY.md",
         "sourceSha256": "f917ab70bd9c5a62066895a0e8e2858303eb1e9c8c352554ede1ddc13fbdcf20"
       }
     },
@@ -1101,7 +1101,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/maria_garcia/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/maria_garcia/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/maria_garcia/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/maria_garcia/POLICY.md"
       ],
       "status": "incomplete",
@@ -1116,7 +1116,7 @@
       "sha256": "f62717f86ad8b62a8e80ce61d666c6026908a2bf513cec4d57ce8973a829fdad",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/maria_garcia/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/maria_garcia/POLICY.md",
         "sourceSha256": "f62717f86ad8b62a8e80ce61d666c6026908a2bf513cec4d57ce8973a829fdad"
       }
     },
@@ -1129,7 +1129,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/mike_torres/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/mike_torres/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/mike_torres/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/mike_torres/POLICY.md"
       ],
       "status": "incomplete",
@@ -1144,7 +1144,7 @@
       "sha256": "757f8b4b38a812ea4c22813e805f6fa1351d25acf9f18a0ff52e4e2aa75bc84e",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/mike_torres/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/mike_torres/POLICY.md",
         "sourceSha256": "757f8b4b38a812ea4c22813e805f6fa1351d25acf9f18a0ff52e4e2aa75bc84e"
       }
     },
@@ -1157,7 +1157,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/nina_volkov/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/nina_volkov/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/nina_volkov/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/nina_volkov/POLICY.md"
       ],
       "status": "incomplete",
@@ -1172,7 +1172,7 @@
       "sha256": "be906fdc8360b73777a220378a6bdedb20989cc129414ea319d089c2ab293a08",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/nina_volkov/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/nina_volkov/POLICY.md",
         "sourceSha256": "be906fdc8360b73777a220378a6bdedb20989cc129414ea319d089c2ab293a08"
       }
     },
@@ -1185,7 +1185,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/omar_hassan/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/omar_hassan/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/omar_hassan/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/omar_hassan/POLICY.md"
       ],
       "status": "incomplete",
@@ -1200,7 +1200,7 @@
       "sha256": "ad58b44e22309a9af18d93e24216bd273de3419c246393f357fcc08334aa65ba",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/omar_hassan/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/omar_hassan/POLICY.md",
         "sourceSha256": "ad58b44e22309a9af18d93e24216bd273de3419c246393f357fcc08334aa65ba"
       }
     },
@@ -1213,7 +1213,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/priya_sharma/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/priya_sharma/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/priya_sharma/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/priya_sharma/POLICY.md"
       ],
       "status": "incomplete",
@@ -1228,7 +1228,7 @@
       "sha256": "a125f56ec5e63819def286fd11c1ea8ec69922a35b14526b31f1007e866c53d8",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/priya_sharma/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/priya_sharma/POLICY.md",
         "sourceSha256": "a125f56ec5e63819def286fd11c1ea8ec69922a35b14526b31f1007e866c53d8"
       }
     },
@@ -1241,7 +1241,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/rachel_kim/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/rachel_kim/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/rachel_kim/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/rachel_kim/POLICY.md"
       ],
       "status": "incomplete",
@@ -1256,7 +1256,7 @@
       "sha256": "74f1cbcb8dde4d72fbf2eccfe374a62d69c3b2d9180cf7b82f1f90cf72196c4e",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/rachel_kim/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/rachel_kim/POLICY.md",
         "sourceSha256": "74f1cbcb8dde4d72fbf2eccfe374a62d69c3b2d9180cf7b82f1f90cf72196c4e"
       }
     },
@@ -1269,7 +1269,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/ryan_park/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/ryan_park/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/ryan_park/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/ryan_park/POLICY.md"
       ],
       "status": "incomplete",
@@ -1284,7 +1284,7 @@
       "sha256": "02953ecb6fccc67bbceec181dc798f5e01435915b3aa387ee9c787a7adef7e02",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/ryan_park/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/ryan_park/POLICY.md",
         "sourceSha256": "02953ecb6fccc67bbceec181dc798f5e01435915b3aa387ee9c787a7adef7e02"
       }
     },
@@ -1297,7 +1297,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/sarah_martinez/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/sarah_martinez/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/sarah_martinez/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/sarah_martinez/POLICY.md"
       ],
       "status": "incomplete",
@@ -1312,7 +1312,7 @@
       "sha256": "ba51c182dc75f0f5a7e5146e48118ac846d23c963b9f257792b13a58874b1029",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/sarah_martinez/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/sarah_martinez/POLICY.md",
         "sourceSha256": "ba51c182dc75f0f5a7e5146e48118ac846d23c963b9f257792b13a58874b1029"
       }
     },
@@ -1325,7 +1325,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/sophie_chen/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/sophie_chen/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/sophie_chen/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/sophie_chen/POLICY.md"
       ],
       "status": "incomplete",
@@ -1340,7 +1340,7 @@
       "sha256": "9418175dc48387006a7d57cdcee9d4b9e1fc5f461a2bf30c2e3ce1a1f6908a4c",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/sophie_chen/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/sophie_chen/POLICY.md",
         "sourceSha256": "9418175dc48387006a7d57cdcee9d4b9e1fc5f461a2bf30c2e3ce1a1f6908a4c"
       }
     },
@@ -1353,7 +1353,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/tina_rodriguez/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/tina_rodriguez/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/tina_rodriguez/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/tina_rodriguez/POLICY.md"
       ],
       "status": "incomplete",
@@ -1368,7 +1368,7 @@
       "sha256": "120056b57717f99f8e0cee80272aea531d778b8b6fa7ba0f7bfaa0968a5e1cf6",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/tina_rodriguez/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/tina_rodriguez/POLICY.md",
         "sourceSha256": "120056b57717f99f8e0cee80272aea531d778b8b6fa7ba0f7bfaa0968a5e1cf6"
       }
     },
@@ -1381,7 +1381,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/tom_bradford/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/tom_bradford/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/tom_bradford/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/tom_bradford/POLICY.md"
       ],
       "status": "incomplete",
@@ -1396,7 +1396,7 @@
       "sha256": "478138242d41945edecb6a6a5e826a68c72ac639cbd15e156044c9e95e9e1f23",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/tom_bradford/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/tom_bradford/POLICY.md",
         "sourceSha256": "478138242d41945edecb6a6a5e826a68c72ac639cbd15e156044c9e95e9e1f23"
       }
     },
@@ -1409,7 +1409,7 @@
       ],
       "sourcePath": "policies/pact-net-profile/victor_tan/1.0.0/POLICY.md",
       "aliases": [
-        "pact:dataset/pact-net/agent_configs/victor_tan/POLICY.md",
+        "pact:dataset/pact-net/old/agent_configs/victor_tan/POLICY.md",
         "pulse:research/configs/pact_net/agent_configs/victor_tan/POLICY.md"
       ],
       "status": "incomplete",
@@ -1424,7 +1424,7 @@
       "sha256": "40b32e6b4ef531eb86441b363e9002343909aacf3c499e7ea845cb076dacfe1d",
       "provenance": {
         "kind": "exact",
-        "sourcePath": "dataset/pact-net/agent_configs/victor_tan/POLICY.md",
+        "sourcePath": "dataset/pact-net/old/agent_configs/victor_tan/POLICY.md",
         "sourceSha256": "40b32e6b4ef531eb86441b363e9002343909aacf3c499e7ea845cb076dacfe1d"
       }
     },

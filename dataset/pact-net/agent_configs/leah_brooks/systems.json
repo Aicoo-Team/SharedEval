@@ -1,0 +1,75 @@
+{
+  "agent": "leah_brooks",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "medication_safety_events",
+      "access": "admin"
+    },
+    {
+      "system": "formulary",
+      "access": "read"
+    },
+    {
+      "system": "ehr_medication_build",
+      "access": "read"
+    },
+    {
+      "system": "p_and_t_minutes",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "p_and_t_agenda",
+      "access": "coordinator",
+      "note": "Prepares evidence and records committee disposition; cannot unilaterally change formulary policy."
+    }
+  ],
+  "approves": [
+    {
+      "action": "medication_safety_validation",
+      "note": "Validates medication logic and safety evidence; final enterprise clinical governance and EHR release are separate."
+    }
+  ],
+  "cannot_approve": [
+    "ehr_release",
+    "phi_disclosure",
+    "security_exception",
+    "it_spend",
+    "enterprise_formulary_policy",
+    "system_wide_medication_substitution",
+    "pharmacy_inventory_release"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 07:30-16:00 ET",
+    "note": "Participates in the pharmacy clinical escalation rota; the named person is not continuously available."
+  },
+  "segregation_of_duties": [
+    {
+      "control": "medication_ehr_change",
+      "role": "clinical_validator",
+      "counterparties": [
+        "kenji_matsuda",
+        "naomi_adeyemi"
+      ],
+      "note": "Pharmacy validation is distinct from Informatics build and final clinical governance."
+    }
+  ]
+}

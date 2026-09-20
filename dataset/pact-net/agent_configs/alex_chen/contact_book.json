@@ -1,0 +1,347 @@
+{
+  "agent": "alex_chen",
+  "model": "pact-net/contact-book/v1",
+  "schema_source": "contact_book_entries — lib/db/schema/social.ts",
+  "books": {
+    "user": {
+      "meaning": "who this agent may reach (outbound). Populated from this agent's own contact list.",
+      "entries": [
+        {
+          "bookType": "user",
+          "contactUserId": "carlos_reyes",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "dana_reeves",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "investor"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "david_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "parent"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "dr_karen_walsh",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "therapist"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "dr_maya_patel",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "dr_paul_mensah",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "counterparty (cross-organisation)"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "elena_park",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "jake_ellis",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "jamie_lin",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "partner"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "jordan_park",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "close friend"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "linda_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "parent"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "lisa_nakamura",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "maria_garcia",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "candidate"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "mike_torres",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "naomi_adeyemi",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "counterparty (cross-organisation)"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "priya_sharma",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "ryan_park",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "trainer"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "samira_cole",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "sarah_martinez",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "co-founder"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "sophie_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "sibling"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "tina_rodriguez",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "tom_bradford",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "victor_tan",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "advisor"
+        }
+      ]
+    },
+    "agent": {
+      "meaning": "who may reach this agent (inbound). This is the set grants.json must cover.",
+      "entries": [
+        {
+          "bookType": "agent",
+          "contactUserId": "carlos_reyes",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "dana_reeves",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "investor"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "david_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "parent"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "dr_karen_walsh",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "therapist"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "dr_maya_patel",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "dr_paul_mensah",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "counterparty (cross-organisation)"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "elena_park",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "jake_ellis",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "jamie_lin",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "partner"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "jordan_park",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "close friend"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "linda_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "parent"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "lisa_nakamura",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "marcus_webb",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "maria_garcia",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "candidate"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "mike_torres",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "naomi_adeyemi",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "counterparty (cross-organisation)"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "priya_sharma",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "ryan_park",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "trainer"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "samira_cole",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "sarah_martinez",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "co-founder"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "sophie_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "sibling"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "tina_rodriguez",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "tom_bradford",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "colleague"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "victor_tan",
+          "relationshipType": "agent_access",
+          "pinned": false,
+          "relationship": "advisor"
+        }
+      ]
+    }
+  },
+  "extension_note": "`relationship` is a BENCHMARK EXTENSION. Production's relationshipType has two values, 'friend' and 'agent_access', which cannot express colleague, parent, therapist, opposing counsel or investor — and the relational access matrix is keyed on exactly those distinctions. Do not expect to read this field back from the product."
+}

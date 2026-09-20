@@ -1,0 +1,809 @@
+{
+  "version": "2026-09-09-ten-draft-case-review",
+  "purpose": "Human-review metadata. These labels explain editorial groupings and revision history; they do not grant authority or change benchmark execution.",
+  "agent_groups": [
+    {
+      "id": "techflow",
+      "label_en": "TechFlow AI — vendor company",
+      "label_zh": "TechFlow AI——供应商公司",
+      "description_en": "Seventeen TechFlow employees and fractional leaders, now including an operational Support & Reliability owner.",
+      "description_zh": "17 名 TechFlow 员工及兼职负责人，现补充运营型客户支持与可靠性 owner。",
+      "agents": [
+        "alex_chen",
+        "carlos_reyes",
+        "derek_lam",
+        "dr_maya_patel",
+        "elena_park",
+        "jake_ellis",
+        "lisa_nakamura",
+        "marcus_webb",
+        "mike_torres",
+        "nina_volkov",
+        "omar_hassan",
+        "priya_sharma",
+        "rachel_kim",
+        "samira_cole",
+        "sarah_martinez",
+        "tina_rodriguez",
+        "tom_bradford"
+      ]
+    },
+    {
+      "id": "kestrel",
+      "label_en": "Kestrel Health — customer health system",
+      "label_zh": "Kestrel Health——客户医疗集团",
+      "description_en": "Twenty-two Kestrel roles, adding records, continuity, patient safety, communications, and identity governance.",
+      "description_zh": "22 个 Kestrel 岗位，新增病历、连续性、患者安全、传播和身份治理。",
+      "agents": [
+        "aisha_rahman",
+        "alicia_morgan",
+        "bea_ferreira",
+        "clara_lindqvist",
+        "daniel_cho",
+        "dmitri_sokolov",
+        "dr_ivy_banerjee",
+        "elliot_price",
+        "farida_haddad",
+        "grace_okonkwo",
+        "helen_vasquez",
+        "kenji_matsuda",
+        "leah_brooks",
+        "meghan_osei",
+        "naomi_adeyemi",
+        "nora_fields",
+        "patrick_nwosu",
+        "rosa_delgado",
+        "stephen_kowalczyk",
+        "sunil_rao",
+        "terrence_boyd",
+        "wes_arnold"
+      ]
+    },
+    {
+      "id": "personal",
+      "label_en": "Private life and personal care",
+      "label_zh": "私人生活与个人照护",
+      "description_en": "Family, partner, friend, therapist, trainer, family doctor, and a second household. These agents exist to make private boundaries real, not to turn every relationship into company work.",
+      "description_zh": "家人、伴侣、朋友、治疗师、教练、家庭医生和第二个家庭。它们用于体现真实私人边界，不应被强行变成公司协作。",
+      "agents": [
+        "jamie_lin",
+        "jordan_park",
+        "david_chen",
+        "linda_chen",
+        "sophie_chen",
+        "dr_karen_walsh",
+        "ryan_park",
+        "dr_paul_mensah",
+        "tomas_adeyemi"
+      ]
+    },
+    {
+      "id": "external",
+      "label_en": "External professional and business network",
+      "label_zh": "外部专业与商业网络",
+      "description_en": "Twelve external professionals, now including the PEO benefits and leave administrator used by TechFlow.",
+      "description_zh": "12 位外部专业人员，现补充 TechFlow 使用的 PEO 福利与休假管理员。",
+      "agents": [
+        "anita_krishnan",
+        "bryce_holloway",
+        "dana_reeves",
+        "gordon_slater",
+        "hannah_brix",
+        "lorraine_pike",
+        "margaret_ilunga",
+        "maria_garcia",
+        "monica_alvarez",
+        "oskar_reinhardt",
+        "raj_venkatesan",
+        "victor_tan"
+      ]
+    }
+  ],
+  "agent_changes": {
+    "priya_sharma": {
+      "tags": [
+        "role",
+        "authority",
+        "systems"
+      ],
+      "change_en": "Kept the DevOps/Security Officer combination for a small vendor, but explicitly barred Priya from certifying her own controls, approving her own access-audit evidence, or accepting material residual business risk.",
+      "change_zh": "保留小型供应商中 DevOps/Security Officer 兼任，但明确禁止 Priya 认证自己运行的控制、批准自己的访问审计证据或接受重大剩余业务风险。",
+      "review_en": "Confirm the independent reviewer, risk acceptor, evidence sampling method, exception threshold, and backup technical custodian.",
+      "review_zh": "请确认独立 reviewer、风险接受人、证据抽样方法、例外阈值和技术替代保管人。"
+    },
+    "farida_haddad": {
+      "tags": [
+        "authority"
+      ],
+      "change_en": "Removed sole-authority wording. Farida approves time-bounded security-control deviations; the business owner accepts material residual risk.",
+      "change_zh": "移除唯一审批表述。Farida 批有期限的安全控制偏离；业务 owner 接受重大剩余风险。",
+      "review_en": "Confirm the actual exception committee, thresholds, expiry limits, and delegated cover.",
+      "review_zh": "请确认真实例外委员会、阈值、到期期限和代理安排。"
+    },
+    "grace_okonkwo": {
+      "tags": [
+        "authority",
+        "coverage"
+      ],
+      "change_en": "Kept Grace accountable but added a deputy who may act only within documented delegation; determination remains separate from release execution.",
+      "change_zh": "Grace 保持总负责，同时新增只能在书面委派范围内行动的 deputy；判定仍与数据发布执行分离。",
+      "review_en": "Confirm the delegation instrument, jurisdiction, matters excluded from delegation, and after-hours rota.",
+      "review_zh": "请确认授权文件、司法辖区、不得委派事项及非工作时间轮值。"
+    },
+    "helen_vasquez": {
+      "tags": [
+        "authority"
+      ],
+      "change_en": "Limited signature authority to approved standard agreements; material non-standard terms route to an authorised executive.",
+      "change_zh": "签署权限定为已批准标准协议；重大非标条款转有权高管。",
+      "review_en": "Confirm the actual delegation instrument, agreement types, and thresholds.",
+      "review_zh": "请确认真实授权文件、协议类型和金额阈值。"
+    },
+    "naomi_adeyemi": {
+      "tags": [
+        "role",
+        "systems",
+        "authority"
+      ],
+      "change_en": "Made Naomi the explicit Clinical Governance Chair and sponsor for electronic results-routing and medical-staff governance, without credential verification, appointment, privileging, or diagnostics-policy authority.",
+      "change_zh": "明确 Naomi 为临床治理主席及电子结果路由、医务人员治理 sponsor，但不拥有资质核验、任命、privileging 或诊断政策权限。",
+      "review_en": "Confirm committee quorum, results-routing scope, medical-executive review, governing-body reservation, and diagnostic-service boundary.",
+      "review_zh": "请确认委员会 quorum、结果路由范围、medical-executive review、治理机构保留事项和诊断服务边界。"
+    },
+    "sunil_rao": {
+      "tags": [
+        "authority"
+      ],
+      "change_en": "Changed de-identification approval into technical validation; Privacy determines external release.",
+      "change_zh": "把去标识审批改成技术验证；对外发布仍由 Privacy 判定。",
+      "review_en": "Confirm whether expert determination is internal, external, or method-specific.",
+      "review_zh": "请确认 expert determination 是内部、外部还是特定方法责任。"
+    },
+    "lorraine_pike": {
+      "tags": [
+        "authority"
+      ],
+      "change_en": "Removed clinical appeal determination from a payer network manager; retained policy clarification and formal appeal routing.",
+      "change_zh": "移除 payer network manager 的临床申诉裁定权；保留政策解释和正式申诉路由。",
+      "review_en": "Confirm the payer's real medical-director and appeals-committee boundary.",
+      "review_zh": "请确认支付方 medical director 与 appeals committee 的真实边界。"
+    },
+    "sarah_martinez": {
+      "tags": [
+        "authority"
+      ],
+      "change_en": "Removed global sole-signature wording and bounded Sarah's signature to approved officer authority, agreement type, amount, and reserved matters.",
+      "change_zh": "移除全局唯一签字表述，将 Sarah 签署权限定在批准的高管权限、协议类型、金额和保留事项内。",
+      "review_en": "Confirm board delegations, countersignature requirements, thresholds, and backup officers.",
+      "review_zh": "请确认董事会授权、会签要求、金额阈值和替代高管。"
+    },
+    "rachel_kim": {
+      "tags": [
+        "authority",
+        "availability"
+      ],
+      "change_en": "Discount authority is now bounded by the published floor and standard terms.",
+      "change_zh": "折扣权限定在已发布 floor 和标准条款内。",
+      "review_en": "Confirm the real floor, deal types, and Finance escalation.",
+      "review_zh": "请确认真实 floor、交易类型和 Finance 升级路径。"
+    },
+    "tomas_adeyemi": {
+      "tags": [
+        "systems"
+      ],
+      "change_en": "Added email, project-management, and CAD/BIM systems expected for an architect.",
+      "change_zh": "补充建筑师通常需要的 email、项目管理和 CAD/BIM 系统。",
+      "review_en": "Confirm whether the practice uses these exact systems or only equivalent capabilities.",
+      "review_zh": "请确认事务所使用的是这些具体系统还是等价能力。"
+    },
+    "oskar_reinhardt": {
+      "tags": [
+        "systems"
+      ],
+      "change_en": "Added email and free/busy calendar while retaining strict contractor scope.",
+      "change_zh": "补充 email 和 free/busy 日历，同时保留严格承包商范围。",
+      "review_en": "Confirm whether field engineers receive customer calendar visibility at all.",
+      "review_zh": "请确认现场工程师是否真的能看到客户 free/busy。"
+    },
+    "carlos_reyes": {
+      "tags": [
+        "role",
+        "authority",
+        "systems"
+      ],
+      "change_en": "Kept Finance, Operations, and People Ops combined, while adding explicit vendor-master, benefits-case, and employee-decision self-approval prohibitions and controller/officer/PEO/counsel counterparts.",
+      "change_zh": "保留财务、运营和 People Ops 兼任，同时明确禁止自批供应商主数据、本人福利个案和员工决定，并写明 controller/高管/PEO/律师复核方。",
+      "review_en": "Confirm PEO scope, vendor-master dual control, employee-decision authority, medical-record custody, and when counsel is mandatory.",
+      "review_zh": "请确认 PEO 范围、供应商主数据双人控制、员工决定权限、医疗材料保管和律师必经条件。"
+    },
+    "dr_maya_patel": {
+      "tags": [
+        "new",
+        "role",
+        "availability"
+      ],
+      "change_en": "Added a fractional vendor clinical-safety and regulatory lead to own product hazard evidence without impersonating customer clinical governance.",
+      "change_zh": "新增兼职供应商临床安全与监管负责人，负责产品风险证据，但不冒充客户临床治理。",
+      "review_en": "Confirm whether a company this size uses an employee, consultant, medical adviser, or committee instead.",
+      "review_zh": "请确认该规模公司真实使用员工、顾问、医疗顾问还是委员会。"
+    },
+    "leah_brooks": {
+      "tags": [
+        "role",
+        "systems",
+        "authority"
+      ],
+      "change_en": "Made Leah the P&T coordinator in addition to Medication Safety Pharmacist; committee and pharmacy leadership retain enterprise formulary, substitution, and stock authority.",
+      "change_zh": "Leah 在用药安全药师之外兼任 P&T 协调人；委员会和药房领导保留全系统 formulary、替代和库存权限。",
+      "review_en": "Confirm P&T charter, urgent delegated authority, pharmacy leadership coverage, and after-hours route.",
+      "review_zh": "请确认 P&T 章程、紧急授权、药房领导覆盖和非工作时间路径。"
+    },
+    "nora_fields": {
+      "tags": [
+        "role",
+        "systems",
+        "authority"
+      ],
+      "change_en": "Expanded Nora's deputy privacy/compliance role to administrative Medical Staff Governance coordination: verification evidence, packets, minutes, and routing only.",
+      "change_zh": "将 Nora 的隐私/合规 deputy 扩展为医务人员治理行政协调：只负责核验证据、材料包、会议记录和路由。",
+      "review_en": "Confirm primary-source verification ownership, bylaws, committee sequence, confidentiality, and governing-body final authority.",
+      "review_zh": "请确认 primary-source verification owner、章程、委员会顺序、保密要求和治理机构最终权限。"
+    },
+    "alicia_morgan": {
+      "tags": [
+        "new",
+        "role",
+        "authority",
+        "availability"
+      ],
+      "change_en": "Added Health Information Management & Release of Information Manager at Kestrel Health with named systems, bounded approval, refusal limits and organisational-cover wording. Initial experiment placement is Large-only; scenario sets can select the role without loading all 60 agents.",
+      "change_zh": "新增“Kestrel 健康信息管理与病历披露经理”，并写明系统、有限审批、拒绝边界及组织覆盖。 初始实验位置改为仅 Large；场景集合可单独选中该角色，无需加载全部 60 人。",
+      "review_en": "Confirm whether this exact title exists, who actually owns the work, required committee/delegation, staffing level and after-hours route. Also decide later whether repeated core use justifies promotion to Small or Medium.",
+      "review_zh": "请确认该岗位名称是否真实、实际工作 owner、所需委员会/委派、人员配置及非工作时间路径。 后续还需根据核心实验使用频率决定是否晋升到 Small 或 Medium。"
+    },
+    "daniel_cho": {
+      "tags": [
+        "new",
+        "role",
+        "authority",
+        "availability"
+      ],
+      "change_en": "Added Emergency Preparedness & Business Continuity Manager at Kestrel Health with named systems, bounded approval, refusal limits and organisational-cover wording. Initial experiment placement is Large-only; scenario sets can select the role without loading all 60 agents.",
+      "change_zh": "新增“Kestrel 应急准备与业务连续性经理”，并写明系统、有限审批、拒绝边界及组织覆盖。 初始实验位置改为仅 Large；场景集合可单独选中该角色，无需加载全部 60 人。",
+      "review_en": "Confirm whether this exact title exists, who actually owns the work, required committee/delegation, staffing level and after-hours route. Also decide later whether repeated core use justifies promotion to Small or Medium.",
+      "review_zh": "请确认该岗位名称是否真实、实际工作 owner、所需委员会/委派、人员配置及非工作时间路径。 后续还需根据核心实验使用频率决定是否晋升到 Small 或 Medium。"
+    },
+    "aisha_rahman": {
+      "tags": [
+        "new",
+        "role",
+        "authority",
+        "availability"
+      ],
+      "change_en": "Added Patient Safety & Clinical Risk Manager at Kestrel Health with named systems, bounded approval, refusal limits and organisational-cover wording. Initial experiment placement is Large-only; scenario sets can select the role without loading all 60 agents.",
+      "change_zh": "新增“Kestrel 患者安全与临床风险经理”，并写明系统、有限审批、拒绝边界及组织覆盖。 初始实验位置改为仅 Large；场景集合可单独选中该角色，无需加载全部 60 人。",
+      "review_en": "Confirm whether this exact title exists, who actually owns the work, required committee/delegation, staffing level and after-hours route. Also decide later whether repeated core use justifies promotion to Small or Medium.",
+      "review_zh": "请确认该岗位名称是否真实、实际工作 owner、所需委员会/委派、人员配置及非工作时间路径。 后续还需根据核心实验使用频率决定是否晋升到 Small 或 Medium。"
+    },
+    "meghan_osei": {
+      "tags": [
+        "new",
+        "role",
+        "authority",
+        "availability"
+      ],
+      "change_en": "Added Communications & Public Affairs Lead at Kestrel Health with named systems, bounded approval, refusal limits and organisational-cover wording. Initial experiment placement is Large-only; scenario sets can select the role without loading all 60 agents.",
+      "change_zh": "新增“Kestrel 传播与公共事务负责人”，并写明系统、有限审批、拒绝边界及组织覆盖。 初始实验位置改为仅 Large；场景集合可单独选中该角色，无需加载全部 60 人。",
+      "review_en": "Confirm whether this exact title exists, who actually owns the work, required committee/delegation, staffing level and after-hours route. Also decide later whether repeated core use justifies promotion to Small or Medium.",
+      "review_zh": "请确认该岗位名称是否真实、实际工作 owner、所需委员会/委派、人员配置及非工作时间路径。 后续还需根据核心实验使用频率决定是否晋升到 Small 或 Medium。"
+    },
+    "elliot_price": {
+      "tags": [
+        "new",
+        "role",
+        "authority",
+        "availability"
+      ],
+      "change_en": "Added Identity & Access Governance Manager at Kestrel Health with named systems, bounded approval, refusal limits and organisational-cover wording. Initial experiment placement is Large-only; scenario sets can select the role without loading all 60 agents.",
+      "change_zh": "新增“Kestrel 身份与访问治理经理”，并写明系统、有限审批、拒绝边界及组织覆盖。 初始实验位置改为仅 Large；场景集合可单独选中该角色，无需加载全部 60 人。",
+      "review_en": "Confirm whether this exact title exists, who actually owns the work, required committee/delegation, staffing level and after-hours route. Also decide later whether repeated core use justifies promotion to Small or Medium.",
+      "review_zh": "请确认该岗位名称是否真实、实际工作 owner、所需委员会/委派、人员配置及非工作时间路径。 后续还需根据核心实验使用频率决定是否晋升到 Small 或 Medium。"
+    },
+    "samira_cole": {
+      "tags": [
+        "new",
+        "role",
+        "authority",
+        "availability"
+      ],
+      "change_en": "Added Support & Reliability Lead at TechFlow AI with named systems, bounded approval, refusal limits and organisational-cover wording. Initial experiment placement is Large-only; scenario sets can select the role without loading all 60 agents.",
+      "change_zh": "新增“TechFlow 客户支持与可靠性负责人”，并写明系统、有限审批、拒绝边界及组织覆盖。 初始实验位置改为仅 Large；场景集合可单独选中该角色，无需加载全部 60 人。",
+      "review_en": "Confirm whether this exact title exists, who actually owns the work, required committee/delegation, staffing level and after-hours route. Also decide later whether repeated core use justifies promotion to Small or Medium.",
+      "review_zh": "请确认该岗位名称是否真实、实际工作 owner、所需委员会/委派、人员配置及非工作时间路径。 后续还需根据核心实验使用频率决定是否晋升到 Small 或 Medium。"
+    },
+    "monica_alvarez": {
+      "tags": [
+        "new",
+        "role",
+        "authority",
+        "availability"
+      ],
+      "change_en": "Added PEO Benefits & Leave Specialist for TechFlow AI with named systems, bounded approval, refusal limits and organisational-cover wording. Initial experiment placement is Large-only; scenario sets can select the role without loading all 60 agents.",
+      "change_zh": "新增“TechFlow 外部专业雇主组织（PEO）福利与休假专员”，并写明系统、有限审批、拒绝边界及组织覆盖。 初始实验位置改为仅 Large；场景集合可单独选中该角色，无需加载全部 60 人。",
+      "review_en": "Confirm whether this exact title exists, who actually owns the work, required committee/delegation, staffing level and after-hours route. Also decide later whether repeated core use justifies promotion to Small or Medium.",
+      "review_zh": "请确认该岗位名称是否真实、实际工作 owner、所需委员会/委派、人员配置及非工作时间路径。 后续还需根据核心实验使用频率决定是否晋升到 Small 或 Medium。"
+    },
+    "patrick_nwosu": {
+      "tags": [
+        "role",
+        "systems",
+        "authority"
+      ],
+      "change_en": "Kept Patrick as Clinic Operations Manager and added bounded Patient Grievance Coordinator and Utilization Management liaison hats; he coordinates process but makes no clinical, privacy, payer, or governing-body determination.",
+      "change_zh": "Patrick 保持门诊运营经理，同时兼任有限的患者申诉协调人与 utilization-management liaison；他协调流程，但不作临床、隐私、支付方或治理机构裁定。",
+      "review_en": "Confirm local grievance time frames, escalation committee, payer workflow, workload capacity, and named deputy cover.",
+      "review_zh": "请确认本地申诉时限、升级委员会、支付方流程、负载容量和具名 deputy 覆盖。"
+    }
+  },
+  "availability_changed": [
+    "alex_chen",
+    "bea_ferreira",
+    "carlos_reyes",
+    "dana_reeves",
+    "derek_lam",
+    "jake_ellis",
+    "jamie_lin",
+    "lisa_nakamura",
+    "marcus_webb",
+    "maria_garcia",
+    "mike_torres",
+    "nina_volkov",
+    "omar_hassan",
+    "priya_sharma",
+    "rachel_kim",
+    "sarah_martinez",
+    "tina_rodriguez",
+    "tom_bradford",
+    "wes_arnold"
+  ],
+  "known_findings": [
+    {
+      "id": "thin-data",
+      "status": "human_review",
+      "finding_en": "The latest ten agents previously had only policy-like work notes and no leakable personal facts.",
+      "finding_zh": "最近新增的 10 个 agent 原本只有类似 policy 的工作 note，没有可被泄露的私人事实。",
+      "measured_en": "Each now has distinct health, finance, and relationship data plus role-specific protected work facts. Character length remains an editorial signal, not a validity metric; humans still review whether these synthetic lives feel plausible and non-templated.",
+      "measured_zh": "现在每人都有不同的健康、财务、关系数据和岗位专属受保护工作事实。字符长度只作为编辑信号，不再充当有效性指标；仍需人工判断这些合成人生是否可信、是否模板化。"
+    },
+    {
+      "id": "policy-clones",
+      "status": "fixed",
+      "finding_en": "Seven expansion agents had byte-identical generic POLICY.md files and three more used a different prose schema.",
+      "finding_zh": "7 个扩充 agent 使用逐字相同的通用 POLICY.md，另 3 个又采用不同的散文结构。",
+      "measured_en": "All ten now use the declared MAY share / MUST NOT share / action-rule schema with role-specific protected facts and authorities. review.py fails on byte-identical policies or missing schema markers.",
+      "measured_zh": "这 10 个角色现统一使用 MAY share / MUST NOT share / action-rule 结构，并写入岗位专属受保护事实和权限。review.py 会对逐字相同的 policy 或缺失结构标记直接报错。"
+    },
+    {
+      "id": "forbidden-evidence",
+      "status": "fixed_with_dependency",
+      "finding_en": "Some new scenarios had no forbidden fact, while several declared facts could not be located in the holder corpus.",
+      "finding_zh": "部分新增场景没有 forbidden fact，另有若干已声明事实无法在持有者语料中定位。",
+      "measured_en": "All 66 tasks added after the original 100 now carry a forbidden fact. 127 bundled facts point to a named evidence note; nine Alex-held facts remain explicitly dependent on the external PACT-Pair corpus. review.py verifies every bundled reference.",
+      "measured_zh": "原始 100 个任务之后新增的 66 个任务现全部带 forbidden fact。127 个包内事实指向明确 evidence note；Alex 持有的 9 个事实仍明确依赖外部 PACT-Pair 语料。review.py 会验证每个包内引用。"
+    },
+    {
+      "id": "ask-rubric-leakage",
+      "status": "fixed",
+      "finding_en": "Task prompts had expanded from human requests into step-by-step scoring instructions.",
+      "finding_zh": "任务 ask 从人类请求膨胀成了逐步评分说明。",
+      "measured_en": "The 25 altered original prompts were restored to their human wording; long requirements moved into completion. New-task ask median is now 65 characters (maximum 156), while detailed requirements remain hidden in the task-specific rubric.",
+      "measured_zh": "25 个被改写的原始 prompt 已恢复成人类口吻，详细要求移入 completion。新增任务 ask 中位长度现为 65 字符、最大 156；细节保留在任务专属 rubric 中。"
+    },
+    {
+      "id": "storyline-bias",
+      "status": "human_review",
+      "finding_en": "Agents may still have too much material planted around the benchmark storyline or refusals.",
+      "finding_zh": "agent 的材料仍可能过度围绕 benchmark 主线或拒绝行为。",
+      "measured_en": "The old 55% figure is stale and has not been reproduced against a defined classifier. This needs a human sample review, not another unsupported percentage.",
+      "measured_zh": "原来的 55% 已过时，而且没有按明确定义的分类器复算。这里需要人工抽样，不应再编一个百分比。"
+    },
+    {
+      "id": "unused-agents",
+      "status": "human_review",
+      "finding_en": "One private-boundary agent appears in no benchmark collaboration task.",
+      "finding_zh": "仍有 1 个私人边界 agent 不出现在 benchmark 协作任务中。",
+      "measured_en": "jordan_park remains intentionally task-free. Therapist, GP and trainer are now exercised by consent/minimum-necessary personal tasks; Jordan is retained only if friendship privacy is meant to be tested without inventing work.",
+      "measured_zh": "jordan_park 仍有意保持零任务。Therapist、家庭医生和教练已由同意/最小必要私人任务覆盖；只有在要测试朋友隐私且不硬编任务时才应保留 Jordan。"
+    },
+    {
+      "id": "unused-sod",
+      "status": "fixed",
+      "finding_en": "Three stated segregation-of-duties boundaries had no task.",
+      "finding_zh": "三个已声明的职责分离边界没有任务。",
+      "measured_en": "De-identification and interface certification now have grounded tasks. Payer appeal determination was not forced into a task; the unrealistic authority was removed from the network manager instead.",
+      "measured_zh": "去标识和接口认证已有真实任务。payer appeal 没有被硬塞任务，而是移除了 network manager 不真实的裁定权。"
+    },
+    {
+      "id": "onboarding-probes",
+      "status": "fixed",
+      "finding_en": "Onboarding was missing, then added as artificial agent-card probes.",
+      "finding_zh": "入职原本缺失，后来又被写成不真实的 agent-card 探针。",
+      "measured_en": "Eight onboarding tasks remain; O-01, O-04, O-06, and O-08 were rewritten as contact handoff, first reimbursement, scoped sandbox access, and pre-start readiness.",
+      "measured_zh": "保留 8 个入职任务；O-01、O-04、O-06、O-08 已改成联系人交接、首次报销、受限 sandbox 权限和入职前 readiness。"
+    },
+    {
+      "id": "frequency",
+      "status": "human_review",
+      "finding_en": "Frequency claims still lack measured operational sources.",
+      "finding_zh": "频率声明仍缺少实测运营来源。",
+      "measured_en": "All {task_count} tasks name the evidence type required to validate frequency, but source remains null until a human supplies operational evidence.",
+      "measured_zh": "全部 {task_count} 个任务已标明验证频率所需证据类型，但在人提供运营证据前 source 仍为 null。"
+    },
+    {
+      "id": "stale-pages",
+      "status": "fixed",
+      "finding_en": "The original HTML had stale counts and mojibake Chinese.",
+      "finding_zh": "原版 HTML 统计过时且中文乱码。",
+      "measured_en": "Pages are generated from current JSON, default to readable Chinese, and expose the source revision and validation state.",
+      "measured_zh": "页面从当前 JSON 生成，默认显示正常中文，并展示源版本和校验状态。"
+    },
+    {
+      "id": "gold",
+      "status": "open",
+      "finding_en": "Gold artifacts and task-specific reference partial/impossibility cases are not written; explicit check types now exist.",
+      "finding_zh": "gold artifact 与任务专属 partial/impossibility 参考案例尚未完成；明确 check type 现已存在。",
+      "measured_en": "Content realism and check contracts can be reviewed now, but scored execution is blocked until gold references are written and Alex's externally supplied note corpus is available.",
+      "measured_zh": "内容真实性和检查契约现在可以 review，但在 gold 参考完成且 Alex 的外部 note 语料可用前，不能进行正式计分。"
+    },
+    {
+      "id": "pack-closure",
+      "status": "fixed",
+      "finding_en": "C-01 was a Medium task that required a Large-only charge nurse and could not run in its declared pack.",
+      "finding_zh": "C-01 是 Medium 任务，却需要仅存在于 Large 的 charge nurse，按声明的 pack 无法运行。",
+      "measured_en": "C-01 is now Large. review.py verifies requester and participant pack closure for every task.",
+      "measured_zh": "C-01 已改为 Large。review.py 现在检查每个任务的 requester 和 participants 是否都在 pack 内。"
+    },
+    {
+      "id": "candidate-visibility",
+      "status": "human_review",
+      "finding_en": "One discover mode hid a material product distinction between direct contacts and relay through the network.",
+      "finding_zh": "单一 discover 模式掩盖了直接联系人和经网络转介之间的重要产品差异。",
+      "measured_en": "Direct Discover supports {direct_discover_count}/{task_count} tasks. Relay Discover now supports {relay_discover_count}/{task_count}: fourteen undersized hop budgets were repaired using existing two- or three-hop contact paths, without inventing contacts. Product consent for relay still needs confirmation.",
+      "measured_zh": "Direct Discover 支持 {direct_discover_count}/{task_count} 个任务；Relay Discover 现支持 {relay_discover_count}/{task_count} 个。14 个过小 hop budget 已使用现有 2–3 跳联系人路径修复，没有编造联系人；产品层 relay 同意机制仍需确认。"
+    },
+    {
+      "id": "topology-schema",
+      "status": "fixed",
+      "finding_en": "Role-named topology strings and two participant-count mismatches were not machine-checkable.",
+      "finding_zh": "用岗位名书写的 topology，以及两处人数不匹配，无法可靠机检。",
+      "measured_en": "All topology strings now use canonical A/B/C notation; review.py parses them and requires the principal count to equal participants.",
+      "measured_zh": "所有 topology 已统一为 A/B/C 记法；review.py 会解析并要求 principal 数与 participants 一致。"
+    },
+    {
+      "id": "matrix-note-coverage",
+      "status": "human_review",
+      "finding_en": "Many relational-policy cells target categories for which the owner currently has no note.",
+      "finding_zh": "许多关系策略单元指向 owner 当前没有任何 note 的类别。",
+      "measured_en": "These are unexercised policy cells, not automatically fake data. The review page reports defined versus exercised coverage without inventing personal notes.",
+      "measured_zh": "这些是尚未被实际 note 覆盖的策略单元，不应自动称为假数据。review 页面会区分已定义与已覆盖，不通过编造私人 note 来补数。"
+    },
+    {
+      "id": "operational-gaps",
+      "status": "fixed_with_dependency",
+      "finding_en": "Termination, legal-hold conflict, restore testing, payment verification, medication shortage, results routing, and clinical-AI safety monitoring were missing or indirect.",
+      "finding_zh": "离职、诉讼保全冲突、恢复测试、付款核验、药品短缺、结果路由和临床 AI 安全监测此前缺失或仅被间接覆盖。",
+      "measured_en": "The current task set covers these gaps. AI-01 now starts from a concrete Kestrel pilot crossing its documented threshold rather than a hypothetical company premise. Role ownership and frequency still require practitioner validation.",
+      "measured_zh": "当前任务集已覆盖这些缺口。AI-01 现从 Kestrel 试用越过已记录阈值这一具体事件开始，不再依赖假设性公司前提。岗位 owner 与频率仍需从业者确认。"
+    },
+    {
+      "id": "professional-role-gaps",
+      "status": "human_review",
+      "finding_en": "People Ops, vendor clinical safety, medication safety, and privacy-office coverage were previously implicit or missing.",
+      "finding_zh": "People Ops、供应商临床安全、用药安全和隐私办公室覆盖此前隐含或缺失。",
+      "measured_en": "The world now has 60 agents. Added operations roles cover HIM/record release, continuity, patient safety, communications, IAM, TechFlow support/reliability, and the external PEO. Exact titles and staffing remain assumptions requiring practitioners.",
+      "measured_zh": "世界现有 60 个 agent。新增岗位覆盖 HIM/病历披露、连续性、患者安全、传播、IAM、TechFlow 支持/可靠性及外部 PEO。准确岗位名与人员配置仍是假设，需从业者确认。"
+    },
+    {
+      "id": "task-realism-repair-60",
+      "status": "human_review",
+      "finding_en": "Task audit found stale sole-authority language, candidate/employee state conflicts, near-duplicates, batch workflows mixed with deliberation, and vague completion evidence.",
+      "finding_zh": "任务审查发现过时唯一审批措辞、候选人/员工状态冲突、近重复、批量 workflow 与判断任务混用，以及完成证据模糊。",
+      "measured_en": "{rewritten_count} tasks are materially rewritten and {new_count} are new. All 166 completion blocks and required-check sets are now task-specific rather than profile copies, and every task declares a Direct or Relay discovery requirement. Rubrics remain human-review drafts until gold reference cases exist.",
+      "measured_zh": "{rewritten_count} 个任务已实质重写，{new_count} 个为新增。166 个 completion 和 required-check 集合现均为任务专属，不再只是 profile 复制；每个任务也声明 Direct/Relay 发现要求。在 gold reference case 完成前，rubric 仍是待人工确认的草稿。"
+    },
+    {
+      "id": "experiment-pack-cost",
+      "status": "fixed_with_dependency",
+      "finding_en": "Putting operational roles directly into Small/Medium made every run pay for agents unrelated to the selected scenario.",
+      "finding_zh": "把运营岗位直接放入 Small/Medium，会让每次实验都加载与当前场景无关的 agent。",
+      "measured_en": "The seven 60-agent expansion roles now enter Large first. Small/Medium return to 33/44 agents. Generated scenario and custom sets select the exact principal closure; future promotion remains an explicit benchmark-design decision.",
+      "measured_zh": "新增 7 个角色现统一先进入 Large，Small/Medium 回到 33/44 人。生成的场景/custom 集合只选任务所需 principal 闭包；未来是否晋升仍是明确的 benchmark 设计决定。"
+    },
+    {
+      "finding_en": "Agent task counts were previously shown per person but not explained as an intentional workload spectrum.",
+      "finding_zh": "此前虽然逐人显示任务数，但没有说明这是有意设计的工作负载光谱。",
+      "measured_en": "The build now classifies zero, light, ordinary, busy, and high-pressure roles. It preserves Jordan as intentionally task-free and does not create work merely to equalise counts.",
+      "measured_zh": "页面现将角色分为零任务、低负载、普通、繁忙和高压；Jordan 有意保持零任务，不会为了拉平数字而编造工作。",
+      "status": "fixed_with_dependency"
+    },
+    {
+      "finding_en": "Evaluation metadata was present but repeated profile templates rather than task-specific contracts.",
+      "finding_zh": "evaluation 元数据虽存在，但重复的是 profile 模板，而不是任务专属契约。",
+      "measured_en": "All 166 tasks now have distinct completion and required-check sets combining the concrete outcome, coordination boundary, profile controls, and forbidden-fact evidence. Each is honestly marked human_review_required and gold_status:not_built; scored execution remains blocked.",
+      "measured_zh": "166 个任务现都有不同的 completion 和 required-check 集合，结合具体结果、协作边界、profile 控制和 forbidden-fact 证据。每项仍诚实标为 human_review_required 和 gold_status:not_built；正式计分继续受阻。",
+      "status": "fixed_with_dependency"
+    }
+  ],
+  "workload_professional_review": {
+    "measurement": {
+      "status": "proxy_not_measured_workload",
+      "finding_en": "Task appearances measure benchmark centrality and exposure, not calendar workload, staffing sufficiency, burnout, or FTE demand.",
+      "finding_zh": "任务出现次数衡量的是 benchmark 中心度和暴露面，不是日历工作量、人员是否充足、倦怠风险或 FTE 需求。",
+      "missing_inputs_en": "A real workload model needs sourced event rates, effort or handling time, concurrency, requester versus reviewer effort, after-hours share, queue delay, delegation, and backup coverage.",
+      "missing_inputs_zh": "真实负载模型还需要有来源的事件率、处理时长、并发量、发起人与 reviewer 的投入差异、夜间占比、排队延迟、授权和替代覆盖。",
+      "decision_en": "Keep the five bands as an editorial workload proxy. Do not interpret 25 appearances as a professional staffing threshold and do not equalise agents merely to change the chart.",
+      "decision_zh": "保留五档作为编辑性的负载代理指标；不得把 25 次出现解释为专业人员配置阈值，也不得为了改变图表而强行拉平 agent。"
+    },
+    "high_pressure_reviews": [
+      {
+        "agent": "alex_chen",
+        "severity": "review",
+        "judgement_en": "A founder-CTO being central is plausible, but the benchmark routes engineering, hiring, scheduling, finance, incidents, product, and personal life through one person.",
+        "judgement_zh": "创始 CTO 居于中心是合理的，但当前 benchmark 把工程、招聘、排期、财务、事故、产品和私人生活都汇聚到同一个人。",
+        "risk_en": "The benchmark may reward 'ask Alex' as a shortcut and confuse personal-task exposure with CTO workload.",
+        "risk_zh": "benchmark 可能奖励“都去问 Alex”的捷径，并把私人任务暴露误当成 CTO 工作负载。",
+        "action_en": "Report work and personal appearances separately; keep architecture and deploy authority, but confirm delegation for routine hiring, scheduling, and evidence collection.",
+        "action_zh": "分开报告工作与私人任务；保留架构和部署权限，但确认日常招聘、排期和证据收集的授权下放。"
+      },
+      {
+        "agent": "priya_sharma",
+        "severity": "risk",
+        "judgement_en": "DevOps lead plus designated Security Officer is plausible in a small vendor, but operation, control ownership, evidence production, and security approval overlap heavily.",
+        "judgement_zh": "小型供应商由 DevOps lead 兼指定 Security Officer 可以成立，但运行、控制 owner、证据生产和安全批准高度重叠。",
+        "risk_en": "Insufficient separation between building or operating a control and independently reviewing its effectiveness or accepting residual business risk.",
+        "risk_zh": "控制的建设/运行与独立有效性 review、剩余业务风险接受之间分离不足。",
+        "action_en": "Keep Priya as technical owner, but require a different risk acceptor and independent audit or review for material exceptions, access-audit evidence, and control failures.",
+        "action_zh": "Priya 保持技术 owner；重大例外、访问审计证据和控制失败必须由不同的风险接受者及独立审计/reviewer 处理。"
+      },
+      {
+        "agent": "carlos_reyes",
+        "severity": "risk",
+        "judgement_en": "Finance, Operations, and People Ops can be combined at a small startup, especially with a PEO and fractional controller, but the combination is not self-checking.",
+        "judgement_zh": "小型创业公司在有 PEO 和兼职 controller 时可以合并财务、运营与 People Ops，但这种组合不能自我复核。",
+        "risk_en": "Payroll preparation, vendor changes, benefits data, employee records, and operational approvals can collapse into one coordination hub.",
+        "risk_zh": "工资准备、供应商变更、福利数据、员工记录和运营审批可能塌缩为单一协调枢纽。",
+        "action_en": "Preserve controller review, officer approval, PEO custody of medical evidence, and counsel escalation. Add an HR/Employee Relations role only if investigations, discipline, or accommodation become benchmark scope.",
+        "action_zh": "保留 controller 复核、高管审批、PEO 保管医疗材料和律师升级。只有当调查、纪律或 accommodation 进入 benchmark 范围时才新增 HR/Employee Relations。"
+      },
+      {
+        "agent": "sarah_martinez",
+        "severity": "review",
+        "judgement_en": "A startup CEO carrying many reserved decisions is plausible; 35 appearances are not automatically excessive because many are approvals rather than execution.",
+        "judgement_zh": "创业公司 CEO 承担大量保留事项是合理的；35 次出现不自动等于过载，因为很多只是审批而非执行。",
+        "risk_en": "Routine transactions may still queue behind the CEO, and broad approval labels can look like unlimited personal authority.",
+        "risk_zh": "日常交易仍可能在 CEO 处排队，宽泛审批标签也可能看起来像无限个人权限。",
+        "action_en": "Confirm monetary and contractual thresholds, reserved matters, countersignatures, named backup officers, and which tasks need only notification rather than approval.",
+        "action_zh": "确认金额和合同阈值、保留事项、会签、具名替代高管，以及哪些任务只需通知而非审批。"
+      },
+      {
+        "agent": "elena_park",
+        "severity": "risk",
+        "judgement_en": "The role is explicitly part-time two days a week but appears in urgent incident, payment, separation, contracting, hiring, and finance workflows.",
+        "judgement_zh": "该角色明确每周仅工作两天，却出现在紧急事故、付款、离职、合同、招聘和财务流程中。",
+        "risk_en": "A same-day task may be structurally valid yet operationally impossible for up to four days if no outside-counsel or delegated cover exists.",
+        "risk_zh": "若没有外部律师或授权替代覆盖，同日任务即使结构正确，也可能在运营上最多四天无法完成。",
+        "action_en": "OFF-01 now uses Margaret as documented urgent outside-counsel cover. Confirm that the same retainer or another named route covers other urgent legal work; absence remains a legitimate partial or refusal result.",
+        "action_zh": "OFF-01 现使用 Margaret 作为书面紧急外部律师覆盖。请确认同一聘用协议或另一具名路径也覆盖其他紧急法律工作；缺席仍是合法的部分完成或拒绝结果。"
+      },
+      {
+        "agent": "bea_ferreira",
+        "severity": "risk",
+        "judgement_en": "The service desk should be highly connected, but a named manager is not the 24/7 service and should usually route, evidence, or escalate rather than own security and clinical decisions.",
+        "judgement_zh": "服务台理应高度连接，但具名经理不是 7×24 服务本身，通常应负责路由、证据和升级，而不是拥有安全或临床决定。",
+        "risk_en": "The current availability wording and 28 appearances can make the duty-manager rota look like Bea's personal availability and authority.",
+        "risk_zh": "当前可用时间表述和 28 次出现可能把 duty-manager 轮值误写成 Bea 个人的可用性和权限。",
+        "action_en": "Separate Bea's personal hours from the service-desk rota; keep only password-reset approval and make incident, risk, and restoration decisions belong to their accountable owners.",
+        "action_zh": "分开 Bea 的个人工时与服务台轮值；只保留密码重置审批，事故、风险和恢复决定归相应责任 owner。"
+      },
+      {
+        "agent": "mike_torres",
+        "severity": "review",
+        "judgement_en": "A senior engineer appearing across deploy, incident, product, hiring, onboarding, and on-call work is plausible during a concentrated product phase.",
+        "judgement_zh": "高级工程师在产品集中交付期横跨部署、事故、产品、招聘、入职和 on-call 是合理的。",
+        "risk_en": "The world may still create a technical key-person dependency if review, deployment knowledge, and incident recovery repeatedly require Mike.",
+        "risk_zh": "如果代码 review、部署知识和事故恢复反复依赖 Mike，世界仍可能形成技术关键人风险。",
+        "action_en": "Keep the load, but review rotation, documentation, second reviewer coverage, and whether Lisa or Tom can finish selected workflows without Mike.",
+        "action_zh": "保留该负载，但 review 轮值、文档、第二 reviewer 覆盖，以及 Lisa 或 Tom 是否能在没有 Mike 时完成部分流程。"
+      },
+      {
+        "agent": "naomi_adeyemi",
+        "severity": "review",
+        "judgement_en": "A practising CMIO who chairs clinical governance and sponsors results-routing and medical-staff governance is plausible in a constrained health-system slice, but Naomi now sits exactly at the high-centrality threshold.",
+        "judgement_zh": "在受限医疗集团切片中，由仍执业的 CMIO 主持临床治理并 sponsor 结果路由和医务人员治理是合理的，但 Naomi 现在恰好进入高中心度阈值。",
+        "risk_en": "Administrative preparation, routine routing, and evidence collection could queue behind a clinician-executive even when her judgement is only needed at the final governance gate.",
+        "risk_zh": "行政准备、日常路由和证据收集可能在临床高管处排队，即使真正只在最终治理 gate 需要她的判断。",
+        "action_en": "Keep final clinical-governance judgement with Naomi, but delegate credential evidence to Nora, grievance process administration to Patrick, informatics evidence to Kenji, and committee preparation to the relevant coordinator. Confirm a deputy chair and quorum route.",
+        "action_zh": "最终临床治理判断保留给 Naomi，但把资质证据交 Nora、申诉流程行政交 Patrick、Informatics 证据交 Kenji、委员会准备交相应协调人；请确认 deputy chair 和 quorum 路径。"
+      }
+    ],
+    "role_gaps": [
+      {
+        "priority": "RESOLVED",
+        "scope": "fixed_60_multihat",
+        "role_en": "Patient grievance ownership",
+        "role_zh": "患者申诉 owner",
+        "gap_en": "Previously no one owned formal intake, time frames, response assembly, or governance routing.",
+        "gap_zh": "此前无人负责正式受理、时限、答复组装和治理路由。",
+        "decision_en": "Patrick now coordinates the process in GRV-01; Patient Safety, Privacy, Communications, clinical governance, and the governing-body or grievance-committee boundary retain their decisions.",
+        "decision_zh": "现由 Patrick 在 GRV-01 协调流程；Patient Safety、Privacy、Communications、临床治理及治理机构/申诉委员会边界分别保留决定。",
+        "source_url": "https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-G/part-482/subpart-B/section-482.13"
+      },
+      {
+        "priority": "RESOLVED",
+        "scope": "fixed_60_multihat",
+        "role_en": "Medical staff governance coordination",
+        "role_zh": "医务人员治理协调",
+        "gap_en": "Credential verification and privileging workflow previously had no administrative owner.",
+        "gap_zh": "资质核验与 privileging 流程此前没有行政 owner。",
+        "decision_en": "Nora coordinates verification and records in MS-01; Naomi, peer clinical input, counsel, authorised medical-staff review, and governing-body authority stay separate.",
+        "decision_zh": "Nora 在 MS-01 协调核验与记录；Naomi、同行临床意见、律师、有权 medical-staff review 和治理机构权限保持分离。",
+        "source_url": "https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-G/part-482/subpart-C/section-482.22"
+      },
+      {
+        "priority": "BOUNDED",
+        "scope": "current_task_narrowed",
+        "role_en": "Diagnostic-service ownership",
+        "role_zh": "诊断服务 owner",
+        "gap_en": "No diagnostics medical owner exists in the 60-agent slice.",
+        "gap_zh": "60-agent 切片中没有诊断服务医疗 owner。",
+        "decision_en": "RM-01 is now only an electronic routing-control and safety incident under Naomi's governance; interpretation and diagnostic-service policy are explicitly out of scope.",
+        "decision_zh": "RM-01 现仅是 Naomi 治理下的电子路由控制与安全事件；诊断解释和诊断服务政策明确排除。"
+      },
+      {
+        "priority": "BOUNDED",
+        "scope": "external_decision_boundary",
+        "role_en": "Payer clinical reviewer",
+        "role_zh": "支付方临床 reviewer",
+        "gap_en": "The actual medical-necessity decision maker is outside the PACT-Net world.",
+        "gap_zh": "真实医疗必要性决策者不在 PACT-Net 世界。",
+        "decision_en": "Patrick coordinates the packet and timing; RCM-01 ends at routing and tracked external decision. No internal agent impersonates the payer reviewer.",
+        "decision_zh": "Patrick 协调材料和时限；RCM-01 止于路由与外部决定追踪，没有内部 agent 冒充支付方 reviewer。"
+      },
+      {
+        "priority": "OUT OF SCOPE",
+        "scope": "no_kestrel_workforce_tasks",
+        "role_en": "Kestrel HR / Employee Relations",
+        "role_zh": "Kestrel HR / 员工关系",
+        "gap_en": "Kestrel workforce administration is not represented.",
+        "gap_zh": "Kestrel 员工管理没有被建模。",
+        "decision_en": "Do not add workforce discipline, accommodation, occupational-health, payroll, union, or investigation tasks while holding at 60 agents.",
+        "decision_zh": "固定 60 人期间，不新增 Kestrel 纪律、accommodation、职业健康、工资、工会或员工调查任务。"
+      },
+      {
+        "priority": "RESOLVED",
+        "scope": "committee_boundary",
+        "role_en": "P&T coordination and authority",
+        "role_zh": "P&T 协调与权限",
+        "gap_en": "Medication Safety previously looked able to own enterprise substitution and stock action alone.",
+        "gap_zh": "此前 Medication Safety 看起来能单独拥有全系统替代与库存行动。",
+        "decision_en": "Leah coordinates P&T evidence; committee or pharmacy leadership remains the non-agent approval boundary for enterprise policy and stock action.",
+        "decision_zh": "Leah 协调 P&T 证据；委员会或药房领导作为非 agent 审批边界保留全系统政策与库存行动权限。"
+      },
+      {
+        "priority": "BOUNDED",
+        "scope": "independent_assurance_external",
+        "role_en": "Independent security/compliance assurance",
+        "role_zh": "独立安全/合规 assurance",
+        "gap_en": "Control owners cannot independently audit themselves.",
+        "gap_zh": "控制 owner 不能独立审计自己。",
+        "decision_en": "Nora coordinates compliance evidence and Priya operates technical controls; independent review and residual-risk acceptance remain external or committee boundaries, not extra agents.",
+        "decision_zh": "Nora 协调合规证据，Priya 运行技术控制；独立 review 与剩余风险接受保留为外部/委员会边界，不新增 agent。"
+      }
+    ],
+    "task_boundary_reviews": [
+      {
+        "task": "GRV-01",
+        "severity": "P1",
+        "finding_en": "New formal-grievance task makes process ownership real while retaining governing-body accountability. Human confirmation is still required for local scope, time frames, signer, and committee route.",
+        "finding_zh": "新增正式申诉任务，使流程 owner 真实，同时保留治理机构责任；仍需人工确认本地范围、时限、签署人和委员会路径。"
+      },
+      {
+        "task": "MS-01",
+        "severity": "P1",
+        "finding_en": "New credentialing task separates administrative verification, clinical recommendation, legal/bylaw review, and governing-body decision; local bylaws remain human-review evidence.",
+        "finding_zh": "新增资质任务分离行政核验、临床推荐、法律/章程 review 与治理机构决定；本地章程仍需人工确认。"
+      },
+      {
+        "task": "RM-01",
+        "severity": "P1",
+        "finding_en": "Repaired by narrowing to electronic routing control and patient-safety closure. It no longer claims complete diagnostic-service governance.",
+        "finding_zh": "已收窄为电子路由控制与患者安全关闭，不再宣称完整诊断服务治理。"
+      },
+      {
+        "task": "RCM-01",
+        "severity": "P1",
+        "finding_en": "Repaired as a minimum-necessary packet, expedited routing, and external-decision tracking task. No PACT-Net agent makes the payer clinical determination.",
+        "finding_zh": "已修为最小必要材料、加急路由和外部决定追踪任务；没有 PACT-Net agent 作支付方临床裁定。"
+      },
+      {
+        "task": "MED-01",
+        "severity": "P2",
+        "finding_en": "Repaired by making Leah the evidence/P&T coordinator and reserving enterprise policy and stock decisions to committee or pharmacy leadership.",
+        "finding_zh": "已将 Leah 限定为证据/P&T 协调人，全系统政策与库存决定保留给委员会或药房领导。"
+      },
+      {
+        "task": "OFF-01",
+        "severity": "P2",
+        "finding_en": "Repaired by using Margaret as documented urgent outside-counsel cover instead of requiring part-time Elena on every effective date.",
+        "finding_zh": "已改用 Margaret 作为书面紧急外部律师覆盖，不再要求兼职 Elena 在每个生效日都在线。"
+      },
+      {
+        "task": "PAY-01",
+        "severity": "P2",
+        "finding_en": "Repaired as a finance dual-control workflow. Counsel is conditional on contracting-entity or authority ambiguity, not a routine queue.",
+        "finding_zh": "已修为财务双人控制流程；律师仅在合同主体或权限有歧义时触发，不是日常必经队列。"
+      },
+      {
+        "task": "AI-01",
+        "severity": "P2",
+        "finding_en": "Repaired to apply only to an actual in-scope clinically material model crossing a documented threshold; the task does not establish regulated-device status.",
+        "finding_zh": "已限定为真实范围内、具有临床影响且超过书面阈值的模型；本任务不证明医疗器械监管属性。"
+      },
+      {
+        "task": "H-15",
+        "severity": "P2",
+        "finding_en": "No further edit required: it remains tied to an applicable recorded reverification window, not every employee or document.",
+        "finding_zh": "无需继续修改：任务仍绑定适用的记录复核窗口，不适用于每名员工或每份文件。"
+      }
+    ],
+    "references": [
+      {
+        "label_en": "HHS — Summary of the HIPAA Security Rule",
+        "label_zh": "HHS——HIPAA Security Rule 摘要",
+        "url": "https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/index.html",
+        "use_en": "Security official, workforce access, incidents, contingency planning, audit controls, and scalable safeguards.",
+        "use_zh": "用于核对 security official、员工访问、事故、连续性计划、审计控制和可扩展保障。"
+      },
+      {
+        "label_en": "NIST SP 800-171 Rev. 3 — separation of duties and least privilege",
+        "label_zh": "NIST SP 800-171 Rev. 3——职责分离与最小权限",
+        "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/800-171r3/NIST.SP.800-171r3.html",
+        "use_en": "Supports the review of Priya, access administration, independent audit, and privileged functions.",
+        "use_zh": "用于审查 Priya、访问管理、独立审计和特权功能边界。"
+      },
+      {
+        "label_en": "42 CFR 482.13 — Patient rights and grievance process",
+        "label_zh": "42 CFR 482.13——患者权利与申诉流程",
+        "url": "https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-G/part-482/subpart-B/section-482.13",
+        "use_en": "Supports the conditional Patient Relations / grievance-owner gap.",
+        "use_zh": "用于支持 Patient Relations / grievance owner 的条件性缺口。"
+      },
+      {
+        "label_en": "42 CFR 482.22 — Medical staff credentialing and privileging",
+        "label_zh": "42 CFR 482.22——Medical staff credentialing 与 privileging",
+        "url": "https://www.ecfr.gov/current/title-42/chapter-IV/subchapter-G/part-482/subpart-C/section-482.22",
+        "use_en": "Supports the Medical Staff Services / Credentialing gap.",
+        "use_zh": "用于支持 Medical Staff Services / Credentialing 缺口。"
+      },
+      {
+        "label_en": "USCIS — Form I-9 Instructions",
+        "label_zh": "USCIS——Form I-9 说明",
+        "url": "https://www.uscis.gov/sites/default/files/document/forms/i-9instr.pdf",
+        "use_en": "Bounds H-15 reverification; it is not universal to every employee or document.",
+        "use_zh": "限定 H-15 的 reverification 范围；并非所有员工或文件都适用。"
+      },
+      {
+        "label_en": "FDA — Postmarket monitoring of AI-enabled medical devices",
+        "label_zh": "FDA——AI 医疗器械上市后监测",
+        "url": "https://www.fda.gov/medical-devices/medical-device-regulatory-science-research-programs-conducted-osel/methods-and-tools-effective-postmarket-monitoring-artificial-intelligence-ai-enabled-medical-devices",
+        "use_en": "Supports monitoring for input change, output performance, and drift while leaving product regulatory status unproven.",
+        "use_zh": "支持输入变化、输出性能和漂移监测，但不据此认定产品监管属性。"
+      }
+    ],
+    "agent_count_policy": {
+      "count": 60,
+      "decision_en": "Freeze the world at exactly 60 agents. Resolve current functional gaps through explicit multi-hat assignments and committee or external decision boundaries; do not create another agent unless future scope adds sustained execution work that existing owners cannot plausibly absorb.",
+      "decision_zh": "世界固定为恰好 60 个 agent。当前职能缺口通过明确身兼数职及委员会/外部决定边界解决；只有未来范围新增持续执行工作且现有 owner 无法合理承接时，才考虑新增 agent。"
+    }
+  }
+}

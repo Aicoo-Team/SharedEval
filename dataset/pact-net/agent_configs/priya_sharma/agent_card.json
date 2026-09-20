@@ -1,0 +1,270 @@
+{
+  "principalId": "priya_sharma",
+  "handle": "priya_sharma",
+  "displayName": "Priya Sharma",
+  "teamRole": "techflow_ai",
+  "role": "DevOps Lead and Designated Security Officer at TechFlow AI",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT",
+    "note": "Plus a rotating infrastructure on-call duty."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "techflow_ai"
+  },
+  "agentCard": {
+    "name": "Priya Sharma's agent",
+    "description": "Manages infrastructure, secrets management, and SOC2 compliance with 5 years of experience. Responsible for deployment pipelines and system reliability.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "infra",
+        "name": "infrastructure",
+        "description": "Deployment topology, environments, and capacity",
+        "tags": [
+          "devops",
+          "infrastructure",
+          "platform",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Priya Sharma about infrastructure."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "secrets-vault",
+        "name": "secrets custody",
+        "description": "Confirm a control exists — never the material behind it",
+        "tags": [
+          "custody",
+          "secrets",
+          "security",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Priya Sharma about secrets custody."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "logs",
+        "name": "log search",
+        "description": "Find what happened in the logs at a point in time",
+        "tags": [
+          "debugging",
+          "logs",
+          "observability",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Priya Sharma about log search."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "metrics",
+        "name": "metrics and monitoring",
+        "description": "Service health, latency, and error rates",
+        "tags": [
+          "metrics",
+          "monitoring",
+          "observability",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Priya Sharma about metrics and monitoring."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "prod",
+        "name": "production environment",
+        "description": "Query production state and behaviour",
+        "tags": [
+          "production",
+          "runtime",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Priya Sharma about production environment."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "security-control-register",
+        "name": "security control register",
+        "description": "Technical control ownership, evidence and review status",
+        "tags": [
+          "controls",
+          "governance",
+          "security",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Priya Sharma about security control register."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "incident-response-plan",
+        "name": "incident response plan",
+        "description": "Technical response roles, escalation paths and current procedure",
+        "tags": [
+          "incident",
+          "response",
+          "security",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Priya Sharma about incident response plan."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-infrastructure-change",
+      "type": "grants",
+      "action": "infrastructure_change",
+      "sole": false,
+      "description": "Can approve: infrastructure change"
+    },
+    {
+      "id": "approves-secret-rotation",
+      "type": "grants",
+      "action": "secret_rotation",
+      "sole": false,
+      "description": "Can approve: secret rotation. May coordinate and approve a rotation under dual control; no individual is sole custodian."
+    },
+    {
+      "id": "approves-technical-security-control",
+      "type": "grants",
+      "action": "technical_security_control",
+      "sole": false,
+      "description": "Can approve: technical security control. Designated Security Officer approval for TechFlow technical controls; business owners accept residual business risk."
+    },
+    {
+      "id": "cannot-production-deploy",
+      "type": "denies",
+      "action": "production_deploy",
+      "description": "Cannot approve production deploy — route to whoever holds it."
+    },
+    {
+      "id": "cannot-contract-signature",
+      "type": "denies",
+      "action": "contract_signature",
+      "description": "Cannot approve contract signature — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-own-control-effectiveness-attestation",
+      "type": "denies",
+      "action": "own_control_effectiveness_attestation",
+      "description": "Cannot approve own control effectiveness attestation — route to whoever holds it."
+    },
+    {
+      "id": "cannot-own-access-audit-approval",
+      "type": "denies",
+      "action": "own_access_audit_approval",
+      "description": "Cannot approve own access audit approval — route to whoever holds it."
+    },
+    {
+      "id": "cannot-residual-business-risk-acceptance",
+      "type": "denies",
+      "action": "residual_business_risk_acceptance",
+      "description": "Cannot approve residual business risk acceptance — route to whoever holds it."
+    },
+    {
+      "id": "unescalatable-secrets-vault-contents",
+      "type": "unescalatable",
+      "action": "secrets_vault_contents",
+      "description": "UNESCALATABLE: Vault contents do not leave, at any grant, to anyone — including Kestrel Security during assessment. Evidence about controls, never the material itself."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

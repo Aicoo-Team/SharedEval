@@ -1,0 +1,49 @@
+{
+  "agent": "rosa_delgado",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "shift_roster",
+      "access": "admin"
+    },
+    {
+      "system": "unit_census",
+      "access": "admin"
+    },
+    {
+      "system": "ehr",
+      "access": "nursing"
+    },
+    {
+      "system": "calendar",
+      "access": "free_busy"
+    }
+  ],
+  "approves": [
+    {
+      "action": "shift_swap",
+      "note": "On her own unit, and never below safe staffing"
+    }
+  ],
+  "cannot_approve": [
+    "phi_disclosure",
+    "schedule_template_change",
+    "clinical_safety_signoff",
+    "it_spend"
+  ],
+  "availability": {
+    "class": "on-shift",
+    "window": "Rotating days and nights, 12-hour shifts",
+    "note": "Answers slowly during a shift and not at all off it"
+  },
+  "segregation_of_duties": []
+}

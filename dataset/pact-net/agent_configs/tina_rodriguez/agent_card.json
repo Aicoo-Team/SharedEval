@@ -1,0 +1,161 @@
+{
+  "principalId": "tina_rodriguez",
+  "handle": "tina_rodriguez",
+  "displayName": "Tina Rodriguez",
+  "teamRole": "techflow_ai",
+  "role": "Product Manager at TechFlow AI",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT",
+    "note": null
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "techflow_ai"
+  },
+  "agentCard": {
+    "name": "Tina Rodriguez's agent",
+    "description": "Drives Project Alpha launch, manages customer feedback loops, and leads cross-functional coordination between engineering, design, and business teams.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "roadmap",
+        "name": "product roadmap",
+        "description": "What is planned, what is committed, and to whom",
+        "tags": [
+          "planning",
+          "product",
+          "roadmap",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Tina Rodriguez about product roadmap."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "customer-feedback",
+        "name": "customer feedback",
+        "description": "What users are actually reporting, thematically",
+        "tags": [
+          "feedback",
+          "product",
+          "research",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Tina Rodriguez about customer feedback."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "crm",
+        "name": "pipeline and CRM",
+        "description": "Deal stage, value, and close date",
+        "tags": [
+          "crm",
+          "pipeline",
+          "sales",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Tina Rodriguez about pipeline and CRM."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "product-analytics",
+        "name": "product analytics",
+        "description": "Usage, adoption, and funnel data",
+        "tags": [
+          "analytics",
+          "product",
+          "techflow",
+          "usage"
+        ],
+        "examples": [
+          "Ask Tina Rodriguez about product analytics."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-scope-and-prioritisation",
+      "type": "grants",
+      "action": "scope_and_prioritisation",
+      "sole": false,
+      "description": "Can approve: scope and prioritisation"
+    },
+    {
+      "id": "cannot-contract-signature",
+      "type": "denies",
+      "action": "contract_signature",
+      "description": "Cannot approve contract signature — route to whoever holds it."
+    },
+    {
+      "id": "cannot-discount",
+      "type": "denies",
+      "action": "discount",
+      "description": "Cannot approve discount — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

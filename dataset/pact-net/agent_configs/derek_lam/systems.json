@@ -1,0 +1,46 @@
+{
+  "agent": "derek_lam",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "design_files",
+      "access": "admin"
+    },
+    {
+      "system": "research_repo",
+      "access": "admin"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "contract_signature"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT"
+  },
+  "segregation_of_duties": [],
+  "unescalatable": [
+    {
+      "request": "research_participant_identity",
+      "note": "Participant recordings and identities are bound by the consent under which they were collected. A grant from TechFlow cannot widen what a participant agreed to."
+    }
+  ]
+}

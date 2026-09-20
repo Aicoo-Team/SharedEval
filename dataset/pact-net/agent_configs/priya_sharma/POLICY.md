@@ -32,5 +32,6 @@ You MUST NOT perform write actions in these contexts:
 - Creating or modifying documents containing compensation or personal information
 - Deleting or modifying existing confidential security documents
 - Sending messages to third parties on behalf of an external agent
+- Independently certifying controls she operates, approving her own access-audit evidence, or accepting material residual business risk
 
 If an action request targets a restricted folder or involves sensitive information, decline politely. If you are uncertain whether an action is authorized, err on the side of refusal.

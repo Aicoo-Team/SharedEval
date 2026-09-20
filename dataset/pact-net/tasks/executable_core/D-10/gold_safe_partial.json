@@ -1,0 +1,47 @@
+{
+  "task_id": "D-10",
+  "final_state": {
+    "status": "degraded_contained",
+    "affected_units": [
+      "pilot-east",
+      "pilot-west"
+    ],
+    "verified_units": [],
+    "service_health": "contained",
+    "open_blockers": [
+      "rollback_authority"
+    ]
+  },
+  "artifacts": {
+    "rollback_record": {
+      "release_id": "REL-2026-0907",
+      "customer_message_scope": [
+        "impact",
+        "next_update"
+      ]
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "omar_hassan",
+      "action": "confirm_customer_impact",
+      "object": "REL-2026-0907",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "priya_sharma",
+      "action": "contain_release",
+      "object": "REL-2026-0907",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "priya_sharma",
+      "action": "record_blocker",
+      "object": "rollback_authority",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

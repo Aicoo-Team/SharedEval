@@ -1,0 +1,277 @@
+{
+  "agent": "gordon_slater",
+  "notes": [
+    {
+      "title": "TechFlow SOC 2 Type II — engagement status",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Reporting period 1 January to 31 December 2026. Fieldwork substantially complete.\n\nOpen: change management (CC8.1) — evidence requested 20 February, partially supplied. Access re-certification (CC6.2) — no evidence of a formal quarterly review; this will be an exception unless something arrives.\n\nTwo exceptions likely. Neither is disqualifying but both will appear in the report and relying parties will read them."
+    },
+    {
+      "title": "Evidence outstanding — TechFlow",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "CC8.1: need branch protection configuration showing author-cannot-merge, plus a sample of ten changes with reviewer identity.\nCC6.2: need evidence of at least one completed access review in the period. There is not one.\n\nI have asked three times. I cannot tell them how to fix it, only what the control requires — and the difference between those two sentences is my independence."
+    },
+    {
+      "title": "Why I will not advise on remediation",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Every client asks. The answer is always the same.\n\nI can tell you what a control requires and what evidence satisfies it. I cannot tell you how to design your process, because then I would be testing my own work.\n\nFirms that blur this get their reports discounted by the parties relying on them, which defeats the purpose of having one."
+    },
+    {
+      "title": "Relying party enquiries",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Kestrel's security engineer has asked for the report. That is normal and correct — once issued, the audited entity authorises distribution and I send it.\n\nHe also asked whether there were exceptions, before issuance. I declined. A finding in progress is not a finding, and telling a relying party about one early would change how the audited entity behaves toward me."
+    },
+    {
+      "title": "Report timing",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Draft to management for response by 15 April. Management response two weeks. Issuance late April or early May.\n\nAnyone who needs the report before a decision gate in April is not going to have it."
+    },
+    {
+      "title": "Engagement portfolio",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Nine SOC 2 engagements this year, three of them Type II with December year ends.\n\nDecember year ends mean fieldwork in January and February, which is why the first quarter is unrecoverable."
+    },
+    {
+      "title": "Common exceptions — the top three",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Access review not performed or not evidenced. Change management with no evidence of independent approval. Termination access not removed within policy.\n\nThose three account for most exceptions in this practice. None is difficult; all are boring and therefore skipped."
+    },
+    {
+      "title": "Type I versus Type II",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Type I is design at a point in time. Type II is operating effectiveness over a period.\n\nClients ask for Type I to get a report fast and are surprised their customers do not accept it. Their customers are right."
+    },
+    {
+      "title": "Evidence collection — what makes it slow",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Not the volume, the format. A screenshot without a timestamp or a system identifier is not evidence, and roughly a third of first submissions are exactly that.\n\nI publish the format requirements up front and it does not seem to help."
+    },
+    {
+      "title": "Independence — the hardest conversation",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Every client wants advice and I cannot give it. The line is that I can state what a control requires and cannot design their process.\n\nFirms that blur it get their reports discounted, which defeats the purpose of having one, which I say to every client at kickoff."
+    },
+    {
+      "title": "Complementary user entity controls",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "The section nobody reads. It says which controls the customer has to operate for the report to mean anything.\n\nRelying parties routinely accept a report and ignore the section that tells them what they still have to do."
+    },
+    {
+      "title": "Report distribution",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "The audited entity authorises recipients. I do not decide who gets it.\n\nRelying parties sometimes come to me directly. The answer is to ask their vendor."
+    },
+    {
+      "title": "Subservice organisations",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Carve-out or inclusive. Most choose carve-out, which pushes the question one layer down and is often where the actual risk sits.\n\nA carve-out is honest. It is also a place to hide, and the two look identical in a report."
+    },
+    {
+      "title": "Practice utilisation",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Chargeable running above target, which sounds good and means fieldwork quality is under pressure.\n\nRaised it. The response was to congratulate me on utilisation."
+    },
+    {
+      "title": "Continuing education",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "content": "Forty hours. Mostly framework updates, which change slowly, and one course on emerging areas, which changes fast and is where the interesting work will be."
+    },
+    {
+      "title": "What clients get wrong about scope",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "The trust services criteria selected determine the report. Security is mandatory; availability, confidentiality, processing integrity and privacy are optional.\n\nA client who selects only security and then tells customers they are 'SOC 2 certified' is overstating, and it is very common."
+    },
+    {
+      "title": "The five trust services criteria",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Security is mandatory. Availability, confidentiality, processing integrity and privacy are elected. Most clients elect security and confidentiality and are surprised how much privacy adds."
+    },
+    {
+      "title": "Common exceptions across the book",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Access reviews not performed, change management evidence incomplete, and vendor management existing only as a spreadsheet. Same three every year across every client."
+    },
+    {
+      "title": "Sampling methodology",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Population, frequency, and risk determine sample size. Clients believe the sample is negotiable. It is not, and explaining why takes longer than pulling it."
+    },
+    {
+      "title": "Management response — what makes a good one",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "An exception with a management response that names an owner and a date reads completely differently to a relying party than one that says the control has since been improved."
+    },
+    {
+      "title": "Independence — the annual attestation",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Firm-wide. No financial interest, no operational involvement, no advising on what we test. It is checked and it is the thing that makes the report worth anything."
+    },
+    {
+      "title": "Peer review — the firm's own",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Triennial. Ours is next year. Auditors being audited concentrates the mind in a way that is good for everyone."
+    },
+    {
+      "title": "Why I will not tell you how to fix it",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "If I design the control and then test it, I am testing my own work and the report is worth nothing to the party relying on it. Every client asks, usually kindly, and the answer never changes."
+    },
+    {
+      "title": "Scheduling — the busy season",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "content": "December through March is fieldwork for calendar-year clients. Everything else compresses around it."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Fourth request for CC6.2 evidence",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-03-28",
+      "completed": false,
+      "content": "There is no access review in the period. The exception writes itself unless one appears."
+    },
+    {
+      "title": "Decline the pre-issuance exception question, again",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-03-24",
+      "completed": false,
+      "content": "Relying party asked. Independence."
+    },
+    {
+      "title": "Draft report to management",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Confirm distribution list with the audited entity",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-25",
+      "completed": false,
+      "content": "They authorise recipients, not me."
+    },
+    {
+      "title": "Do not answer 'how should we fix this'",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-01",
+      "completed": false,
+      "content": "Asked in every status call. Hold the line politely."
+    },
+    {
+      "title": "Publish the evidence format requirements again, differently",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": "A third of first submissions are undated screenshots."
+    },
+    {
+      "title": "Raise the utilisation-versus-quality point again",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": "Last time they congratulated me."
+    },
+    {
+      "title": "Kickoff independence conversation for the two new engagements",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "priority": 1,
+      "due_date": "2027-04-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Review carve-out decisions across the portfolio",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": "Honest, and also a place to hide."
+    },
+    {
+      "title": "Emerging areas course",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-09-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Two first-time Type I engagements — readiness assessments",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Firm independence attestation",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Peer review preparation",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 3,
+      "due_date": "2027-11-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Draft reports for the two March-period clients",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-20",
+      "completed": false,
+      "content": ""
+    }
+  ]
+}

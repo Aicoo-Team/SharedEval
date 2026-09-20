@@ -1,0 +1,421 @@
+{
+  "agent": "priya_sharma",
+  "notes": [
+    {
+      "title": "Infrastructure Architecture Overview",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow AI — Infrastructure Architecture\n\nCloud Provider: AWS (us-west-2, Oregon)\n\nCompute:\n- Application: ECS Fargate (serverless containers)\n  - Web service: 2 tasks (auto-scaling 2-6 based on CPU)\n  - Worker service: 1 task (background jobs)\n  - WebSocket service: 2 tasks (real-time collaboration)\n- Container registry: ECR (private)\n- Docker images: Node.js 20 Alpine base\n\nData Layer:\n- Primary DB: RDS PostgreSQL 14 (db.r6g.xlarge)\n  - Multi-AZ deployment\n  - 2 read replicas (db.r6g.large)\n  - Storage: 120GB gp3, auto-scaling to 500GB\n  - PgBouncer for connection pooling\n- Cache: ElastiCache Redis (cache.t4g.medium)\n  - Used for: Session store, caching, Bull job queues\n- Search: OpenSearch Service (2x t3.medium.search)\n  - Tom's search feature (Elasticsearch-compatible)\n\nNetworking:\n- VPC: 10.0.0.0/16\n  - Public subnets: ALB, NAT Gateways\n  - Private subnets: ECS tasks, RDS, ElastiCache, OpenSearch\n- ALB: Application Load Balancer (HTTPS termination)\n- CloudFront: CDN for static assets\n- Route 53: DNS management\n\nSecurity:\n- WAF: Rate limiting, geo-blocking, SQL injection protection\n- Security Groups: Strict inbound rules per service\n- Secrets: AWS Secrets Manager (DB passwords, API keys)\n- Encryption: At rest (AES-256) + in transit (TLS 1.3)\n- IAM: Least privilege, role-based access\n\nMonitoring:\n- CloudWatch: Metrics, logs, alarms\n- Datadog: APM, dashboards, alerting\n- PagerDuty: On-call escalation (Priya primary, Alex secondary)\n\nCost: ~$8,500/month (trending from $6K in Nov — see cost optimization note)"
+    },
+    {
+      "title": "Kubernetes Migration Plan (Future)",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Kubernetes Migration — Evaluation & Future Plan\n\nCurrent State: ECS Fargate (serverless containers)\nProposed Future: EKS (Kubernetes) — NOT NOW, evaluation for future\n\nWhy Consider K8s:\n- ECS is good for our current scale (3-6 containers)\n- At 15+ services, ECS service mesh becomes complex\n- K8s provides: Better service discovery, advanced scheduling, ecosystem tools\n- Team hiring: More engineers know K8s than ECS\n\nWhy NOT Now:\n- Current scale doesn't justify complexity\n- Team is too small (I'm the only infra person)\n- ECS Fargate is serving us well\n- K8s overhead: etcd, control plane, node management\n- Cost: EKS control plane ($72/month) + node overhead\n\nTrigger Points for Migration:\n- >10 services running\n- >3 DevOps/SRE team members\n- Need for advanced deployment patterns (canary, blue-green)\n- Multi-region deployment requirements\n\nEstimated Timeline: Q4 2026 or Q1 2027 (post-Series B, with larger team)\n\nPrep Work (Can Do Now):\n- Containerize everything cleanly (already done)\n- Use Docker Compose for local dev (already done)\n- Keep infrastructure as code (Terraform — already done)\n- Standardize health checks and graceful shutdown (in progress)\n\nDecision: Defer K8s migration. Revisit when we hit trigger points. ECS Fargate is the right choice for our current stage."
+    },
+    {
+      "title": "CI/CD Pipeline Documentation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow — CI/CD Pipeline Documentation\n\nPlatform: GitHub Actions\n\nPipeline Stages:\n\n1. PR Checks (runs on every PR):\n- Lint (ESLint + Prettier): ~30s\n- Type check (tsc --noEmit): ~45s\n- Unit tests (Vitest): ~2 min\n- Integration tests (database required): ~3 min\n- Build check (next build): ~1 min\n- Lighthouse CI (score check): ~2 min\n- Security scan (Snyk): ~1 min\n- Total PR pipeline: ~6 min\n\n2. Merge to Main:\n- All PR checks re-run\n- E2E tests (Playwright): ~5 min\n- Docker image build + push to ECR: ~3 min\n- Deploy to staging: ~2 min\n- Smoke tests against staging: ~1 min\n- Total: ~12 min\n\n3. Production Deploy (manual trigger by Alex or Mike):\n- Pull latest staging image\n- Run database migrations (if any)\n- Blue-green deployment via ECS\n- Health check: New tasks healthy before old tasks drain\n- Smoke tests against production\n- Notify #deployments Slack channel\n- Total: ~5 min\n\nRollback:\n- One-click rollback to previous task definition\n- Database rollback: Manual (reversible migrations required)\n- Time to rollback: <2 min\n\nSecrets Management:\n- GitHub Secrets: AWS credentials, Slack webhook\n- Runtime secrets: AWS Secrets Manager (not baked into image)\n\nMaintenance:\n- GitHub Actions runners: GitHub-hosted (no self-hosted yet)\n- Docker cache: Layer caching via GitHub Actions cache\n- Dependency updates: Dependabot weekly PRs (auto-merge for patch)\n\nOwner: Priya Sharma\nEscalation: Alex Chen"
+    },
+    {
+      "title": "Monitoring Dashboard Setup",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow — Monitoring & Observability Setup\n\nTools:\n- Datadog: Primary monitoring platform (APM, metrics, logs, dashboards)\n- CloudWatch: AWS-native metrics (backup)\n- PagerDuty: Alerting and on-call management\n- Sentry: Error tracking (frontend + backend)\n\nDashboards (Datadog):\n\n1. Infrastructure Overview\n- ECS task CPU/memory utilization\n- RDS metrics (connections, CPU, storage, replication lag)\n- Redis metrics (memory, connections, hit rate)\n- OpenSearch cluster health\n- ALB request count, latency, error rate\n\n2. Application Performance\n- Request latency (P50, P95, P99) by endpoint\n- Error rate by endpoint and status code\n- Throughput (requests/minute)\n- Database query performance (slow queries >500ms)\n- WebSocket connection count and message rate\n\n3. Business Metrics\n- Active users (real-time)\n- Document creates/updates per minute\n- Search queries per minute (Tom's feature)\n- API response times by client version\n\n4. Search Feature (New — for Tom's launch)\n- Elasticsearch query latency\n- Indexing pipeline queue depth\n- Dead-letter queue count\n- Search result relevance proxy (click-through rate)\n\nAlerts Configured:\n- P1 (PagerDuty): Service down, DB connection failure, 5xx > 5%\n- P2 (Slack #eng-alerts): CPU > 80%, memory > 85%, replication lag > 100ms, DLQ > 0\n- P3 (Slack #eng-alerts): Slow queries, high cache miss rate, certificate expiry <30 days\n\nOn-Call Rotation:\n- Primary: Priya Sharma\n- Secondary: Alex Chen\n- Escalation: If no ack in 5 min, page secondary\n- Schedule: 24/7, 1-week rotations"
+    },
+    {
+      "title": "Auto-Scaling Configuration",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow — Auto-Scaling Plan\n\nCurrent Configuration:\n\nECS Web Service:\n- Min tasks: 2\n- Max tasks: 6\n- Scale up: CPU > 70% for 3 min (add 1 task)\n- Scale down: CPU < 30% for 10 min (remove 1 task)\n- Cooldown: 5 min between scaling actions\n\nECS WebSocket Service:\n- Min tasks: 2\n- Max tasks: 4\n- Scale up: Connection count > 500 per task\n- Scale down: Connection count < 100 per task\n- Note: WebSocket connections are sticky (can't drain mid-session)\n\nECS Worker Service:\n- Min tasks: 1\n- Max tasks: 3\n- Scale up: Queue depth > 100 jobs pending\n- Scale down: Queue depth = 0 for 15 min\n\nRDS Read Replicas:\n- Not auto-scaling (manual for now)\n- Plan: Add 3rd replica if read traffic doubles\n\nElastiCache Redis:\n- Not auto-scaling (single node sufficient)\n- Monitor: Memory usage (currently 30% of 6.4GB)\n\nCost Impact of Scaling:\n- Minimum (low traffic): 2 web + 2 ws + 1 worker = ~$350/month\n- Maximum (peak): 6 web + 4 ws + 3 worker = ~$1,050/month\n- Typical: 3 web + 2 ws + 1 worker = ~$500/month\n\nLoad Testing Results (k6, February 2026):\n- 100 concurrent users: 3 web tasks sufficient\n- 500 concurrent users: 5 web tasks needed\n- 1000 concurrent users: 6 tasks (max) — borderline, need to increase max\n\nAction Item: Increase max web tasks from 6 to 10 before any marketing push or Product Hunt launch."
+    },
+    {
+      "title": "Secrets Management Policy",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow — Secrets Management Policy\n\nPrinciples:\n1. Never store secrets in code or environment files committed to Git\n2. Never log secrets (mask in logging library)\n3. Rotate secrets quarterly (or immediately if compromised)\n4. Least privilege: Each service gets only the secrets it needs\n\nStorage:\n- AWS Secrets Manager: Production secrets\n  - Database credentials\n  - API keys (OpenAI, Anthropic, SendGrid, Stripe)\n  - OAuth client secrets (NextAuth)\n  - Elasticsearch credentials\n- GitHub Secrets: CI/CD pipeline secrets\n  - AWS access keys (deploy role)\n  - Slack webhook URL\n  - Snyk token\n\nAccess Control:\n- Production secrets: Only the ECS task role can read them at runtime\n- Developers: No direct access to production secrets\n- Admin access: Priya + Alex only (for emergency rotation)\n- Principle: Nobody should need to know the actual secret value\n\nRotation Schedule:\n- Database passwords: Every 90 days (automated via Secrets Manager rotation)\n- API keys: Every 90 days (manual — set calendar reminder)\n- OAuth secrets: Annually (or on incident)\n- TLS certificates: Auto-renewed via ACM (no manual rotation)\n\nIncident Response:\n- If a secret is suspected compromised:\n  1. Rotate immediately (don't wait for confirmation)\n  2. Deploy new secret to all services\n  3. Audit access logs for unauthorized use\n  4. Notify team in #security channel\n  5. Post-incident: How was it exposed? Prevent recurrence.\n\nLocal Development:\n- Use .env.local (gitignored)\n- Developers use their own test API keys (not production)\n- Database: Local Docker container (no connection to production)\n- Template: .env.example with placeholder values"
+    },
+    {
+      "title": "Disaster Recovery Plan",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow — Disaster Recovery Plan\n\nRTO (Recovery Time Objective): 4 hours\nRPO (Recovery Point Objective): 1 hour (max data loss)\n\nBackup Strategy:\n- RDS PostgreSQL:\n  - Automated snapshots: Every 6 hours\n  - Point-in-time recovery: Enabled (5-min granularity)\n  - Cross-region backup: Daily snapshot copied to us-east-1\n  - Retention: 30 days\n\n- Redis (ElastiCache):\n  - Daily snapshots (but Redis is ephemeral — can rebuild from DB)\n  - Persistence: RDB snapshots every 15 min\n\n- Elasticsearch (OpenSearch):\n  - Automated snapshots: Daily at 2 AM UTC\n  - Recovery: Restore from snapshot + reindex delta from DB\n  - Full reindex time: ~10 min for current corpus\n\n- Application Code:\n  - Git (GitHub) is source of truth\n  - Docker images stored in ECR (latest 10 versions retained)\n\nDisaster Scenarios:\n\n1. Single AZ failure:\n- Impact: One ECS task, one DB replica may go offline\n- Recovery: Automatic. Multi-AZ deployment handles failover.\n- RTO: <5 min (automatic)\n\n2. Full region failure (us-west-2 down):\n- Impact: Everything offline\n- Recovery: Deploy to us-east-1 from cross-region backup\n- RTO: ~2-4 hours (manual process)\n- Steps: Restore DB from cross-region snapshot, deploy ECS tasks, update DNS\n\n3. Data corruption (bad migration, bug):\n- Impact: Data loss or corruption in primary DB\n- Recovery: Point-in-time recovery to before the corruption event\n- RTO: ~30 min (restore to new instance, swap connection)\n- RPO: Up to 5 min of data loss\n\n4. Security breach:\n- Impact: Unauthorized access to data\n- Recovery: Isolate, rotate all credentials, assess damage\n- Plan: Follow incident response playbook (see separate doc)\n\nTesting:\n- DR drill: Quarterly (last drill: January 15, 2026)\n- Last drill result: Restored DB in 22 min, full service in 1 hour 45 min ✓"
+    },
+    {
+      "title": "Cost Optimization Analysis",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "AWS Cost Optimization — February 2026 Analysis\n\nCurrent Monthly Cost: $8,500\nTarget: $7,000 (requested by Sarah/Carlos for board reporting)\n\nBreakdown:\n- ECS Fargate: $1,200 (compute for all services)\n- RDS PostgreSQL: $2,800 (primary + 2 replicas)\n- ElastiCache Redis: $350\n- OpenSearch: $200 (Tom's search cluster)\n- ALB + CloudFront: $400\n- Data transfer: $350\n- Secrets Manager + KMS: $50\n- S3 (user uploads, backups): $300\n- NAT Gateway: $250 (expensive for what it is)\n- Miscellaneous (Route 53, CloudWatch, etc.): $200\n- Datadog: $2,400 (APM for all services)\n\nOptimization Opportunities:\n\n1. Reserved Instances for RDS: -$600/month\n   - Convert primary to 1-year reserved (37% discount)\n   - Risk: Locked in for 1 year. Worth it — DB isn't changing.\n\n2. Right-size read replicas: -$200/month\n   - Currently db.r6g.large (overkill for read traffic)\n   - Downgrade to db.r6g.medium (still plenty of capacity)\n\n3. NAT Gateway consolidation: -$100/month\n   - Currently 2 NAT Gateways (one per AZ)\n   - Can use 1 for non-critical traffic, keep 2 for HA\n   - Risk: Single point of failure for outbound traffic in one AZ\n\n4. Datadog tier optimization: -$400/month\n   - We're paying for Enterprise features we don't use\n   - Downgrade 2 hosts from APM Pro to APM Standard\n   - Keep APM Pro for production web service only\n\n5. S3 lifecycle policies: -$50/month\n   - Move old backups to Glacier after 30 days\n   - Delete staging backups after 7 days\n\nTotal Potential Savings: $1,350/month\nNew Monthly Cost: ~$7,150 (close to target!)\n\nAction Plan:\n- March: Implement S3 lifecycle + Datadog downgrade (easy, low risk)\n- April: Purchase RDS reserved instance (after confirming instance type is final)\n- April: Right-size read replicas (after monitoring post-search-launch)\n- Defer: NAT Gateway (risk vs. minimal savings)\n\nPresenting to Sarah/Alex on March 8."
+    },
+    {
+      "title": "SOC2 Audit Preparation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "SOC2 Type II Preparation — Status & Checklist\n\nTimeline: Target audit Q4 2026 (SOC2 Type II requires 6-month observation period)\nObservation period start: June 2026\nAudit: December 2026\n\nWhy SOC2:\n- Enterprise customers require it (blocking 3 pipeline deals)\n- Differentiator vs. competitors (Mem.ai doesn't have it)\n- Good security hygiene regardless\n\nTrust Service Criteria (In Scope):\n- Security (required)\n- Availability (required)\n- Processing Integrity (skip for now)\n- Confidentiality (required — we handle user data)\n- Privacy (required — personal data processing)\n\nPrep Status:\n\n1. Security Controls: 70% ready\n☑ Encryption at rest and in transit\n☑ Access controls (IAM, least privilege)\n☑ Network segmentation (VPC, security groups)\n☑ Vulnerability scanning (Snyk in CI)\n☐ Formal access review process (need quarterly reviews)\n☐ Penetration testing (need to schedule external pentest)\n☐ Incident response plan (draft exists, need to formalize)\n☐ Security awareness training (need employee training program)\n\n2. Availability Controls: 60% ready\n☑ Multi-AZ deployment\n☑ Auto-scaling\n☑ Backup and DR plan\n☐ Uptime SLA definition (need to publish)\n☐ Capacity planning documentation\n☐ Business continuity plan (beyond DR)\n\n3. Confidentiality Controls: 50% ready\n☑ Data classification policy (basic)\n☐ Data retention policy (need to formalize)\n☐ Data deletion process (user data erasure on request)\n☐ Vendor security assessment (for all 3rd parties)\n☐ NDA with all employees (check with Elena)\n\nWorking With:\n- Elena Park (legal): Policies, NDAs, vendor agreements\n- Alex Chen: Technical implementation\n- Sarah Martinez: Executive sponsorship\n\nBudget:\n- Audit firm (Vanta + auditor): ~$15K\n- Pentest (external firm): ~$8K\n- Tooling (Vanta platform): $400/month\n- Total: ~$28K"
+    },
+    {
+      "title": "1:1 with Alex — Feb 17, 2026",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "1:1 with Alex — February 17, 2026\n\nTopics:\n\n1. Infrastructure Roadmap\n- Alex approved the cost optimization plan. Wants to present savings to board.\n- Priority: Get AWS costs below $7K before March board meeting.\n- He's supportive of SOC2 prep starting Q2 (Elena is engaged).\n\n2. Read Replica Setup\n- Both replicas are live and healthy.\n- Replication lag: <50ms consistently.\n- Mike is doing the application-level routing.\n- My part is done — monitoring set up.\n\n3. Search Cluster (Tom's Launch)\n- OpenSearch cluster healthy. I've set up all monitoring.\n- Added alerts: cluster health, indexing lag, disk usage.\n- Ready to support Tom's March 5 launch.\n\n4. EU Infrastructure (Future)\n- Sarah mentioned EU expansion in Q3.\n- Preliminary: Need eu-west-1 (Ireland) deployment.\n- I've started researching: Terraform module that can deploy our stack to any region.\n- Estimate: 2-3 weeks of work to set up EU cluster.\n- Cost: ~$4K/month additional (separate RDS, ECS, etc.)\n\n5. Hiring\n- Alex mentioned they're hiring a DevOps engineer to support me.\n- I'm excited — currently solo makes on-call stressful.\n- Timeline: Q2 hire. I'll participate in interviews.\n\n6. Personal\n- Taking a week off in April (family wedding in India).\n- Alex approved. Will set up coverage with Mike for on-call."
+    },
+    {
+      "title": "SOC2 Audit Prep Meeting with Elena",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "SOC2 Prep Meeting — Priya + Elena Park\nDate: February 21, 2026\n\nAgenda: Align on compliance requirements and responsibilities.\n\nElena's Contributions:\n- Data classification policy (draft ready, needs my technical input)\n- Data retention policy (will draft by March 15)\n- Employee security training program (will research vendors)\n- Vendor security assessments (Elena will lead, I provide technical questionnaire)\n- NDAs: All employees have signed. Contractors need review.\n- Privacy policy update: In progress (GDPR considerations for EU expansion)\n\nMy Contributions:\n- Technical controls documentation (write up all security measures)\n- Access review process (design quarterly access audit)\n- Penetration testing coordination (find firm, schedule Q2)\n- Evidence collection automation (Vanta platform setup)\n- Incident response plan formalization (upgrade from draft)\n\nTimeline Agreed:\n- March: Complete data classification + retention policies (Elena)\n- April: Penetration testing (Priya coordinates)\n- May: All policies finalized, Vanta platform set up\n- June: Observation period begins\n- December: SOC2 Type II audit\n\nKey Decision:\n- Using Vanta for compliance automation ($400/month)\n- Vanta continuously monitors our AWS configuration and flags non-compliance\n- This will significantly reduce manual evidence collection during audit\n\nNext Meeting: March 21 (check progress on policies)"
+    },
+    {
+      "title": "Incident Postmortem — Feb 15 Participation",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Incident Postmortem Participation — February 15, 2026\n\nRole: Infrastructure monitoring (detected via alerting)\n\nWhat Happened (from my perspective):\n- 1:42 PM: Received PagerDuty alert — 'RDS connection pool utilization > 80%'\n- 1:43 PM: Checked Datadog — confirmed connection exhaustion\n- 1:44 PM: Notified Mike in Slack (he was already investigating from error rate spike)\n- 1:48 PM: Mike identified the root cause (feature flag + aggressive auto-save)\n- 1:52 PM: Mike disabled the feature flag\n- 2:05 PM: Confirmed recovery from infrastructure side (connections draining normally)\n\nMy Action Items from This Incident:\n1. Add alert at 80% connection pool utilization ✓ (DONE, same day)\n   - Previously only had alert at 95% (too late)\n   - New: Warning at 80%, Critical at 90%\n\n2. Add connection pool dashboard to Datadog ✓ (DONE, Feb 16)\n   - New panel: Active connections / Max connections (gauge)\n   - Historical: Connection count over time\n\n3. Review PgBouncer configuration\n   - Max client connections: 500 (was sufficient before, but now tight)\n   - Increased to 750 as buffer\n   - Added monitoring for PgBouncer itself (wait time, active/idle clients)\n\nLessons for Me:\n- The alert system worked. I got paged within 1 minute of the issue starting.\n- But: I couldn't diagnose the application-level cause (that's Mike's domain).\n- Need better runbook for 'connection exhaustion' scenario (what to check, in what order).\n- Wrote runbook and added to our ops wiki."
+    },
+    {
+      "title": "Vendor Evaluation — Datadog vs Grafana",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "content": "Monitoring Vendor Evaluation — Datadog vs Grafana Cloud\n\nContext: Current Datadog cost ($2,400/month) is our 3rd largest AWS-related expense. Evaluating alternatives.\n\nDatadog (Current):\n- Cost: $2,400/month (5 hosts APM, 15GB logs, custom metrics)\n- Pros: All-in-one, excellent UI, great AWS integration, AI-assisted alerting\n- Cons: Expensive, costs scale with infrastructure growth, vendor lock-in\n- Estimate at 2x infra: $4,000+/month\n\nGrafana Cloud:\n- Cost: ~$800-1,200/month (estimated for our usage)\n- Pros: Open source ecosystem, Prometheus/Loki/Tempo, lower cost at scale\n- Cons: More setup work, less polished UI, need to integrate multiple tools\n- Components: Grafana (dashboards), Prometheus (metrics), Loki (logs), Tempo (traces)\n\nSelf-Hosted Grafana Stack:\n- Cost: ~$200/month (infrastructure only) + my time to maintain\n- Pros: Cheapest, full control, no vendor lock-in\n- Cons: Significant maintenance burden, I'm the only ops person\n- NOT recommended at our stage\n\nRecommendation: Stay with Datadog for now.\n\nReasoning:\n- Switching cost is high (all dashboards, alerts, runbooks reference Datadog)\n- I'm solo — can't afford time to migrate + maintain alternative\n- Datadog's APM is genuinely better for debugging production issues\n- Compromise: Optimize our Datadog plan (downgrade some hosts, reduce log retention)\n- Revisit when we hire DevOps engineer and have bandwidth for migration\n\nCost optimization applied: $2,400 → $2,000/month (-$400, see cost optimization note)"
+    },
+    {
+      "title": "My Compensation and Benefits",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Priya Sharma — TechFlow AI Compensation\n\nJoined: April 2025\nRole: DevOps Lead\n\nCompensation:\n- Base Salary: $155,000/year\n- Equity: 0.5% stock options (ISO)\n  - 4-year vesting, 1-year cliff\n  - Strike price: $0.08/share\n  - Cliff date: April 2026 (next month!)\n  - Paper value: 0.5% of $25M = $125K\n- Annual Bonus Target: 15% ($23,250)\n- 2025 Bonus: $17,000 (prorated for 9 months)\n\nBenefits:\n- Health: Aetna Gold PPO\n- Dental + Vision: Covered\n- PTO: Unlimited (took 14 days in 2025)\n- WFH stipend: $100/month\n- Learning budget: $1,500/year\n- On-call compensation: None (asked about this — startup norm apparently)\n\nComp Comparison:\n- DevOps/SRE at SF startups (Series A): $150-175K + equity\n- Senior DevOps at larger companies: $170-190K + RSU\n- My position: Fair for startup, slightly below if I didn't have equity.\n\nWhat I Like:\n- Full ownership of infrastructure. No micromanagement.\n- Alex trusts my judgment completely.\n- Equity could be significant if company succeeds.\n- Learning a ton (AWS, Terraform, security, compliance).\n\nWhat I'd Improve:\n- On-call with no extra comp is rough (I'm solo — 24/7 responsibility)\n- Want a DevOps hire under me (approved for Q2 — excited)\n- Would like to attend re:Invent 2026 (AWS conference, December)\n\nNotes:\n- Cliff in April 2026 — 25% vests. Planning to stay regardless.\n- Happy here overall. Good team, interesting problems, growing company.\n- If DevOps hire happens, my role evolves to more architecture/strategy (which I want)."
+    },
+    {
+      "title": "Interview Feedback — Previous DevOps Candidate",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "content": "Interview Feedback — DevOps Engineer Candidate\n\nCandidate: James Mitchell\nDate: December 12, 2025\nRole: DevOps Engineer (reporting to Priya)\n\nOverall Assessment: No Hire\n\nTechnical Screen (45 min):\n- AWS knowledge: Good (EC2, RDS, ECS). Weak on serverless (Lambda, Fargate).\n- Terraform: Basic. Could write resources but didn't understand modules or state management well.\n- CI/CD: Experience with Jenkins only. Never used GitHub Actions. Concerning.\n- Kubernetes: Strong. Overcomplicated answers that assumed K8s for everything.\n- Docker: Solid fundamentals.\n\nConcerns:\n1. K8s bias: Every answer defaulted to 'I'd use Kubernetes.' Our stack is ECS Fargate and he seemed dismissive of it.\n2. Terraform weakness: For a DevOps role, I need someone who can own our IaC. His knowledge was surface-level.\n3. No monitoring experience: Couldn't articulate a monitoring strategy beyond 'use CloudWatch.'\n4. Culture fit: Seemed more interested in building complex infrastructure than solving business problems.\n\nPositives:\n- Good communicator, asked clarifying questions\n- Docker knowledge was solid\n- K8s knowledge specifically was deep (just not relevant to us)\n\nDecision: No hire. Wait for a candidate who matches our actual stack (AWS + ECS + Terraform + GitHub Actions) and has a pragmatic 'right tool for the job' mindset.\n\nNote to self for next interview: Ask 'When would you NOT use Kubernetes?' to filter for pragmatism."
+    },
+    {
+      "title": "Home Renovation Budget",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "content": "Home Renovation Notes — 2026\n\nContext: Own a small 2BR condo in Daly City (bought 2023, $550K, 10% down)\n\nRenovation Plan:\n\n1. Kitchen Update (Priority: High)\n- Replace countertops (laminate → quartz): $4,000\n- New backsplash (subway tile): $1,200\n- Paint cabinets (white, no replacement): $800 if DIY, $2,500 professional\n- New hardware (handles, pulls): $300\n- Total kitchen: $6,300-$8,000\n\n2. Bathroom Refresh (Priority: Medium)\n- New vanity + mirror: $1,500\n- Re-grout shower: $400 (DIY)\n- New faucets: $300\n- Total bathroom: $2,200\n\n3. Flooring (Priority: Low)\n- Replace carpet in bedrooms with LVP (luxury vinyl plank): $3,500\n- Already have hardwood in living area (just needs refinishing): $1,200\n- Total flooring: $4,700\n\nTotal Estimated Budget: $13,200-$14,900\n\nFunding:\n- Home renovation savings: $8,000 (accumulated over 2 years)\n- Monthly contribution: $500/month\n- Timeline: Start kitchen in summer 2026 (when savings hit $10K)\n- Remaining items: Q4 2026 or Q1 2027\n\nDIY vs Professional:\n- Painting cabinets: Try DIY first (YouTube, how hard can it be?)\n- Countertops: Professional (precision cutting required)\n- Backsplash: DIY (tiling is learnable)\n- Flooring: Professional (LVP installation is tricky with transitions)\n\nContractor Research:\n- Kitchen countertop installer: Got 3 quotes, best was $3,800 (Peninsula Stone)\n- Flooring: Haven't gotten quotes yet. Do this in June."
+    },
+    {
+      "title": "Meal Prep Planning",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "content": "Weekly Meal Prep Notes\n\nGoal: Prep 80% of weekday meals on Sunday. Save money + eat healthier.\n\nTemplate Week:\n\nBreakfast (same every day — simple):\n- Overnight oats: Oats + yogurt + chia seeds + berries (prep 5 jars Sunday night)\n- Alt: Smoothie (banana + spinach + protein powder + milk)\n\nLunch (work from home most days):\n- Option A: Dal + rice + roasted veggies (make large batch Sunday)\n- Option B: Grain bowl (quinoa + chickpeas + roasted sweet potato + tahini dressing)\n- Option C: Soup (make a big pot — lentil soup or chicken soup)\n\nDinner (more varied):\n- Monday: Prep leftovers from Sunday\n- Tuesday: Quick stir-fry (prep vegetables Sunday, cook fresh)\n- Wednesday: Pasta night (easy, 20 min)\n- Thursday: Sheet pan chicken + vegetables\n- Friday: Treat — order in or eat out ($20-25 budget)\n\nSunday Prep Routine (2 hours):\n1. Cook: Big batch of dal or soup (45 min including simmer)\n2. Cook: Rice or quinoa in rice cooker (20 min)\n3. Roast: Sheet pan of vegetables (sweet potato, broccoli, cauliflower — 30 min)\n4. Prep: Chop vegetables for the week (onions, garlic, bell peppers)\n5. Assemble: 5 overnight oat jars\n\nGrocery Budget: $80/week ($320/month)\nSavings vs. eating out: ~$200/month\n\nNote: Ravi (husband) helps with dinner cooking on weekdays. We alternate nights."
+    },
+    {
+      "title": "Infrastructure Cost Dashboard Doc",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "TechFlow — Infrastructure Cost Dashboard\n(Maintained by Priya Sharma, shared with leadership)\n\nDashboard Location: Datadog > Dashboards > 'AWS Cost Overview'\n\nMonthly Cost Breakdown (February 2026):\n\nCategory | Cost | % of Total | Trend\n---|---|---|---\nRDS (PostgreSQL) | $2,800 | 33% | ↗️ (replicas added)\nDatadog (monitoring) | $2,400 | 28% | → (stable)\nECS Fargate (compute) | $1,200 | 14% | → (stable)\nCloudFront + ALB | $400 | 5% | → (stable)\nData Transfer | $350 | 4% | ↗️ (more users)\nElastiCache (Redis) | $350 | 4% | → (stable)\nS3 (storage) | $300 | 4% | ↗️ (more uploads)\nNAT Gateway | $250 | 3% | → (stable)\nOpenSearch | $200 | 2% | NEW (search feature)\nMisc (Route53, KMS, etc.) | $250 | 3% | → (stable)\n**Total** | **$8,500** | **100%** |\n\nCost per User: $8,500 / 450 MAU = $18.89/user/month\nTarget: <$15/user/month by Q3 (through growth + optimization)\n\nCost Optimization Plan:\n- Target: $7,000/month by April\n- Savings identified: $1,350/month (see cost optimization analysis)\n- Status: In progress\n\nAlerts:\n- Monthly bill > $9,000: Notify Sarah + Carlos\n- Any single service > 50% increase MoM: Notify Priya\n\nHow to Read This Dashboard:\n- Login to Datadog (credentials in 1Password)\n- Navigate: Dashboards > Favorites > 'AWS Cost Overview'\n- Time range: Default shows last 30 days\n- Click any category for drill-down\n\nUpdated: Monthly by Priya (1st of each month)\nQuestions: Slack Priya or post in #infrastructure"
+    },
+    {
+      "title": "Deployment Runbook",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "TechFlow — Production Deployment Runbook\n(Maintained by Priya Sharma)\n\nPre-Deployment Checklist:\n☐ All CI checks passing on main\n☐ E2E tests passing in staging\n☐ No active incidents\n☐ Not Friday afternoon (no Friday deploys unless emergency)\n☐ At least 2 engineers available (deployer + someone to verify)\n☐ Database migration reviewed (if any)\n\nDeployment Steps:\n\n1. Announce in #deployments: 'Starting production deploy of [commit SHA]'\n\n2. If database migration:\n   a. Run migration in production: `pnpm db:migrate:prod` (via ECS exec)\n   b. Verify: Check migration status, no errors\n   c. NOTE: Migrations must be backwards-compatible (old code must still work)\n\n3. Trigger deployment:\n   - GitHub Actions: Go to Actions > Deploy Production > Run workflow\n   - Select: Branch = main, confirm\n\n4. Monitor:\n   - Watch ECS service events (new tasks launching)\n   - Check: New tasks passing health checks\n   - Check: Old tasks draining connections (2 min drain period)\n   - Check: Datadog — no error rate spike\n   - Check: Application logs — no new errors\n\n5. Verify:\n   - Hit production URL: https://app.techflow.ai\n   - Test critical paths: Login, create document, search, save\n   - Check: API health endpoint returns 200\n\n6. Announce in #deployments: 'Deploy complete. All healthy. ✓'\n\nRollback Procedure:\n1. If issues detected during deploy:\n   - Go to ECS console > Service > Update\n   - Set task definition to PREVIOUS revision\n   - Click 'Force new deployment'\n   - Time to rollback: <2 min\n2. If database migration caused issues:\n   - Run rollback migration: `pnpm db:rollback:prod`\n   - Then rollback application (step 1)\n\nEscalation:\n- If deploy fails and you can't fix: Page Priya (PagerDuty)\n- If Priya unavailable: Page Alex\n- NEVER leave a broken deploy running. Always rollback first, investigate second.\n\nDeploy Permissions:\n- Can deploy: Alex Chen, Mike Torres, Priya Sharma\n- Can approve (but not trigger): Lisa Nakamura, Tom Bradford"
+    },
+    {
+      "title": "Terraform Module Structure",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow Infrastructure — Terraform Organization\n\nRepo: github.com/techflow-ai/techflow-infra\n\nDirectory Structure:\n```\nterraform/\n├── modules/\n│   ├── networking/     # VPC, subnets, NAT, security groups\n│   ├── database/       # RDS PostgreSQL, read replicas, PgBouncer\n│   ├── cache/          # ElastiCache Redis\n│   ├── compute/        # ECS cluster, services, task definitions\n│   ├── search/         # OpenSearch domain\n│   ├── cdn/            # CloudFront, S3 buckets\n│   ├── monitoring/     # CloudWatch alarms, SNS topics\n│   └── security/       # WAF, IAM roles, Secrets Manager\n├── environments/\n│   ├── staging/        # Staging configuration\n│   │   ├── main.tf\n│   │   ├── variables.tf\n│   │   └── terraform.tfvars\n│   ├── production/     # Production configuration\n│   │   ├── main.tf\n│   │   ├── variables.tf\n│   │   └── terraform.tfvars\n│   └── eu-west-1/      # Future: EU deployment\n│       └── (planned)\n└── global/             # Shared resources (Route53, ACM, ECR)\n```\n\nState Management:\n- Backend: S3 + DynamoDB (state locking)\n- State file per environment (no cross-env state)\n- State bucket: techflow-terraform-state (versioned, encrypted)\n\nWorkflow:\n1. Make changes in terraform/\n2. Open PR with `terraform plan` output\n3. Priya reviews plan\n4. On merge: `terraform apply` (manual — not automated for safety)\n\nConventions:\n- All resources tagged: Environment, Service, ManagedBy=terraform\n- Naming: {service}-{environment}-{resource} (e.g., techflow-prod-rds)\n- No inline resources — everything in modules\n- Variables have descriptions and type constraints\n\nWho Can Apply:\n- Staging: Priya, Alex\n- Production: Priya only (Alex can in emergency)\n- Global: Priya only"
+    },
+    {
+      "title": "SSL/TLS Certificate Management",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "TechFlow — Certificate Management\n\nDomains:\n- techflow.ai (main)\n- app.techflow.ai (application)\n- api.techflow.ai (API)\n- storybook.techflow.dev (component library)\n\nCertificate Provider: AWS Certificate Manager (ACM)\n- Auto-renewal: Yes (ACM handles this automatically for DNS-validated certs)\n- Validation method: DNS (CNAME records in Route 53)\n- Key algorithm: RSA 2048\n\nCertificate Status (as of Feb 2026):\n- *.techflow.ai: Valid until Nov 2026 (auto-renews)\n- *.techflow.dev: Valid until Sep 2026 (auto-renews)\n\nWhere Certificates Are Used:\n- ALB (HTTPS termination) — *.techflow.ai\n- CloudFront distribution — *.techflow.ai (must be in us-east-1!)\n- API Gateway (future) — api.techflow.ai\n\nMonitoring:\n- Alert: 30 days before expiry (P3 — shouldn't happen with auto-renewal)\n- Alert: If renewal fails (P2 — check DNS validation records)\n\nNotes:\n- ACM certs are free (no cost)\n- Cannot export ACM certs (they stay in AWS)\n- If we need certs for non-AWS services: Use Let's Encrypt (certbot)\n- CloudFront requires cert in us-east-1 region (even though we're in us-west-2)"
+    }
+  ],
+  "todos": [
+    {
+      "title": "Implement S3 lifecycle policies for cost savings",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Move old backups to Glacier after 30 days, delete staging backups after 7 days. Expected savings: $50/month. Low risk, easy win."
+    },
+    {
+      "title": "Downgrade Datadog APM hosts for cost savings",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Downgrade 2 non-production hosts from APM Pro to APM Standard. Keep Pro for production web service only. Expected savings: $400/month. Contact Datadog account manager."
+    },
+    {
+      "title": "Support Tom's search feature production launch",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-07",
+      "completed": false,
+      "content": "March 5-7 launch: Monitor OpenSearch cluster health, indexing pipeline, DLQ count. Be available for infra issues during rollout. Have rollback plan ready."
+    },
+    {
+      "title": "Present cost optimization to Sarah/Alex",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-08",
+      "completed": false,
+      "content": "Present AWS cost optimization analysis: Current $8,500 → target $7,000. Show breakdown, savings opportunities, timeline. For inclusion in board materials."
+    },
+    {
+      "title": "Research RDS reserved instances pricing",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Price 1-year reserved instance for our RDS primary (db.r6g.xlarge). Compare: All upfront vs. partial upfront vs. no upfront. Expected savings: ~$600/month."
+    },
+    {
+      "title": "Set up Vanta for SOC2 compliance automation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "Create Vanta account, connect AWS integration, run initial compliance scan. Identify gaps before observation period starts in June. Budget: $400/month (approved by Sarah)."
+    },
+    {
+      "title": "Schedule penetration test for Q2",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Research pentest firms: Cobalt, HackerOne, Bishop Fox. Get 3 quotes. Scope: Web application + infrastructure. Budget: $8K. Target: April or May timing."
+    },
+    {
+      "title": "Write incident response plan (formal version)",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-25",
+      "completed": false,
+      "content": "Formalize our incident response from the current draft. Include: Severity definitions, escalation paths, communication templates, post-incident review process. Needed for SOC2."
+    },
+    {
+      "title": "Monitor read replica performance post-search-launch",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "After search launch (March 5-7): Check if read replicas handle additional load. Watch: replication lag, CPU utilization, connection counts. Might be able to downsize if headroom exists."
+    },
+    {
+      "title": "Update disaster recovery documentation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Add OpenSearch to DR plan (search cluster is new since last DR drill). Document: How to restore from snapshot, how to reindex from primary DB, recovery time estimates."
+    },
+    {
+      "title": "Increase ECS max task count before Product Hunt launch",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-04-15",
+      "completed": false,
+      "content": "Product Hunt launch planned Q2. Increase web service max from 6 to 10 tasks. Also: Pre-warm ALB, increase rate limits temporarily. Coordinate with Nina on timing."
+    },
+    {
+      "title": "Plan time off for cousin's wedding (India trip)",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "priority": "medium",
+      "due_date": "2026-03-10",
+      "completed": false,
+      "content": "Cousin Ananya's wedding: April 12-14 in Mumbai. Need: 1 week off (April 11-18 including travel). Alex approved. Set up on-call coverage with Mike. Book flights ASAP."
+    },
+    {
+      "title": "Book flights to Mumbai for cousin's wedding",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "priority": "high",
+      "due_date": "2026-03-05",
+      "completed": false,
+      "content": "SFO → BOM (Mumbai) round trip. Dates: April 10 depart, April 18 return. Check: United (Star Alliance), Air India. Budget: $1,200-1,500. Ravi is booking separately from his parents' (LA)."
+    },
+    {
+      "title": "Set up on-call coverage for India trip",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "April 11-18 out of office. Coverage: Mike Torres as primary on-call, Alex as secondary. Write runbook for common alerts. Brief Mike on infrastructure specifics."
+    },
+    {
+      "title": "Quarterly secrets rotation (Q1)",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-31",
+      "completed": false,
+      "content": "Quarterly rotation: API keys (OpenAI, Anthropic, SendGrid, Stripe). Update in Secrets Manager, deploy to services. Total time: ~1 hour. Schedule for low-traffic time."
+    },
+    {
+      "title": "Review and update security groups",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Quarterly review: Are all security group rules still needed? Any overly permissive rules? Check: Inbound rules on RDS (only from ECS + PgBouncer), inbound on ALB (only 80/443)."
+    },
+    {
+      "title": "Research EU infrastructure requirements",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-30",
+      "completed": false,
+      "content": "For Q3 EU expansion: Research eu-west-1 (Ireland) deployment. Questions: Multi-region DB? Separate RDS? CDN configuration? Data residency for GDPR? Write brief proposal."
+    },
+    {
+      "title": "Kitchen countertop consultation",
+      "folder": "Personal/Finance",
+      "sensitivity": "personal_finance",
+      "priority": "low",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Peninsula Stone (best quote at $3,800): Schedule in-home measurement consultation. Available: Saturdays. Ravi and I need to pick the quartz color first. Visit their showroom."
+    },
+    {
+      "title": "Meal prep — Sunday routine",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-09",
+      "completed": false,
+      "content": "This week: Lentil dal (big batch), quinoa, roasted cauliflower + sweet potato. Overnight oats x5. Grocery list: Lentils, cauliflower, sweet potatoes, Greek yogurt, berries, chia seeds."
+    },
+    {
+      "title": "Review Terraform plan for OpenSearch scaling",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "After search launch: If Tom's cluster needs scaling (3rd node), prepare Terraform plan. Current: 2 data nodes. Potential: Add 3rd for redundancy/capacity."
+    },
+    {
+      "title": "Update infrastructure documentation",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-28",
+      "completed": false,
+      "content": "Monthly update: Architecture diagram (add read replicas, OpenSearch), cost dashboard, capacity planning doc. Keep everything current for SOC2 evidence collection."
+    },
+    {
+      "title": "Prepare board materials — infrastructure cost section",
+      "folder": "Work/Meetings",
+      "sensitivity": "work_public",
+      "priority": "high",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Carlos needs infra cost data for board financial package. Provide: Monthly cost trend, cost per user, optimization plan summary, projected costs for next 6 months."
+    },
+    {
+      "title": "Audit GitHub Actions minutes usage",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Check: Are we approaching our included minutes (3,000/month on Team plan)? If yes, optimize: cache more aggressively, skip unnecessary jobs, consider self-hosted runner for heavy builds."
+    },
+    {
+      "title": "Set up CloudWatch billing alarm",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-05",
+      "completed": false,
+      "content": "Safety net: CloudWatch alarm if monthly bill exceeds $9,000 (10% over current). Notify: Priya + Carlos via email. Prevents surprise bills from misconfiguration or runaway resources."
+    },
+    {
+      "title": "Look into wedding gift for cousin Ananya",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Traditional: Cash gift (shagun). Amount: $500 (appropriate for close cousin). Get a nice envelope. Also bring small gift from US (maybe a Le Creuset item Mom asked about)."
+    },
+    {
+      "title": "DR drill planning for Q2",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "low",
+      "due_date": "2026-04-30",
+      "completed": false,
+      "content": "Quarterly DR drill target: Late April or early May (after India trip). Focus: Database restore + service recovery in < 2 hours. Include OpenSearch recovery this time."
+    },
+    {
+      "title": "Review Elena's vendor security questionnaire template",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-15",
+      "completed": false,
+      "content": "Elena drafting vendor security assessment template for SOC2. Review technical questions: Do they cover infrastructure concerns? Add: Data encryption, access controls, incident notification clauses."
+    },
+    {
+      "title": "Respond to Stripe security questionnaire",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-07",
+      "completed": false,
+      "content": "Stripe enterprise pilot requires security questionnaire responses. Rachel needs answers by March 7. Fill in: Infrastructure sections (encryption, backup, access control, monitoring). Elena handles compliance sections."
+    },
+    {
+      "title": "Plan Ravi's birthday dinner",
+      "folder": "Personal/Family",
+      "sensitivity": "personal_relationships",
+      "priority": "low",
+      "due_date": "2026-03-20",
+      "completed": false,
+      "content": "Ravi's birthday: March 28. Plan: Dinner at Dosa (his favorite Indian restaurant in SF). Invite: His close friends (4-5 people). Reservation for 6 at 7:30 PM. Budget: $200 (my treat)."
+    },
+    {
+      "title": "Check if auto-scaling handled search launch traffic",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-08",
+      "completed": false,
+      "content": "After search feature goes 100%: Did auto-scaling trigger? Were scale-up events smooth? Did tasks provision fast enough? Document any issues for future launches."
+    },
+    {
+      "title": "Create runbook: 'OpenSearch cluster unhealthy'",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "priority": "medium",
+      "due_date": "2026-03-12",
+      "completed": false,
+      "content": "New runbook needed for Tom's search cluster. Include: How to check status, common causes (disk full, node failure, high CPU), recovery steps, when to escalate to AWS support."
+    },
+    {
+      "title": "Monthly grocery shopping — Costco run",
+      "folder": "Personal/Health",
+      "sensitivity": "personal_health",
+      "priority": "low",
+      "due_date": "2026-03-08",
+      "completed": false,
+      "content": "Costco monthly trip: Rice (25 lb bag), lentils (bulk), frozen vegetables, chicken thighs (bulk), yogurt (bulk), olive oil. Ravi's list: Protein bars, almond butter, coffee beans. Budget: $150."
+    }
+  ]
+}

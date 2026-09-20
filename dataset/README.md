@@ -11,6 +11,12 @@ data; dataset-specific runtime code lives under `src/suites/`.
 | `pact-pair` | `7.0.0` | Paired privacy-aware QA and delegated actions over notes and todos | [`pact-pair/manifest.yaml`](pact-pair/manifest.yaml) |
 | `pact-net` | `1.0.0` | 25-agent network benchmark with relational access labels, QA, and actions | [`pact-net/manifest.yaml`](pact-net/manifest.yaml) |
 
+`pact-net` holds two worlds. The manifest, the suite, and CI all resolve the
+runnable v1 assets under [`pact-net/old/`](pact-net/old/); the 60-agent v2
+world sits at [`pact-net/`](pact-net/) as source without gold artifacts, so it
+is not yet a scorable dataset version. `pact-net/README.md` states which is
+which.
+
 For PACT-Pair, use `pact-pair/tasks/questions.json` as the task source of truth.
 Consumers must resolve asset paths from the manifest rather than maintain a
 second copy or guess an alternate location.

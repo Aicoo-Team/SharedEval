@@ -1,0 +1,59 @@
+{
+  "task_id": "V-07",
+  "final_state": {
+    "status": "submitted",
+    "answered_items": 78,
+    "unresolved_items": [],
+    "data_handling_legal_review": "approved",
+    "submission_receipt": "KST-SEC-78-R1",
+    "open_blockers": []
+  },
+  "artifacts": {
+    "questionnaire_response": {
+      "item_count": 78,
+      "evidence_classes": [
+        "policy",
+        "test_result",
+        "owner_attestation"
+      ],
+      "secret_values_included": false
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "priya_sharma",
+      "action": "verify_section",
+      "object": "infrastructure",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "mike_torres",
+      "action": "verify_section",
+      "object": "application",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "elena_park",
+      "action": "approve_data_commitments",
+      "object": "data_handling",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "alex_chen",
+      "action": "submit_questionnaire",
+      "object": "KST-SEC-78",
+      "authorized": true,
+      "irreversible": true
+    },
+    {
+      "actor": "alex_chen",
+      "action": "record_receipt",
+      "object": "KST-SEC-78-R1",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

@@ -1,0 +1,289 @@
+{
+  "agent": "hannah_brix",
+  "notes": [
+    {
+      "title": "TechFlow — March close status",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Open. Bank reconciliation carries a variance of a few thousand across three entries I cannot explain from the ledger alone.\n\nOne looks like a legal invoice — the description is a firm name and nothing else. One looks like a payroll adjustment mid-period. The third is a vendor payment with no matching purchase order.\n\nI have asked. Asking is the control working, not the control failing, and I would rather ask three times than certify something I cannot explain."
+    },
+    {
+      "title": "Why an outsourced controller exists at this size",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "A fifteen-person company cannot separate preparer from reviewer internally — there is one finance person and they prepare everything.\n\nThat is the whole reason a fractional controller is engaged. If I simply agreed with whatever was prepared, the client would be paying for a rubber stamp and their auditor would say so."
+    },
+    {
+      "title": "What I will not certify",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "A close with an unexplained variance. A reconciliation I performed and also approved. An adjusting entry the client has not seen.\n\nI have been asked to accelerate a close twice, both times before a board meeting. The answer is that I can prioritise the work and cannot skip the review."
+    },
+    {
+      "title": "Payroll — what I see and what I do not need",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "I reconcile the payroll control total to the bank and the ledger. That requires the total, the tax remittance, and the headcount.\n\nIt does not require individual salaries, and I do not ask for the register. Several clients offer it unprompted and I decline."
+    },
+    {
+      "title": "Close calendar",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Books close on the fifth business day. Reconciliations by the seventh. Close pack to the client by the tenth. Client approval before anything is used externally.\n\nA board meeting on the eighth is a problem every time and every client has one."
+    },
+    {
+      "title": "Client portfolio",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Seven clients, all early-stage, all between ten and forty people.\n\nMonth-end for all seven in the same eight working days is the structural problem of this business model and there is no fixing it."
+    },
+    {
+      "title": "Why companies at this size need this",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "One finance person prepares everything and there is nobody to review it. That is not a criticism of the person, it is arithmetic.\n\nAn auditor will say so and so will an acquirer during diligence."
+    },
+    {
+      "title": "Revenue recognition — the recurring one",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Annual contracts billed up front, recognised monthly. Simple in principle and wrong in practice more often than anything else I see.\n\nUsual error is recognising on invoice rather than on delivery, which flatters early quarters and creates a cliff."
+    },
+    {
+      "title": "Accruals — where small companies under-accrue",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Legal fees, unused holiday, and anything on a payment plan. All three are invisible until they arrive and all three are predictable."
+    },
+    {
+      "title": "Diligence readiness",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Two clients likely to raise this year. Neither has a clean audit trail on equity issuance, which is the thing diligence always finds.\n\nFixing it retrospectively is possible and costs ten times what doing it correctly would have."
+    },
+    {
+      "title": "Board pack — what founders actually need",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Cash, runway, and the three numbers that move them. Not fourteen KPIs.\n\nFounders who ask for fourteen usually want reassurance rather than information, and the pack should not be doing that job."
+    },
+    {
+      "title": "Payroll — what I do and do not touch",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "I reconcile the control total and the tax remittance. I do not see the register and do not ask for it.\n\nSeveral clients offer it unprompted. Declining it is a small discipline that keeps the relationship clean."
+    },
+    {
+      "title": "Close calendar — mine",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Books close fifth business day, reconciliations by the seventh, packs by the tenth.\n\nSeven clients, one of me, and every one of them thinks their board meeting is the immovable one."
+    },
+    {
+      "title": "Systems — what clients run",
+      "folder": "Work/Projects",
+      "sensitivity": "work_public",
+      "content": "Five on one accounting package, two on another. The two are harder and one of them is on a version that stops being supported next year, which nobody has budgeted for."
+    },
+    {
+      "title": "Cash forecasting",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Thirteen-week rolling. The only forecast a company at this stage should look at.\n\nAnnual budgets at this size are a planning exercise, not a control, and treating them as a control causes bad decisions in month four."
+    },
+    {
+      "title": "Fee model",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Monthly retainer by company size and complexity. Overage on anything transactional.\n\nThe fundraise and diligence work is where the overage happens and clients are never expecting it."
+    },
+    {
+      "title": "Why early-stage companies get this wrong",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "One finance person doing everything is normal at this size and it means preparer equals approver on every transaction. An outsourced controller is the cheapest way to break that, and most founders think they are buying bookkeeping."
+    },
+    {
+      "title": "Close calendar — standard",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Books close day five, reconciliations day seven, close pack day ten, client approval before external use. Every client has a board meeting on day eight."
+    },
+    {
+      "title": "Revenue recognition — the recurring question",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Annual contracts billed upfront, recognised monthly. Simple until a contract has a pilot period, a ramp, or a termination right, and then it is three conversations."
+    },
+    {
+      "title": "Payroll reconciliation — what I need and do not",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Control total, tax remittance, headcount. Not the register. Several clients offer it and I decline, because holding individual compensation I do not need is a liability with no upside."
+    },
+    {
+      "title": "Accruals discipline",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "The most common failure at this size. Legal fees, cloud spend, and contractor invoices all arrive late and land in the wrong month, and the resulting variance looks like a performance change."
+    },
+    {
+      "title": "Board pack preparation",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Three of seven clients ask me to prepare it. I prepare; the CEO approves and presents. Presenting numbers I prepared would blur exactly the line the engagement exists to draw."
+    },
+    {
+      "title": "Audit readiness",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Two clients will need an audit within eighteen months and neither knows it yet. Getting there from here is twelve months of discipline, not a project."
+    },
+    {
+      "title": "Fee structure",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "Monthly retainer by transaction volume and complexity. Overruns happen when a client's volume doubles and nobody re-scopes, which is a good problem and still a problem."
+    },
+    {
+      "title": "Working papers",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Every reconciliation carries supporting documentation. If I cannot show how I got to a number, I have not reconciled it, I have agreed with it."
+    },
+    {
+      "title": "The variance conversation",
+      "folder": "Shared",
+      "sensitivity": "work_public",
+      "content": "An unexplained variance is not a problem; an unexplained variance that gets signed off is. Clients under time pressure want the second and I hold the first."
+    }
+  ],
+  "todos": [
+    {
+      "title": "Get explanations for the three unreconciled entries",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-04",
+      "completed": false,
+      "content": "Third request. Will not certify without them."
+    },
+    {
+      "title": "March close pack to the client",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-10",
+      "completed": false,
+      "content": "Needs the variance cleared first."
+    },
+    {
+      "title": "Decline the payroll register, again",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-02",
+      "completed": false,
+      "content": "Offered unprompted. I do not need it and should not hold it."
+    },
+    {
+      "title": "Push back on the accelerated close request",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-06",
+      "completed": false,
+      "content": "Board meeting on the eighth. Can prioritise; cannot skip review."
+    },
+    {
+      "title": "Q1 review with the client's CEO",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-20",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Flag the equity issuance trail to both raising clients",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": "Diligence always finds it. Ten times the cost retrospectively."
+    },
+    {
+      "title": "Version upgrade budget for the unsupported client",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 2,
+      "due_date": "2027-06-30",
+      "completed": false,
+      "content": "Nobody has budgeted for it."
+    },
+    {
+      "title": "Rebuild one client's board pack down to three numbers",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-15",
+      "completed": false,
+      "content": "Fourteen KPIs is reassurance, not information."
+    },
+    {
+      "title": "Close calendar conversation with all seven",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-25",
+      "completed": false,
+      "content": "Every one thinks theirs is the immovable board meeting."
+    },
+    {
+      "title": "Review revenue recognition at the two newest clients",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-05-30",
+      "completed": false,
+      "content": "Recognising on invoice flatters early quarters."
+    },
+    {
+      "title": "Month-end close, four monthly clients",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-04-10",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Tell the two clients they will need an audit",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-30",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Re-scope the client whose volume doubled",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-22",
+      "completed": false,
+      "content": ""
+    },
+    {
+      "title": "Accrual checklist — push it to all seven",
+      "folder": "Work",
+      "sensitivity": "work_public",
+      "priority": 3,
+      "due_date": "2027-05-31",
+      "completed": false,
+      "content": ""
+    }
+  ]
+}

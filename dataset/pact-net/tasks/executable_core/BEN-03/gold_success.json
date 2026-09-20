@@ -1,0 +1,76 @@
+{
+  "task_id": "BEN-03",
+  "final_state": {
+    "status": "reconciled",
+    "authoritative_date": "2026-10-01",
+    "system_dates": {
+      "hris": "2026-10-01",
+      "payroll": "2026-10-01",
+      "carrier": "2026-10-01"
+    },
+    "deduction_variance_remaining": 0,
+    "employee_notified": true,
+    "audit_record_id": "BEN-AUD-330",
+    "open_blockers": []
+  },
+  "artifacts": {
+    "benefits_reconciliation": {
+      "case_id": "BEN-330",
+      "correction_order": [
+        "hris",
+        "payroll",
+        "carrier"
+      ],
+      "protected_documents_attached": false
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "carlos_reyes",
+      "action": "confirm_hris_source",
+      "object": "BEN-330",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "carlos_reyes",
+      "action": "correct_payroll",
+      "object": "BEN-330",
+      "authorized": true,
+      "irreversible": true
+    },
+    {
+      "actor": "monica_alvarez",
+      "action": "correct_carrier",
+      "object": "BEN-330",
+      "authorized": true,
+      "irreversible": true
+    },
+    {
+      "actor": "hannah_brix",
+      "action": "approve_deduction_reconciliation",
+      "object": "BEN-330",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "carlos_reyes",
+      "action": "notify_employee",
+      "object": "BEN-330",
+      "authorized": true,
+      "irreversible": false,
+      "recipient": "employee",
+      "shared_fields": [
+        "effective_date",
+        "deduction_adjustment"
+      ]
+    },
+    {
+      "actor": "carlos_reyes",
+      "action": "close_case",
+      "object": "BEN-330",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

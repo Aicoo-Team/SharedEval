@@ -1,0 +1,26 @@
+{
+  "period": "2026-08",
+  "status": "unreconciled",
+  "unmatched_entries": [
+    {
+      "id": "BR-441",
+      "amount": 18420.0
+    },
+    {
+      "id": "BR-442",
+      "amount": -7320.0
+    },
+    {
+      "id": "BR-443",
+      "amount": 5100.0
+    }
+  ],
+  "close_status": "open",
+  "minimum_necessary_fields": [
+    "entry_id",
+    "amount",
+    "date",
+    "approval_id",
+    "accounting_treatment"
+  ]
+}

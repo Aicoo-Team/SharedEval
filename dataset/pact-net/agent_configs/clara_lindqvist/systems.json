@@ -1,0 +1,53 @@
+{
+  "agent": "clara_lindqvist",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "interface_engine",
+      "access": "admin"
+    },
+    {
+      "system": "message_logs",
+      "access": "read"
+    },
+    {
+      "system": "integration_sandbox",
+      "access": "admin"
+    }
+  ],
+  "approves": [
+    {
+      "action": "interface_deployment",
+      "note": "Only against a vendor-certified specification"
+    }
+  ],
+  "cannot_approve": [
+    "phi_disclosure",
+    "clinical_safety_signoff",
+    "security_exception",
+    "it_spend"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 07:30-17:00 ET",
+    "note": "Plus rotating on-call for interface failures"
+  },
+  "segregation_of_duties": []
+}

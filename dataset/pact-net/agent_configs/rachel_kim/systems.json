@@ -1,0 +1,55 @@
+{
+  "agent": "rachel_kim",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "crm",
+      "access": "read_write"
+    },
+    {
+      "system": "pipeline",
+      "access": "admin"
+    },
+    {
+      "system": "quotes",
+      "access": "admin"
+    },
+    {
+      "system": "commission_plan",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "discount",
+      "note": "May approve only within the published discount floor and standard terms; exceptions route to Finance and an authorised signer."
+    }
+  ],
+  "cannot_approve": [
+    "contract_signature",
+    "roadmap_commitment"
+  ],
+  "availability": {
+    "class": "extended-hours",
+    "window": "Mon-Fri 07:00-19:00 PT",
+    "note": "Customer calls outside the window are scheduled, not continuous availability."
+  },
+  "segregation_of_duties": []
+}

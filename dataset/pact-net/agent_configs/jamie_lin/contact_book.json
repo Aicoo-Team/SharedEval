@@ -1,0 +1,88 @@
+{
+  "agent": "jamie_lin",
+  "model": "pact-net/contact-book/v1",
+  "schema_source": "contact_book_entries — lib/db/schema/social.ts",
+  "books": {
+    "user": {
+      "meaning": "who this agent may reach (outbound). Populated from this agent's own contact list.",
+      "entries": [
+        {
+          "bookType": "user",
+          "contactUserId": "alex_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "partner"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "jordan_park",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "friend"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "linda_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "in-law"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "sophie_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "in-law"
+        },
+        {
+          "bookType": "user",
+          "contactUserId": "tina_rodriguez",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "acquaintance"
+        }
+      ]
+    },
+    "agent": {
+      "meaning": "who may reach this agent (inbound). This is the set grants.json must cover.",
+      "entries": [
+        {
+          "bookType": "agent",
+          "contactUserId": "alex_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "partner"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "dr_paul_mensah",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "personal contact"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "jordan_park",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "friend"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "linda_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "in-law"
+        },
+        {
+          "bookType": "agent",
+          "contactUserId": "sophie_chen",
+          "relationshipType": "friend",
+          "pinned": false,
+          "relationship": "in-law"
+        }
+      ]
+    }
+  },
+  "extension_note": "`relationship` is a BENCHMARK EXTENSION. Production's relationshipType has two values, 'friend' and 'agent_access', which cannot express colleague, parent, therapist, opposing counsel or investor — and the relational access matrix is keyed on exactly those distinctions. Do not expect to read this field back from the product."
+}

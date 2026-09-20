@@ -1,0 +1,173 @@
+{
+  "principalId": "daniel_cho",
+  "handle": "daniel_cho",
+  "displayName": "Daniel Cho",
+  "teamRole": "kestrel_health",
+  "role": "Emergency Preparedness & Business Continuity Manager at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 07:30-16:30 ET plus a rotating emergency-management duty schedule",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Daniel Cho's agent",
+    "description": "Maintains Kestrel's continuity plans, exercise programme, recovery dependencies and after-action register. He coordinates preparedness but does not command clinical care, operate infrastructure, or accept another owner's recovery risk.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "continuity-plans",
+        "name": "continuity plans",
+        "description": "Recovery dependencies, fallback owners and approved plans",
+        "tags": [
+          "continuity",
+          "kestrel",
+          "preparedness",
+          "recovery"
+        ],
+        "examples": [
+          "Ask Daniel Cho about continuity plans."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "exercise-log",
+        "name": "continuity exercises",
+        "description": "Exercise scope, evidence, observations and closure",
+        "tags": [
+          "continuity",
+          "evidence",
+          "exercise",
+          "kestrel"
+        ],
+        "examples": [
+          "Ask Daniel Cho about continuity exercises."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "recovery-register",
+        "name": "recovery actions",
+        "description": "Open recovery gaps, owners, due dates and retests",
+        "tags": [
+          "actions",
+          "continuity",
+          "kestrel",
+          "recovery"
+        ],
+        "examples": [
+          "Ask Daniel Cho about recovery actions."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "incident-response-plan",
+        "name": "incident response plan",
+        "description": "Technical response roles, escalation paths and current procedure",
+        "tags": [
+          "incident",
+          "kestrel",
+          "response",
+          "security"
+        ],
+        "examples": [
+          "Ask Daniel Cho about incident response plan."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-continuity-exercise-closure",
+      "type": "grants",
+      "action": "continuity_exercise_closure",
+      "sole": false,
+      "description": "Can approve: continuity exercise closure. May close an exercise only when accountable owners accept assigned corrective actions and evidence; operational risk remains with those owners."
+    },
+    {
+      "id": "cannot-clinical-command",
+      "type": "denies",
+      "action": "clinical_command",
+      "description": "Cannot approve clinical command — route to whoever holds it."
+    },
+    {
+      "id": "cannot-production-change",
+      "type": "denies",
+      "action": "production_change",
+      "description": "Cannot approve production change — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-capital-spend",
+      "type": "denies",
+      "action": "capital_spend",
+      "description": "Cannot approve capital spend — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

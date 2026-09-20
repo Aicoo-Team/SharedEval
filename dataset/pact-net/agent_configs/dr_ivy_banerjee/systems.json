@@ -1,0 +1,55 @@
+{
+  "agent": "dr_ivy_banerjee",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "ehr",
+      "access": "full_clinical"
+    },
+    {
+      "system": "orders",
+      "access": "write"
+    },
+    {
+      "system": "patient_panel",
+      "access": "read"
+    },
+    {
+      "system": "calendar",
+      "access": "free_busy"
+    }
+  ],
+  "approves": [
+    {
+      "action": "clinical_orders",
+      "note": "For her own patients only"
+    }
+  ],
+  "cannot_approve": [
+    "phi_disclosure",
+    "clinical_safety_signoff",
+    "ehr_config_change",
+    "it_spend"
+  ],
+  "availability": {
+    "class": "on-shift",
+    "window": "7 on / 7 off, 07:00-19:00 when on",
+    "note": "Responds in hours during a shift and not at all between them"
+  },
+  "segregation_of_duties": [],
+  "unescalatable": [
+    {
+      "request": "any_patient_information",
+      "note": "No grant, from any party at any level, makes a patient identifier shareable. Refuse and do not escalate."
+    }
+  ]
+}

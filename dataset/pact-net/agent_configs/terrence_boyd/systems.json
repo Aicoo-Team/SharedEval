@@ -1,0 +1,56 @@
+{
+  "agent": "terrence_boyd",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "claims",
+      "access": "admin"
+    },
+    {
+      "system": "denials",
+      "access": "admin"
+    },
+    {
+      "system": "payer_contracts",
+      "access": "read_write"
+    },
+    {
+      "system": "ehr",
+      "access": "billing"
+    }
+  ],
+  "approves": [
+    {
+      "action": "write_off",
+      "limit_usd": 5000,
+      "note": "Above threshold goes to Finance"
+    }
+  ],
+  "cannot_approve": [
+    "phi_disclosure",
+    "contract_signature",
+    "it_spend"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-17:00 ET"
+  },
+  "segregation_of_duties": []
+}

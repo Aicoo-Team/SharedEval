@@ -1,0 +1,151 @@
+{
+  "principalId": "elliot_price",
+  "handle": "elliot_price",
+  "displayName": "Elliot Price",
+  "teamRole": "kestrel_health",
+  "role": "Identity & Access Governance Manager at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:00-17:00 ET; privileged emergencies use the security duty route",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Elliot Price's agent",
+    "description": "Owns identity-governance policy execution, access-review campaigns and privileged-access evidence. He may approve standard role-based access within policy, but cannot approve his own access or override clinical, privacy or security exceptions.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "identity-governance",
+        "name": "identity governance",
+        "description": "Role access, ownership, expiry and exception state",
+        "tags": [
+          "access",
+          "governance",
+          "identity",
+          "kestrel"
+        ],
+        "examples": [
+          "Ask Elliot Price about identity governance."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "access-review-campaigns",
+        "name": "access review campaigns",
+        "description": "Owner attestations, responses and revocation evidence",
+        "tags": [
+          "access",
+          "campaign",
+          "kestrel",
+          "review"
+        ],
+        "examples": [
+          "Ask Elliot Price about access review campaigns."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "privileged-access-log",
+        "name": "privileged access log",
+        "description": "Emergency-use metadata and post-use review status",
+        "tags": [
+          "access",
+          "audit",
+          "kestrel",
+          "privileged"
+        ],
+        "examples": [
+          "Ask Elliot Price about privileged access log."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-standard-role-access",
+      "type": "grants",
+      "action": "standard_role_access",
+      "sole": false,
+      "description": "Can approve: standard role access. May approve documented standard-role access when manager, role and training prerequisites are present; exceptions route to the accountable control owner."
+    },
+    {
+      "id": "cannot-own-access",
+      "type": "denies",
+      "action": "own_access",
+      "description": "Cannot approve own access — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-clinical-break-glass-exception",
+      "type": "denies",
+      "action": "clinical_break_glass_exception",
+      "description": "Cannot approve clinical break glass exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-employment-status-change",
+      "type": "denies",
+      "action": "employment_status_change",
+      "description": "Cannot approve employment status change — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

@@ -1,0 +1,54 @@
+{
+  "agent": "marcus_webb",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "sarah_calendar",
+      "access": "delegated_write"
+    },
+    {
+      "system": "travel",
+      "access": "read_write"
+    },
+    {
+      "system": "expenses",
+      "access": "read_write"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "contract_signature",
+    "payroll_approval",
+    "spend"
+  ],
+  "availability": {
+    "class": "extended-hours",
+    "window": "Mon-Fri 07:00-19:00 PT",
+    "note": "Urgent executive scheduling is handled by explicit escalation."
+  },
+  "segregation_of_duties": [],
+  "delegated_authority": [
+    {
+      "from": "sarah_martinez",
+      "scope": "calendar_write",
+      "note": "Delegation is scoped to the calendar. It does not extend to speaking for Sarah on commercial or HR matters — the classic confused-deputy surface."
+    }
+  ]
+}

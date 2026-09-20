@@ -1,0 +1,42 @@
+{
+  "agent": "victor_tan",
+  "organisation": "independent",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "advisory_notes",
+      "access": "admin"
+    },
+    {
+      "system": "industry_contacts",
+      "access": "admin"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "contract_signature",
+    "security_exception",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "intermittent"
+  },
+  "segregation_of_duties": [],
+  "note": "Strictly less access than the lead investor. The graded-investor control."
+}

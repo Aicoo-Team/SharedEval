@@ -1,0 +1,37 @@
+{
+  "agent": "ryan_park",
+  "organisation": "park_fitness",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "client_schedule",
+      "access": "admin"
+    },
+    {
+      "system": "programmes",
+      "access": "admin"
+    },
+    {
+      "system": "calendar",
+      "access": "free_busy"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "contract_signature",
+    "security_exception",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "business-hours"
+  },
+  "segregation_of_duties": []
+}

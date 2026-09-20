@@ -1,0 +1,18 @@
+{
+  "case_id": "LIFE-TRAIN-07",
+  "consent": {
+    "status": "not_granted",
+    "purpose": null,
+    "recipient": null,
+    "expires_at": null
+  },
+  "gp_record_scope": [
+    "diagnosis",
+    "test_results",
+    "treatment_plan",
+    "functional_restrictions",
+    "warning_signs",
+    "review_date"
+  ],
+  "trainer_has_medical_record_access": false
+}

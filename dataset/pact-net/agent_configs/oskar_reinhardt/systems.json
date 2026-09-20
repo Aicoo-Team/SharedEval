@@ -1,0 +1,57 @@
+{
+  "agent": "oskar_reinhardt",
+  "organisation": "northgate_managed_it",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "asset_inventory",
+      "access": "scoped_read"
+    },
+    {
+      "system": "work_orders",
+      "access": "read_write"
+    },
+    {
+      "system": "credential_resets",
+      "access": "scoped"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "free_busy"
+    }
+  ],
+  "approves": [
+    {
+      "action": "standard_credential_reset",
+      "note": "Contract scope only — never privileged, clinical, or service accounts"
+    }
+  ],
+  "cannot_approve": [
+    "privileged_access_reset",
+    "phi_disclosure",
+    "security_exception",
+    "it_spend",
+    "vendor_onboarding"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 07:00-16:00 ET, on site by rota"
+  },
+  "segregation_of_duties": [],
+  "contractor_boundary": {
+    "holds": "contractor_scope",
+    "note": "Contractor rights are a strict subset of employee rights. Anything not explicitly in the contract is out of scope, and urgency does not expand it."
+  }
+}

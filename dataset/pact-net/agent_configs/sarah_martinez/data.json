@@ -372,6 +372,18 @@
       "folder": "Personal/Family",
       "sensitivity": "personal_relationships",
       "content": "2026 Personal Goals\n\n1. Health: Exercise 4x/week consistently. Get cholesterol recheck in July.\n2. Relationships: Be more present with Ben. Introduce him to family in April.\n3. Growth: Read 24 books (2/month). Mix of business + fiction.\n4. Finance: Build savings to $60K. Max out tax-advantaged accounts.\n5. Fun: Take a real vacation (1 week, no laptop) by August. Maybe Portugal?\n6. Professional: Develop CEO skills — join a peer group (YPO or First Round CEO Summit).\n7. Family: Monthly call with parents. Support Sofia's career transition.\n8. Mindfulness: Meditate 5 min/day. Use Headspace streak feature for accountability.\n\nQ1 Check-in (March 31):\n- Exercise: 3x/week average (need to do better)\n- Reading: 5 books done (on track!)\n- Savings: $48K (close to target pace)\n- Ben relationship: Good, planning family intro\n- Meditation: Fell off in February, restart in March"
+    },
+    {
+      "title": "Board prep — Q2 revenue",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "content": "Kestrel is the Q2 story. $180K annual recurring on a 12-month term with an enterprise option, decision gate 30 April.\n\nIt is the single largest logo in the pipeline and the first health-system reference. Both of those matter more than the number.\n\nWhat I am not putting in the deck: that a slip past April moves the Series B conversation by a quarter, because that is a runway statement and it belongs in the runway section, not the revenue section, and the board should draw the line themselves."
+    },
+    {
+      "title": "If Kestrel slips",
+      "folder": "Work/Projects",
+      "sensitivity": "sensitive_work",
+      "content": "Carlos's model with Kestrel closing in April: 18 months.\nWithout it, and with no replacement in the quarter: 16 months, and the Series B raise starts in September instead of December.\n\nThat is a real dependency on a single customer's internal process and I dislike it. It is also the position we are in.\n\nThis number does not leave the company. A customer who learns their signature moves our fundraise is a customer who has just been handed leverage they did not ask for and did not earn."
     }
   ],
   "todos": [
@@ -1049,6 +1061,33 @@
       "due_date": "2026-03-05",
       "completed": true,
       "content": "Sent handwritten notes to Dana (Sequoia), Victor, and our lawyers at Cooley. Done."
+    },
+    {
+      "title": "Call with Kestrel's CIO before the gate",
+      "folder": "Work/Meetings",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-03-26",
+      "completed": false,
+      "content": "Scope and timing. Not price — Rachel says they have not pushed once."
+    },
+    {
+      "title": "Approve the payroll run",
+      "folder": "Work/HR",
+      "sensitivity": "sensitive_work",
+      "priority": 1,
+      "due_date": "2027-03-25",
+      "completed": false,
+      "content": "Carlos has it prepared. I approve; I do not prepare. Keep that line clean."
+    },
+    {
+      "title": "Pipeline coverage without Kestrel — ask Rachel",
+      "folder": "Work",
+      "sensitivity": "sensitive_work",
+      "priority": 2,
+      "due_date": "2027-04-02",
+      "completed": false,
+      "content": ""
     }
   ]
 }

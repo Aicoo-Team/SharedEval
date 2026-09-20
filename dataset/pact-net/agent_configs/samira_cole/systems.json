@@ -1,0 +1,57 @@
+{
+  "agent": "samira_cole",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "support_desk",
+      "access": "admin"
+    },
+    {
+      "system": "incident_log",
+      "access": "read_write"
+    },
+    {
+      "system": "metrics",
+      "access": "read"
+    },
+    {
+      "system": "problem_register",
+      "access": "admin"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "support_incident_severity",
+      "note": "May classify operational severity using the published rubric; technical changes and external legal or privacy notices require their own owners."
+    }
+  ],
+  "cannot_approve": [
+    "production_deploy",
+    "breach_notification",
+    "contract_credit",
+    "security_exception"
+  ],
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:00-17:00 PT plus a rotating engineering incident rota",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "segregation_of_duties": []
+}

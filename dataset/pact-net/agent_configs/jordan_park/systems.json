@@ -1,0 +1,43 @@
+{
+  "agent": "jordan_park",
+  "organisation": "personal",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "client_engagements",
+      "access": "read_write"
+    },
+    {
+      "system": "personal_finance",
+      "access": "admin"
+    }
+  ],
+  "approves": [],
+  "cannot_approve": [
+    "contract_signature",
+    "security_exception",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "intermittent",
+    "note": "Consultant; travels Mon-Thu"
+  },
+  "segregation_of_duties": [],
+  "client_confidentiality": "mckinsey_engagements"
+}

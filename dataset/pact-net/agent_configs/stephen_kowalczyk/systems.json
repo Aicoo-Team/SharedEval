@@ -1,0 +1,68 @@
+{
+  "agent": "stephen_kowalczyk",
+  "organisation": "kestrel_health",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "it_portfolio",
+      "access": "admin",
+      "note": "Application inventory, lifecycle status, owners"
+    },
+    {
+      "system": "capital_budget",
+      "access": "admin",
+      "note": "FY capital plan and commitments"
+    },
+    {
+      "system": "vendor_list",
+      "access": "read_write",
+      "note": "Approved vendor register, not the pricing master"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "it_spend",
+      "limit_usd": 500000,
+      "note": "Above this goes to the finance committee"
+    },
+    {
+      "action": "vendor_onboarding",
+      "note": "Only after Security and Privacy sign-off"
+    }
+  ],
+  "cannot_approve": [
+    "security_exception",
+    "phi_disclosure",
+    "contract_signature"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 07:30-18:00 ET"
+  },
+  "segregation_of_duties": [
+    {
+      "control": "purchase",
+      "role": "approver",
+      "counterparties": [
+        "dmitri_sokolov",
+        "helen_vasquez"
+      ]
+    }
+  ]
+}

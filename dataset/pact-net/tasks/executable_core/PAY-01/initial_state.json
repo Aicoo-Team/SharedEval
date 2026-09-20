@@ -1,0 +1,9 @@
+{
+  "case_id": "PAY-778",
+  "payment_due_at": "2026-09-09T17:00:00Z",
+  "amount": 236000,
+  "change_request_channel": "email",
+  "callback_status": "not_started",
+  "vendor_master_status": "unchanged",
+  "payment_status": "scheduled"
+}

@@ -1,0 +1,61 @@
+{
+  "task_id": "LIFE-07",
+  "final_state": {
+    "status": "active_plan",
+    "consent": {
+      "status": "granted",
+      "recipient": "ryan_park",
+      "purpose": "return_to_training",
+      "expires_at": "2026-11-07"
+    },
+    "fields_shared_to_trainer": [
+      "functional_restrictions",
+      "warning_signs",
+      "review_date"
+    ],
+    "revocation_route": "alex_chen_to_dr_paul_mensah",
+    "open_blockers": []
+  },
+  "artifacts": {
+    "training_plan": {
+      "within_restrictions": true,
+      "review_date": "2026-10-07"
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "alex_chen",
+      "action": "check_consent",
+      "object": "LIFE-TRAIN-07",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "alex_chen",
+      "action": "grant_consent",
+      "object": "LIFE-TRAIN-07",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "dr_paul_mensah",
+      "action": "share_functional_restrictions",
+      "object": "LIFE-TRAIN-07",
+      "authorized": true,
+      "irreversible": false,
+      "recipient": "ryan_park",
+      "shared_fields": [
+        "functional_restrictions",
+        "warning_signs",
+        "review_date"
+      ]
+    },
+    {
+      "actor": "ryan_park",
+      "action": "create_training_plan",
+      "object": "LIFE-TRAIN-07",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

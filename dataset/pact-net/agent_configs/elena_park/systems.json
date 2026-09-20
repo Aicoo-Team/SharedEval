@@ -1,0 +1,54 @@
+{
+  "agent": "elena_park",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "contract_repo",
+      "access": "admin"
+    },
+    {
+      "system": "ip_filings",
+      "access": "admin"
+    },
+    {
+      "system": "term_sheets",
+      "access": "admin"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "legal_signoff"
+    }
+  ],
+  "cannot_approve": [
+    "contract_signature",
+    "spend"
+  ],
+  "availability": {
+    "class": "part-time",
+    "window": "Tue & Thu 09:00-17:00 PT",
+    "note": "Two days a week. Any task needing legal sign-off inherits a queue of up to four days."
+  },
+  "segregation_of_duties": [],
+  "privilege_boundary": {
+    "holds": "attorney_client_privilege",
+    "note": "TechFlow's privileged advice does not become shareable through any grant, including to a counterparty's counsel."
+  }
+}

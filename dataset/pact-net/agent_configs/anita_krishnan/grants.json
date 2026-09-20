@@ -1,0 +1,280 @@
+{
+  "agent": "anita_krishnan",
+  "organisation": "krishnan_law",
+  "model": "pact-net/grants/v1",
+  "generated_by": "scripts/derive_grants.py",
+  "source_of_truth": "world_design/relational_access_matrix.json",
+  "warning": "DERIVED FILE — do not hand-edit. Correct the access matrix, or RELATIONSHIP_DEFAULTS / OVERRIDES in the generator, and re-run.",
+  "default": {
+    "notesAccess": {
+      "scope": "none",
+      "folderIds": [],
+      "access": "read"
+    },
+    "calendarAccess": {
+      "read": "none",
+      "write": false
+    },
+    "emailAccess": {
+      "read": false
+    },
+    "todoAccess": {
+      "read": false,
+      "write": false
+    },
+    "toolAccess": {
+      "allowedTools": []
+    },
+    "notifyOwner": true
+  },
+  "profiles": {
+    "structural_tight": {
+      "carlos_reyes": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "priya_sharma": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      }
+    },
+    "structural_loose": {
+      "carlos_reyes": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "priya_sharma": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Shared",
+            "Work",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      }
+    }
+  },
+  "grants": {
+    "carlos_reyes": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Shared",
+          "Work"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "free_busy",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "external",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "P",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "priya_sharma": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Shared",
+          "Work"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "free_busy",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "external",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "P",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "principalId": "bea_ferreira",
+  "handle": "bea_ferreira",
+  "displayName": "Bea Ferreira",
+  "teamRole": "kestrel_health",
+  "role": "IT Service Desk Manager at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours-with-duty-manager-rota",
+    "window": "Bea: Mon-Fri 08:00-17:00 ET; service-desk duty-manager rota: 24/7",
+    "note": "The service desk and duty-manager rota are continuous services; Bea is one named manager, not personally available 24/7."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Bea Ferreira's agent",
+    "description": "Runs the 24/7 service desk for 4,100 staff across four sites. Owns the ticket queue, asset inventory, and the access-reset process. Ten years on the desk, four running it.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "ticket-queue",
+        "name": "service desk",
+        "description": "Ticket status and technical detail — never a ticket body with patient data",
+        "tags": [
+          "kestrel",
+          "servicedesk",
+          "support",
+          "tickets"
+        ],
+        "examples": [
+          "Ask Bea Ferreira about service desk."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "asset-inventory",
+        "name": "asset inventory",
+        "description": "Devices, images, and where they are deployed",
+        "tags": [
+          "assets",
+          "devices",
+          "inventory",
+          "kestrel"
+        ],
+        "examples": [
+          "Ask Bea Ferreira about asset inventory."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "identity-resets",
+        "name": "access resets",
+        "description": "Reset a standard account; privileged accounts need manager confirmation",
+        "tags": [
+          "access",
+          "identity",
+          "kestrel",
+          "reset"
+        ],
+        "examples": [
+          "Ask Bea Ferreira about access resets."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-access-reset",
+      "type": "grants",
+      "action": "access_reset",
+      "sole": false,
+      "description": "Can approve: access reset. Privileged accounts require manager confirmation"
+    },
+    {
+      "id": "cannot-privileged-access-reset",
+      "type": "denies",
+      "action": "privileged_access_reset",
+      "description": "Cannot approve privileged access reset — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    },
+    {
+      "id": "cannot-it-spend",
+      "type": "denies",
+      "action": "it_spend",
+      "description": "Cannot approve it spend — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

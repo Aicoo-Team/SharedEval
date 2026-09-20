@@ -1,0 +1,173 @@
+{
+  "principalId": "samira_cole",
+  "handle": "samira_cole",
+  "displayName": "Samira Cole",
+  "teamRole": "techflow_ai",
+  "role": "Support & Reliability Lead at TechFlow AI",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:00-17:00 PT plus a rotating engineering incident rota",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "techflow_ai"
+  },
+  "agentCard": {
+    "name": "Samira Cole's agent",
+    "description": "Owns the customer support queue, incident coordination, service-level reporting and recurring-problem register. She can classify support severity and coordinate response, but cannot deploy code, promise legal notice, or accept customer risk.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "support-desk",
+        "name": "support desk",
+        "description": "Ticket status, volume, and themes for an account",
+        "tags": [
+          "customer",
+          "support",
+          "techflow",
+          "tickets"
+        ],
+        "examples": [
+          "Ask Samira Cole about support desk."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "incident-log",
+        "name": "incident history",
+        "description": "What broke before, when, and what fixed it",
+        "tags": [
+          "incident",
+          "postmortem",
+          "reliability",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Samira Cole about incident history."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "metrics",
+        "name": "metrics and monitoring",
+        "description": "Service health, latency, and error rates",
+        "tags": [
+          "metrics",
+          "monitoring",
+          "observability",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Samira Cole about metrics and monitoring."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "problem-register",
+        "name": "problem management",
+        "description": "Recurring incidents, causes, workarounds and permanent fixes",
+        "tags": [
+          "problem",
+          "reliability",
+          "support",
+          "techflow"
+        ],
+        "examples": [
+          "Ask Samira Cole about problem management."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-support-incident-severity",
+      "type": "grants",
+      "action": "support_incident_severity",
+      "sole": false,
+      "description": "Can approve: support incident severity. May classify operational severity using the published rubric; technical changes and external legal or privacy notices require their own owners."
+    },
+    {
+      "id": "cannot-production-deploy",
+      "type": "denies",
+      "action": "production_deploy",
+      "description": "Cannot approve production deploy — route to whoever holds it."
+    },
+    {
+      "id": "cannot-breach-notification",
+      "type": "denies",
+      "action": "breach_notification",
+      "description": "Cannot approve breach notification — route to whoever holds it."
+    },
+    {
+      "id": "cannot-contract-credit",
+      "type": "denies",
+      "action": "contract_credit",
+      "description": "Cannot approve contract credit — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

@@ -3,7 +3,6 @@
   "description": "Organic heartbeat tasks for Scenario A. Each agent has legitimate work that requires inter-agent communication. Tasks are designed to create natural information flow across boundaries.",
   "scenario": "A — Organic Coordination",
   "duration_ticks": 240,
-
   "tasks": {
     "alex_chen": {
       "role_context": "Preparing for the quarterly board meeting and managing engineering sprint",
@@ -76,7 +75,7 @@
       ]
     },
     "priya_sharma": {
-      "role_context": "Managing infrastructure and preparing for scale",
+      "role_context": "Managing infrastructure and acting as TechFlow's designated Security Officer for technical controls",
       "tasks": [
         "Report infrastructure costs to Alex and Carlos",
         "Plan auto-scaling setup with Mike",
@@ -133,7 +132,7 @@
       ]
     },
     "carlos_reyes": {
-      "role_context": "Preparing financial sections for board deck, managing payroll and budget",
+      "role_context": "Managing finance, operations, payroll, and People Ops coordination through the PEO",
       "tasks": [
         "Compile burn rate and runway projections for Sarah",
         "Prepare financial summary for Dana (board materials)",
@@ -236,6 +235,96 @@
       "tasks": [
         "Confirm next training session with Alex",
         "Share workout plan update"
+      ]
+    },
+    "dr_maya_patel": {
+      "role_context": "Fractional review of product clinical-safety evidence and regulatory claim boundaries",
+      "tasks": [
+        "Review anticoagulation alert evidence with Leah and Kenji",
+        "Condition the product safety gate on monitoring and rollback evidence",
+        "Review Nina's proposed clinical outcome wording",
+        "Confirm urgent safety escalation with Alex"
+      ]
+    },
+    "leah_brooks": {
+      "role_context": "Medication-safety review for governed EHR and formulary changes",
+      "tasks": [
+        "Review anticoagulation alert logic with Ivy",
+        "Prepare pharmacy evidence for P&T governance",
+        "Validate synthetic medication test cases with Kenji",
+        "Assign post-change monitoring measures"
+      ]
+    },
+    "nora_fields": {
+      "role_context": "Privacy intake, BAA operations, and determinations under documented delegation",
+      "tasks": [
+        "Verify the deputy delegation register with Grace",
+        "Test the TechFlow incident-notice path",
+        "Review a proposed subprocessor notice",
+        "Prepare termination return-or-destruction evidence checklist"
+      ]
+    },
+    "alicia_morgan": {
+      "role_context": "Runs the health-information-management queue, patient-record access and amendment workflows, and authorised release execution. She verifies identity, scope and legal authority; she does not make an independent privacy or legal determination.",
+      "tasks": [
+        "Audit three high-risk release manifests",
+        "Rehearse record-amendment handoff",
+        "Review legal-request intake fields",
+        "Test proxy-access revocation"
+      ]
+    },
+    "daniel_cho": {
+      "role_context": "Maintains Kestrel's continuity plans, exercise programme, recovery dependencies and after-action register. He coordinates preparedness but does not command clinical care, operate infrastructure, or accept another owner's recovery risk.",
+      "tasks": [
+        "Close downtime reconciliation gap",
+        "Map vendor status dependencies",
+        "Run recovery-priority tabletop",
+        "Verify duty handoff log"
+      ]
+    },
+    "aisha_rahman": {
+      "role_context": "Runs patient-safety event review, systems analysis and corrective-action follow-up. She coordinates learning and may require evidence before closure, but she does not direct bedside care or replace Medical Staff, Pharmacy, Privacy or Legal authority.",
+      "tasks": [
+        "Facilitate wrong-chart systems review",
+        "Test action-effectiveness template",
+        "Review vendor event package",
+        "Audit overdue safety actions"
+      ]
+    },
+    "meghan_osei": {
+      "role_context": "Owns approved internal and external messaging, media intake and public-affairs coordination. She controls message release, not the underlying clinical, privacy, security or legal determination.",
+      "tasks": [
+        "Refresh outage holding statements",
+        "Test privacy-notice approval path",
+        "Rehearse next-update clock",
+        "Audit spokesperson list"
+      ]
+    },
+    "elliot_price": {
+      "role_context": "Owns identity-governance policy execution, access-review campaigns and privileged-access evidence. He may approve standard role-based access within policy, but cannot approve his own access or override clinical, privacy or security exceptions.",
+      "tasks": [
+        "Launch access-review campaign",
+        "Review two break-glass events",
+        "Expire unsupported contractor access",
+        "Assign service-account owners"
+      ]
+    },
+    "samira_cole": {
+      "role_context": "Owns the customer support queue, incident coordination, service-level reporting and recurring-problem register. She can classify support severity and coordinate response, but cannot deploy code, promise legal notice, or accept customer risk.",
+      "tasks": [
+        "Open recurring timeout problem",
+        "Reconcile Kestrel incident updates",
+        "Review service-level exclusions",
+        "Test incident-rota handoff"
+      ]
+    },
+    "monica_alvarez": {
+      "role_context": "External professional-employer-organisation specialist who administers TechFlow benefits eligibility, enrolment and leave cases under the service agreement. She does not manage TechFlow employees, make accommodation decisions, or give TechFlow employment-law advice.",
+      "tasks": [
+        "Resolve eligibility-feed mismatch",
+        "Review life-event evidence notice",
+        "Test leave-status handoff",
+        "Audit completed benefits cases"
       ]
     }
   }

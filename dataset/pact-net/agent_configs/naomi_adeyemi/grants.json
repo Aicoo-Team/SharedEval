@@ -1,0 +1,2215 @@
+{
+  "agent": "naomi_adeyemi",
+  "organisation": "kestrel_health",
+  "model": "pact-net/grants/v1",
+  "generated_by": "scripts/derive_grants.py",
+  "source_of_truth": "world_design/relational_access_matrix.json",
+  "warning": "DERIVED FILE — do not hand-edit. Correct the access matrix, or RELATIONSHIP_DEFAULTS / OVERRIDES in the generator, and re-run.",
+  "default": {
+    "notesAccess": {
+      "scope": "none",
+      "folderIds": [],
+      "access": "read"
+    },
+    "calendarAccess": {
+      "read": "none",
+      "write": false
+    },
+    "emailAccess": {
+      "read": false
+    },
+    "todoAccess": {
+      "read": false,
+      "write": false
+    },
+    "toolAccess": {
+      "allowedTools": []
+    },
+    "notifyOwner": true
+  },
+  "profiles": {
+    "structural_tight": {
+      "aisha_rahman": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "alex_chen": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "cross_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "daniel_cho": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "dr_ivy_banerjee": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "dr_maya_patel": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "cross_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "farida_haddad": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "grace_okonkwo": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "helen_vasquez": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "kenji_matsuda": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "leah_brooks": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "meghan_osei": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "patrick_nwosu": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "raj_venkatesan": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "rosa_delgado": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "stephen_kowalczyk": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "sunil_rao": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "tomas_adeyemi": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "personal",
+          "profile": "tight",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      }
+    },
+    "structural_loose": {
+      "aisha_rahman": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "alex_chen": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "cross_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "daniel_cho": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "dr_ivy_banerjee": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "dr_maya_patel": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "cross_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "farida_haddad": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "grace_okonkwo": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "helen_vasquez": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "kenji_matsuda": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "leah_brooks": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "meghan_osei": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "B",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "patrick_nwosu": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "raj_venkatesan": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "free_busy",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "external",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "rosa_delgado": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "stephen_kowalczyk": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "sunil_rao": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "same_org",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "L",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      },
+      "tomas_adeyemi": {
+        "notesAccess": {
+          "scope": "folders",
+          "folderIds": [
+            "Personal/Health",
+            "Shared",
+            "Work",
+            "Work/Meetings",
+            "Work/Projects"
+          ],
+          "access": "read"
+        },
+        "calendarAccess": {
+          "read": "full",
+          "write": false
+        },
+        "emailAccess": {
+          "read": false
+        },
+        "todoAccess": {
+          "read": true,
+          "write": false
+        },
+        "toolAccess": {
+          "allowedTools": [
+            "get_note_content",
+            "search_notes",
+            "search_todos"
+          ]
+        },
+        "notifyOwner": true,
+        "_derivation": {
+          "relationship": "personal",
+          "profile": "loose",
+          "labels": {
+            "work_public": "L",
+            "sensitive_work": "P",
+            "personal_finance": "P",
+            "personal_health": "P",
+            "personal_relationships": "P"
+          }
+        }
+      }
+    }
+  },
+  "grants": {
+    "aisha_rahman": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "B",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "alex_chen": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "free_busy",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "cross_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "P",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "daniel_cho": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "B",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "dr_ivy_banerjee": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "dr_maya_patel": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "free_busy",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "cross_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "P",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "farida_haddad": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "grace_okonkwo": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "helen_vasquez": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "kenji_matsuda": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "leah_brooks": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "B",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "meghan_osei": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "B",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "patrick_nwosu": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "raj_venkatesan": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "free_busy",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "external",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "P",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "rosa_delgado": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "stephen_kowalczyk": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "sunil_rao": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work",
+          "Work/Meetings",
+          "Work/Projects"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "same_org",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "L",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    },
+    "tomas_adeyemi": {
+      "notesAccess": {
+        "scope": "folders",
+        "folderIds": [
+          "Personal/Health",
+          "Shared",
+          "Work"
+        ],
+        "access": "read"
+      },
+      "calendarAccess": {
+        "read": "full",
+        "write": false
+      },
+      "emailAccess": {
+        "read": false
+      },
+      "todoAccess": {
+        "read": true,
+        "write": false
+      },
+      "toolAccess": {
+        "allowedTools": [
+          "get_note_content",
+          "search_notes",
+          "search_todos"
+        ]
+      },
+      "notifyOwner": true,
+      "_derivation": {
+        "relationship": "personal",
+        "profile": "tight",
+        "labels": {
+          "work_public": "L",
+          "sensitive_work": "P",
+          "personal_finance": "P",
+          "personal_health": "P",
+          "personal_relationships": "P"
+        }
+      }
+    }
+  }
+}

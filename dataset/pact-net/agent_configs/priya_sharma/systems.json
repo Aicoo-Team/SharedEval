@@ -1,0 +1,103 @@
+{
+  "agent": "priya_sharma",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "infra",
+      "access": "admin"
+    },
+    {
+      "system": "secrets_vault",
+      "access": "privileged_admin_group",
+      "note": "Shared privileged-admin group with audited break-glass access; Priya is a custodian, not the sole holder."
+    },
+    {
+      "system": "logs",
+      "access": "admin"
+    },
+    {
+      "system": "metrics",
+      "access": "admin"
+    },
+    {
+      "system": "prod",
+      "access": "admin"
+    },
+    {
+      "system": "security_control_register",
+      "access": "admin"
+    },
+    {
+      "system": "incident_response_plan",
+      "access": "admin"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "infrastructure_change"
+    },
+    {
+      "action": "secret_rotation",
+      "note": "May coordinate and approve a rotation under dual control; no individual is sole custodian."
+    },
+    {
+      "action": "technical_security_control",
+      "note": "Designated Security Officer approval for TechFlow technical controls; business owners accept residual business risk."
+    }
+  ],
+  "cannot_approve": [
+    "production_deploy",
+    "contract_signature",
+    "security_exception",
+    "own_control_effectiveness_attestation",
+    "own_access_audit_approval",
+    "residual_business_risk_acceptance"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:00-18:00 PT",
+    "note": "Plus a rotating infrastructure on-call duty."
+  },
+  "segregation_of_duties": [
+    {
+      "control": "production_deploy",
+      "role": "author",
+      "counterparties": [
+        "alex_chen"
+      ]
+    },
+    {
+      "control": "security_assurance",
+      "role": "technical_control_owner_and_evidence_producer",
+      "counterparties": [
+        "alex_chen",
+        "sarah_martinez",
+        "independent_reviewer_external_boundary"
+      ],
+      "note": "Priya may operate controls and produce evidence but cannot independently certify her own control effectiveness or accept material residual business risk."
+    }
+  ],
+  "unescalatable": [
+    {
+      "request": "secrets_vault_contents",
+      "note": "Vault contents do not leave, at any grant, to anyone — including Kestrel Security during assessment. Evidence about controls, never the material itself."
+    }
+  ]
+}

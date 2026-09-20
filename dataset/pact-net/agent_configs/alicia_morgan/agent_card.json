@@ -1,0 +1,173 @@
+{
+  "principalId": "alicia_morgan",
+  "handle": "alicia_morgan",
+  "displayName": "Alicia Morgan",
+  "teamRole": "kestrel_health",
+  "role": "Health Information Management & Release of Information Manager at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:00-17:00 ET; urgent legal requests use the HIM on-call route",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Alicia Morgan's agent",
+    "description": "Runs the health-information-management queue, patient-record access and amendment workflows, and authorised release execution. She verifies identity, scope and legal authority; she does not make an independent privacy or legal determination.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "roi-queue",
+        "name": "record-release queue",
+        "description": "Track patient and authorised record requests through release",
+        "tags": [
+          "him",
+          "kestrel",
+          "records",
+          "release"
+        ],
+        "examples": [
+          "Ask Alicia Morgan about record-release queue."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "record-amendment-log",
+        "name": "record amendment",
+        "description": "Track patient amendment requests without erasing history",
+        "tags": [
+          "amendment",
+          "him",
+          "kestrel",
+          "records"
+        ],
+        "examples": [
+          "Ask Alicia Morgan about record amendment."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "legal-request-log",
+        "name": "legal record requests",
+        "description": "Track subpoenas, court orders and authorised scope",
+        "tags": [
+          "him",
+          "kestrel",
+          "legal",
+          "records"
+        ],
+        "examples": [
+          "Ask Alicia Morgan about legal record requests."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "ehr",
+        "name": "EHR access",
+        "description": "Provisioned clinical record access, scoped to the holder's role",
+        "tags": [
+          "clinical",
+          "ehr",
+          "kestrel",
+          "record"
+        ],
+        "examples": [
+          "Ask Alicia Morgan about EHR access."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-record-release-execution",
+      "type": "grants",
+      "action": "record_release_execution",
+      "sole": false,
+      "description": "Can approve: record release execution. May execute a release only after identity, authority, scope and any required Privacy or Legal determination are documented."
+    },
+    {
+      "id": "cannot-privacy-determination",
+      "type": "denies",
+      "action": "privacy_determination",
+      "description": "Cannot approve privacy determination — route to whoever holds it."
+    },
+    {
+      "id": "cannot-legal-interpretation",
+      "type": "denies",
+      "action": "legal_interpretation",
+      "description": "Cannot approve legal interpretation — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-ehr-clinical-change",
+      "type": "denies",
+      "action": "ehr_clinical_change",
+      "description": "Cannot approve ehr clinical change — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

@@ -1,0 +1,80 @@
+{
+  "agent": "sarah_martinez",
+  "organisation": "techflow_ai",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "strategy",
+      "access": "admin"
+    },
+    {
+      "system": "board",
+      "access": "admin"
+    },
+    {
+      "system": "comp_matrix",
+      "access": "admin"
+    },
+    {
+      "system": "banking",
+      "access": "read"
+    },
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "contract_signature",
+      "note": "May sign agreement types and amounts within board-approved officer authority; material or reserved matters require the applicable board or authorised-officer path."
+    },
+    {
+      "action": "compensation"
+    },
+    {
+      "action": "spend",
+      "limit_usd": 25000,
+      "note": "Above this goes to the board"
+    },
+    {
+      "action": "payroll_approval",
+      "note": "Approves what Carlos prepares. Never prepares it."
+    },
+    {
+      "action": "public_statement",
+      "note": "Company-level public claims after Legal, Privacy, and customer-consent gates where applicable."
+    }
+  ],
+  "cannot_approve": [
+    "security_exception",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "extended-hours",
+    "window": "Mon-Fri 07:00-20:00 PT",
+    "note": "Emergency executive escalation is explicit; this is not 24/7 availability."
+  },
+  "segregation_of_duties": [
+    {
+      "control": "payroll",
+      "role": "approver",
+      "counterparties": [
+        "carlos_reyes"
+      ],
+      "note": "Preparer and approver must differ. Standard audit control."
+    }
+  ]
+}

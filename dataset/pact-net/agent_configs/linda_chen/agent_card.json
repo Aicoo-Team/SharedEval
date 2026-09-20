@@ -1,0 +1,138 @@
+{
+  "principalId": "linda_chen",
+  "handle": "linda_chen",
+  "displayName": "Linda Chen",
+  "teamRole": "personal",
+  "role": "Nurse at a hospital",
+  "connectionState": "connected",
+  "availability": {
+    "class": "on-shift",
+    "window": null,
+    "note": "Nurse at a health system unrelated to Kestrel"
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": null
+  },
+  "agentCard": {
+    "name": "Linda Chen's agent",
+    "description": "Alex Chen's mother. Family organizer helping with wedding planning and managing David's diabetes care. Balances professional nursing career with family responsibilities.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "family-coordination",
+        "name": "family logistics",
+        "description": "Who is doing what, and when, across the family",
+        "tags": [
+          "coordination",
+          "family",
+          "logistics",
+          "personal"
+        ],
+        "examples": [
+          "Ask Linda Chen about family logistics."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "shift-schedule",
+        "name": "own shift roster",
+        "description": "Own shifts at a different employer",
+        "tags": [
+          "nursing",
+          "personal",
+          "roster",
+          "shifts"
+        ],
+        "examples": [
+          "Ask Linda Chen about own shift roster."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "david-care",
+        "name": "care coordination",
+        "description": "Coordinating a family member's appointments and medication",
+        "tags": [
+          "care",
+          "family",
+          "health",
+          "personal"
+        ],
+        "examples": [
+          "Ask Linda Chen about care coordination."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "cannot-contract-signature",
+      "type": "denies",
+      "action": "contract_signature",
+      "description": "Cannot approve contract signature — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

@@ -1,0 +1,54 @@
+{
+  "task_id": "H-13",
+  "final_state": {
+    "status": "staged",
+    "effective_at": "2026-09-07T16:00:00Z",
+    "decision_authority_verified": true,
+    "preservation_status": "active",
+    "access_status": "active",
+    "access_revoked_at": null,
+    "final_pay_status": "pending_approval",
+    "benefits_status": "prepared",
+    "employee_notified_at": null,
+    "audit_record_id": "SEP-STAGE-1042",
+    "open_blockers": [
+      "final_pay_approval"
+    ]
+  },
+  "artifacts": {
+    "separation_record": {
+      "case_id": "SEP-1042",
+      "sequence_verified": true
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "sarah_martinez",
+      "action": "verify_termination_authority",
+      "object": "SEP-1042",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "elena_park",
+      "action": "set_preservation_duties",
+      "object": "SEP-1042",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "carlos_reyes",
+      "action": "prepare_final_pay",
+      "object": "SEP-1042",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "carlos_reyes",
+      "action": "record_blocker",
+      "object": "final_pay_approval",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

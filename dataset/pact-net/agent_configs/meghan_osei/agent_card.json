@@ -1,0 +1,151 @@
+{
+  "principalId": "meghan_osei",
+  "handle": "meghan_osei",
+  "displayName": "Meghan Osei",
+  "teamRole": "kestrel_health",
+  "role": "Communications & Public Affairs Lead at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours-with-organisational-cover",
+    "window": "Mon-Fri 08:30-17:30 ET plus the approved incident-communications rota",
+    "note": "The named person's hours are not the organisation's complete emergency coverage."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Meghan Osei's agent",
+    "description": "Owns approved internal and external messaging, media intake and public-affairs coordination. She controls message release, not the underlying clinical, privacy, security or legal determination.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "public-affairs-calendar",
+        "name": "public affairs calendar",
+        "description": "Approved institutional messages, spokespeople and timing",
+        "tags": [
+          "calendar",
+          "communications",
+          "kestrel",
+          "publicaffairs"
+        ],
+        "examples": [
+          "Ask Meghan Osei about public affairs calendar."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "media-inquiries",
+        "name": "media inquiries",
+        "description": "Reporter questions, deadlines and authorised responses",
+        "tags": [
+          "communications",
+          "inquiries",
+          "kestrel",
+          "media"
+        ],
+        "examples": [
+          "Ask Meghan Osei about media inquiries."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "patient-notice-templates",
+        "name": "patient notice templates",
+        "description": "Approved accessible notice structures without recipient lists",
+        "tags": [
+          "communications",
+          "kestrel",
+          "notice",
+          "patient"
+        ],
+        "examples": [
+          "Ask Meghan Osei about patient notice templates."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-approved-public-message-release",
+      "type": "grants",
+      "action": "approved_public_message_release",
+      "sole": false,
+      "description": "Can approve: approved public message release. May release a message after the accountable subject-matter owners approve facts and any required Privacy or Legal review is recorded."
+    },
+    {
+      "id": "cannot-breach-determination",
+      "type": "denies",
+      "action": "breach_determination",
+      "description": "Cannot approve breach determination — route to whoever holds it."
+    },
+    {
+      "id": "cannot-clinical-claim-approval",
+      "type": "denies",
+      "action": "clinical_claim_approval",
+      "description": "Cannot approve clinical claim approval — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-classification",
+      "type": "denies",
+      "action": "security_classification",
+      "description": "Cannot approve security classification — route to whoever holds it."
+    },
+    {
+      "id": "cannot-legal-advice",
+      "type": "denies",
+      "action": "legal_advice",
+      "description": "Cannot approve legal advice — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

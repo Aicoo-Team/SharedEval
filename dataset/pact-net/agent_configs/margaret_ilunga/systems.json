@@ -1,0 +1,56 @@
+{
+  "agent": "margaret_ilunga",
+  "organisation": "bellhaven_roe",
+  "timezone": "America/Los_Angeles",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "matter_files",
+      "access": "admin"
+    },
+    {
+      "system": "privileged_advice",
+      "access": "admin"
+    },
+    {
+      "system": "time_and_billing",
+      "access": "read_write"
+    }
+  ],
+  "approves": [
+    {
+      "action": "legal_advice",
+      "note": "For the instructing client only"
+    }
+  ],
+  "cannot_approve": [
+    "contract_signature",
+    "spend",
+    "security_exception",
+    "phi_disclosure"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 09:00-18:30 PT"
+  },
+  "segregation_of_duties": [],
+  "privilege_boundary": {
+    "holds": "attorney_client_privilege",
+    "note": "Privilege is the client's, not the firm's, and it survives any grant either the client or a counterparty issues."
+  }
+}

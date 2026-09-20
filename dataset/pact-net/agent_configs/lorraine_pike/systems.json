@@ -1,0 +1,52 @@
+{
+  "agent": "lorraine_pike",
+  "organisation": "meridian_health_plan",
+  "timezone": "America/New_York",
+  "accounts": [
+    {
+      "system": "notes",
+      "access": "read_write"
+    },
+    {
+      "system": "todos",
+      "access": "read_write"
+    },
+    {
+      "system": "calendar",
+      "access": "full"
+    },
+    {
+      "system": "email",
+      "access": "read_write"
+    },
+    {
+      "system": "payer_contracts",
+      "access": "admin"
+    },
+    {
+      "system": "adjudication_policy",
+      "access": "admin"
+    },
+    {
+      "system": "network_performance",
+      "access": "read"
+    }
+  ],
+  "approves": [
+    {
+      "action": "policy_clarification",
+      "note": "Explains published policy and routes disputed determinations into the payer's formal appeals process; does not decide clinical appeals."
+    }
+  ],
+  "cannot_approve": [
+    "contract_signature",
+    "phi_disclosure",
+    "rate_setting",
+    "clinical_appeal_determination"
+  ],
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 08:30-17:00 ET"
+  },
+  "segregation_of_duties": []
+}

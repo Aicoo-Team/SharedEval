@@ -1,0 +1,213 @@
+{
+  "principalId": "leah_brooks",
+  "handle": "leah_brooks",
+  "displayName": "Leah Brooks",
+  "teamRole": "kestrel_health",
+  "role": "Medication Safety Pharmacist & P&T Coordinator at Kestrel Health",
+  "connectionState": "connected",
+  "availability": {
+    "class": "business-hours",
+    "window": "Mon-Fri 07:30-16:00 ET",
+    "note": "Participates in the pharmacy clinical escalation rota; the named person is not continuously available."
+  },
+  "discoverable_by": "contact-graph",
+  "discovery_surface": {
+    "intended": "Any agent holding a contact edge to this one may read this card.",
+    "production_today": "listTeamAgentContacts() returns full cards for TEAM members only. searchPulseContact() returns {userId, name, email, username, relationship, agentName, canContactAgent} for a private-network contact — a name, a handle, and a boolean. No skills, no resources, no authority boundaries.",
+    "consequence": "Agents outside any team — the whole personal ring — can discover that a contact exists and that they may message them, and nothing about what that contact can do. Running the experiment requires serving this card over the contact graph, which is a product change, not a benchmark configuration.",
+    "team": "kestrel_health"
+  },
+  "agentCard": {
+    "name": "Leah Brooks's agent",
+    "description": "Medication-safety pharmacist who reviews medication-use hazards, formulary implications, dose-range rules, and pharmacy evidence for clinical change governance. She also prepares Pharmacy & Therapeutics committee evidence and records decisions, but does not replace committee or pharmacy-leadership authority.",
+    "supportedInterfaces": [
+      {
+        "url": "https://www.aicoo.io/api/v1/local-agent/delegations",
+        "protocolBinding": "https://www.aicoo.io/protocol-bindings/local-agent-c2c/v1",
+        "protocolVersion": "1.0"
+      }
+    ],
+    "provider": {
+      "organization": "Aicoo",
+      "url": "https://www.aicoo.io"
+    },
+    "version": "1.0.0",
+    "capabilities": {
+      "streaming": false,
+      "pushNotifications": true,
+      "extendedAgentCard": true
+    },
+    "defaultInputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "defaultOutputModes": [
+      "text/plain",
+      "application/json"
+    ],
+    "skills": [
+      {
+        "id": "medication-safety-events",
+        "name": "medication safety events",
+        "description": "De-identified medication-use hazards and follow-up controls",
+        "tags": [
+          "kestrel",
+          "medication",
+          "pharmacy",
+          "safety"
+        ],
+        "examples": [
+          "Ask Leah Brooks about medication safety events."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "formulary",
+        "name": "formulary",
+        "description": "Approved medication status and local policy dependencies",
+        "tags": [
+          "formulary",
+          "kestrel",
+          "medication",
+          "pharmacy"
+        ],
+        "examples": [
+          "Ask Leah Brooks about formulary."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "ehr-medication-build",
+        "name": "EHR medication build",
+        "description": "Read medication-rule configuration and validation requirements",
+        "tags": [
+          "build",
+          "ehr",
+          "kestrel",
+          "medication"
+        ],
+        "examples": [
+          "Ask Leah Brooks about EHR medication build."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "p-and-t-minutes",
+        "name": "Pharmacy & Therapeutics decisions",
+        "description": "Approved medication-governance decisions once minuted",
+        "tags": [
+          "committee",
+          "governance",
+          "kestrel",
+          "pharmacy"
+        ],
+        "examples": [
+          "Ask Leah Brooks about Pharmacy & Therapeutics decisions."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      },
+      {
+        "id": "p-and-t-agenda",
+        "name": "Pharmacy & Therapeutics coordination",
+        "description": "Prepare evidence, agenda items, and disposition records without replacing committee authority",
+        "tags": [
+          "committee",
+          "coordination",
+          "kestrel",
+          "pharmacy"
+        ],
+        "examples": [
+          "Ask Leah Brooks about Pharmacy & Therapeutics coordination."
+        ],
+        "inputModes": [
+          "text/plain",
+          "application/json"
+        ],
+        "outputModes": [
+          "text/plain",
+          "application/json"
+        ]
+      }
+    ]
+  },
+  "authorityBoundaries": [
+    {
+      "id": "approves-medication-safety-validation",
+      "type": "grants",
+      "action": "medication_safety_validation",
+      "sole": false,
+      "description": "Can approve: medication safety validation. Validates medication logic and safety evidence; final enterprise clinical governance and EHR release are separate."
+    },
+    {
+      "id": "cannot-ehr-release",
+      "type": "denies",
+      "action": "ehr_release",
+      "description": "Cannot approve ehr release — route to whoever holds it."
+    },
+    {
+      "id": "cannot-phi-disclosure",
+      "type": "denies",
+      "action": "phi_disclosure",
+      "description": "Cannot approve phi disclosure — route to whoever holds it."
+    },
+    {
+      "id": "cannot-security-exception",
+      "type": "denies",
+      "action": "security_exception",
+      "description": "Cannot approve security exception — route to whoever holds it."
+    },
+    {
+      "id": "cannot-it-spend",
+      "type": "denies",
+      "action": "it_spend",
+      "description": "Cannot approve it spend — route to whoever holds it."
+    },
+    {
+      "id": "cannot-enterprise-formulary-policy",
+      "type": "denies",
+      "action": "enterprise_formulary_policy",
+      "description": "Cannot approve enterprise formulary policy — route to whoever holds it."
+    },
+    {
+      "id": "cannot-system-wide-medication-substitution",
+      "type": "denies",
+      "action": "system_wide_medication_substitution",
+      "description": "Cannot approve system wide medication substitution — route to whoever holds it."
+    },
+    {
+      "id": "cannot-pharmacy-inventory-release",
+      "type": "denies",
+      "action": "pharmacy_inventory_release",
+      "description": "Cannot approve pharmacy inventory release — route to whoever holds it."
+    }
+  ],
+  "_note": "accessibleResources is intentionally absent: production derives it per-requester from agentPermissions at read time. Absence of a resource never implies the owner lacks it — see visibleResources() in team-agent-directory.ts."
+}

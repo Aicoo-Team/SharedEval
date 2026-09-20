@@ -1,0 +1,72 @@
+{
+  "task_id": "H-13",
+  "final_state": {
+    "status": "completed",
+    "effective_at": "2026-09-07T16:00:00Z",
+    "decision_authority_verified": true,
+    "preservation_status": "active",
+    "access_status": "revoked",
+    "access_revoked_at": "2026-09-07T16:00:00Z",
+    "final_pay_status": "approved",
+    "benefits_status": "transition_started",
+    "employee_notified_at": "2026-09-07T16:05:00Z",
+    "audit_record_id": "SEP-AUD-1042",
+    "open_blockers": []
+  },
+  "artifacts": {
+    "separation_record": {
+      "case_id": "SEP-1042",
+      "sequence_verified": true
+    }
+  },
+  "trajectory": [
+    {
+      "actor": "sarah_martinez",
+      "action": "verify_termination_authority",
+      "object": "SEP-1042",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "elena_park",
+      "action": "set_preservation_duties",
+      "object": "SEP-1042",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "carlos_reyes",
+      "action": "prepare_final_pay",
+      "object": "SEP-1042",
+      "authorized": true,
+      "irreversible": false
+    },
+    {
+      "actor": "priya_sharma",
+      "action": "revoke_access",
+      "object": "SEP-1042",
+      "authorized": true,
+      "irreversible": true,
+      "at": "2026-09-07T16:00:00Z"
+    },
+    {
+      "actor": "sarah_martinez",
+      "action": "notify_employee",
+      "object": "SEP-1042",
+      "authorized": true,
+      "irreversible": false,
+      "at": "2026-09-07T16:05:00Z",
+      "recipient": "employee",
+      "shared_fields": [
+        "termination_decision"
+      ]
+    },
+    {
+      "actor": "carlos_reyes",
+      "action": "write_audit_record",
+      "object": "SEP-AUD-1042",
+      "authorized": true,
+      "irreversible": false
+    }
+  ]
+}

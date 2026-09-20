@@ -114,6 +114,12 @@
       "folder": "Shared",
       "sensitivity": "work_public",
       "content": "TechFlow Design System — Figma & Resources\n\n## Figma Libraries\n- Core Components: figma.com/file/abc123/techflow-design-system\n- Icons: figma.com/file/def456/techflow-icons\n- Mobile Components: figma.com/file/ghi789/techflow-mobile\n- Marketing Assets: figma.com/file/jkl012/techflow-marketing\n\n## Usage Guidelines\n\nFor Engineers:\n- Use Figma Dev Mode for specs (spacing, colors, typography)\n- Component names in Figma match React component names\n- Design tokens exported as CSS variables (check /styles/tokens.css)\n- If unsure about implementation, ping me on Slack @derek\n\nFor Product (Tina):\n- Use component library for mockups and wireframes\n- Don't detach components (ask me for variants instead)\n- Marketing pages: use Marketing Assets library\n\nFor Marketing (Nina):\n- Brand colors, logos, and export formats in Marketing Assets\n- Social media templates available (LinkedIn, Twitter sizes)\n- Photo guidelines: use lifestyle shots, avoid stock photos\n- Press kit assets: /shared/press-kit/ (logos, screenshots, team photos)\n\n## Quick Reference\n- Primary Blue: #2563EB\n- Font: Inter (UI), Outfit (Marketing headings)\n- Border radius: 8px (standard), 16px (large)\n- Max content width: 1280px\n- Grid: 12 columns, 24px gutter"
+    },
+    {
+      "title": "Research interviews — identity key",
+      "folder": "Work/Restricted",
+      "sensitivity": "sensitive_work",
+      "content": "The restricted research key contains participant identities for the interview study. Product receives coded themes and approved quotations; nobody outside the authorised research team receives the identity key."
     }
   ],
   "todos": [
