@@ -17,6 +17,7 @@ import {
 } from '../../suites/pact-pair/evaluation.js';
 import { toPublicEvaluation } from '../../suites/pact-pair/public-evaluation.js';
 import { MAX_AGENT_WORKSPACE_FILE_BYTES_V1 } from './agent-workspace.js';
+import { syncDirectoryV1 as syncDirectory } from './durable-files.js';
 import {
   assertMonotonicFileMemoryRowsV1,
   deriveFileMemoryTerminalStatusV1,
@@ -2648,15 +2649,6 @@ async function durableUnlink(path: string): Promise<void> {
     throw error;
   }
   await syncDirectory(dirname(path));
-}
-
-async function syncDirectory(path: string): Promise<void> {
-  const handle = await open(path, constants.O_RDONLY);
-  try {
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
 }
 
 async function assertDirectory(path: string, label: string): Promise<void> {
