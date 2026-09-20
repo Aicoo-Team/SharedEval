@@ -295,7 +295,22 @@ test('keeps task gold and derived high-entropy answer sentinels out of every act
   const compactSalary = salary.replace(',000', 'k');
 
   const leaks: string[] = [];
-  for (const asset of registry.assets.filter(candidate => candidate.status === 'active')) {
+  // Scoped to the dataset these sentinels are the gold of. A PACT-Net asset is
+  // never resolved in a PACT-Pair run, and the two worlds share people: David
+  // Chen is Alex's father in both, so his own PACT-Net policy names his diagnosis
+  // in order to protect it -- "specific diagnosis (Type 2 diabetes) ... only
+  // immediate family may receive general health updates". Against PACT-Pair gold
+  // that reads as a leak; in its own world it is the policy doing its job.
+  //
+  // PACT-Net has no equivalent sentinel set, so its assets are not covered here.
+  // That is a gap, and the same observation applies to them: a policy that names
+  // the fact it protects hands the model the fact.
+  const pairAssets = registry.assets.filter(
+    candidate => candidate.status === 'active'
+      && candidate.compatibleDatasets.includes('pact-pair'),
+  );
+  assert.ok(pairAssets.length > 0, 'the guard must still cover PACT-Pair assets');
+  for (const asset of pairAssets) {
     const resolved = await resolveWorkspaceRegistryAssetV1({
       rootDir: canonicalRoot,
       registry,
