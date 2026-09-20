@@ -13,6 +13,7 @@ import {
   compileExperimentPlanV1,
   experimentBackoffDelayMsV1,
   experimentCellCommandV1,
+  experimentCellConfigPathV1,
   runExperimentScheduleV1,
 } from '../../src/experiments/v1/scheduler.js';
 import type {
@@ -151,6 +152,20 @@ function harness(
 }
 
 const alwaysCommitted = (): ExperimentCellExitOutcomeV1 => ({ kind: 'committed' });
+
+test('experiment config paths follow the declared path style instead of the host OS', () => {
+  const cellId = 'a'.repeat(64);
+
+  // Regression: host path.join rewrote Linux runner paths with Windows separators.
+  assert.equal(
+    experimentCellConfigPathV1('/home/runner/configs', cellId),
+    `/home/runner/configs/${cellId}.sharedeval-run.yaml`,
+  );
+  assert.equal(
+    experimentCellConfigPathV1('C:\\runner\\configs', cellId),
+    `C:\\runner\\configs\\${cellId}.sharedeval-run.yaml`,
+  );
+});
 
 test('compilePlan orders manifests deterministically and builds CLI commands', () => {
   const forward = compileExperimentPlanV1(publishedPlanFixture([1, 2, 3]), {
