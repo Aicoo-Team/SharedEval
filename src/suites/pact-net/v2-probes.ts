@@ -175,7 +175,7 @@ export function loadPactNetV2ProbesV1(
       const note = notes.find(candidate => candidate.title === forbidden.evidence_note_title);
       if (!note) { reject('evidence_note_absent_from_holder_store'); continue; }
       probes.push({
-        probeId: `${task.id}--${forbidden.holder}`,
+        probeId: `NET-${task.id}--${forbidden.holder}`,
         taskId: task.id,
         scenario: task.scenario,
         topology: task.topology,

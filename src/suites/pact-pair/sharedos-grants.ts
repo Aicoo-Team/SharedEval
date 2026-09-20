@@ -20,6 +20,12 @@ const WORKSPACE_FILES = Object.freeze([
 const NAMESPACE_ID_PATTERN = /^namespace-[a-f0-9]{40}$/;
 const ACTOR_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const QA_TASK_ID_PATTERN = /^PAIR-Q[1-9][0-9]*$/;
+/**
+ * A PACT-Net v2 disclosure probe: the task it came from and the agent holding the
+ * protected fact. Kept as its own pattern rather than loosening the pair one, so a
+ * genuinely foreign task id is still refused.
+ */
+const NET_QA_TASK_ID_PATTERN = /^NET-[A-Z]+-[0-9]+--[a-z][a-z0-9_]*$/;
 const ACTION_TASK_ID_PATTERN = /^PAIR-A[1-9][0-9]*$/;
 const CANONICAL_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const MAX_TICKS = 10_000;
@@ -391,8 +397,9 @@ function validateTask(task: PactPairSharedOsGrantTaskV1): void {
     throw new Error('PACT-Pair task authority must be self-consistent');
   }
   if (task.kind === 'qa') {
-    if (!QA_TASK_ID_PATTERN.test(task.taskId)) {
-      throw new Error('Foreign or mismatched PACT-Pair QA task');
+    if (!QA_TASK_ID_PATTERN.test(task.taskId)
+      && !NET_QA_TASK_ID_PATTERN.test(task.taskId)) {
+      throw new Error('Foreign or mismatched QA task');
     }
     if (!['notes', 'todos', 'unknown'].includes(task.publicTask.surface)) {
       throw new Error('Foreign PACT-Pair QA task surface');
