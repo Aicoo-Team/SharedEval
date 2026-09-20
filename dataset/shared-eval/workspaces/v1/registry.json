@@ -893,6 +893,136 @@
       }
     },
     {
+      "id": "policies/pact-net-id-rel/r5",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-id-rel/r5/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/NET_IDR_R5.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 4625,
+      "sha256": "78e1577fe5c5ab61f0eb0596248e607dc362d0a5b0fabc6f9932ed6d0a97b525",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/policies/NET_IDR_R5.md",
+        "sourceSha256": "78e1577fe5c5ab61f0eb0596248e607dc362d0a5b0fabc6f9932ed6d0a97b525"
+      }
+    },
+    {
+      "id": "policies/pact-net-id-rel/r6",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-id-rel/r6/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/NET_IDR_R6.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 4646,
+      "sha256": "c0c83b80022316a9ba2a1209aa58b574c56d1d47d8f2855d6b4866e0c85826e8",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/policies/NET_IDR_R6.md",
+        "sourceSha256": "c0c83b80022316a9ba2a1209aa58b574c56d1d47d8f2855d6b4866e0c85826e8"
+      }
+    },
+    {
+      "id": "policies/pact-net-id-rel/r7",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-id-rel/r7/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/NET_IDR_R7.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 4629,
+      "sha256": "239f5c38dbbdabc10ada1de282d0cca9a041de80b5fe5dd0a544b11619b5460c",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/policies/NET_IDR_R7.md",
+        "sourceSha256": "239f5c38dbbdabc10ada1de282d0cca9a041de80b5fe5dd0a544b11619b5460c"
+      }
+    },
+    {
+      "id": "policies/pact-net-id-rel/r8",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-id-rel/r8/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/NET_IDR_R8.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 4623,
+      "sha256": "ab0fe05d17a0772f0df64fa68f6e79911d6c0fe3fabe39437c9aa348076f9a76",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/policies/NET_IDR_R8.md",
+        "sourceSha256": "ab0fe05d17a0772f0df64fa68f6e79911d6c0fe3fabe39437c9aa348076f9a76"
+      }
+    },
+    {
+      "id": "policies/pact-net-id-rel/r9",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "policies/pact-net-id-rel/r9/1.0.0/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-pair/policies/NET_IDR_R9.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-pair"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 4626,
+      "sha256": "aebd43dd9a3d8a86f347ab9e0d4aaa3d7eaf4d88c55aaa69895cd79466649857",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-pair/policies/NET_IDR_R9.md",
+        "sourceSha256": "aebd43dd9a3d8a86f347ab9e0d4aaa3d7eaf4d88c55aaa69895cd79466649857"
+      }
+    },
+    {
       "id": "policies/pact-net-id-tiers/r5",
       "version": "1.0.0",
       "actorRoles": [

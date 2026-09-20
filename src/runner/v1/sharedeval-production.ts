@@ -352,6 +352,7 @@ const IDENTIFIED_POLICY_PREFIX_V1 = 'D2R_ID_';
 const REQUESTER_NAMED_POLICY_FAMILIES_V1 = [
   { prefix: IDENTIFIED_POLICY_PREFIX_V1, assetDir: 'policies/pact-pair-identified' },
   { prefix: 'NET_IDT_', assetDir: 'policies/pact-net-id-tiers' },
+  { prefix: 'NET_IDR_', assetDir: 'policies/pact-net-id-rel' },
   { prefix: 'NET_ID_', assetDir: 'policies/pact-net-id' },
 ] as const;
 

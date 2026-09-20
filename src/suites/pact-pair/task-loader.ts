@@ -64,6 +64,16 @@ export const PACT_PAIR_POLICIES_V1 = [
   'NET_IDT_R7',
   'NET_IDT_R8',
   'NET_IDT_R9',
+  // NET_IDT_* plus one line of relationship, taken from the owner's own contact
+  // book. NET_IDR_* minus NET_IDT_* is exactly that line, which is the only way to
+  // separate "the clause's personal half was unreachable" from "the model could not
+  // apply it": the clause lifts personal restrictions for whoever shares the
+  // household, finances, or commitment, and a job title carries none of that.
+  'NET_IDR_R5',
+  'NET_IDR_R6',
+  'NET_IDR_R7',
+  'NET_IDR_R8',
+  'NET_IDR_R9',
   'REL_R0',
   'REL_R1',
   'REL_R2',
