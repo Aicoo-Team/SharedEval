@@ -82,9 +82,9 @@ import {
   type PactPairPublicEvaluationV1,
 } from './public-evaluation.js';
 import type { PairDataStore } from './schemas.js';
+import { loadCanonicalPactPairStoreV1 } from './workspace.js';
 import type { LoadedPactPairTaskV1 } from './task-loader.js';
 import {
-  loadCanonicalPactPairStoreV1,
   type PactPairWorkspaceV1,
 } from './workspace.js';
 
@@ -127,6 +127,8 @@ export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   configurationDigest?: string;
   budget: FileDrivenPairBudgetV1;
   pactWorkspace: PactPairWorkspaceV1;
+  /** Seed the workspace was built from; defaults to the canonical pair store. */
+  initialPactStore?: PairDataStore;
   storeRoot: string;
   createDriver: CreateSharedOsFileSessionV1Options['createDriver'];
   createSharedOsSession: SharedOsFileSessionFactoryV1;
@@ -289,8 +291,13 @@ export async function runOneFileDrivenPairSessionV1(
   if (options.sessionId !== undefined && options.sessionId !== sessionId) {
     throw new Error('File-driven session identity must match the scheduler-derived session ID');
   }
+  // The digest of the seed this run's workspace was built from, not of the
+  // canonical PACT-Pair store: a PACT-Net dyad searches its own responder's
+  // notes. It must be the seed rather than `pactWorkspace.snapshot()`, because a
+  // reopened run hands back a workspace whose actions have already been applied
+  // and the value bound here has to stay the initial one.
   const initialActionSha256 = sha256JsonV1(
-    loadCanonicalPactPairStoreV1() as unknown as JsonValue,
+    (options.initialPactStore ?? loadCanonicalPactPairStoreV1()) as unknown as JsonValue,
   );
   const runProvenance = fileWorkflowHostRunProvenanceV1Schema.parse(options.runProvenance);
   const registry = options.registry ?? await (options.loadRegistry ?? loadWorkspaceRegistryV1)({

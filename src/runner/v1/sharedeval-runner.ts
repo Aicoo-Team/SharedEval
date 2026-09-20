@@ -20,6 +20,7 @@ import type {
   FileDrivenPairSessionV1,
 } from '../../suites/pact-pair/file-workflow.js';
 import type { LoadedPactPairTaskV1 } from '../../suites/pact-pair/task-loader.js';
+import type { PairDataStore } from '../../suites/pact-pair/schemas.js';
 import type { PactPairWorkspaceV1 } from '../../suites/pact-pair/workspace.js';
 import {
   fileWorkflowHostRunProvenanceV1Schema,
@@ -28,6 +29,8 @@ import {
 
 export type SharedevalFileSessionResourcesV1 = Readonly<{
   pactWorkspace: PactPairWorkspaceV1;
+  /** Seed that workspace was built from, when it is not the canonical store. */
+  initialPactStore?: PairDataStore;
   storeRoot: string;
 }>;
 
@@ -134,6 +137,9 @@ export function runSharedevalPactPairFilesV1(
       ? {}
       : { taskConcurrency: options.config.workflow.taskConcurrency }),
     pactWorkspaceForTask: (task, index) => resourcesForTask(task, index).pactWorkspace,
+    ...(resourcesForTask(options.tasks[0]!, 0).initialPactStore
+      ? { initialPactStore: resourcesForTask(options.tasks[0]!, 0).initialPactStore }
+      : {}),
     storeRootForTask: (task, index) => resourcesForTask(task, index).storeRoot,
   });
 }

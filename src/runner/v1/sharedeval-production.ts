@@ -215,6 +215,9 @@ export async function runSharedevalProductionV1(
       pactWorkspace: netBinding
         ? createPactPairWorkspaceV1(netBinding.store)
         : createPactPairWorkspaceV1(),
+      // Bound as the run's initial action state, so a reopened run compares
+      // against the seed rather than against whatever the workspace holds now.
+      ...(netBinding ? { initialPactStore: netBinding.store } : {}),
       storeRoot: input.workflowId === 'files-multi'
         ? directories.multiStoreRoot
         : join(
