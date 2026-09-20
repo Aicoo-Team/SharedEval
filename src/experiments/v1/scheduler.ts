@@ -43,7 +43,8 @@ export function experimentCellConfigPathV1(
   configDirectory: string,
   cellId: string,
 ): string {
-  return path.join(configDirectory, `${cellId}${EXPERIMENT_CELL_CONFIG_FILE_SUFFIX_V1}`);
+  const pathFlavor = configDirectory.includes('\\') ? path.win32 : path.posix;
+  return pathFlavor.join(configDirectory, `${cellId}${EXPERIMENT_CELL_CONFIG_FILE_SUFFIX_V1}`);
 }
 
 export function experimentCellCommandV1(
