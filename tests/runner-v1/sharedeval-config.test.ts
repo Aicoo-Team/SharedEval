@@ -72,11 +72,19 @@ test('cross-validates relationship policy, requester, and grading mode', () => {
   }
 });
 
-test('rejects retired protocol, dataset, and backend selectors', () => {
+test('accepts pact-net as a dataset and keeps pact-pair the default', () => {
+  const net = parseSharedevalRunConfigV1Yaml(
+    validConfig.replace('  tasks:\n', '  dataset: pact-net\n  tasks:\n'),
+  );
+  assert.equal(net.benchmark.dataset, 'pact-net');
+  assert.equal(parseSharedevalRunConfigV1Yaml(validConfig).benchmark.dataset, 'pact-pair');
+});
+
+test('rejects retired protocol, unknown dataset, and backend selectors', () => {
   for (const source of [
     validConfig.replace('sharedeval-run/v1', 'pact-run/v1'),
     validConfig.replace('protocol: files', 'protocol: legacy-prompt'),
-    validConfig.replace('  tasks:\n', '  dataset: pact-net\n  tasks:\n'),
+    validConfig.replace('  tasks:\n', '  dataset: pact-vault\n  tasks:\n'),
     validConfig.replace('model:\n', 'backend:\n  kind: local\nmodel:\n'),
   ]) {
     assert.throws(() => parseSharedevalRunConfigV1Yaml(source), ZodError);

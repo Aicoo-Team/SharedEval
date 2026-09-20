@@ -118,10 +118,10 @@ test('rejects invalid max tick counts before execution', () => {
   }
 });
 
-test('rejects old configs, pact-net, backend selection, and overlong runtime before execution', async () => {
+test('rejects old configs, backend selection, and overlong runtime before execution', async () => {
   const fixtures = [
     'apiVersion: pact-run/v1\nkind: RunConfig\n',
-    configYaml('  dataset: pact-net\n'),
+    configYaml('  dataset: pact-vault\n'),
     configYaml('', 'backend:\n  kind: local\n'),
     configYaml('', '', 'budget:\n  maxToolCalls: 8\n  maxRuntimeMs: 600001\n'),
   ];

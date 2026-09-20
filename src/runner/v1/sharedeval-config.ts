@@ -149,7 +149,10 @@ export const sharedevalRuntimeBudgetV1Schema = z
   .default({ maxToolCalls: 8, maxRuntimeMs: 60_000 });
 
 export const sharedevalBenchmarkV1Schema = z.object({
-  dataset: z.literal('pact-pair').default('pact-pair'),
+  // pact-net selects PACT-Net v2 disclosure probes instead of PACT-Pair QA items.
+  // Probe ids go in tasks.ids, and every probe in one run must share a responder,
+  // because a session seats exactly one responder agent.
+  dataset: z.enum(['pact-pair', 'pact-net']).default('pact-pair'),
   policy: z.enum(PACT_PAIR_POLICIES_V1).default('D2'),
   requester: z.enum(PACT_REQUESTER_IDS_V1).default('R1'),
   gradingMode: z.enum(PACT_PAIR_GRADING_MODES_V1).default('category'),

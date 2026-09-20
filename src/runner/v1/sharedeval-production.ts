@@ -18,6 +18,7 @@ import {
   type PactRequesterIdV1,
 } from '../../suites/pact-pair/task-loader.js';
 import { createPactPairWorkspaceV1 } from '../../suites/pact-pair/workspace.js';
+import { buildPactNetRunBindingV1 } from './sharedeval-net-binding.js';
 import {
   createOpenAICompatibleFileTurnDriverV1,
   createProviderRateLimitGateV1,
@@ -95,12 +96,25 @@ export async function runSharedevalProductionV1(
   dependencies: SharedevalProductionDependenciesV1 = {},
 ): Promise<SharedevalProductionRunV1> {
   if (!RUN_ID_PATTERN.test(options.runId)) throw new Error('Sharedeval run id is invalid');
-  assertIdentifiedPolicyMatchesRequesterV1(
-    options.config.benchmark.policy,
-    options.config.benchmark.requester,
-  );
-  const requester = requesterIdentity(options.config.benchmark.requester);
   const sourceRoot = resolve(options.repositoryRoot ?? repositoryRoot);
+  // PACT-Net seats a different responder and a different corpus for every dyad, so
+  // its binding comes from the selected probes rather than from the pair
+  // identity/policy pairing below, which does not apply to it.
+  const netBinding = options.config.benchmark.dataset === 'pact-net'
+    ? buildPactNetRunBindingV1({
+      rootDir: sourceRoot,
+      ...(options.config.benchmark.tasks.ids
+        ? { probeIds: [...options.config.benchmark.tasks.ids] }
+        : {}),
+    })
+    : undefined;
+  if (!netBinding) {
+    assertIdentifiedPolicyMatchesRequesterV1(
+      options.config.benchmark.policy,
+      options.config.benchmark.requester,
+    );
+  }
+  const requester = requesterIdentity(options.config.benchmark.requester);
   const environment = options.environment ?? process.env;
   const source = (dependencies.inspectSource ?? inspectSharedevalSourceV1)(sourceRoot);
   const datasetAuthority = (dependencies.loadDatasetAuthority
@@ -108,7 +122,8 @@ export async function runSharedevalProductionV1(
     repositoryRoot: sourceRoot,
     gradingMode: options.config.benchmark.gradingMode,
   });
-  const tasks = (dependencies.loadTasks ?? loadPactPairTasksV1)({
+  const tasks = netBinding ? netBinding.tasks
+    : (dependencies.loadTasks ?? loadPactPairTasksV1)({
     rootDir: sourceRoot,
     policy: options.config.benchmark.policy,
     requester: options.config.benchmark.requester,
@@ -163,16 +178,20 @@ export async function runSharedevalProductionV1(
     registryRootDir: join(sourceRoot, 'dataset', 'shared-eval', 'workspaces', 'v1'),
     requester: {
       actorId: 'requester',
-      references: requesterReferences(
-        requester.assetName,
-        options.config.workflow.id,
-        options.config.workflow.multiTurn,
-        requester.policyAssetId,
-      ),
+      references: netBinding
+        ? netBinding.requesterReferences
+        : requesterReferences(
+          requester.assetName,
+          options.config.workflow.id,
+          options.config.workflow.multiTurn,
+          requester.policyAssetId,
+        ),
     },
     responder: {
       actorId: 'responder',
-      references: responderReferences(options.config.benchmark.policy),
+      references: netBinding
+        ? netBinding.responderReferences
+        : responderReferences(options.config.benchmark.policy),
     },
     tasks,
     createDriver: input => createDriver({
@@ -185,7 +204,11 @@ export async function runSharedevalProductionV1(
     } satisfies OpenAICompatibleFileTurnDriverV1Options),
     createSharedOsSession,
     createSessionResources: input => ({
-      pactWorkspace: createPactPairWorkspaceV1(),
+      // The corpus the notes and todos tools search: the responder's own notes
+      // when a PACT-Net dyad is seated, the PACT-Pair hub store otherwise.
+      pactWorkspace: netBinding
+        ? createPactPairWorkspaceV1(netBinding.store)
+        : createPactPairWorkspaceV1(),
       storeRoot: input.workflowId === 'files-multi'
         ? directories.multiStoreRoot
         : join(
