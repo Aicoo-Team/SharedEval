@@ -805,7 +805,7 @@ class OpenAICompatibleFileTurnSessionV1 {
         tool_calls: [call],
         ...(this.#actorContext && typeof message.refusal === 'string' ? { refusal: message.refusal } : {}),
         ...(reasoning ? { reasoning_details: reasoning } : {}),
-        ...(reasoningContent ? { reasoning_content: reasoningContent } : {}),
+        ...(reasoningContent === undefined ? {} : { reasoning_content: reasoningContent }),
       }]);
       const sharedOsId = stableToolCallId(
         this.#request.executionId,
@@ -847,7 +847,7 @@ class OpenAICompatibleFileTurnSessionV1 {
         await this.#appendMessages([{
           role: 'assistant', content: message.content ?? null, refusal: message.refusal ?? refusal,
           ...(reasoning ? { reasoning_details: reasoning } : {}),
-          ...(reasoningContent ? { reasoning_content: reasoningContent } : {}),
+          ...(reasoningContent === undefined ? {} : { reasoning_content: reasoningContent }),
         }]);
       }
       telemetry.outcome = 'success';
@@ -873,7 +873,7 @@ class OpenAICompatibleFileTurnSessionV1 {
         role: 'assistant', content: message.content ?? content,
         ...(typeof message.refusal === 'string' ? { refusal: message.refusal } : {}),
         ...(reasoning ? { reasoning_details: reasoning } : {}),
-        ...(reasoningContent ? { reasoning_content: reasoningContent } : {}),
+        ...(reasoningContent === undefined ? {} : { reasoning_content: reasoningContent }),
       }]);
     }
     telemetry.outcome = 'success';
@@ -909,7 +909,7 @@ class OpenAICompatibleFileTurnSessionV1 {
       tool_calls: [...calls],
       ...(this.#actorContext && typeof message.refusal === 'string' ? { refusal: message.refusal } : {}),
       ...(reasoning ? { reasoning_details: reasoning } : {}),
-      ...(reasoningContent ? { reasoning_content: reasoningContent } : {}),
+      ...(reasoningContent === undefined ? {} : { reasoning_content: reasoningContent }),
     }];
     for (const call of calls) {
       messages.push({
@@ -1212,6 +1212,11 @@ function providerWireMessageV1(message: ProviderMessage): ProviderMessage {
  * fact. The per-call assertion the channel exists for reads exactly that, and
  * a recorded empty string would make it ambiguous. Mirrors how an empty
  * reasoning_details array is dropped below.
+ *
+ * This is the only place the emptiness rule lives. Its four call sites spread
+ * on `=== undefined` rather than on truthiness precisely so that they cannot
+ * quietly re-decide it here -- a second copy of the rule would leave both
+ * copies unfalsifiable.
  */
 function parseReasoningContent(value: string | null | undefined): string | undefined {
   return value ? value : undefined;
