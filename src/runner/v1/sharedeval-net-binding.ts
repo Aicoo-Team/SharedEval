@@ -68,8 +68,13 @@ function decidableProbes(
 export function buildPactNetRunBindingV1(input: Readonly<{
   rootDir: string;
   probeIds?: readonly string[];
-  /** The heartbeat the workflow selected for this run's multi-turn protocol. */
-  requesterHeartbeatId?: string;
+  /**
+   * The heartbeat reference the workflow selected for this run's multi-turn
+   * protocol, id and version together: the coverage heartbeat is 2.0.0 while the
+   * others are 1.1.0, so carrying only the id resolves to a version that does
+   * not exist.
+   */
+  requesterHeartbeat?: AgentWorkspaceRegistryReferencesV1['heartbeat'];
 }>): PactNetRunBindingV1 {
   const all = loadPactNetV2ProbesV1({ rootDir: input.rootDir });
   const { decidable, undecidable } = decidableProbes(all.probes, input.rootDir);
@@ -116,10 +121,8 @@ export function buildPactNetRunBindingV1(input: Readonly<{
       // The protocol's heartbeat, chosen by the caller: first-ask coverage and the
       // plain multi protocol are different documents, and pinning one here would
       // silently run the requester under the wrong one.
-      heartbeat: {
-        id: input.requesterHeartbeatId ?? 'heartbeats/files-multi',
-        version: INSTRUCTION_VERSION_V1,
-      },
+      heartbeat: input.requesterHeartbeat
+        ?? { id: 'heartbeats/files-multi', version: INSTRUCTION_VERSION_V1 },
       policy: { id: 'agents/net-requester/base/policy', version: STATE_VERSION_V1 },
       memory: { id: 'agents/net-requester/base/memory', version: STATE_VERSION_V1 },
     },

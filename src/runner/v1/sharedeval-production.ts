@@ -105,9 +105,9 @@ export async function runSharedevalProductionV1(
   const netBinding = options.config.benchmark.dataset === 'pact-net'
     ? buildPactNetRunBindingV1({
       rootDir: sourceRoot,
-      requesterHeartbeatId: requesterReferences(
+      requesterHeartbeat: requesterReferences(
         'unused', options.config.workflow.id, options.config.workflow.multiTurn,
-      ).heartbeat.id,
+      ).heartbeat,
       ...(options.config.benchmark.tasks.ids
         ? { probeIds: [...options.config.benchmark.tasks.ids] }
         : {}),
