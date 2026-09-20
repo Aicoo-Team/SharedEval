@@ -302,7 +302,9 @@ export async function runOneFileDrivenPairSessionV1(
       registry,
       references: options.requester.references,
       actorRole: 'requester',
-      datasetId: 'pact-pair',
+      // From the run's own provenance: workspace assets declare which dataset
+      // they belong to, and a PACT-Net bundle is not a PACT-Pair one.
+      datasetId: options.runProvenance.dataset.id,
       workflowId: options.workflowId,
     }),
     resolveAgentWorkspaceRegistryV1({
@@ -310,7 +312,7 @@ export async function runOneFileDrivenPairSessionV1(
       registry,
       references: options.responder.references,
       actorRole: 'responder',
-      datasetId: 'pact-pair',
+      datasetId: options.runProvenance.dataset.id,
       workflowId: options.workflowId,
     }),
   ]);

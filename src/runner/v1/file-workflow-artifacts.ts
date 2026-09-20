@@ -148,7 +148,7 @@ export const fileWorkflowSelectedTaskV1Schema = z.object({
 export type FileWorkflowSelectedTaskV1 = z.infer<typeof fileWorkflowSelectedTaskV1Schema>;
 
 const datasetProvenanceSchema = z.object({
-  id: z.literal('pact-pair'),
+  id: z.enum(['pact-pair', 'pact-net']),
   version: semverSchema,
   manifestSha256: sha256Schema,
   tasksSha256: sha256Schema,

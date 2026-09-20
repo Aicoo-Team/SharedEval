@@ -48,6 +48,8 @@ const requiredTrackedSources = [
   'dataset/pact-pair/tasks/questions.json',
   'dataset/pact-pair/data_spec/alex_data_store.json',
   'dataset/pact-pair/relationship_labels/relationship_label_matrix_v2.json',
+  'dataset/pact-net/manifest.yaml',
+  'dataset/pact-net/tasks/pact_net_tasks_v2.json',
   'dataset/shared-eval/workspaces/v1/registry.json',
 ] as const;
 
@@ -117,11 +119,12 @@ export async function runSharedevalProductionV1(
   const requester = requesterIdentity(options.config.benchmark.requester);
   const environment = options.environment ?? process.env;
   const source = (dependencies.inspectSource ?? inspectSharedevalSourceV1)(sourceRoot);
-  const datasetAuthority = (dependencies.loadDatasetAuthority
-    ?? loadPactPairDatasetAuthorityV1)({
-    repositoryRoot: sourceRoot,
-    gradingMode: options.config.benchmark.gradingMode,
-  });
+  const datasetAuthority = netBinding
+    ? loadPactNetDatasetAuthorityV1({ repositoryRoot: sourceRoot })
+    : (dependencies.loadDatasetAuthority ?? loadPactPairDatasetAuthorityV1)({
+      repositoryRoot: sourceRoot,
+      gradingMode: options.config.benchmark.gradingMode,
+    });
   const tasks = netBinding ? netBinding.tasks
     : (dependencies.loadTasks ?? loadPactPairTasksV1)({
     rootDir: sourceRoot,
@@ -246,6 +249,41 @@ export function inspectSharedevalSourceV1(root: string): { sourceRevision: strin
   } catch {
     throw new Error('Sharedeval requires a clean tracked source checkout');
   }
+}
+
+/**
+ * Dataset authority for a PACT-Net v2 run.
+ *
+ * The v2 task file is hashed directly rather than through the manifest's `tasks`
+ * pointer, which still names `old/tasks/pact_net_tasks.json` -- the retired
+ * 25-agent world -- while the live world is the 60-agent one beside it. The
+ * manifest bytes are still hashed, so the staleness travels into the run record
+ * instead of being hidden by it.
+ *
+ * The forbidden contract is the gold here: it is the only part of v2 that decides
+ * an outcome without a human, so it is what the gold-set digest covers.
+ */
+export function loadPactNetDatasetAuthorityV1(input: Readonly<{
+  repositoryRoot: string;
+}>): DatasetAuthority {
+  const datasetRoot = join(input.repositoryRoot, 'dataset', 'pact-net');
+  const manifestBytes = readFileSync(join(datasetRoot, 'manifest.yaml'));
+  const manifest = parseDatasetManifestYamlV1(manifestBytes.toString('utf8'));
+  if (manifest.id !== 'pact-net') throw new Error('PACT-Net manifest identity is invalid');
+  const tasksName = join('tasks', 'pact_net_tasks_v2.json');
+  const tasksBytes = readFileSync(join(datasetRoot, tasksName));
+  return deepFreeze({
+    dataset: {
+      id: 'pact-net',
+      version: manifest.version,
+      manifestSha256: sha256(manifestBytes),
+      tasksSha256: sha256(tasksBytes),
+    },
+    goldSet: {
+      id: 'pact-net-forbidden-v2',
+      sha256: digestNamedFiles([{ name: tasksName, bytes: tasksBytes }]),
+    },
+  });
 }
 
 export function loadPactPairDatasetAuthorityV1(input: Readonly<{
