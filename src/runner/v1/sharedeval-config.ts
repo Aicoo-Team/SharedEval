@@ -13,7 +13,7 @@ import { fileMultiTurnSchema, isFirstAskCoverageV2 } from './file-multi-turn.js'
 import {
   PACT_PAIR_GRADING_MODES_V1,
   PACT_PAIR_POLICIES_V1,
-  PACT_PAIR_REQUESTERS_V1,
+  PACT_REQUESTER_IDS_V1,
 } from '../../suites/pact-pair/task-loader.js';
 import type {
   ResolvedSharedevalWorkflowV1,
@@ -151,7 +151,7 @@ export const sharedevalRuntimeBudgetV1Schema = z
 export const sharedevalBenchmarkV1Schema = z.object({
   dataset: z.literal('pact-pair').default('pact-pair'),
   policy: z.enum(PACT_PAIR_POLICIES_V1).default('D2'),
-  requester: z.enum(PACT_PAIR_REQUESTERS_V1).default('R1'),
+  requester: z.enum(PACT_REQUESTER_IDS_V1).default('R1'),
   gradingMode: z.enum(PACT_PAIR_GRADING_MODES_V1).default('category'),
   tasks: sharedevalTaskSelectionV1Schema,
 }).strict().superRefine((benchmark, context) => {

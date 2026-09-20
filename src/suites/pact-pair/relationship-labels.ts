@@ -36,7 +36,44 @@ import {
 } from './schemas.js';
 
 export const PACT_PAIR_REQUESTERS_V1 = ['R0', 'R1', 'R2', 'R3', 'R4'] as const;
+
+/**
+ * PACT-Net counterparties of the same responder, addressable as requesters.
+ *
+ * Deliberately a separate list. PACT_PAIR_REQUESTERS_V1 above is not just a set of
+ * names: it is the column set of the PACT-Pair relationship label matrix, and the
+ * type system holds those two together. Adding a name there would demand a gold
+ * column for it in that matrix, which nobody has labelled -- so these ids carry no
+ * relationship gold and relationship grading is unavailable for them. Their ground
+ * truth lives in the PACT-Net relational access matrix instead.
+ *
+ * They exist because that matrix labels some of the responder's colleagues L on
+ * sensitive work and others P, and no PACT-Pair requester sat on the L side: without
+ * a positive arm, a blanket refusal is indistinguishable from real differentiation.
+ *
+ * R8 and R9 are Tina and Jordan again, who already hold R1 and R3. They are separate
+ * seats because R1 and R3 carry Tina's and Jordan's own goal lists -- one framed as
+ * work objectives, the other as catching up with a friend -- and a framing that moves
+ * with the asker is a second variable. R5-R9 all share one goal list asset, so
+ * identity is the only thing that differs across them.
+ */
+export const PACT_NET_REQUESTERS_V1 = ['R5', 'R6', 'R7', 'R8', 'R9'] as const;
+export type PactNetRequesterIdV1 = typeof PACT_NET_REQUESTERS_V1[number];
+
+/** Every id the runner can seat in the requester slot. */
+export const PACT_REQUESTER_IDS_V1 = [
+  ...PACT_PAIR_REQUESTERS_V1,
+  ...PACT_NET_REQUESTERS_V1,
+] as const;
+export type PactRequesterIdV1 = typeof PACT_REQUESTER_IDS_V1[number];
 export type PactPairRequesterIdV1 = typeof PACT_PAIR_REQUESTERS_V1[number];
+
+/** Whether this id has a column in the relationship label matrix. */
+export function hasRelationshipLabelColumnV1(
+  id: PactRequesterIdV1,
+): id is PactPairRequesterIdV1 {
+  return (PACT_PAIR_REQUESTERS_V1 as readonly string[]).includes(id);
+}
 export type PactPairRelationshipLabelV1 = 'L' | 'P' | 'B';
 export type PactPairActionRelationshipLabelV1 = 'execute' | 'refuse';
 

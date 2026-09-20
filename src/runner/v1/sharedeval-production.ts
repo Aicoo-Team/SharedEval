@@ -13,7 +13,9 @@ import {
   loadPactPairTasksV1,
   type LoadPactPairTasksV1Options,
   type PactPairPolicyV1,
+  PACT_NET_REQUESTERS_V1,
   type PactPairRequesterIdV1,
+  type PactRequesterIdV1,
 } from '../../suites/pact-pair/task-loader.js';
 import { createPactPairWorkspaceV1 } from '../../suites/pact-pair/workspace.js';
 import {
@@ -165,6 +167,7 @@ export async function runSharedevalProductionV1(
         requester.assetName,
         options.config.workflow.id,
         options.config.workflow.multiTurn,
+        requester.policyAssetId,
       ),
     },
     responder: {
@@ -278,16 +281,31 @@ export async function prepareSharedevalRunDirectoriesV1(input: Readonly<{
   return Object.freeze({ runRoot, workspaceRootDir, multiStoreRoot, singleStoreRoot });
 }
 
-function requesterIdentity(requester: PactPairRequesterIdV1): { assetName: string } {
-  const names: Partial<Record<PactPairRequesterIdV1, string>> = {
+const PACT_NET_SHARED_GOAL_ASSET_V1 = 'agents/pact-net-requester/base/policy';
+
+function requesterIdentity(
+  requester: PactRequesterIdV1,
+): { assetName: string; policyAssetId?: string } {
+  const names: Partial<Record<PactRequesterIdV1, string>> = {
     R0: 'riley',
     R1: 'tina',
     R2: 'marcus',
     R3: 'jordan',
     R4: 'dana',
+    R5: 'net_sarah',
+    R6: 'net_carlos',
+    R7: 'net_elena',
+    R8: 'net_tina',
+    R9: 'net_jordan',
   };
   const assetName = names[requester];
   if (!assetName) throw new Error(`Requester ${requester} has no production workspace asset`);
+  // A goal list that moved with the asker would be a second variable next to the
+  // identity under test. The PACT-Net arms therefore reference one shared file
+  // rather than five copies kept in step by hand.
+  if ((PACT_NET_REQUESTERS_V1 as readonly string[]).includes(requester)) {
+    return { assetName, policyAssetId: PACT_NET_SHARED_GOAL_ASSET_V1 };
+  }
   return { assetName };
 }
 
@@ -295,6 +313,7 @@ function requesterReferences(
   assetName: string,
   workflowId: 'files-multi' | 'files-single',
   multiTurn: FileMultiTurn | undefined,
+  policyAssetId?: string,
 ): AgentWorkspaceRegistryReferencesV1 {
   // The multi-turn probe protocol swaps in its own heartbeat asset; every
   // other reference — and every non-multiTurn run — stays exactly as today.
@@ -306,7 +325,10 @@ function requesterReferences(
   return {
     agent: { id: `agents/${assetName}/base/agent`, version: INSTRUCTION_VERSION },
     heartbeat,
-    policy: { id: `agents/${assetName}/base/policy`, version: STATE_VERSION },
+    policy: {
+      id: policyAssetId ?? `agents/${assetName}/base/policy`,
+      version: STATE_VERSION,
+    },
     memory: { id: 'memory-seeds/pact-pair-requester', version: STATE_VERSION },
   };
 }
@@ -323,6 +345,17 @@ function responderReferences(policy: PactPairPolicyV1): AgentWorkspaceRegistryRe
 const IDENTIFIED_POLICY_PREFIX_V1 = 'D2R_ID_';
 
 /**
+ * Policy families whose name ends in the one requester they address. Each maps to
+ * an asset directory holding one POLICY.md per requester; the suffix is the only
+ * thing that varies inside a family.
+ */
+const REQUESTER_NAMED_POLICY_FAMILIES_V1 = [
+  { prefix: IDENTIFIED_POLICY_PREFIX_V1, assetDir: 'policies/pact-pair-identified' },
+  { prefix: 'NET_IDT_', assetDir: 'policies/pact-net-id-tiers' },
+  { prefix: 'NET_ID_', assetDir: 'policies/pact-net-id' },
+] as const;
+
+/**
  * A D2R_ID_* policy names one specific caller inside the responder's POLICY.md.
  * Pairing D2R_ID_R1 with requester R2 would tell the responder it is speaking
  * to Tina while Marcus actually writes, so the run would silently measure a
@@ -330,10 +363,13 @@ const IDENTIFIED_POLICY_PREFIX_V1 = 'D2R_ID_';
  */
 function assertIdentifiedPolicyMatchesRequesterV1(
   policy: PactPairPolicyV1,
-  requester: PactPairRequesterIdV1,
+  requester: PactRequesterIdV1,
 ): void {
-  if (!policy.startsWith(IDENTIFIED_POLICY_PREFIX_V1)) return;
-  const named = policy.slice(IDENTIFIED_POLICY_PREFIX_V1.length);
+  const family = REQUESTER_NAMED_POLICY_FAMILIES_V1.find(
+    candidate => policy.startsWith(candidate.prefix),
+  );
+  if (!family) return;
+  const named = policy.slice(family.prefix.length);
   if (named !== requester) {
     throw new Error(
       `Policy ${policy} names requester ${named}, but the run selects requester ${requester}`,
@@ -342,9 +378,12 @@ function assertIdentifiedPolicyMatchesRequesterV1(
 }
 
 function policyAssetId(policy: PactPairPolicyV1): string {
-  if (policy.startsWith(IDENTIFIED_POLICY_PREFIX_V1)) {
-    const requester = policy.slice(IDENTIFIED_POLICY_PREFIX_V1.length);
-    return `policies/pact-pair-identified/${requester.toLowerCase()}`;
+  const family = REQUESTER_NAMED_POLICY_FAMILIES_V1.find(
+    candidate => policy.startsWith(candidate.prefix),
+  );
+  if (family) {
+    const requester = policy.slice(family.prefix.length);
+    return `${family.assetDir}/${requester.toLowerCase()}`;
   }
   if (policy.startsWith('REL_')) {
     return `policies/pact-pair-relationship/${policy.slice(4).toLowerCase()}`;

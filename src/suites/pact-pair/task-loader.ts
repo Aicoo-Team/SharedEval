@@ -8,13 +8,16 @@ import {
   type PairQuestion,
 } from './schemas.js';
 import {
+  hasRelationshipLabelColumnV1,
   loadPactPairRelationshipLabelSetV2,
   PACT_PAIR_REQUESTERS_V1,
+  PACT_REQUESTER_IDS_V1,
   PAIR_RELATIONSHIP_LABEL_MATRIX_V1_SCHEMA_ID,
   type PactPairRelationshipLabelProvenanceV1,
   type PactPairRelationshipLabelSetV2,
   type PactPairRequesterIdV1,
   type PactPairRelationshipLabelV1,
+  type PactRequesterIdV1,
 } from './relationship-labels.js';
 import {
   pactTaskIntroV1Schema,
@@ -37,6 +40,9 @@ export const PACT_PAIR_POLICIES_V1 = [
   'A_CATEGORY_ONLY',
   'A_CATEGORY_EXAMPLES',
   'D2R_PRINCIPLES',
+  // D2 with one added section naming no person: which relationships lift which
+  // restriction. policyAssetId maps it by the default rule, so no mapping is needed.
+  'D2_REL_TIERS',
   'D6_PRINCIPLES_TIGHT',
   // D2R_PRINCIPLES verbatim, preceded by a runtime-verified caller identity.
   // D2R_PRINCIPLES cannot be graded on its own across requesters: it asks the
@@ -45,6 +51,19 @@ export const PACT_PAIR_POLICIES_V1 = [
   'D2R_ID_R1',
   'D2R_ID_R2',
   'D2R_ID_R3',
+  // The PACT-Net differential-disclosure arms. NET_ID_* is D2 plus a verified
+  // caller role; NET_IDT_* is that plus the relationship-tier section. Each names
+  // one requester, so the runner refuses to pair it with a different one.
+  'NET_ID_R5',
+  'NET_ID_R6',
+  'NET_ID_R7',
+  'NET_ID_R8',
+  'NET_ID_R9',
+  'NET_IDT_R5',
+  'NET_IDT_R6',
+  'NET_IDT_R7',
+  'NET_IDT_R8',
+  'NET_IDT_R9',
   'REL_R0',
   'REL_R1',
   'REL_R2',
@@ -52,6 +71,13 @@ export const PACT_PAIR_POLICIES_V1 = [
   'REL_R4',
 ] as const;
 export { PACT_PAIR_REQUESTERS_V1 } from './relationship-labels.js';
+export {
+  PACT_NET_REQUESTERS_V1,
+  PACT_REQUESTER_IDS_V1,
+  hasRelationshipLabelColumnV1,
+  type PactNetRequesterIdV1,
+  type PactRequesterIdV1,
+} from './relationship-labels.js';
 export const PACT_PAIR_GRADING_MODES_V1 = ['category', 'relationship'] as const;
 
 export type PactPairPolicyV1 = typeof PACT_PAIR_POLICIES_V1[number];
@@ -68,7 +94,7 @@ export type PactPairTaskFilterKindV1 = 'all' | 'qa' | 'action';
 export type LoadPactPairTasksV1Options = {
   rootDir?: string;
   policy: PactPairPolicyV1;
-  requester: PactPairRequesterIdV1;
+  requester: PactRequesterIdV1;
   gradingMode: PactPairGradingModeV1;
   kind?: PactPairTaskFilterKindV1;
   ids?: string[];
@@ -79,7 +105,7 @@ type LoadedPactPairTaskBaseV1 = {
   taskId: string;
   benchmarkVersion: number;
   policy: PactPairPolicyV1;
-  requesterId: PactPairRequesterIdV1;
+  requesterId: PactRequesterIdV1;
   gradingMode: PactPairGradingModeV1;
   category: string;
   publicTask: PactTaskIntroV1;
@@ -113,7 +139,7 @@ export type LoadedPactPairTaskV1 =
 export type PactPairTaskCaseV1 = LoadedPactPairTaskV1;
 
 type PactPairRequesterIdentityProvenanceBaseV1 = {
-  requesterId: PactPairRequesterIdV1;
+  requesterId: PactRequesterIdV1;
   displayName: string;
 };
 
@@ -154,7 +180,7 @@ type CategoryExpectation = z.infer<typeof categoryExpectationSchema>;
 type PactPairRequesterIdentityV1 = PactIdentityV1 & { displayName: string };
 
 const requesterIdentitiesV1: Record<
-  PactPairRequesterIdV1,
+  PactRequesterIdV1,
   PactPairRequesterIdentityV1
 > = {
   R0: {
@@ -182,10 +208,39 @@ const requesterIdentitiesV1: Record<
     displayName: 'Dana Reeves',
     relationship: 'investor and board observer',
   },
+  // R5-R7 are PACT-Net colleagues of the same responder. Their relationship
+  // strings are their agent_card.role in the PACT-Net world, transcribed rather
+  // than written: the relational access matrix labels them differently on
+  // sensitive work *because* of those roles, so the wording is the gold's own.
+  R5: {
+    id: 'R5',
+    displayName: 'Sarah Martinez',
+    relationship: 'co-founder and CEO at TechFlow AI',
+  },
+  R6: {
+    id: 'R6',
+    displayName: 'Carlos Reyes',
+    relationship: 'colleague and Finance, Operations & People Ops Manager at TechFlow AI',
+  },
+  R7: {
+    id: 'R7',
+    displayName: 'Elena Park',
+    relationship: 'colleague and part-time Legal Counsel at TechFlow AI',
+  },
+  R8: {
+    id: 'R8',
+    displayName: 'Tina Rodriguez',
+    relationship: 'colleague and Product Manager at TechFlow AI',
+  },
+  R9: {
+    id: 'R9',
+    displayName: 'Jordan Park',
+    relationship: 'Management Consultant at McKinsey',
+  },
 };
 
 const requesterIdentitiesV2: Record<
-  PactPairRequesterIdV1,
+  PactRequesterIdV1,
   PactPairRequesterIdentityV1
 > = {
   ...requesterIdentitiesV1,
@@ -247,6 +302,17 @@ export function loadPactPairTaskSetV1(
   if (relationshipLabels) validateRelationshipLabelSet(relationshipLabels, benchmark);
   const requesterProfile = requesterIdentityProfile(relationshipLabels);
   const requesterIdentity = requesterProfile.identities[options.requester];
+  // validateOptions has already refused relationship grading for a requester with
+  // no matrix column, so this is an assertion about that guard, not a fallback.
+  const labelColumn = hasRelationshipLabelColumnV1(options.requester)
+    ? options.requester
+    : undefined;
+  if (relationshipLabels && !labelColumn) {
+    throw new Error(
+      `PACT-Pair relationship labels were loaded for requester ${options.requester}, `
+      + 'which has no column in them',
+    );
+  }
   const unlabeledTaskIds = new Set<string>();
 
   const qaTasks = benchmark.questions.map(question => {
@@ -255,8 +321,9 @@ export function loadPactPairTaskSetV1(
       throw new Error(`PACT-Pair question Q${question.id} has unknown category ${question.category}`);
     }
     const taskId = `PAIR-Q${question.id}`;
-    const relationshipLabel = relationshipLabels?.qa.get(question.id)
-      ?.labels[options.requester];
+    const relationshipLabel = labelColumn
+      ? relationshipLabels?.qa.get(question.id)?.labels[labelColumn]
+      : undefined;
     if (relationshipLabels && !relationshipLabel) unlabeledTaskIds.add(taskId);
     const expectedBehavior = relationshipLabel
       ? expectationFromRelationshipLabel(relationshipLabel)
@@ -292,8 +359,9 @@ export function loadPactPairTaskSetV1(
 
   const actionTasks = benchmark.actions.map(action => {
     const taskId = `PAIR-A${action.id}`;
-    const relationshipLabel = relationshipLabels?.actions.get(action.id)
-      ?.labels[options.requester];
+    const relationshipLabel = labelColumn
+      ? relationshipLabels?.actions.get(action.id)?.labels[labelColumn]
+      : undefined;
     if (relationshipLabels && !relationshipLabel) unlabeledTaskIds.add(taskId);
     const expectedBehavior = relationshipLabel ?? action.expected_verdict;
     const publicTask = pactTaskIntroV1Schema.parse({
@@ -351,12 +419,12 @@ type PactPairRequesterIdentityProfileV1 =
   | {
       schema: 'pact-pair-requester-identities/v1';
       version: '1';
-      identities: Record<PactPairRequesterIdV1, PactPairRequesterIdentityV1>;
+      identities: Record<PactRequesterIdV1, PactPairRequesterIdentityV1>;
     }
   | {
       schema: 'pact-pair-requester-identities/v2';
       version: '2';
-      identities: Record<PactPairRequesterIdV1, PactPairRequesterIdentityV1>;
+      identities: Record<PactRequesterIdV1, PactPairRequesterIdentityV1>;
     };
 
 function requesterIdentityProfile(
@@ -378,7 +446,7 @@ function requesterIdentityProfile(
 
 function requesterIdentityProvenance(
   profile: PactPairRequesterIdentityProfileV1,
-  requesterId: PactPairRequesterIdV1,
+  requesterId: PactRequesterIdV1,
   displayName: string,
 ): PactPairRequesterIdentityProvenanceV1 {
   if (profile.schema === 'pact-pair-requester-identities/v1') {
@@ -464,8 +532,19 @@ function validateOptions(options: LoadPactPairTasksV1Options): void {
   if (!PACT_PAIR_POLICIES_V1.includes(options.policy)) {
     throw new Error(`Unsupported PACT-Pair policy ${String(options.policy)}`);
   }
-  if (!PACT_PAIR_REQUESTERS_V1.includes(options.requester)) {
+  if (!PACT_REQUESTER_IDS_V1.includes(options.requester)) {
     throw new Error(`Unsupported PACT-Pair requester ${String(options.requester)}`);
+  }
+  if (
+    options.gradingMode === 'relationship'
+    && !hasRelationshipLabelColumnV1(options.requester)
+  ) {
+    throw new Error(
+      `Requester ${options.requester} has no column in the PACT-Pair relationship `
+      + 'label matrix, so relationship grading has no gold for it; use category '
+      + 'grading and score differentiation against the PACT-Net relational access '
+      + 'matrix instead',
+    );
   }
   if (!PACT_PAIR_GRADING_MODES_V1.includes(options.gradingMode)) {
     throw new Error(`Unsupported PACT-Pair grading mode ${String(options.gradingMode)}`);
