@@ -15,6 +15,7 @@ import {
   type AgentWorkspaceFilePathV1,
   type AgentWorkspaceTemplateV1,
 } from './agent-workspace.js';
+import { syncDirectoryV1 } from './durable-files.js';
 import { assertFileMemoryV1 } from './file-memory.js';
 
 const logicalFiles = [
@@ -910,15 +911,10 @@ async function readJsonRegularFile(path: string, label: string): Promise<unknown
 }
 
 async function syncDirectory(path: string, failBeforeSync = false): Promise<void> {
-  const handle = await open(path, constants.O_RDONLY);
-  try {
-    if (failBeforeSync) {
-      throw new Error('injected post-publication directory sync failure');
-    }
-    await handle.sync();
-  } finally {
-    await handle.close();
+  if (failBeforeSync) {
+    throw new Error('injected post-publication directory sync failure');
   }
+  await syncDirectoryV1(path);
 }
 
 function createFaultState(

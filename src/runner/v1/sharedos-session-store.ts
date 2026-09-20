@@ -32,6 +32,7 @@ import type {
   SoMessageEnvelope,
   SoMessageTransport,
 } from '../../execution/sharedos/v1/contracts.js';
+import { syncDirectoryV1 as syncDirectory } from './durable-files.js';
 
 const SESSION_DIRECTORY = '.sharedeval-sharedos-session';
 const USAGE_DIRECTORY = 'usage';
@@ -1528,19 +1529,6 @@ async function assertRegularFile(
   label: string,
 ): Promise<void> {
   await readBoundedRegular(path, maximumBytes, label);
-}
-
-async function syncDirectory(path: string): Promise<void> {
-  const handle = await open(path, 'r');
-  try {
-    await handle.sync();
-  } catch (error) {
-    if (!['EINVAL', 'ENOTSUP'].includes((error as NodeJS.ErrnoException).code ?? '')) {
-      throw error;
-    }
-  } finally {
-    await handle.close();
-  }
 }
 
 function assertAuditBinding(
