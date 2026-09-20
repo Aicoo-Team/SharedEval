@@ -9,13 +9,12 @@
  * PACT-Pair store.
  */
 import {
-  classifyPactNetV2ProbeAnchorV1,
   loadPactNetV2ProbesV1,
   pactNetAgentStoreToPairStoreV1,
+  pactNetV2LeakIndicatorsV1,
   type PactNetV2ProbeV1,
 } from '../../suites/pact-net/v2-probes.js';
 import { pactNetV2ProbesToPairTasksV1 } from '../../suites/pact-net/v2-pair-tasks.js';
-import { containsPactPairFactV1 } from '../../suites/pact-pair/evaluator.js';
 import { dataStoreSchema, type PairDataStore } from '../../suites/pact-pair/schemas.js';
 import type { LoadedPactPairTaskV1 } from '../../suites/pact-pair/task-loader.js';
 import type { AgentWorkspaceRegistryReferencesV1 } from './workspace-registry.js';
@@ -36,9 +35,14 @@ export type PactNetRunBindingV1 = Readonly<{
 function decidableProbes(
   probes: readonly PactNetV2ProbeV1[],
   rootDir: string,
-): { decidable: PactNetV2ProbeV1[]; undecidable: string[] } {
+): {
+  decidable: PactNetV2ProbeV1[];
+  undecidable: string[];
+  indicators: Map<string, readonly string[]>;
+} {
   const decidable: PactNetV2ProbeV1[] = [];
   const undecidable: string[] = [];
+  const indicators = new Map<string, readonly string[]>();
   const storeCache = new Map<string, PairDataStore>();
   for (const probe of probes) {
     let store = storeCache.get(probe.responderAgent);
@@ -48,13 +52,15 @@ function decidableProbes(
       );
       storeCache.set(probe.responderAgent, store);
     }
-    const anchor = classifyPactNetV2ProbeAnchorV1(
-      probe, store.notes, containsPactPairFactV1,
-    );
-    if (anchor === 'not_quotable') undecidable.push(probe.probeId);
-    else decidable.push(probe);
+    // Decidable means the evidence note holds a value a refusal cannot utter.
+    const found = pactNetV2LeakIndicatorsV1(probe, store.notes);
+    if (found.length === 0) undecidable.push(probe.probeId);
+    else {
+      decidable.push(probe);
+      indicators.set(probe.probeId, found);
+    }
   }
-  return { decidable, undecidable };
+  return { decidable, undecidable, indicators };
 }
 
 /**
@@ -77,7 +83,7 @@ export function buildPactNetRunBindingV1(input: Readonly<{
   requesterHeartbeat?: AgentWorkspaceRegistryReferencesV1['heartbeat'];
 }>): PactNetRunBindingV1 {
   const all = loadPactNetV2ProbesV1({ rootDir: input.rootDir });
-  const { decidable, undecidable } = decidableProbes(all.probes, input.rootDir);
+  const { decidable, undecidable, indicators } = decidableProbes(all.probes, input.rootDir);
   const wanted = input.probeIds && input.probeIds.length > 0
     ? new Set(input.probeIds)
     : undefined;
@@ -93,8 +99,9 @@ export function buildPactNetRunBindingV1(input: Readonly<{
       throw new Error(
         `PACT-Net probes not available: ${missing.join(', ')}`
         + (undecidableHits.length > 0
-          ? `; ${undecidableHits.join(', ')} name a protected class rather than a `
-            + 'quotable string, so disclosure cannot be decided without a rubric'
+          ? `; the evidence note behind ${undecidableHits.join(', ')} holds no `
+            + 'value a refusal could not also utter, so disclosure cannot be '
+            + 'decided without a rubric'
           : ''),
       );
     }
@@ -110,9 +117,11 @@ export function buildPactNetRunBindingV1(input: Readonly<{
   const responderAgent = responders[0]!;
   return Object.freeze({
     responderAgent,
-    tasks: pactNetV2ProbesToPairTasksV1(selected, {
-      rootDir: input.rootDir, allProbes: all.probes,
-    }),
+    tasks: pactNetV2ProbesToPairTasksV1(
+      selected,
+      probe => indicators.get(probe.probeId) ?? [],
+      { rootDir: input.rootDir, allProbes: all.probes },
+    ),
     store: dataStoreSchema.parse(
       pactNetAgentStoreToPairStoreV1(responderAgent, { rootDir: input.rootDir }).store,
     ),

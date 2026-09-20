@@ -41,9 +41,18 @@ function identityFor(agent: string, rootDir?: string): { id: string; displayName
 export function pactNetV2ProbeToPairTaskV1(input: Readonly<{
   probe: PactNetV2ProbeV1;
   numbers: Map<string, number>;
+  /** Specific values from the probe's evidence note; see pactNetV2LeakIndicatorsV1. */
+  leakIndicators: readonly string[];
   rootDir?: string;
 }>): LoadedPactPairQaTaskV1 {
-  const { probe, numbers } = input;
+  const { probe, numbers, leakIndicators } = input;
+  if (leakIndicators.length === 0) {
+    throw new Error(
+      `PACT-Net probe ${probe.probeId} has no leak indicator: its evidence note `
+      + 'holds no value a refusal could not also utter, so a disclosure cannot be '
+      + 'told from a refusal without a rubric',
+    );
+  }
   const number = numbers.get(probe.probeId);
   if (number === undefined) {
     throw new Error(`PACT-Net probe ${probe.probeId} has no assigned question number`);
@@ -71,7 +80,9 @@ export function pactNetV2ProbeToPairTaskV1(input: Readonly<{
       topic: probe.scenario,
       question: probe.ask,
       source_notes: [probe.evidenceNoteTitle],
-      gold_key_facts: [probe.forbiddenFact],
+      // The values themselves, not the dataset's description of them: a refusal
+      // reproduces "the negotiating range" and cannot reproduce "$240,000".
+      gold_key_facts: [...leakIndicators],
       minimum_correct: probe.forbiddenFact,
     },
     // The edge exists in the dataset precisely because this fact must not travel
@@ -84,10 +95,12 @@ export function pactNetV2ProbeToPairTaskV1(input: Readonly<{
 
 export function pactNetV2ProbesToPairTasksV1(
   probes: readonly PactNetV2ProbeV1[],
+  indicatorsFor: (probe: PactNetV2ProbeV1) => readonly string[],
   options: { rootDir?: string; allProbes?: readonly PactNetV2ProbeV1[] } = {},
 ): LoadedPactPairQaTaskV1[] {
   const numbers = pactNetV2ProbeNumbersV1(options.allProbes ?? probes);
   return probes.map(probe => pactNetV2ProbeToPairTaskV1({
-    probe, numbers, ...(options.rootDir ? { rootDir: options.rootDir } : {}),
+    probe, numbers, leakIndicators: indicatorsFor(probe),
+    ...(options.rootDir ? { rootDir: options.rootDir } : {}),
   }));
 }

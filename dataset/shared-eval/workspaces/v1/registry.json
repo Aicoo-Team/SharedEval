@@ -756,6 +756,162 @@
       }
     },
     {
+      "id": "agents/net/david_chen/base/agent",
+      "version": "1.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/david_chen/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/david_chen/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 863,
+      "sha256": "41e7c9b76ccea3a65eca6c6ab80d5089cdf10da223b1aa5044d1e3cc2224a0ec",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/david_chen/AGENT.md",
+        "sourceSha256": "41e7c9b76ccea3a65eca6c6ab80d5089cdf10da223b1aa5044d1e3cc2224a0ec"
+      }
+    },
+    {
+      "id": "agents/net/david_chen/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/david_chen/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/david_chen/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 132,
+      "sha256": "a76f641896b1412e2cac7b82731d645b25a788b24170273cedef34723cec6af8",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/david_chen/MEMORY.md",
+        "sourceSha256": "a76f641896b1412e2cac7b82731d645b25a788b24170273cedef34723cec6af8"
+      }
+    },
+    {
+      "id": "agents/net/david_chen/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/david_chen/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/david_chen/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2276,
+      "sha256": "c04737b1b64f1e3bcd7438603b5bd8816b3ce8b65f759f5ec914cbe2edc7ba6a",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/agent_configs/david_chen/POLICY.md",
+        "sourceSha256": "c04737b1b64f1e3bcd7438603b5bd8816b3ce8b65f759f5ec914cbe2edc7ba6a"
+      }
+    },
+    {
+      "id": "agents/net/dmitri_sokolov/base/agent",
+      "version": "1.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/dmitri_sokolov/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/dmitri_sokolov/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 867,
+      "sha256": "7980b5d9ca4a219312e04f4d2a6e3374183e21088809bc43e412562751dc1ba6",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/dmitri_sokolov/AGENT.md",
+        "sourceSha256": "7980b5d9ca4a219312e04f4d2a6e3374183e21088809bc43e412562751dc1ba6"
+      }
+    },
+    {
+      "id": "agents/net/dmitri_sokolov/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/dmitri_sokolov/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/dmitri_sokolov/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 146,
+      "sha256": "88ff33fb2a1f95e779a632fccb7445e59b703af3ef83e08895f208718255ecf4",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/dmitri_sokolov/MEMORY.md",
+        "sourceSha256": "88ff33fb2a1f95e779a632fccb7445e59b703af3ef83e08895f208718255ecf4"
+      }
+    },
+    {
+      "id": "agents/net/dmitri_sokolov/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/dmitri_sokolov/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/dmitri_sokolov/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2063,
+      "sha256": "680fe7205c848b2334cb9ca33252b3ae380d37e6a7b3a9afc3777ab52731f789",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/agent_configs/dmitri_sokolov/POLICY.md",
+        "sourceSha256": "680fe7205c848b2334cb9ca33252b3ae380d37e6a7b3a9afc3777ab52731f789"
+      }
+    },
+    {
       "id": "agents/net/dr_ivy_banerjee/base/agent",
       "version": "1.1.0",
       "actorRoles": [
@@ -834,6 +990,84 @@
       }
     },
     {
+      "id": "agents/net/elena_park/base/agent",
+      "version": "1.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/elena_park/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/elena_park/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 863,
+      "sha256": "458d70e9a41c46785d1957cadc064b389db88e6b199d154e856fb4751510df89",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/elena_park/AGENT.md",
+        "sourceSha256": "458d70e9a41c46785d1957cadc064b389db88e6b199d154e856fb4751510df89"
+      }
+    },
+    {
+      "id": "agents/net/elena_park/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/elena_park/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/elena_park/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 145,
+      "sha256": "a424ad510449eb08444bb6d557fad75838173f9d3e6493d5c14d408e877df610",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/elena_park/MEMORY.md",
+        "sourceSha256": "a424ad510449eb08444bb6d557fad75838173f9d3e6493d5c14d408e877df610"
+      }
+    },
+    {
+      "id": "agents/net/elena_park/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/elena_park/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/elena_park/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2535,
+      "sha256": "755e3da260313844f2c5a62b230fbdf2ad2a48d34d578178c4226215393171a7",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/agent_configs/elena_park/POLICY.md",
+        "sourceSha256": "755e3da260313844f2c5a62b230fbdf2ad2a48d34d578178c4226215393171a7"
+      }
+    },
+    {
       "id": "agents/net/elliot_price/base/agent",
       "version": "1.1.0",
       "actorRoles": [
@@ -909,6 +1143,84 @@
         "kind": "exact",
         "sourcePath": "dataset/pact-net/agent_configs/elliot_price/POLICY.md",
         "sourceSha256": "9ca3b8241abbef00950af597222a95f7d39e2c7c7b567a96ab3ac85edf8655de"
+      }
+    },
+    {
+      "id": "agents/net/grace_okonkwo/base/agent",
+      "version": "1.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/grace_okonkwo/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/grace_okonkwo/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 866,
+      "sha256": "e6cc6f366b9a1b5dc9ba78ea2b8c66cddd069f3c634591399e0cba2a19899fb2",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/grace_okonkwo/AGENT.md",
+        "sourceSha256": "e6cc6f366b9a1b5dc9ba78ea2b8c66cddd069f3c634591399e0cba2a19899fb2"
+      }
+    },
+    {
+      "id": "agents/net/grace_okonkwo/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/grace_okonkwo/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/grace_okonkwo/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 147,
+      "sha256": "72b5b4d55444be4b3c1022db398bf13588dbc40c174ebaeef9b083b4f92a00c9",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/grace_okonkwo/MEMORY.md",
+        "sourceSha256": "72b5b4d55444be4b3c1022db398bf13588dbc40c174ebaeef9b083b4f92a00c9"
+      }
+    },
+    {
+      "id": "agents/net/grace_okonkwo/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/grace_okonkwo/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/grace_okonkwo/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2443,
+      "sha256": "c0eb4e107aad9d6fdd8dcd38f823173ad40c6c40c0459d2c58c6d04a0934ac85",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/agent_configs/grace_okonkwo/POLICY.md",
+        "sourceSha256": "c0eb4e107aad9d6fdd8dcd38f823173ad40c6c40c0459d2c58c6d04a0934ac85"
       }
     },
     {
@@ -1380,6 +1692,84 @@
       }
     },
     {
+      "id": "agents/net/rachel_kim/base/agent",
+      "version": "1.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/rachel_kim/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/rachel_kim/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 863,
+      "sha256": "c5de31c0a6c7ff521890f58c4214e757c0f6dc43cbfce0e2d86a7e9b4b8a99d5",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/rachel_kim/AGENT.md",
+        "sourceSha256": "c5de31c0a6c7ff521890f58c4214e757c0f6dc43cbfce0e2d86a7e9b4b8a99d5"
+      }
+    },
+    {
+      "id": "agents/net/rachel_kim/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/rachel_kim/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/rachel_kim/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 133,
+      "sha256": "298d301d090a521650b2595e78449f3fd556ecc0ee50e7fdbc0148d208ae479c",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/rachel_kim/MEMORY.md",
+        "sourceSha256": "298d301d090a521650b2595e78449f3fd556ecc0ee50e7fdbc0148d208ae479c"
+      }
+    },
+    {
+      "id": "agents/net/rachel_kim/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/rachel_kim/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/rachel_kim/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2420,
+      "sha256": "74f1cbcb8dde4d72fbf2eccfe374a62d69c3b2d9180cf7b82f1f90cf72196c4e",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/agent_configs/rachel_kim/POLICY.md",
+        "sourceSha256": "74f1cbcb8dde4d72fbf2eccfe374a62d69c3b2d9180cf7b82f1f90cf72196c4e"
+      }
+    },
+    {
       "id": "agents/net/raj_venkatesan/base/agent",
       "version": "1.1.0",
       "actorRoles": [
@@ -1611,6 +2001,240 @@
         "kind": "exact",
         "sourcePath": "dataset/pact-net/agent_configs/samira_cole/POLICY.md",
         "sourceSha256": "d8099dab12a3b4bb0618ea6ae3e091d792fb122486b8a7cfe59f431ea41f027e"
+      }
+    },
+    {
+      "id": "agents/net/sarah_martinez/base/agent",
+      "version": "1.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/sarah_martinez/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/sarah_martinez/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 867,
+      "sha256": "e048c912efaa3490c183daa7f66ec415ee87c55da03970336245ad2113cc0290",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/sarah_martinez/AGENT.md",
+        "sourceSha256": "e048c912efaa3490c183daa7f66ec415ee87c55da03970336245ad2113cc0290"
+      }
+    },
+    {
+      "id": "agents/net/sarah_martinez/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/sarah_martinez/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/sarah_martinez/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 140,
+      "sha256": "b56d01a1749b79d8b3966d5e85f5e61d7ea70d72724fdc55ff0f069212b1d717",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/sarah_martinez/MEMORY.md",
+        "sourceSha256": "b56d01a1749b79d8b3966d5e85f5e61d7ea70d72724fdc55ff0f069212b1d717"
+      }
+    },
+    {
+      "id": "agents/net/sarah_martinez/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/sarah_martinez/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/sarah_martinez/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2400,
+      "sha256": "ba51c182dc75f0f5a7e5146e48118ac846d23c963b9f257792b13a58874b1029",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/agent_configs/sarah_martinez/POLICY.md",
+        "sourceSha256": "ba51c182dc75f0f5a7e5146e48118ac846d23c963b9f257792b13a58874b1029"
+      }
+    },
+    {
+      "id": "agents/net/stephen_kowalczyk/base/agent",
+      "version": "1.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/stephen_kowalczyk/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/stephen_kowalczyk/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 870,
+      "sha256": "ad82f92759251649ed4f300e3db8ce32a45a522da6198fd5ccfacd9f5c75c20e",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/stephen_kowalczyk/AGENT.md",
+        "sourceSha256": "ad82f92759251649ed4f300e3db8ce32a45a522da6198fd5ccfacd9f5c75c20e"
+      }
+    },
+    {
+      "id": "agents/net/stephen_kowalczyk/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/stephen_kowalczyk/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/stephen_kowalczyk/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 164,
+      "sha256": "88dcfbb4bc323cb572ee01f2f85bc9a12a67b8730a6e9c553c45f6647a269a40",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/stephen_kowalczyk/MEMORY.md",
+        "sourceSha256": "88dcfbb4bc323cb572ee01f2f85bc9a12a67b8730a6e9c553c45f6647a269a40"
+      }
+    },
+    {
+      "id": "agents/net/stephen_kowalczyk/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/stephen_kowalczyk/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/stephen_kowalczyk/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2044,
+      "sha256": "8c98f702a9c695f0ded777624c994d8bd92dbf1e0a9d870d62d1e56953cf341d",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/agent_configs/stephen_kowalczyk/POLICY.md",
+        "sourceSha256": "8c98f702a9c695f0ded777624c994d8bd92dbf1e0a9d870d62d1e56953cf341d"
+      }
+    },
+    {
+      "id": "agents/net/wes_arnold/base/agent",
+      "version": "1.1.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/wes_arnold/base/AGENT.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/wes_arnold/AGENT.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 863,
+      "sha256": "c25ea42a1d1683618229fae22a63f0a26bd6741d9e5b87af8299fc4f2abce6be",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/wes_arnold/AGENT.md",
+        "sourceSha256": "c25ea42a1d1683618229fae22a63f0a26bd6741d9e5b87af8299fc4f2abce6be"
+      }
+    },
+    {
+      "id": "agents/net/wes_arnold/base/memory",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/wes_arnold/base/MEMORY.md",
+      "aliases": [
+        "pact:dataset/pact-net/workspace/net/wes_arnold/MEMORY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 168,
+      "sha256": "484b2ec7725727f02005b1e9efd1c62311e47adfb0632b07ddde790d1c90388e",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/workspace/net/wes_arnold/MEMORY.md",
+        "sourceSha256": "484b2ec7725727f02005b1e9efd1c62311e47adfb0632b07ddde790d1c90388e"
+      }
+    },
+    {
+      "id": "agents/net/wes_arnold/base/policy",
+      "version": "1.0.0",
+      "actorRoles": [
+        "responder"
+      ],
+      "sourcePath": "agents/net/wes_arnold/base/POLICY.md",
+      "aliases": [
+        "pact:dataset/pact-net/agent_configs/wes_arnold/POLICY.md"
+      ],
+      "status": "active",
+      "compatibleDatasets": [
+        "pact-net"
+      ],
+      "compatibleWorkflowIds": [
+        "files-multi",
+        "files-single"
+      ],
+      "byteLength": 2213,
+      "sha256": "0bb98c3b22125be56da98f6d3213226575f69b92de2f8f2b1944799de981cafa",
+      "provenance": {
+        "kind": "exact",
+        "sourcePath": "dataset/pact-net/agent_configs/wes_arnold/POLICY.md",
+        "sourceSha256": "0bb98c3b22125be56da98f6d3213226575f69b92de2f8f2b1944799de981cafa"
       }
     },
     {
