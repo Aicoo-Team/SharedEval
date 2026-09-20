@@ -206,6 +206,15 @@ async function temporaryOptions(
   };
 }
 
+function replaceFirstGrant(
+  options: OpenSharedOsSessionStoreV1Options,
+  update: (grant: SoCapabilityGrant) => SoCapabilityGrant,
+): OpenSharedOsSessionStoreV1Options {
+  const [first, ...rest] = options.grants;
+  assert.ok(first);
+  return { ...options, grants: [update(first), ...rest] };
+}
+
 function sessionPath(runDirectory: string, ...parts: string[]): string {
   return join(runDirectory, SESSION_DIRECTORY, ...parts);
 }
@@ -236,6 +245,50 @@ function abortOnThrowCheck(check: number): AbortSignal {
     },
   });
 }
+
+test('rejects padded authority strings instead of silently normalizing them', async t => {
+  const cases: ReadonlyArray<{
+    label: string;
+    change(options: OpenSharedOsSessionStoreV1Options): OpenSharedOsSessionStoreV1Options;
+  }> = [
+    {
+      label: 'binding identifier',
+      change: options => ({ ...options, binding: { ...options.binding, runId: ' run-1' } }),
+    },
+    {
+      label: 'binding purpose',
+      change: options => ({ ...options, binding: { ...options.binding, purpose: `${PURPOSE} ` } }),
+    },
+    {
+      label: 'grant resource path',
+      change: options => replaceFirstGrant(options, grant => ({
+        ...grant,
+        capabilities: grant.capabilities.map((capability, index) => index === 0 ? {
+          ...capability,
+          resource: { ...capability.resource, path: [' requester '] },
+        } : capability),
+      })),
+    },
+    {
+      label: 'grant action',
+      change: options => replaceFirstGrant(options, grant => ({
+        ...grant,
+        capabilities: grant.capabilities.map((capability, index) => index === 0
+          ? { ...capability, actions: [' invoke'] }
+          : capability),
+      })),
+    },
+  ];
+
+  for (const entry of cases) {
+    await t.test(entry.label, async t => {
+      const options = entry.change(await temporaryOptions(t, `padded-${entry.label}`));
+
+      // Regression: trimming durable authority can redirect it to a different identity.
+      await assert.rejects(() => openSharedOsSessionStoreV1(options), /must not be padded/);
+    });
+  }
+});
 
 test('loads only open-session grants matching namespace, subject, issuer, owner, and purpose', async t => {
   const options = await temporaryOptions(t, 'scope');
