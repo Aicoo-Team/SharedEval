@@ -1192,11 +1192,21 @@ function parseToolArguments(source: string): JsonObject {
  *
  * reasoning_details keeps its existing round trip because OpenRouter needs the
  * block returned to preserve a provider's own reasoning signatures.
- * reasoning_content is the opposite case: DeepSeek documents that its
- * reasoning_content must not appear in the next request, and a rejected
- * request costs the whole turn, not one field. Recording it and replaying it
- * are separate decisions, and only the first one is needed to show where a
- * protected value went.
+ * reasoning_content has no such requirement, and the reasons not to send it
+ * back are one-sided.
+ *
+ * Not because it would be rejected: a probe against DeepSeek-V4-Flash-0731 on
+ * Azure sent an assistant message carrying reasoning_content and got HTTP 200,
+ * so the DeepSeek API's own rule -- that reasoning_content must not appear in
+ * the next request -- is not enforced on this route. It is still the
+ * documented contract of the model family, it can start being enforced without
+ * notice, and a rejected request costs the whole turn rather than one field.
+ * Against that, replaying buys nothing the model needs and is not free: one
+ * measured deliberation was 5.4 KB, resent in full on every later request of
+ * the same turn.
+ *
+ * Recording and replaying are separate decisions, and only recording is needed
+ * to show where a protected value went.
  */
 function providerWireMessageV1(message: ProviderMessage): ProviderMessage {
   if (message.role !== 'assistant' || message.reasoning_content === undefined) {
