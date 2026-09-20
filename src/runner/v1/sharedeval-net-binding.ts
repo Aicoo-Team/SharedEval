@@ -11,9 +11,14 @@
 import {
   loadPactNetV2ProbesV1,
   pactNetAgentStoreToPairStoreV1,
-  pactNetV2LeakIndicatorsV1,
+  readPactNetAgentNotesV1,
   type PactNetV2ProbeV1,
 } from '../../suites/pact-net/v2-probes.js';
+import {
+  pactNetV2IndicatorsV1,
+  type PactNetV2IndicatorRejectionV1,
+  type PactNetV2IndicatorsV1,
+} from '../../suites/pact-net/v2-indicators.js';
 import { pactNetV2ProbesToPairTasksV1 } from '../../suites/pact-net/v2-pair-tasks.js';
 import { dataStoreSchema, type PairDataStore } from '../../suites/pact-pair/schemas.js';
 import type { LoadedPactPairTaskV1 } from '../../suites/pact-pair/task-loader.js';
@@ -30,6 +35,15 @@ export type PactNetRunBindingV1 = Readonly<{
   responderReferences: AgentWorkspaceRegistryReferencesV1;
   /** Probes excluded because their protected string is not quotable. */
   undecidableProbeIds: readonly string[];
+  /** Why each excluded probe was excluded, so the gap is explained, not silent. */
+  undecidableReasons: Readonly<Record<string, PactNetV2IndicatorRejectionV1>>;
+  /**
+   * The derivation behind every selected probe's indicators: the anchor text, the
+   * note it came from, and the values whose amount the asker's own store also
+   * carries. Written into the run so a hit can be read back to a line of the
+   * world rather than to a regex.
+   */
+  indicatorProvenance: readonly PactNetV2IndicatorsV1[];
 }>;
 
 function decidableProbes(
@@ -38,29 +52,42 @@ function decidableProbes(
 ): {
   decidable: PactNetV2ProbeV1[];
   undecidable: string[];
+  reasons: Record<string, PactNetV2IndicatorRejectionV1>;
   indicators: Map<string, readonly string[]>;
+  provenance: PactNetV2IndicatorsV1[];
 } {
   const decidable: PactNetV2ProbeV1[] = [];
   const undecidable: string[] = [];
+  const reasons: Record<string, PactNetV2IndicatorRejectionV1> = {};
   const indicators = new Map<string, readonly string[]>();
-  const storeCache = new Map<string, PairDataStore>();
+  const provenance: PactNetV2IndicatorsV1[] = [];
+  const notesCache = new Map<string, ReturnType<typeof readPactNetAgentNotesV1>>();
+  const notesOf = (agent: string): ReturnType<typeof readPactNetAgentNotesV1> => {
+    let notes = notesCache.get(agent);
+    if (!notes) {
+      notes = readPactNetAgentNotesV1(agent, { rootDir });
+      notesCache.set(agent, notes);
+    }
+    return notes;
+  };
   for (const probe of probes) {
-    let store = storeCache.get(probe.responderAgent);
-    if (!store) {
-      store = dataStoreSchema.parse(
-        pactNetAgentStoreToPairStoreV1(probe.responderAgent, { rootDir }).store,
-      );
-      storeCache.set(probe.responderAgent, store);
+    // Decidable means the fact itself denotes a value, that value is in the
+    // holder's store, and no refusal the holder could give reproduces it.
+    const outcome = pactNetV2IndicatorsV1({
+      probe,
+      holderNotes: notesOf(probe.responderAgent),
+      askerNotes: notesOf(probe.requesterAgent),
+    });
+    if (!outcome.ok) {
+      undecidable.push(probe.probeId);
+      reasons[probe.probeId] = outcome.reason;
+      continue;
     }
-    // Decidable means the evidence note holds a value a refusal cannot utter.
-    const found = pactNetV2LeakIndicatorsV1(probe, store.notes);
-    if (found.length === 0) undecidable.push(probe.probeId);
-    else {
-      decidable.push(probe);
-      indicators.set(probe.probeId, found);
-    }
+    decidable.push(probe);
+    indicators.set(probe.probeId, outcome.value.indicators);
+    provenance.push(outcome.value);
   }
-  return { decidable, undecidable, indicators };
+  return { decidable, undecidable, reasons, indicators, provenance };
 }
 
 /**
@@ -83,7 +110,9 @@ export function buildPactNetRunBindingV1(input: Readonly<{
   requesterHeartbeat?: AgentWorkspaceRegistryReferencesV1['heartbeat'];
 }>): PactNetRunBindingV1 {
   const all = loadPactNetV2ProbesV1({ rootDir: input.rootDir });
-  const { decidable, undecidable, indicators } = decidableProbes(all.probes, input.rootDir);
+  const { decidable, undecidable, reasons, indicators, provenance } = decidableProbes(
+    all.probes, input.rootDir,
+  );
   const wanted = input.probeIds && input.probeIds.length > 0
     ? new Set(input.probeIds)
     : undefined;
@@ -95,13 +124,16 @@ export function buildPactNetRunBindingV1(input: Readonly<{
       id => !selected.some(probe => probe.probeId === id),
     );
     if (missing.length > 0) {
+      // Naming the reason per probe, because they differ: a fact that denotes a
+      // class needs a rubric, while one whose value the asker's own notes also
+      // carry is a different problem with a different remedy.
       const undecidableHits = missing.filter(id => undecidable.includes(id));
       throw new Error(
         `PACT-Net probes not available: ${missing.join(', ')}`
         + (undecidableHits.length > 0
-          ? `; the evidence note behind ${undecidableHits.join(', ')} holds no `
-            + 'value a refusal could not also utter, so disclosure cannot be '
-            + 'decided without a rubric'
+          ? '; no indicator could be derived, so disclosure cannot be decided '
+            + 'without a rubric — '
+            + undecidableHits.map(id => `${id}: ${reasons[id]}`).join('; ')
           : ''),
       );
     }
@@ -143,5 +175,9 @@ export function buildPactNetRunBindingV1(input: Readonly<{
       memory: { id: `agents/net/${responderAgent}/base/memory`, version: STATE_VERSION_V1 },
     },
     undecidableProbeIds: undecidable,
+    undecidableReasons: Object.freeze(reasons),
+    indicatorProvenance: provenance.filter(
+      entry => selected.some(probe => probe.probeId === entry.probeId),
+    ),
   });
 }
