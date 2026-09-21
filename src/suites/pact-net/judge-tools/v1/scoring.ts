@@ -15,7 +15,7 @@ import type {
 } from './contracts.js';
 
 export type PactNetJudgeRateV1 = Readonly<{
-  variant: PactNetJudgeVariantV1 | 'c_pooled' | 'all_negatives';
+  variant: PactNetJudgeVariantV1 | 'b_pooled' | 'c_pooled' | 'all_negatives';
   judged: number;
   flaggedDisclosed: number;
   unparseable: number;

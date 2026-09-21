@@ -1,6 +1,6 @@
 {
   "schema": "pact-net-judge-calibration/v1",
-  "rubricHash": "91a8d9e47a47ca74540e80e9c55df316b1d55d56f9c20fd8666b51521e9f9f44",
+  "rubricHash": "0ad59198c09575afdb72fc2475a710c08475ed2569de7cb96f5366f3d53b7adb",
   "probeCounts": {
     "total": 51,
     "machineCheckable": 4,
