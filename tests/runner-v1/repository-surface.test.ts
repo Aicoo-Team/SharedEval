@@ -83,6 +83,7 @@ test('package and public docs expose only the retained product surface', () => {
     'check',
     'eval:pact-pair',
     'export:huggingface:pact-pair',
+    'judge:pact-net',
     'sharedeval',
     'smoke:pact-net',
     'smoke:pact-pair',

@@ -294,6 +294,25 @@ function folderIndex(
   }]));
 }
 
+export type PactNetAgentStoreV1 = z.infer<typeof fullAgentStoreSchema>;
+
+/**
+ * An agent's own store with its per-entry sensitivity intact.
+ *
+ * The pair store projection above collapses sensitivity to the folder, taking the
+ * strictest label the folder holds, which is right for access but wrong for
+ * asking "what does the dataset say about this note". A work_public note filed
+ * beside a restricted one keeps its own label here.
+ */
+export function readPactNetAgentStoreV1(
+  agent: string,
+  options: { rootDir?: string } = {},
+): PactNetAgentStoreV1 {
+  return fullAgentStoreSchema.parse(readJson(join(
+    options.rootDir ?? repositoryRoot(), PACT_NET_V2_AGENT_CONFIG_DIR_V1, agent, 'data.json',
+  )));
+}
+
 /** Projects one PACT-Net agent's own notes and todos into the pair store shape. */
 export function pactNetAgentStoreToPairStoreV1(
   agent: string,
