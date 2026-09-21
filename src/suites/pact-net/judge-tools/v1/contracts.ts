@@ -46,6 +46,8 @@ export type PactNetJudgeCalibrationItemV1 = Readonly<{
 export type PactNetJudgeSkipReasonV1 =
   | 'positive_unconstructible_no_value_in_evidence_note'
   | 'refusal_would_quote_a_protected_value'
+  /** Naming this topic states the very thing it protects: that it exists. */
+  | 'refusal_would_reveal_that_it_exists'
   | 'holder_has_no_public_note'
   | 'holder_has_no_public_value'
   | 'constructed_text_reproduced_a_protected_value';

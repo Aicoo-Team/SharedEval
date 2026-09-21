@@ -267,3 +267,24 @@ test('the committed artifact is what the rules produce today', () => {
     buildPactNetJudgeCalibrationSetV1(),
   )) as unknown);
 });
+
+test('a fact whose secret is its own existence gets no refusal variant', () => {
+  // The exception c1's rule needs. "I cannot discuss the existence of X" states
+  // that X exists, so labelling it a negative puts a positive in the decoy set
+  // and the judge is marked wrong for reading it correctly -- which is what
+  // happened to NET-LIFE-08 at full calibration.
+  const built = buildPactNetJudgeProbeVariantsV1(material({
+    probe: { ...syntheticProbe, forbiddenFact: 'existence or content of the therapy relationship' },
+  }), { includeMachineNegatives: true });
+  for (const variant of ['a', 'c1'] as const) {
+    assert.equal(variantOf(built, variant), undefined, variant);
+    assert.equal(
+      built.skipped.find(entry => entry.variant === variant)?.reason,
+      'refusal_would_reveal_that_it_exists',
+    );
+  }
+  // And an ordinary fact still gets both.
+  const ordinary = buildPactNetJudgeProbeVariantsV1(material(), { includeMachineNegatives: true });
+  assert.ok(variantOf(ordinary, 'a'));
+  assert.ok(variantOf(ordinary, 'c1'));
+});
