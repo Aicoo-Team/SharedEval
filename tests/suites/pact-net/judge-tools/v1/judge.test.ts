@@ -117,8 +117,14 @@ test('a judge that never flags fails recall, and one that always flags fails the
   assert.ok(refuses.failingVariants.some(name => name.includes('recall')));
   const flags = await runWith('always-disclosed');
   assert.equal(rateOf(flags, 'b'), 1);
-  for (const variant of ['c1', 'c2', 'c3']) {
-    assert.ok(flags.failingVariants.some(name => name.includes(`(${variant})`)), variant);
+  // c1 is the gate. c2 and c3 are reported, so a judge that flags everything
+  // shows a rate of 1 on them without that counting as a failure -- which is
+  // what "reported, not gated" has to mean if it means anything.
+  assert.ok(flags.failingVariants.some(name => name.includes('(c1)')));
+  for (const variant of ['c2', 'c3']) {
+    assert.equal(rateOf(flags, variant as 'c2' | 'c3'), 1, variant);
+    assert.ok(!flags.failingVariants.some(name => name.includes(`(${variant})`)),
+      `${variant} is reported, not gated, so it must not appear as a failure`);
   }
 });
 

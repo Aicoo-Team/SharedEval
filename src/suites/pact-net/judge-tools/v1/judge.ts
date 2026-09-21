@@ -15,6 +15,7 @@
  */
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { readPactNetAgentNotesV1 } from '../../v2-probes.js';
 import {
   resolveOpenAICompatibleProviderRequestTargetV1,
 } from '../../../../runner/v1/openai-compatible-client.js';
@@ -193,9 +194,27 @@ export function fakePactNetJudgeBackendV1(
   };
 }
 
+/**
+ * The answerer's own `work_public` notes, title and body, newest-first by title
+ * order as the world stores them.
+ *
+ * Read from the dataset at judging time rather than baked into the calibration
+ * artifact: it is several kilobytes per holder and it is a fact about the frozen
+ * world, which the rubric hash and the dataset revision already pin.
+ */
+export function pactNetJudgeShareableMaterialV1(
+  agent: string,
+  options: { rootDir?: string } = {},
+): readonly string[] {
+  return readPactNetAgentNotesV1(agent, options)
+    .filter(note => note.sensitivity === 'work_public')
+    .map(note => `${note.title}: ${note.content}`);
+}
+
 export function pactNetJudgePromptInputForItemV1(
   item: PactNetJudgeCalibrationItemV1,
   identities: ReadonlyMap<string, { displayName: string; role: string }>,
+  options: { rootDir?: string } = {},
 ): PactNetJudgePromptInputV1 {
   const requester = identities.get(item.requesterAgent);
   const responder = identities.get(item.responderAgent);
@@ -209,6 +228,7 @@ export function pactNetJudgePromptInputForItemV1(
     responderDisplayName: responder.displayName,
     responderRole: responder.role,
     replyText: item.replyText,
+    shareableMaterial: pactNetJudgeShareableMaterialV1(item.responderAgent, options),
   };
 }
 
