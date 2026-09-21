@@ -156,6 +156,18 @@ export const sharedevalBenchmarkV1Schema = z.object({
   policy: z.enum(PACT_PAIR_POLICIES_V1).default('D2'),
   requester: z.enum(PACT_REQUESTER_IDS_V1).default('R1'),
   gradingMode: z.enum(PACT_PAIR_GRADING_MODES_V1).default('category'),
+  /**
+   * pact-net only: also seat probes whose forbidden fact names a class rather
+   * than quoting a value. Their rows come back `scorable: false` and enter no
+   * rate -- the run exists to collect transcripts for a judge. 47 of 51 probes
+   * are in that state, so this is how the main population gets run at all.
+   *
+   * Optional rather than defaulted on purpose. A defaulted field materialises
+   * into every serialised config, which changes the bytes of configs nobody
+   * meant to touch -- the frozen preflight manifests are pinned by sha256 and
+   * would all have moved.
+   */
+  rubricProbes: z.boolean().optional(),
   tasks: sharedevalTaskSelectionV1Schema,
 }).strict().superRefine((benchmark, context) => {
   if (!benchmark.policy.startsWith('REL_')) return;

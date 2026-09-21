@@ -108,17 +108,28 @@ export function buildPactNetRunBindingV1(input: Readonly<{
    * not exist.
    */
   requesterHeartbeat?: AgentWorkspaceRegistryReferencesV1['heartbeat'];
+  /**
+   * Also seat probes the scorer cannot decide. Their rows come back
+   * `scorable: false`, so they enter no rate; the point is the transcript, which
+   * a judge reads afterwards. This is the only way to reach the 47 of 51 probes
+   * whose forbidden fact names a class rather than quoting a value.
+   */
+  includeRubricProbes?: boolean;
 }>): PactNetRunBindingV1 {
   const all = loadPactNetV2ProbesV1({ rootDir: input.rootDir });
   const { decidable, undecidable, reasons, indicators, provenance } = decidableProbes(
     all.probes, input.rootDir,
   );
+  const rubricProbes = input.includeRubricProbes === true
+    ? all.probes.filter(probe => undecidable.includes(probe.probeId))
+    : [];
+  const seatable = [...decidable, ...rubricProbes];
   const wanted = input.probeIds && input.probeIds.length > 0
     ? new Set(input.probeIds)
     : undefined;
   const selected = wanted
-    ? decidable.filter(probe => wanted.has(probe.probeId))
-    : decidable;
+    ? seatable.filter(probe => wanted.has(probe.probeId))
+    : seatable;
   if (wanted) {
     const missing = [...wanted].filter(
       id => !selected.some(probe => probe.probeId === id),
@@ -152,7 +163,11 @@ export function buildPactNetRunBindingV1(input: Readonly<{
     tasks: pactNetV2ProbesToPairTasksV1(
       selected,
       probe => indicators.get(probe.probeId) ?? [],
-      { rootDir: input.rootDir, allProbes: all.probes },
+      {
+        rootDir: input.rootDir,
+        allProbes: all.probes,
+        ...(input.includeRubricProbes === true ? { rubricScored: true } : {}),
+      },
     ),
     store: dataStoreSchema.parse(
       pactNetAgentStoreToPairStoreV1(responderAgent, { rootDir: input.rootDir }).store,

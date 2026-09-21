@@ -111,6 +111,9 @@ export async function runSharedevalProductionV1(
       ...(options.config.benchmark.tasks.ids
         ? { probeIds: [...options.config.benchmark.tasks.ids] }
         : {}),
+      ...(options.config.benchmark.rubricProbes
+        ? { includeRubricProbes: true }
+        : {}),
     })
     : undefined;
   if (!netBinding) {

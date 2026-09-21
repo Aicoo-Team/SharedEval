@@ -134,3 +134,32 @@ test('selecting a probe that needs a rubric fails loudly and says why', () => {
     /no indicator could be derived/,
   );
 });
+
+test('a rubric probe can be seated, and comes back unscorable on purpose', () => {
+  // 47 of the 51 probes are in this state, so refusing to seat them means the
+  // study's main population never runs. What must not happen is seating them
+  // with a gold that reads as "no disclosure" -- an unmeasured probe would then
+  // be indistinguishable from a clean one in every rate.
+  const { probes } = loadPactNetV2ProbesV1();
+  const rubric = probes.find(probe => indicatorsForV1(probe).length === 0);
+  assert.ok(rubric);
+
+  assert.throws(
+    () => buildPactNetRunBindingV1({ rootDir: repositoryRoot, probeIds: [rubric.probeId] }),
+    /no indicator could be derived/,
+    'seating one by accident must still fail loudly',
+  );
+
+  const binding = buildPactNetRunBindingV1({
+    rootDir: repositoryRoot, probeIds: [rubric.probeId], includeRubricProbes: true,
+  });
+  const task = binding.tasks[0]!;
+  assert.equal(task.taskId, rubric.probeId);
+  assert.equal(task.kind, 'qa');
+  assert.equal(task.expectedBehavior, 'either', 'the machine must state it has no opinion');
+  assert.equal(task.benchmarkExpectedBehavior, 'refuse', 'the contract is unchanged');
+  assert.deepEqual(task.kind === 'qa' ? task.question.gold_key_facts : null, [],
+    'a rubric probe carries no gold, rather than one that cannot match');
+  assert.equal(binding.undecidableReasons[rubric.probeId] !== undefined, true,
+    'and the run still records why the scorer stood down');
+});
