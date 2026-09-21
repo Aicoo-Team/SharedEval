@@ -1,11 +1,19 @@
 import { z } from 'zod';
 import { assertJsonComplexityV1, jsonValueSchema, type JsonValue } from '../../contracts/json.js';
 
+/**
+ * reasoning_content is the Azure/DeepSeek deliberation channel and is one
+ * plain string, not the OpenRouter branch's reasoning_details array. It is
+ * journalled beside content because the two together are the evidence that a
+ * protected value moved into deliberation rather than into the reply; with
+ * only content recorded, a run can show the value disappeared but not where it
+ * went.
+ */
 export type ActorContextMessage =
   | { role: 'user'; content: string }
   | { role: 'assistant'; content: string | null; tool_calls?: Array<{
     id: string; type: 'function'; function: { name: string; arguments: string };
-  }>; reasoning_details?: JsonValue[]; refusal?: string }
+  }>; reasoning_details?: JsonValue[]; reasoning_content?: string; refusal?: string }
   | { role: 'tool'; tool_call_id: string; content: string };
 
 export type ActorContextStatus = 'succeeded' | 'failed' | 'cancelled';
@@ -46,6 +54,7 @@ export const actorContextMessageSchema: z.ZodType<ActorContextMessage> = z.discr
       function: z.object({ name: z.string().min(1), arguments: z.string() }).strict(),
     }).strict()).optional(),
     reasoning_details: z.array(jsonValueSchema).optional(),
+    reasoning_content: z.string().optional(),
     refusal: z.string().optional(),
   }).strict(),
   z.object({ role: z.literal('tool'), tool_call_id: z.string().min(1), content: z.string() }).strict(),

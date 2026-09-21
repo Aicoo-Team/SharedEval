@@ -10,6 +10,7 @@ import {
 } from '../../suites/pact-pair/public-evaluation.js';
 import { fileTurnDecisionV1Schema } from './file-turn-contracts.js';
 import { fileMultiTurnBindingSchema, validFileMultiTurnBinding } from './file-multi-turn.js';
+import { pactAzureReasoningEffortV1Schema } from './model-config.js';
 import {
   FILE_SESSION_CONTACT_ERROR_CODES_V1,
   SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
@@ -91,6 +92,15 @@ export const fileWorkflowModelProvenanceV1Schema = z.object({
   provider: opaqueIdSchema,
   requestedModel: z.string().min(1).max(256),
   resolvedModel: z.string().min(1).max(256),
+  /**
+   * Which reasoning arm this run asked for. Absent means the request carried
+   * no reasoning_effort key at all, which is a distinct arm from the explicit
+   * `none`. Without it the journalled reasoning_content answers "what came
+   * back" but nothing in the run directory answers "what was asked for", and a
+   * call with no reasoning recorded is unreadable: it could be the arm that
+   * never requested one.
+   */
+  reasoningEffort: pactAzureReasoningEffortV1Schema.optional(),
 }).strict();
 
 export const fileWorkflowBackendProvenanceV1Schema = z.object({

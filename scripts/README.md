@@ -31,6 +31,18 @@ model `scripted/pair-probe-v1`; the runner refuses any other model and writes
 `SCRIPTED-RUN.json` into the run directory. Its answers, refusals, and flips are
 scripted, so its results are harness evidence, never model evidence.
 
+`experiments/extract-reasoning-channel.ts` reads a finished run directory and
+prints one row per model call: which reasoning arm the run asked for, whether a
+non-empty `reasoning_content` came back, and the exact bytes of both `content`
+and `reasoning_content`. Repeatable `--contains` needles add the per-call
+assertion that a protected string is absent from the reply and present in the
+deliberation. It reads only, calls no model, and its rows are raw model output.
+
+```bash
+npx tsx scripts/experiments/extract-reasoning-channel.ts \
+  --run-root runs/<run-id> [--contains '<protected string>']
+```
+
 Validate the canonical 600-row export without keeping a staging directory:
 
 ```bash

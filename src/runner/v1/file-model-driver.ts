@@ -345,6 +345,12 @@ const providerChoiceSchema = z.object({
     refusal: z.string().nullable().optional(),
     tool_calls: z.array(providerToolCallSchema).max(128).nullish(),
     reasoning_details: z.array(z.unknown()).max(256).nullish(),
+    // Azure's DeepSeek deployments return the deliberation channel here, as a
+    // plain string rather than the reasoning_details array. It was previously
+    // unparsed and therefore silently dropped, which is why recorded runs on
+    // that provider looked as if the channel were unsupported. Bounded like
+    // content, by the envelope's byte ceiling rather than a field length.
+    reasoning_content: z.string().nullable().optional(),
   }).passthrough(),
 }).passthrough();
 
@@ -792,12 +798,14 @@ class OpenAICompatibleFileTurnSessionV1 {
       }
       const arguments_ = parseToolArguments(call.function.arguments);
       const reasoning = parseReasoningDetails(message.reasoning_details);
+      const reasoningContent = parseReasoningContent(message.reasoning_content);
       await this.#appendMessages([{
         role: 'assistant',
         content: message.content ?? null,
         tool_calls: [call],
         ...(this.#actorContext && typeof message.refusal === 'string' ? { refusal: message.refusal } : {}),
         ...(reasoning ? { reasoning_details: reasoning } : {}),
+        ...(reasoningContent === undefined ? {} : { reasoning_content: reasoningContent }),
       }]);
       const sharedOsId = stableToolCallId(
         this.#request.executionId,
@@ -835,9 +843,11 @@ class OpenAICompatibleFileTurnSessionV1 {
       });
       if (this.#actorContext) {
         const reasoning = parseReasoningDetails(message.reasoning_details);
+        const reasoningContent = parseReasoningContent(message.reasoning_content);
         await this.#appendMessages([{
           role: 'assistant', content: message.content ?? null, refusal: message.refusal ?? refusal,
           ...(reasoning ? { reasoning_details: reasoning } : {}),
+          ...(reasoningContent === undefined ? {} : { reasoning_content: reasoningContent }),
         }]);
       }
       telemetry.outcome = 'success';
@@ -858,10 +868,12 @@ class OpenAICompatibleFileTurnSessionV1 {
     });
     if (this.#actorContext) {
       const reasoning = parseReasoningDetails(message.reasoning_details);
+      const reasoningContent = parseReasoningContent(message.reasoning_content);
       await this.#appendMessages([{
         role: 'assistant', content: message.content ?? content,
         ...(typeof message.refusal === 'string' ? { refusal: message.refusal } : {}),
         ...(reasoning ? { reasoning_details: reasoning } : {}),
+        ...(reasoningContent === undefined ? {} : { reasoning_content: reasoningContent }),
       }]);
     }
     telemetry.outcome = 'success';
@@ -882,15 +894,22 @@ class OpenAICompatibleFileTurnSessionV1 {
    */
   async #denyParallelToolCalls(
     calls: readonly ProviderToolCall[],
-    message: { content?: string | null; reasoning_details?: unknown[] | null; refusal?: string | null },
+    message: {
+      content?: string | null;
+      reasoning_details?: unknown[] | null;
+      reasoning_content?: string | null;
+      refusal?: string | null;
+    },
   ): Promise<void> {
     const reasoning = parseReasoningDetails(message.reasoning_details);
+    const reasoningContent = parseReasoningContent(message.reasoning_content);
     const messages: ProviderMessage[] = [{
       role: 'assistant',
       content: message.content ?? null,
       tool_calls: [...calls],
       ...(this.#actorContext && typeof message.refusal === 'string' ? { refusal: message.refusal } : {}),
       ...(reasoning ? { reasoning_details: reasoning } : {}),
+      ...(reasoningContent === undefined ? {} : { reasoning_content: reasoningContent }),
     }];
     for (const call of calls) {
       messages.push({
@@ -910,7 +929,7 @@ class OpenAICompatibleFileTurnSessionV1 {
         : { temperature: this.#model.temperature }),
       ...openAICompatibleProviderRequestExtrasV1(this.#model),
       max_tokens: this.#model.maxOutputTokens,
-      messages: this.#messages,
+      messages: this.#messages.map(providerWireMessageV1),
       // parallel_tool_calls is deliberately NOT sent. Only 5 of OpenRouter's
       // ~396 models declare support for it, and providerRouting's
       // requireParameters -- a capability filter we must keep -- resolves a
@@ -1166,6 +1185,51 @@ function parseToolArguments(source: string): JsonObject {
     );
   }
   return result.data;
+}
+
+/**
+ * The journal keeps the deliberation channel; the wire does not get it back.
+ *
+ * reasoning_details keeps its existing round trip because OpenRouter needs the
+ * block returned to preserve a provider's own reasoning signatures.
+ * reasoning_content has no such requirement, and the reasons not to send it
+ * back are one-sided.
+ *
+ * Not because it would be rejected: a probe against DeepSeek-V4-Flash-0731 on
+ * Azure sent an assistant message carrying reasoning_content and got HTTP 200,
+ * so the DeepSeek API's own rule -- that reasoning_content must not appear in
+ * the next request -- is not enforced on this route. It is still the
+ * documented contract of the model family, it can start being enforced without
+ * notice, and a rejected request costs the whole turn rather than one field.
+ * Against that, replaying buys nothing the model needs and is not free: one
+ * measured deliberation was 5.4 KB, resent in full on every later request of
+ * the same turn.
+ *
+ * Recording and replaying are separate decisions, and only recording is needed
+ * to show where a protected value went.
+ */
+function providerWireMessageV1(message: ProviderMessage): ProviderMessage {
+  if (message.role !== 'assistant' || message.reasoning_content === undefined) {
+    return message;
+  }
+  const { reasoning_content: _journalOnly, ...wire } = message;
+  return wire;
+}
+
+/**
+ * An empty deliberation string is recorded as absent, so that "the journal has
+ * a reasoning_content field" and "this call actually deliberated" are the same
+ * fact. The per-call assertion the channel exists for reads exactly that, and
+ * a recorded empty string would make it ambiguous. Mirrors how an empty
+ * reasoning_details array is dropped below.
+ *
+ * This is the only place the emptiness rule lives. Its four call sites spread
+ * on `=== undefined` rather than on truthiness precisely so that they cannot
+ * quietly re-decide it here -- a second copy of the rule would leave both
+ * copies unfalsifiable.
+ */
+function parseReasoningContent(value: string | null | undefined): string | undefined {
+  return value ? value : undefined;
 }
 
 function parseReasoningDetails(

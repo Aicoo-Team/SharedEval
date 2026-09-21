@@ -49,6 +49,32 @@ export const pactReasoningV1Schema = z
   .object({ effort: z.enum(['none', 'minimal', 'low', 'medium', 'high', 'max']) })
   .strict();
 
+/**
+ * Azure's deployments take the effort as a top-level `reasoning_effort` string
+ * and reject the object form above with HTTP 400
+ * `unrecognized_request_argument`, so the two shapes cannot share a schema.
+ * The enum is narrower than pactReasoningV1Schema's for the same reason: only
+ * these four are OpenAI-standard efforts, and `minimal`/`max` have never been
+ * observed honoured on an Azure deployment.
+ *
+ * This enum has to do the whole job, because the deployment does none of it:
+ * a probe against DeepSeek-V4-Flash-0731 found that `reasoning_effort:
+ * "bogus"` does NOT 400 -- it is simply treated as reasoning ON. Only the
+ * exact string `none` turns the channel off. A typo in a run config would
+ * therefore move that run onto the other arm silently rather than failing, so
+ * the value is pinned here and rejected at config-parse time instead.
+ */
+export const pactAzureReasoningEffortV1Schema = z.enum([
+  'none',
+  'low',
+  'medium',
+  'high',
+]);
+
+export type PactAzureReasoningEffortV1 = z.infer<
+  typeof pactAzureReasoningEffortV1Schema
+>;
+
 const providerBaseUrlSchema = z
   .string()
   .url()
@@ -152,6 +178,18 @@ export const pactAzureOpenAIModelConfigV1Schema = z
       .optional(),
     apiKeyEnv: z.literal(SHAREDEVAL_MODEL_API_KEY_ENV_V1),
     temperature: z.number().finite().min(0).max(2).optional(),
+    /**
+     * Absent is a different arm from `none`: absent sends no key at all, while
+     * `none` explicitly asks the deployment to answer without a separate
+     * deliberation channel. Both have to stay expressible, so this stays
+     * optional rather than defaulting.
+     *
+     * Any value other than `none` shares `maxOutputTokens` between the
+     * deliberation and the reply; a budget sized for the reply alone comes
+     * back with `finish_reason: length` and an empty `content`. Raise
+     * maxOutputTokens on an arm that sets this.
+     */
+    reasoningEffort: pactAzureReasoningEffortV1Schema.optional(),
     maxOutputTokens: z.number().int().safe().min(1).max(65_536).default(4_096),
   })
   .strict();
