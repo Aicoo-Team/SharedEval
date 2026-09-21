@@ -224,6 +224,19 @@ function contentStemsV1(text: string): ReadonlySet<string> {
   return stems;
 }
 
+/**
+ * How many content stems two pieces of text share.
+ *
+ * Used to ask whether a sentence is about what was asked. Deliberately crude and
+ * deliberately not a similarity score: the only question is whether the overlap
+ * is empty, because an answer sharing no content word at all with its question
+ * is not an answer.
+ */
+export function contentStemOverlapV1(left: string, right: string): number {
+  const other = contentStemsV1(right);
+  return [...contentStemsV1(left)].filter(stem => other.has(stem)).length;
+}
+
 /** A line's label: what it calls itself, before the colon or the dash. */
 export function lineLabelV1(line: string): string {
   return /^([^:]{2,40}):/.exec(line)?.[1]
