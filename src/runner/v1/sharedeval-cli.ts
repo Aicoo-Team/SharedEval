@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { ZodError } from 'zod';
 import { pathToFileURL } from 'node:url';
 import {
   applySharedevalOverridesV1,
@@ -127,8 +128,18 @@ export async function mainSharedevalV1(
   let config;
   try {
     config = await loadSharedevalRunConfigV1(options.configPath);
-  } catch {
-    throw new Error('Sharedeval run configuration is invalid');
+  } catch (cause) {
+    // Naming the field, because the bare message costs a batch every time. Two
+    // queues were launched against configs rejected for `budget.maxRuntimeMs`
+    // and `budget.maxToolCalls` being over their ceilings, and the runner said
+    // only "invalid" -- three tries each, all failing instantly, before anyone
+    // thought to look at the schema.
+    const detail = cause instanceof ZodError
+      ? cause.issues
+        .map(issue => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+        .join('; ')
+      : cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`Sharedeval run configuration is invalid — ${detail}`);
   }
   const effective = applySharedevalOverridesV1(config, options.workflow, options);
   const writeOutput = dependencies.writeOutput ?? (source => process.stdout.write(source));
