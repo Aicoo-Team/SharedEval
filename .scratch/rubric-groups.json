@@ -1,0 +1,143 @@
+[
+ {
+  "agent": "wes_arnold",
+  "ids": [
+   "NET-V-01--wes_arnold",
+   "NET-X-01--wes_arnold"
+  ]
+ },
+ {
+  "agent": "helen_vasquez",
+  "ids": [
+   "NET-K-06--helen_vasquez"
+  ]
+ },
+ {
+  "agent": "bea_ferreira",
+  "ids": [
+   "NET-I-01--bea_ferreira",
+   "NET-I-02--bea_ferreira",
+   "NET-I-07--bea_ferreira",
+   "NET-EP-01--bea_ferreira",
+   "NET-EP-04--bea_ferreira",
+   "NET-SR-01--bea_ferreira"
+  ]
+ },
+ {
+  "agent": "carlos_reyes",
+  "ids": [
+   "NET-H-01--carlos_reyes",
+   "NET-F-08--carlos_reyes",
+   "NET-P-09--carlos_reyes"
+  ]
+ },
+ {
+  "agent": "sarah_martinez",
+  "ids": [
+   "NET-H-06--sarah_martinez",
+   "NET-H-11--sarah_martinez"
+  ]
+ },
+ {
+  "agent": "rosa_delgado",
+  "ids": [
+   "NET-S-06--rosa_delgado",
+   "NET-O-07--rosa_delgado",
+   "NET-C-03--rosa_delgado"
+  ]
+ },
+ {
+  "agent": "david_chen",
+  "ids": [
+   "NET-N-08--david_chen"
+  ]
+ },
+ {
+  "agent": "elena_park",
+  "ids": [
+   "NET-K-10--elena_park",
+   "NET-F-10--elena_park"
+  ]
+ },
+ {
+  "agent": "mike_torres",
+  "ids": [
+   "NET-D-10--mike_torres"
+  ]
+ },
+ {
+  "agent": "rachel_kim",
+  "ids": [
+   "NET-I-10--rachel_kim"
+  ]
+ },
+ {
+  "agent": "priya_sharma",
+  "ids": [
+   "NET-O-06--priya_sharma",
+   "NET-V-14--priya_sharma",
+   "NET-K-13--priya_sharma"
+  ]
+ },
+ {
+  "agent": "raj_venkatesan",
+  "ids": [
+   "NET-D-11--raj_venkatesan"
+  ]
+ },
+ {
+  "agent": "grace_okonkwo",
+  "ids": [
+   "NET-I-13--grace_okonkwo"
+  ]
+ },
+ {
+  "agent": "nora_fields",
+  "ids": [
+   "NET-I-14--nora_fields",
+   "NET-IAM-03--nora_fields"
+  ]
+ },
+ {
+  "agent": "dr_ivy_banerjee",
+  "ids": [
+   "NET-C-04--dr_ivy_banerjee",
+   "NET-ROI-01--dr_ivy_banerjee"
+  ]
+ },
+ {
+  "agent": "aisha_rahman",
+  "ids": [
+   "NET-EP-03--aisha_rahman",
+   "NET-PS-02--aisha_rahman",
+   "NET-PS-03--aisha_rahman",
+   "NET-PS-04--aisha_rahman"
+  ]
+ },
+ {
+  "agent": "elliot_price",
+  "ids": [
+   "NET-IAM-01--elliot_price"
+  ]
+ },
+ {
+  "agent": "oskar_reinhardt",
+  "ids": [
+   "NET-IAM-04--oskar_reinhardt"
+  ]
+ },
+ {
+  "agent": "samira_cole",
+  "ids": [
+   "NET-SR-02--samira_cole",
+   "NET-SR-03--samira_cole"
+  ]
+ },
+ {
+  "agent": "monica_alvarez",
+  "ids": [
+   "NET-BEN-02--monica_alvarez",
+   "NET-BEN-03--monica_alvarez"
+  ]
+ }
+]

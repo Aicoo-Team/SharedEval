@@ -5,6 +5,11 @@
  *   npm run judge:pact-net -- build [--check]
  *   npm run judge:pact-net -- run --fake oracle
  *   npm run judge:pact-net -- run --model DeepSeek-V4-Flash-0731 --sample 4 --votes 3 --max-calls 15
+ *   npm run judge:pact-net -- judge-runs --lane <dir> --model <deployment> --max-calls 200
+ *
+ * `judge-runs` reads the replies a benchmark run actually delivered and judges
+ * every one of them -- not just the last contact for a task, because a run that
+ * refuses five times and discloses on the third has disclosed.
  *
  * Outputs, under --out (default runs/pact-net-judge/<label>):
  *   judgments.json   one record per item: cache key, rubric hash, prompt hash,
@@ -37,6 +42,12 @@ import {
   type PactNetJudgeFakeModeV1,
 } from './judge.js';
 import { scorePactNetJudgeCalibrationV1 } from './scoring.js';
+import {
+  judgePactNetObservedRepliesV1,
+  pactNetRunRootsV1,
+  readPactNetObservedRepliesV1,
+  summarisePactNetObservedV1,
+} from './observed.js';
 import type {
   PactNetJudgeCalibrationItemV1,
   PactNetJudgeCalibrationSetV1,
@@ -285,6 +296,7 @@ export async function runCli(argv: string[], rootDir: string): Promise<number> {
   const command = argv[0];
   if (command === 'build') return buildCommand(argv.slice(1), rootDir);
   if (command === 'run') return runCommand(argv.slice(1), rootDir);
+  if (command === 'judge-runs') return judgeRunsCommand(argv.slice(1), rootDir);
   if (command === 'rubric') { console.log(PACT_NET_JUDGE_RUBRIC_V1); return 0; }
   usage();
 }
@@ -301,4 +313,101 @@ if (isDirectRun) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
     });
+}
+
+/**
+ * Judge the replies a lane's runs delivered.
+ *
+ * The calibration gate is separate and deliberately not enforced here: whether
+ * this judge has earned trust is a question about the calibration run, answered
+ * by reading its score.json, not something to re-derive per invocation.
+ */
+async function judgeRunsCommand(argv: string[], rootDir: string): Promise<number> {
+  const lane = flagValue(argv, '--lane');
+  if (!lane) {
+    console.error('judge-runs needs --lane <directory of run roots>');
+    return 1;
+  }
+  const fake = flagValue(argv, '--fake') as PactNetJudgeFakeModeV1 | null;
+  const deployment = flagValue(argv, '--model') ?? 'DeepSeek-V4-Flash-0731';
+  const votesPerItem = Number.parseInt(flagValue(argv, '--votes') ?? '3', 10);
+  const maxCalls = Number.parseInt(flagValue(argv, '--max-calls') ?? '30', 10);
+  const label = flagValue(argv, '--label') ?? 'observed';
+  const outDir = resolve(flagValue(argv, '--out')
+    ?? join(rootDir, 'runs', 'pact-net-judge', label));
+  const cachePath = resolve(flagValue(argv, '--cache')
+    ?? join(rootDir, 'runs', 'pact-net-judge', 'cache.json'));
+
+  const replies = pactNetRunRootsV1(resolve(lane))
+    .flatMap(root => readPactNetObservedRepliesV1(root));
+  if (replies.length === 0) {
+    console.error(`no delivered replies under ${lane}`);
+    return 1;
+  }
+  const { probes } = loadPactNetV2ProbesV1({ rootDir });
+  const known = new Set(probes.map(probe => probe.probeId));
+  const unknown = [...new Set(replies.filter(r => !known.has(r.taskId)).map(r => r.taskId))];
+  if (unknown.length > 0) {
+    console.error(`replies name probes that do not exist: ${unknown.join(', ')}`);
+    return 1;
+  }
+  console.log(`${replies.length} delivered replies across `
+    + `${new Set(replies.map(r => r.taskId)).size} probes`);
+
+  let backend: PactNetJudgeBackendV1;
+  if (fake) {
+    // `oracle` and `matcher` decide by looking the item up among the ones they
+    // were given, and an observed reply is not one of those -- its verdict is
+    // the unknown. Only the two constant fakes mean anything here, and they are
+    // for exercising the plumbing, not for producing a result.
+    if (fake !== 'always-disclosed' && fake !== 'always-refused') {
+      console.error(`--fake ${fake} needs a known label, which an observed reply `
+        + 'does not have; use always-disclosed or always-refused to exercise the path');
+      return 1;
+    }
+    backend = fakePactNetJudgeBackendV1(fake, {
+      items: [], identities: new Map(),
+      forbiddenFactByProbeId: new Map(probes.map(p => [p.probeId, p.forbiddenFact])),
+    });
+  } else {
+    const endpoint = process.env['AZURE_OPENAI_ENDPOINT'];
+    if (!endpoint) { console.error('AZURE_OPENAI_ENDPOINT is not set'); return 1; }
+    const model = pactAzureOpenAIModelConfigV1Schema.parse({
+      provider: 'azure-openai', endpoint, deployment,
+      apiKeyEnv: 'SHAREDEVAL_MODEL_API_KEY', maxOutputTokens: 512,
+    });
+    backend = azurePactNetJudgeBackendV1({
+      model, apiKey: resolvePactRunModelApiKeyV1(model), maxCalls,
+    });
+  }
+
+  const cache = loadPactNetJudgeCacheV1(cachePath);
+  const { judgments, liveCalls } = await judgePactNetObservedRepliesV1({
+    replies, backend, modelId: fake ? `fake:${fake}` : deployment, votesPerItem, cache,
+    rootDir, probes, maxLiveCalls: fake ? undefined : maxCalls,
+    onProgress: (done, total, taskId, cached) =>
+      console.log(`  [${done}/${total}] ${taskId}${cached ? ' (cached)' : ''}`),
+  });
+  savePactNetJudgeCacheV1(cachePath, cache);
+  mkdirSync(outDir, { recursive: true });
+  writeFileSync(join(outDir, 'judgments.json'), `${JSON.stringify(judgments, null, 1)}\n`);
+  const summary = summarisePactNetObservedV1(judgments);
+  writeFileSync(join(outDir, 'summary.json'), `${JSON.stringify(summary, null, 1)}\n`);
+
+  console.log(`\nlive calls ${liveCalls}`);
+  const judged = new Set(judgments.map(j => j.taskId));
+  const missed = [...new Set(replies.map(r => r.taskId))].filter(t => !judged.has(t));
+  console.log(`${'probe'.padEnd(34)} replies disclosed unparseable`);
+  for (const row of summary) {
+    const mark = row.disclosed > 0 ? '!' : ' ';
+    console.log(`${mark}${row.taskId.padEnd(33)} ${String(row.replies).padStart(7)}`
+      + `${String(row.disclosed).padStart(10)}${String(row.unparseable).padStart(12)}`);
+  }
+  // Coverage printed as a row rather than left as a shorter table: a probe that
+  // fell off the budget must not look like a probe that did not disclose.
+  if (missed.length > 0) {
+    console.log(`\nNOT JUDGED (budget or parse): ${missed.join(', ')}`);
+  }
+  console.log(`\nwritten to ${outDir}`);
+  return 0;
 }
