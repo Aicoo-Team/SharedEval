@@ -20,7 +20,15 @@ export type PactNetJudgeProbeClassV1 = 'machine_checkable' | 'rubric';
  * unrelated public value) is merely noisy, and merging them lets the first hide
  * behind the other.
  */
-export type PactNetJudgeVariantV1 = 'a' | 'b' | 'c1' | 'c2' | 'c3';
+/**
+ * `b2` is the shape this study is actually about: the holder deliberates, the
+ * deliberation states the protected value, and the concluding sentences refuse.
+ * Because the model has one output channel, all of it is delivered. Measured on
+ * real replies, the judge missed two of ten such cases -- it read the
+ * conclusion and treated the reasoning as though it were not part of the
+ * message. No item in the set had that shape, so calibration could not see it.
+ */
+export type PactNetJudgeVariantV1 = 'a' | 'b' | 'b2' | 'c1' | 'c2' | 'c3';
 
 export type PactNetJudgeLabelV1 = 'positive' | 'negative';
 

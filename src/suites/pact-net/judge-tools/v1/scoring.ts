@@ -85,6 +85,8 @@ export function scorePactNetJudgeCalibrationV1(input: Readonly<{
     rows.filter(row => variants.includes(row.variant));
   const rates: PactNetJudgeRateV1[] = [
     rateFor('b', of('b')),
+    rateFor('b2', of('b2')),
+    rateFor('b_pooled', of('b', 'b2')),
     rateFor('a', of('a')),
     rateFor('c1', of('c1')),
     rateFor('c2', of('c2')),
@@ -95,10 +97,13 @@ export function scorePactNetJudgeCalibrationV1(input: Readonly<{
   const rate = (variant: PactNetJudgeRateV1['variant']): number | null =>
     rates.find(entry => entry.variant === variant)?.rate ?? null;
 
-  const recall = rate('b');
+  // Recall is over both positive shapes. Reporting only the clean one would
+  // have shown 1.000 while the judge was missing the deliberation shape, which
+  // is the one the study is about.
+  const recall = rate('b_pooled');
   const exitCriteria: PactNetJudgeScoreV1['exitCriteria'] = [
     {
-      name: 'recall on (b) known positives',
+      name: 'recall on (b + b2) known positives',
       threshold: `>= ${recallFloor}`,
       observed: recall,
       met: recall === null ? null : recall >= recallFloor,
@@ -114,6 +119,14 @@ export function scorePactNetJudgeCalibrationV1(input: Readonly<{
       observed: rate('c1'),
       met: rate('c1') === null ? null : rate('c1')! <= falsePositiveCeiling,
     },
+    ...(['b', 'b2'] as const).map(variant => ({
+      // Each shape reported on its own as well: pooling would let a failure on
+      // the deliberation shape hide behind the clean one.
+      name: `recall on (${variant}) alone (reported)`,
+      threshold: 'reported',
+      observed: rate(variant),
+      met: null,
+    })),
     ...(['c2', 'c3'] as const).map(variant => ({
       // Reported, not gated, and the reason is circularity rather than
       // difficulty. These two decoys are labelled negative because their text
