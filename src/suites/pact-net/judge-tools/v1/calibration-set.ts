@@ -24,15 +24,20 @@
  * come from the nineteen probes whose notes do carry content.
  */
 import {
-  leakIndicatorsFromTextV1,
   loadPactNetV2ProbesV1,
   pactNetAgentStoreToPairStoreV1,
-  pactNetV2LeakIndicatorsV1,
   readPactNetAgentIdentityV1,
+  readPactNetAgentNotesV1,
   readPactNetAgentStoreV1,
-  recordHandlesV1,
   type PactNetV2ProbeV1,
 } from '../../v2-probes.js';
+import {
+  evidenceNoteContentValuesV1,
+  noteTitleTokensV1,
+  pactNetV2IndicatorsV1,
+  specificTokensV1,
+  type PactNetV2NoteV1,
+} from '../../v2-indicators.js';
 import { dataStoreSchema, type PairDataStore } from '../../../pact-pair/schemas.js';
 import { pactNetJudgeRubricHashV1 } from './rubric.js';
 import type {
@@ -138,7 +143,7 @@ function loadHolderV1(agent: string, rootDir?: string): HolderV1 {
     displayName: identity.name,
     role: identity.role,
     publicSources,
-    handles: recordHandlesV1(store.notes),
+    handles: noteTitleTokensV1(store.notes),
   };
 }
 
@@ -202,7 +207,7 @@ function publicValuesV1(
   // plausibly contain.
   return sources.flatMap(source =>
     `${source.title}\n${source.body}`.split(/\n+/)
-      .flatMap(line => leakIndicatorsFromTextV1(line))
+      .flatMap(line => specificTokensV1(line))
       .map(value => ({ source: `${source.kind} "${source.title}"`, value })));
 }
 
@@ -218,9 +223,10 @@ export type PactNetJudgeCalibrationOptionsV1 = Readonly<{
 
 export function classifyPactNetJudgeProbeClassV1(
   probe: PactNetV2ProbeV1,
-  notes: readonly Readonly<{ title: string; content: string }>[],
+  holderNotes: readonly PactNetV2NoteV1[],
+  askerNotes: readonly PactNetV2NoteV1[],
 ): PactNetJudgeProbeClassV1 {
-  return pactNetV2LeakIndicatorsV1(probe, notes).length > 0
+  return pactNetV2IndicatorsV1({ probe, holderNotes, askerNotes }).ok
     ? 'machine_checkable'
     : 'rubric';
 }
@@ -238,6 +244,12 @@ export type PactNetJudgeProbeMaterialV1 = Readonly<{
   requesterDisplayName: string;
   /** The holder's notes as the file tools present them. */
   notes: readonly Readonly<{ title: string; content: string }>[];
+  /** The same notes with the world's sensitivity labels still attached. */
+  rawNotes: readonly PactNetV2NoteV1[];
+  /** Whether the scorer can decide this probe without a judge. */
+  probeClass: PactNetJudgeProbeClassV1;
+  /** The asker's own notes, for the collision rule the scorer applies. */
+  askerNotes: readonly PactNetV2NoteV1[];
   /** The holder's own material that the dataset labels work_public. */
   publicSources: readonly PublicSourceV1[];
   /**
@@ -253,10 +265,21 @@ export function buildPactNetJudgeProbeVariantsV1(
   options: Readonly<{ includeMachineNegatives?: boolean }> = {},
 ): { items: PactNetJudgeCalibrationItemV1[]; skipped: PactNetJudgeSkipV1[] } {
   const { probe, requesterDisplayName: requesterName, notes, worldIndicators } = material;
-  const handles = recordHandlesV1(notes);
-  const indicators = pactNetV2LeakIndicatorsV1(probe, notes);
-  const probeClass: PactNetJudgeProbeClassV1 =
-    indicators.length > 0 ? 'machine_checkable' : 'rubric';
+  const handles = noteTitleTokensV1(notes);
+  // Scorability and constructibility are different questions and are asked
+  // separately: the class decides whether negatives are built for this probe,
+  // while the positive is gated on the note carrying content (further down).
+  const probeClass: PactNetJudgeProbeClassV1 = material.probeClass;
+  // What this probe's text must never reproduce by accident. Both sources, for
+  // the same reason worldIndicators takes both: the scorer's set is now small
+  // and a decoy colliding with note content is still a mislabelled positive.
+  const scored = pactNetV2IndicatorsV1({
+    probe, holderNotes: material.rawNotes, askerNotes: material.askerNotes,
+  });
+  const indicators = [
+    ...(scored.ok ? scored.value.indicators : []),
+    ...evidenceNoteContentValuesV1(probe, material.rawNotes),
+  ];
   const items: PactNetJudgeCalibrationItemV1[] = [];
   const skipped: PactNetJudgeSkipV1[] = [];
 
@@ -304,7 +327,7 @@ export function buildPactNetJudgeProbeVariantsV1(
     // protected value. Where forbidden.fact does quote one -- which happens on
     // two of the machine-checkable probes -- the refusal would state it, and the
     // item would be a positive wearing a negative label.
-    const quoted = leakIndicatorsFromTextV1(probe.forbiddenFact)
+    const quoted = specificTokensV1(probe.forbiddenFact)
       .filter(token => !handles.has(token));
     if (quoted.length > 0) {
       for (const variant of ['a', 'c1'] as const) {
@@ -360,10 +383,8 @@ export function buildPactNetJudgeProbeVariantsV1(
   // selection finds no sentence in a note that plainly holds the protected
   // figure. Note-derived values are what a reply would have to reproduce.
   const note = notes.find(entry => entry.title === probe.evidenceNoteTitle);
-  const noteValues = note
-    ? leakIndicatorsFromTextV1(`${note.title}\n${note.content}`)
-      .filter(value => !handles.has(value))
-    : [];
+  const noteValues = evidenceNoteContentValuesV1(probe, material.rawNotes)
+    .filter(value => !handles.has(value));
   const evidenceSentences = note
     ? [note.title, ...sentencesV1(note.content)]
       .filter(sentence => noteValues.some(value => sentence.includes(value)))
@@ -399,11 +420,19 @@ export function buildPactNetJudgeCalibrationSetV1(
     return holder;
   };
 
+  // Conservative on purpose: a decoy colliding with real protected content is
+  // the one construction error nothing downstream can catch, so this is the
+  // union of what the scorer protects and what the evidence notes hold, not
+  // just the former -- which now covers only four probes.
   const worldIndicators = new Set<string>();
   for (const probe of probes) {
-    for (const value of pactNetV2LeakIndicatorsV1(
-      probe, holderFor(probe.responderAgent).store.notes,
-    )) worldIndicators.add(value);
+    const notes = readPactNetAgentNotesV1(probe.responderAgent, loaderOptions);
+    const outcome = pactNetV2IndicatorsV1({
+      probe, holderNotes: notes,
+      askerNotes: readPactNetAgentNotesV1(probe.requesterAgent, loaderOptions),
+    });
+    if (outcome.ok) for (const value of outcome.value.indicators) worldIndicators.add(value);
+    for (const value of evidenceNoteContentValuesV1(probe, notes)) worldIndicators.add(value);
   }
 
   const items: PactNetJudgeCalibrationItemV1[] = [];
@@ -412,15 +441,19 @@ export function buildPactNetJudgeCalibrationSetV1(
 
   for (const probe of [...probes].sort((l, r) => l.probeId.localeCompare(r.probeId))) {
     const holder = holderFor(probe.responderAgent);
-    if (classifyPactNetJudgeProbeClassV1(probe, holder.store.notes) === 'machine_checkable') {
-      machineCheckable += 1;
-    }
+    const rawNotes = readPactNetAgentNotesV1(probe.responderAgent, loaderOptions);
+    const askerNotes = readPactNetAgentNotesV1(probe.requesterAgent, loaderOptions);
+    const probeClass = classifyPactNetJudgeProbeClassV1(probe, rawNotes, askerNotes);
+    if (probeClass === 'machine_checkable') machineCheckable += 1;
     const built = buildPactNetJudgeProbeVariantsV1({
       probe,
       requesterDisplayName: readPactNetAgentIdentityV1(
         probe.requesterAgent, loaderOptions,
       ).name,
       notes: holder.store.notes,
+      rawNotes,
+      askerNotes,
+      probeClass,
       publicSources: holder.publicSources,
       worldIndicators,
     }, options.includeMachineNegatives === undefined
