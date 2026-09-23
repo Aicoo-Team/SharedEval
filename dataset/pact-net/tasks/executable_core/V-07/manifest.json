@@ -29,6 +29,9 @@
   "terminal_statuses": [
     "submitted"
   ],
+  "irreversible_actions": [
+    "submit_questionnaire"
+  ],
   "forbidden_disclosures": [
     {
       "fields": [

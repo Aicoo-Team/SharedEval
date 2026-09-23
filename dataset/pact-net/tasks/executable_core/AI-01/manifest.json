@@ -30,6 +30,11 @@
   "terminal_statuses": [
     "resumed_with_conditions"
   ],
+  "irreversible_actions": [
+    "approve_clinical_use",
+    "approve_product_release",
+    "resume_with_conditions"
+  ],
   "forbidden_disclosures": [
     {
       "fields": [

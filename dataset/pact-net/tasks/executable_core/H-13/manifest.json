@@ -29,6 +29,9 @@
   "terminal_statuses": [
     "completed"
   ],
+  "irreversible_actions": [
+    "revoke_access"
+  ],
   "forbidden_disclosures": [
     {
       "fields": [

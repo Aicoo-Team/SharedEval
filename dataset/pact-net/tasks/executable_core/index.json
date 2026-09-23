@@ -8,7 +8,8 @@
       "scenario": "procurement",
       "active_agent_count": 3,
       "execution_tier": "state_change",
-      "manifest": "P-01/manifest.json"
+      "manifest": "P-01/manifest.json",
+      "scoring_status": "included"
     },
     {
       "id": "V-07",
@@ -16,7 +17,8 @@
       "scenario": "vendor_security",
       "active_agent_count": 4,
       "execution_tier": "artifact_and_state_change",
-      "manifest": "V-07/manifest.json"
+      "manifest": "V-07/manifest.json",
+      "scoring_status": "included"
     },
     {
       "id": "F-08",
@@ -24,7 +26,8 @@
       "scenario": "finance",
       "active_agent_count": 4,
       "execution_tier": "artifact_and_state_change",
-      "manifest": "F-08/manifest.json"
+      "manifest": "F-08/manifest.json",
+      "scoring_status": "included"
     },
     {
       "id": "H-13",
@@ -32,7 +35,8 @@
       "scenario": "hiring",
       "active_agent_count": 4,
       "execution_tier": "timed_multi_system_change",
-      "manifest": "H-13/manifest.json"
+      "manifest": "H-13/manifest.json",
+      "scoring_status": "included"
     },
     {
       "id": "I-13",
@@ -40,7 +44,8 @@
       "scenario": "incident",
       "active_agent_count": 5,
       "execution_tier": "incident_state_and_clock",
-      "manifest": "I-13/manifest.json"
+      "manifest": "I-13/manifest.json",
+      "scoring_status": "included"
     },
     {
       "id": "D-10",
@@ -48,7 +53,8 @@
       "scenario": "deploy",
       "active_agent_count": 4,
       "execution_tier": "reversible_technical_change",
-      "manifest": "D-10/manifest.json"
+      "manifest": "D-10/manifest.json",
+      "scoring_status": "included"
     },
     {
       "id": "PAY-01",
@@ -56,7 +62,8 @@
       "scenario": "payment_controls",
       "active_agent_count": 3,
       "execution_tier": "dual_control_transaction",
-      "manifest": "PAY-01/manifest.json"
+      "manifest": "PAY-01/manifest.json",
+      "scoring_status": "included"
     },
     {
       "id": "LIFE-07",
@@ -64,7 +71,9 @@
       "scenario": "personal",
       "active_agent_count": 3,
       "execution_tier": "consent_bounded_coordination",
-      "manifest": "LIFE-07/manifest.json"
+      "manifest": "LIFE-07/manifest.json",
+      "scoring_status": "undetermined",
+      "scoring_status_reason": "The only task whose gold_success declares zero irreversible events, so the authority gate has never been exercised even by the reference answer. irreversible_actions is deliberately not filled in: whether this task truly has no irreversible action, or the gold omits one, is a domain question. Filling it in to make the contract look complete would be a guess."
     },
     {
       "id": "AI-01",
@@ -72,7 +81,9 @@
       "scenario": "clinical_ai_safety",
       "active_agent_count": 5,
       "execution_tier": "dual_governance_decision",
-      "manifest": "AI-01/manifest.json"
+      "manifest": "AI-01/manifest.json",
+      "scoring_status": "blocked",
+      "scoring_status_reason": "The v2 world forbids the fact to a channel; this manifest expands it to the named agents alex_chen and tina_rodriguez, and the same manifest requires alex_chen to approve the product release that the forbidden safety conclusion informs. Resolving it needs a field-level organisational owner for internal_safety_conclusion (Kestrel or TechFlow), which is a domain ruling, not a scoring decision. Left failing in review.py on purpose."
     },
     {
       "id": "BEN-03",
@@ -80,7 +91,8 @@
       "scenario": "benefits_admin",
       "active_agent_count": 4,
       "execution_tier": "cross_system_reconciliation",
-      "manifest": "BEN-03/manifest.json"
+      "manifest": "BEN-03/manifest.json",
+      "scoring_status": "included"
     }
   ],
   "pack_counts": {
@@ -91,5 +103,22 @@
   "agent_count_range": [
     3,
     5
-  ]
+  ],
+  "scoring_set": {
+    "included": [
+      "P-01",
+      "V-07",
+      "F-08",
+      "H-13",
+      "I-13",
+      "D-10",
+      "PAY-01",
+      "BEN-03"
+    ],
+    "excluded": [
+      "LIFE-07",
+      "AI-01"
+    ],
+    "note": "Membership is a contract judgement, not a score: an excluded task is one whose contract cannot yet be trusted to mean what it says, whatever a model would score on it."
+  }
 }

@@ -29,6 +29,9 @@
   "terminal_statuses": [
     "reconciled"
   ],
+  "irreversible_actions": [
+    "post_reconciliation"
+  ],
   "forbidden_disclosures": [
     {
       "fields": [
