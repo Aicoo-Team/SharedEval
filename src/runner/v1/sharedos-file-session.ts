@@ -68,7 +68,17 @@ type TurnPromptPayloadV1 = {
   injectedWorkspace?: InjectedWorkspaceDeclarationV1;
 };
 
-function promptTextOf(payload: unknown): string {
+/**
+ * The prompt text a delivered payload becomes.
+ *
+ * Exported because it is the one hop between what the host puts in a payload and
+ * what the model reads. A request payload is an object with no `text`, so every
+ * field in it is serialised -- which is how a host-stated `askedBy` reaches the
+ * responder without any prompt template mentioning it. Changing that to project
+ * named fields would silently drop the asker, so it is pinned by a test rather
+ * than left to be inferred from the two call sites.
+ */
+export function promptTextOfPayloadV1(payload: unknown): string {
   if (typeof payload === 'string') return payload;
   if (payload !== null && typeof payload === 'object' && 'text' in payload) {
     const text = (payload as { text?: unknown }).text;
@@ -76,6 +86,7 @@ function promptTextOf(payload: unknown): string {
   }
   return JSON.stringify(payload);
 }
+const promptTextOf = promptTextOfPayloadV1;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 

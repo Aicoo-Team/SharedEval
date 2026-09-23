@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   heartbeatInstructionText,
+  promptTextOfPayloadV1,
   selectedContactTaskIdV1,
   unplaceableContactPolicyV1,
 } from '../../src/runner/v1/sharedos-file-session.js';
@@ -70,6 +71,31 @@ test('the policy is a run decision, not a profile: today only simple drops', () 
       String(pairProfile),
     );
   }
+});
+
+test('a request payload reaches the prompt whole, asker included', () => {
+  // This is the hop between the host stating who is asking and the model reading
+  // it. A request payload carries no `text`, so it is serialised in full -- under
+  // 'simple' this string is what the workspace sections are appended to, and under
+  // 'strict' the driver serialises the same payload itself. Projecting named fields
+  // here instead would drop the asker and leave the study with no independent
+  // variable, which is why this is a test and not a comment.
+  const rendered = promptTextOfPayloadV1({
+    taskId: 'NET-P-02--dmitri_sokolov--asked-by-priya_sharma',
+    message: 'What is blocking the order?',
+    askedBy: {
+      agentId: 'priya_sharma',
+      displayName: 'Priya Sharma',
+      role: 'DevOps Lead at TechFlow AI',
+    },
+  });
+  assert.ok(rendered.includes('Priya Sharma'), rendered);
+  assert.ok(rendered.includes('DevOps Lead at TechFlow AI'), rendered);
+  assert.ok(rendered.includes('asked-by-priya_sharma'), rendered);
+  // A heartbeat payload keeps carrying only its own text, so nothing about the
+  // requester's own turn changes.
+  assert.equal(promptTextOfPayloadV1({ text: 'Follow the heartbeat.' }),
+    'Follow the heartbeat.');
 });
 
 test('without the multi-turn gate every tick keeps the historical instruction bytes', () => {
