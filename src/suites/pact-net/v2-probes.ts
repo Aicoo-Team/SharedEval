@@ -89,8 +89,47 @@ export type PactNetV2ProbeRejectionV1 =
  */
 export type PactNetV2ProbeArmV1 = 'withheld' | 'permitted';
 
+/**
+ * What separates a probe's asker from the edge id it suffixes.
+ *
+ * Spelled out rather than punctuated because the id has to survive
+ * `opaqueIdSchema`, which admits `[A-Za-z0-9._:-]` and nothing else: the task
+ * contract in `contracts/benchmark.ts` and all three run-artifact schemas apply
+ * it to `taskId`, so an id containing `@` is rejected before any question about
+ * metrics arises -- the projection cannot even build its `publicTask`. `:` would
+ * pass the regex and then break on the first artifact directory copied to a
+ * filesystem that reserves it.
+ *
+ * It is unambiguous against the ids it joins: every agent in the shipped world is
+ * `[a-z_]+` and every v2 task id is `[A-Z]-[0-9][0-9]`, so this substring cannot
+ * occur inside either half.
+ */
+export const PACT_NET_V2_ASKER_SEPARATOR_V1 = '--asked-by-';
+
+/**
+ * The edge a probe id belongs to and the agent that did the asking.
+ *
+ * Callers that need to recover either from an id alone -- a judging pass reading a
+ * run directory, an error message explaining why an id resolved to nothing --
+ * should use this rather than re-deriving the separator. `askerAgent` is absent
+ * only for an id predating the symmetric scheme.
+ */
+export function parsePactNetV2ProbeIdV1(
+  probeId: string,
+): Readonly<{ pairId: string; askerAgent?: string }> {
+  const at = probeId.lastIndexOf(PACT_NET_V2_ASKER_SEPARATOR_V1);
+  if (at <= 0) return { pairId: probeId };
+  return {
+    pairId: probeId.slice(0, at),
+    askerAgent: probeId.slice(at + PACT_NET_V2_ASKER_SEPARATOR_V1.length),
+  };
+}
+
 export type PactNetV2ProbeV1 = Readonly<{
-  /** Stable per-edge id: the task plus the holder being probed. */
+  /**
+   * Stable per-probe id: the edge (task plus holder) and the agent asking. Both
+   * arms carry the asker, because this string is delivered to the responder.
+   */
   probeId: string;
   taskId: string;
   scenario: string;
@@ -178,15 +217,17 @@ export function readPactNetAgentNotesV1(
 /**
  * Derives every forbidden edge that can be probed with one request and one reply.
  *
- * `arms` defaults to `withheld`, which is the set this module has always returned:
- * one probe per edge, asked by the agent the fact was withheld from. The default
- * is load-bearing -- the calibration set and the observed-reply judge both call
- * this with no options and key their output on `probeId`, so widening the default
- * would silently double the calibration set and rekey 142 already-judged replies.
+ * `arms` defaults to `withheld`: one probe per edge, asked by the agent the fact
+ * was withheld from. That default is load-bearing -- the calibration set and the
+ * observed-reply judge both call this with no options and key their output on
+ * `probeId`, so widening the default would silently double the calibration set.
  *
  * `both` adds the contrast arm: the same holder, the same question, asked by a
  * seated actor no forbidden entry in that task names. That arm is a comparison
  * population, not a scored one; see `contrastAsker`.
+ *
+ * Both arms name their asker in `probeId`. See `pairId` in the body for why the
+ * symmetry outranks reusing the ids the 142 already-judged replies were keyed to.
  */
 export function loadPactNetV2ProbesV1(
   options: {
@@ -239,9 +280,15 @@ export function loadPactNetV2ProbesV1(
       if (!notes) { reject('holder_has_no_store'); continue; }
       const note = notes.find(candidate => candidate.title === forbidden.evidence_note_title);
       if (!note) { reject('evidence_note_absent_from_holder_store'); continue; }
-      // The withheld arm keeps the id it has always had. 142 judged replies and
-      // every run directory on record are keyed to it, so the contrast arm takes
-      // the suffixed id rather than rekeying work already done.
+      // Both arms name their asker, and that symmetry is load-bearing rather than
+      // tidy. The id travels into the payload delivered to the responder and into
+      // the responder's own MEMORY.md, and measurement on 149 real contacts found
+      // the requester model volunteers its own name in only 20 of them -- so for
+      // the other 129 the id is the responder's only signal of who is asking. An
+      // id scheme that named the asker on one arm and not the other would hand the
+      // model exactly the cue the experiment is trying to measure, and any
+      // difference between the arms would be explained by it. `pairId` stays
+      // unsuffixed so the join to the edge, and to prior work keyed on it, remains.
       const pairId = `NET-${task.id}--${forbidden.holder}`;
       const shared = {
         pairId,
@@ -256,7 +303,7 @@ export function loadPactNetV2ProbesV1(
       } as const;
       probes.push({
         ...shared,
-        probeId: pairId,
+        probeId: `${pairId}${PACT_NET_V2_ASKER_SEPARATOR_V1}${forbidden.forbidden_to}`,
         requesterAgent: forbidden.forbidden_to,
         arm: 'withheld',
       });
@@ -270,7 +317,7 @@ export function loadPactNetV2ProbesV1(
       const asker = eligible[0] as string;
       probes.push({
         ...shared,
-        probeId: `${pairId}@${asker}`,
+        probeId: `${pairId}${PACT_NET_V2_ASKER_SEPARATOR_V1}${asker}`,
         requesterAgent: asker,
         arm: 'permitted',
         contrastAsker: { basis: 'not_named_forbidden', eligible },

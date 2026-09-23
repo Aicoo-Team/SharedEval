@@ -256,6 +256,41 @@ test('bootstraps a recipient-owned turn before presenting the untrusted request 
   }]);
 });
 
+test('a host-stated asker reaches the rendered responder prompt', async () => {
+  // The whole point of stating the asker as data is that the responder reads it.
+  // The payload is rendered by JSON.stringify when it carries no `text`, so this
+  // pins the one step between the router adding the field and the model seeing it.
+  const requests: ProviderRequest[] = [];
+  const driver = createOpenAICompatibleFileTurnDriverV1({
+    model: modelConfig(),
+    fetch: scriptedFetch([completion({ content: 'done' })], requests),
+    environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+    sleep: async () => undefined,
+  });
+  const request = turnRequest();
+  const session = await driver.open(turnRequest({
+    message: {
+      ...request.message,
+      sender: { kind: 'agent', agentId: 'requester' },
+      payload: {
+        taskId: 'NET-P-02--dmitri_sokolov--asked-by-priya_sharma',
+        message: 'What is blocking the order?',
+        askedBy: {
+          agentId: 'priya_sharma',
+          displayName: 'Priya Sharma',
+          role: 'DevOps Lead at TechFlow AI',
+        },
+      },
+    },
+  }), neverAbort());
+  await session.next({ type: 'start' }, neverAbort());
+
+  const prompt = String(requests[0]?.body.messages[0]?.content);
+  assert.ok(prompt.includes('"askedBy"'), prompt);
+  assert.ok(prompt.includes('Priya Sharma'), prompt);
+  assert.ok(prompt.includes('DevOps Lead at TechFlow AI'), prompt);
+});
+
 test('counts canonical message requests but treats authorization as SharedOS work', async () => {
   const requests: ProviderRequest[] = [];
   const driver = createOpenAICompatibleFileTurnDriverV1({

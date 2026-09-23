@@ -99,6 +99,26 @@ export type CreateSharedOsMessageRequestRouterV1Options = Readonly<{
   // contact is not preceded by the model's own reads and the coverage gate
   // would refuse every request.
   pairProfile?: 'strict' | 'simple';
+  /**
+   * Hand the responder the asking agent's identity as data on every contact.
+   *
+   * Without it the responder's only signal of who is asking is whatever the
+   * requester model chose to write, and on 149 real PACT-Net contacts it named
+   * itself in 20 -- 13.4%. A study about distinguishing askers cannot have its
+   * independent variable delivered at the model's discretion, so the host states
+   * it: the same field, in the same shape, on every contact and both arms.
+   *
+   * It is supplied here rather than asked for in the requester's POLICY.md
+   * precisely because a request is the 13.4% path again. The values come from the
+   * task's own public intro, which PACT-Net fills from the asking agent's USER.md
+   * through `readPactNetAgentIdentityV1`.
+   *
+   * Only the envelope handed to the responder's turn carries it. The durable
+   * request record is untouched, because the evidence projection asserts its
+   * payload has exactly the keys `message` and `taskId`, and because widening a
+   * committed message record would change what older runs are allowed to contain.
+   */
+  askerIdentity?: boolean;
   requesterActorId: string;
   responderActorId: string;
   tasks: readonly LoadedPactPairTaskV1[];
@@ -132,6 +152,7 @@ type NormalizedOptions = Readonly<{
   namespaceId: string;
   purpose: string;
   pairProfile?: 'strict' | 'simple';
+  askerIdentity?: boolean;
   requesterActorId: string;
   responderActorId: string;
   tasksById: ReadonlyMap<string, LoadedPactPairTaskV1>;
@@ -348,7 +369,7 @@ class RunScopedMessageRequestRouter implements SharedOsMessageRequestRouterV1 {
         task: structuredClone(task),
         executionId: responderExecutionId,
         context: structuredClone(responderContext),
-        message: structuredClone(durableRequest),
+        message: withAskerIdentity(durableRequest, task, this.options.askerIdentity),
       }, signal);
       throwIfAborted(signal);
     } catch (error) {
@@ -730,6 +751,7 @@ function normalizeOptions(input: CreateSharedOsMessageRequestRouterV1Options): N
     grantIdsByTask,
     store: input.store,
     fileProvider: input.fileProvider,
+    ...(input.askerIdentity === true ? { askerIdentity: true } : {}),
     executeResponderTurn: input.executeResponderTurn,
     sendReply: input.sendReply,
   });
@@ -769,6 +791,37 @@ function validExecutionIdentity(
     && executed.execution.executionId === expectedExecutionId
     && executed.execution.traceId === expectedContext.traceId
   );
+}
+
+/**
+ * The responder's copy of the request, with the asker stated by the host.
+ *
+ * Returns a clone either way, so the caller never hands the store's object to a
+ * turn. The durable record keeps exactly `{message, taskId}`: the evidence
+ * projection asserts those exact keys on the committed envelope, and this field
+ * is a statement about the turn, not a message the requester sent.
+ */
+function withAskerIdentity(
+  request: SoMessageEnvelope,
+  task: LoadedPactPairTaskV1,
+  enabled: boolean | undefined,
+): SoMessageEnvelope {
+  const cloned = structuredClone(request);
+  if (enabled !== true) return cloned;
+  const asker = task.publicTask.requester;
+  const payload = cloned.payload;
+  if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return cloned;
+  return {
+    ...cloned,
+    payload: {
+      ...payload,
+      askedBy: {
+        agentId: asker.id,
+        ...(asker.displayName === undefined ? {} : { displayName: asker.displayName }),
+        ...(asker.relationship === undefined ? {} : { role: asker.relationship }),
+      },
+    },
+  };
 }
 
 function correlatedReplyPayload(

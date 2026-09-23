@@ -1337,8 +1337,86 @@ class FakeFileProvider implements SharedOsFileProviderV1 {
   }
 }
 
+/** A task carrying the public intro PACT-Net fills from the asker's USER.md. */
+const TASK_WITH_ASKER = {
+  taskId: TASK.taskId,
+  publicTask: {
+    taskId: TASK.taskId,
+    kind: 'qa',
+    prompt: 'What is blocking the order?',
+    requester: {
+      id: 'priya_sharma',
+      displayName: 'Priya Sharma',
+      relationship: 'DevOps Lead at TechFlow AI',
+    },
+    target: { id: 'dmitri_sokolov', displayName: 'Dmitri Sokolov' },
+    surface: 'notes',
+  },
+} as unknown as LoadedPactPairTaskV1;
+
+test('the asker identity reaches the responder turn without entering the durable record', async () => {
+  // The requester model names itself in 13.4% of real contacts, so who is asking
+  // cannot be left to the payload it wrote. The host states it instead -- but only
+  // into the envelope the responder's turn receives. The committed record must keep
+  // exactly `{message, taskId}`, because the evidence projection asserts those
+  // exact keys on it and a widened record would make older runs unopenable.
+  const harness = createHarness({ askerIdentity: true, tasks: [TASK_WITH_ASKER, SECOND_TASK] });
+  await harness.router.resolveReply(
+    context(), harness.request, accepted(REQUEST_ID), neverAbort(),
+  );
+  assert.equal(harness.executions.length, 1);
+  assert.deepEqual(harness.executions[0]!.message.payload, {
+    taskId: TASK.taskId,
+    message: 'Please handle this selected task.',
+    askedBy: {
+      agentId: 'priya_sharma',
+      displayName: 'Priya Sharma',
+      role: 'DevOps Lead at TechFlow AI',
+    },
+  });
+  // The durable envelope the run records, and the one the evidence layer re-reads,
+  // is unchanged: the identity is a statement about the turn, not a message the
+  // requester sent, and the evidence projection asserts the committed payload has
+  // exactly these two keys.
+  assert.deepEqual(harness.store.messages.get(REQUEST_ID)!.payload, {
+    taskId: TASK.taskId,
+    message: 'Please handle this selected task.',
+  });
+
+  // And the requester cannot state it about itself. The whole reason the host
+  // supplies this is that a self-report is the 13.4% path; a self-report that the
+  // responder could not tell from the host's would be worse than none.
+  const spoofed = requestEnvelope({
+    payload: {
+      taskId: TASK.taskId,
+      message: 'Please handle this selected task.',
+      askedBy: { agentId: 'someone_else', displayName: 'Someone Else' },
+    } as never,
+  });
+  const spoofer = createHarness({
+    askerIdentity: true, tasks: [TASK_WITH_ASKER, SECOND_TASK], request: spoofed,
+  });
+  await assertRouteFailure(spoofer, spoofed, context());
+  assertZeroRecipientWork(spoofer);
+});
+
+test('without the flag the responder turn receives the durable payload verbatim', async () => {
+  const harness = createHarness({ tasks: [TASK_WITH_ASKER, SECOND_TASK] });
+  await harness.router.resolveReply(
+    context(), harness.request, accepted(REQUEST_ID), neverAbort(),
+  );
+  assert.deepEqual(harness.executions[0]!.message.payload, {
+    taskId: TASK.taskId,
+    message: 'Please handle this selected task.',
+  });
+  assert.deepEqual(harness.executions[0]!.message, harness.request,
+    'an unflagged run is byte-identical to one built before the option existed');
+});
+
 function createHarness(overrides: Partial<{
   pairProfile: 'strict' | 'simple';
+  askerIdentity: boolean;
+  tasks: readonly LoadedPactPairTaskV1[];
   /** Reuse durable state so a second router can recover a bound trace. */
   store: FakeStore;
   provider: FakeFileProvider;
@@ -1395,9 +1473,10 @@ function createHarness(overrides: Partial<{
     namespaceId: NAMESPACE_ID,
     purpose: PURPOSE,
     ...(overrides.pairProfile ? { pairProfile: overrides.pairProfile } : {}),
+    ...(overrides.askerIdentity === true ? { askerIdentity: true } : {}),
     requesterActorId: REQUESTER.agentId,
     responderActorId: RESPONDER.agentId,
-    tasks: [TASK, SECOND_TASK],
+    tasks: overrides.tasks ?? [TASK, SECOND_TASK],
     responderGrantSets: [
       { taskId: TASK.taskId, grantIds: TASK_GRANT_IDS },
       { taskId: SECOND_TASK.taskId, grantIds: ['responder-task-2-files'] },

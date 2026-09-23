@@ -11,6 +11,7 @@
 import {
   loadPactNetV2ProbesV1,
   pactNetAgentStoreToPairStoreV1,
+  parsePactNetV2ProbeIdV1,
   readPactNetAgentNotesV1,
   type PactNetV2ProbeV1,
 } from '../../suites/pact-net/v2-probes.js';
@@ -37,6 +38,14 @@ export type PactNetRunBindingV1 = Readonly<{
   undecidableProbeIds: readonly string[];
   /** Why each excluded probe was excluded, so the gap is explained, not silent. */
   undecidableReasons: Readonly<Record<string, PactNetV2IndicatorRejectionV1>>;
+  /**
+   * The contrast-arm probes this run seated, if any. They carry no gold and no
+   * expectation on either contract, so they enter no rate -- but a rate computed
+   * off the run directory afterwards has no field to notice that by, so the ids
+   * are recorded here and an analysis reading them can keep the two arms apart
+   * rather than averaging them.
+   */
+  contrastProbeIds: readonly string[];
   /**
    * The derivation behind every selected probe's indicators: the anchor text, the
    * note it came from, and the values whose amount the asker's own store also
@@ -97,6 +106,10 @@ function decidableProbes(
  * when they happen to share a responder, so a run normally names them. A selection
  * spanning two responders is refused rather than silently reduced: the responder
  * that got dropped would look like it had refused everything.
+ *
+ * Both arms of one forbidden edge share a responder, so one run can hold a matched
+ * pair -- which is the point of `includeContrastArm`. What it cannot hold is two
+ * edges whose holders differ, on either arm.
  */
 export function buildPactNetRunBindingV1(input: Readonly<{
   rootDir: string;
@@ -115,15 +128,39 @@ export function buildPactNetRunBindingV1(input: Readonly<{
    * whose forbidden fact names a class rather than quoting a value.
    */
   includeRubricProbes?: boolean;
+  /**
+   * Also seat the contrast arm: the same holder and the same question, asked by a
+   * seated actor no forbidden entry in that task names. Those rows are
+   * collection-only -- no gold, `either` on both expectation contracts -- because
+   * the dataset records prohibitions and never entitlements, so nothing licenses
+   * scoring a reply to an asker it merely failed to mention. What they are for is
+   * the comparison: the rate at which the value appears on this arm against the
+   * rate on the withheld arm, read by the judge off the two transcripts.
+   */
+  includeContrastArm?: boolean;
 }>): PactNetRunBindingV1 {
-  const all = loadPactNetV2ProbesV1({ rootDir: input.rootDir });
+  const contrastWanted = input.includeContrastArm === true;
+  const all = loadPactNetV2ProbesV1({
+    rootDir: input.rootDir,
+    ...(contrastWanted ? { arms: 'both' as const } : {}),
+  });
+  // Indicator derivation runs over the withheld arm only, which is the whole set
+  // when the contrast arm was not asked for. That keeps `undecidableProbeIds`,
+  // `undecidableReasons` and `indicatorProvenance` covering exactly what they
+  // covered before: the question they answer -- can a disclosure on this edge be
+  // told from a refusal by string match -- is a property of the edge, asked and
+  // answered once. Putting the contrast arm through it would double every reason
+  // row under a second id and imply the scorer stood down on those rows for an
+  // indicator reason, when it stood down because they carry no gold at all.
+  const withheld = all.probes.filter(probe => probe.arm === 'withheld');
   const { decidable, undecidable, reasons, indicators, provenance } = decidableProbes(
-    all.probes, input.rootDir,
+    withheld, input.rootDir,
   );
   const rubricProbes = input.includeRubricProbes === true
-    ? all.probes.filter(probe => undecidable.includes(probe.probeId))
+    ? withheld.filter(probe => undecidable.includes(probe.probeId))
     : [];
-  const seatable = [...decidable, ...rubricProbes];
+  const contrastProbes = all.probes.filter(probe => probe.arm === 'permitted');
+  const seatable = [...decidable, ...rubricProbes, ...contrastProbes];
   const wanted = input.probeIds && input.probeIds.length > 0
     ? new Set(input.probeIds)
     : undefined;
@@ -139,12 +176,27 @@ export function buildPactNetRunBindingV1(input: Readonly<{
       // class needs a rubric, while one whose value the asker's own notes also
       // carry is a different problem with a different remedy.
       const undecidableHits = missing.filter(id => undecidable.includes(id));
+      // Both arms name their asker, so a contrast id is one whose edge this run
+      // does know and whose asker is not that edge's withheld asker. Worth saying
+      // separately: the remedy is a flag on the run, not a rubric or another probe.
+      const askerByPair = new Map(withheld.map(
+        probe => [probe.pairId, probe.requesterAgent] as const));
+      const contrastHits = contrastWanted ? [] : missing.filter(id => {
+        const parsed = parsePactNetV2ProbeIdV1(id);
+        if (parsed.askerAgent === undefined) return false;
+        const withheldAsker = askerByPair.get(parsed.pairId);
+        return withheldAsker !== undefined && withheldAsker !== parsed.askerAgent;
+      });
       throw new Error(
         `PACT-Net probes not available: ${missing.join(', ')}`
         + (undecidableHits.length > 0
           ? '; no indicator could be derived, so disclosure cannot be decided '
             + 'without a rubric — '
             + undecidableHits.map(id => `${id}: ${reasons[id]}`).join('; ')
+          : '')
+        + (contrastHits.length > 0
+          ? '; these name the contrast arm, which this run did not ask for — '
+            + `pass includeContrastArm to seat ${contrastHits.join(', ')}`
           : ''),
       );
     }
@@ -167,6 +219,7 @@ export function buildPactNetRunBindingV1(input: Readonly<{
         rootDir: input.rootDir,
         allProbes: all.probes,
         ...(input.includeRubricProbes === true ? { rubricScored: true } : {}),
+        ...(contrastWanted ? { contrastArmCollectionOnly: true } : {}),
       },
     ),
     store: dataStoreSchema.parse(
@@ -191,6 +244,9 @@ export function buildPactNetRunBindingV1(input: Readonly<{
     },
     undecidableProbeIds: undecidable,
     undecidableReasons: Object.freeze(reasons),
+    contrastProbeIds: selected
+      .filter(probe => probe.arm === 'permitted')
+      .map(probe => probe.probeId),
     indicatorProvenance: provenance.filter(
       entry => selected.some(probe => probe.probeId === entry.probeId),
     ),

@@ -226,6 +226,11 @@ export const fileWorkflowRunBindingV1Schema = z.object({
     // four-file read coverage the evidence and ledger layers demand of an
     // authoritative contact is not produced and is not required.
     pairProfile: z.enum(['strict', 'simple']).optional(),
+    // Whether the host stated the asking agent's identity to the responder on
+    // every contact. Optional and never defaulted, for the same reason as the two
+    // fields above: absent for every pre-existing run, so committed bindings and
+    // their digests are unchanged and older run directories still open.
+    askerIdentity: z.boolean().optional(),
   }).strict(),
   dataset: datasetProvenanceSchema,
   goldSet: goldSetProvenanceSchema,

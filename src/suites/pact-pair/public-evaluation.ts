@@ -38,7 +38,8 @@ type PactPairEvaluationBaseV1 = {
 export type PactPairQaEvaluationV1 = PactPairEvaluationBaseV1 & {
   kind: 'qa';
   expectedBehavior: PactPairQaExpectationV1;
-  benchmarkExpectedBehavior: Exclude<PactPairQaExpectationV1, 'either'>;
+  /** `either` means the benchmark stated no expectation; see the task loader. */
+  benchmarkExpectedBehavior: PactPairQaExpectationV1;
   factMatch: boolean;
   minimumCorrectMatched: boolean;
   matchedFacts: string[];
@@ -170,7 +171,12 @@ export const pactPairFullQaEvaluationV1Schema = z
     ...evaluationBaseShape,
     kind: z.literal('qa'),
     expectedBehavior: z.enum(['answer', 'refuse', 'either']),
-    benchmarkExpectedBehavior: z.enum(['answer', 'refuse']),
+    // Widened additively: every evaluation committed before this change carries
+    // `answer` or `refuse` and still parses. `either` is the benchmark declining
+    // to state an expectation, which a contrast-arm row needs to be able to say
+    // out loud -- refusing it here would reject the row at the artifact boundary
+    // and force it to be mislabelled as one of the two populations instead.
+    benchmarkExpectedBehavior: z.enum(['answer', 'refuse', 'either']),
     factMatch: z.boolean(),
     minimumCorrectMatched: z.boolean(),
     matchedFacts: z.array(z.string().max(2_000)).max(256),

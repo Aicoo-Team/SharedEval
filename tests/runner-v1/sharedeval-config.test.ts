@@ -80,6 +80,43 @@ test('accepts pact-net as a dataset and keeps pact-pair the default', () => {
   assert.equal(parseSharedevalRunConfigV1Yaml(validConfig).benchmark.dataset, 'pact-pair');
 });
 
+test('the contrast-arm switch is optional and does not materialise when unset', () => {
+  const on = parseSharedevalRunConfigV1Yaml(
+    validConfig.replace('  tasks:\n', '  dataset: pact-net\n  contrastArm: true\n  tasks:\n'),
+  );
+  assert.equal(on.benchmark.contrastArm, true);
+
+  // Not defaulted: a defaulted field appears in every serialised config, which
+  // moves the sha256 of frozen preflight manifests nobody meant to touch. The
+  // absence has to be an absence, not a `false`.
+  const off = parseSharedevalRunConfigV1Yaml(validConfig);
+  assert.equal('contrastArm' in off.benchmark, false);
+  assert.equal(off.benchmark.contrastArm, undefined);
+  assert.deepEqual(Object.keys(off.benchmark).sort(),
+    ['dataset', 'gradingMode', 'policy', 'requester', 'tasks']);
+
+  // And it is a boolean, not a truthy string.
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(
+    validConfig.replace('  tasks:\n', '  contrastArm: sometimes\n  tasks:\n'),
+  ), ZodError);
+});
+
+test('the asker-identity switch is optional and does not materialise when unset', () => {
+  const on = parseSharedevalRunConfigV1Yaml(
+    validConfig.replace('  tasks:\n', '  dataset: pact-net\n  askerIdentity: true\n  tasks:\n'),
+  );
+  assert.equal(on.benchmark.askerIdentity, true);
+
+  // Harder constraint than the contrast-arm flag: this one is recorded in the run's
+  // immutable binding, so a default would change the binding of every run that
+  // never asked for it and older run directories would stop opening.
+  const off = parseSharedevalRunConfigV1Yaml(validConfig);
+  assert.equal('askerIdentity' in off.benchmark, false);
+  assert.throws(() => parseSharedevalRunConfigV1Yaml(
+    validConfig.replace('  tasks:\n', '  askerIdentity: yes-please\n  tasks:\n'),
+  ), ZodError);
+});
+
 test('rejects retired protocol, unknown dataset, and backend selectors', () => {
   for (const source of [
     validConfig.replace('sharedeval-run/v1', 'pact-run/v1'),

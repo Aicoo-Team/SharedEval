@@ -82,6 +82,10 @@ export function runSharedevalPactPairFilesV1(
     requester: actor(options.requester),
     responder: actor(options.responder),
     tasks: options.tasks,
+    // Dataset-level, not workflow-level: it is the PACT-Net study that needs the
+    // asker stated, and the flag is absent -- not false -- on every other run so
+    // their bindings and digests do not move.
+    ...(options.config.benchmark.askerIdentity ? { askerIdentity: true } : {}),
     maxTicks: options.config.workflow.maxTicks,
     ...(options.config.workflow.world ? {
       world: options.config.workflow.world,

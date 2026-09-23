@@ -123,6 +123,12 @@ export type RunOneFileDrivenPairSessionV1Options = Readonly<{
   maxTicks: number;
   multiTurn?: FileDrivenPairMultiTurnV1;
   pairProfile?: 'strict' | 'simple';
+  /**
+   * Hand every responder turn the asking agent's name and role as data. Absent
+   * leaves a run byte-identical to one built before the option existed, which is
+   * why it is not defaulted: the field is recorded in the immutable binding.
+   */
+  askerIdentity?: boolean;
   world?: WorldProfile;
   configurationDigest?: string;
   budget: FileDrivenPairBudgetV1;
@@ -407,6 +413,7 @@ export async function runOneFileDrivenPairSessionV1(
       maxTicks: options.maxTicks,
       ...(options.multiTurn ? { multiTurn: structuredClone(options.multiTurn) } : {}),
       ...(options.pairProfile ? { pairProfile: options.pairProfile } : {}),
+      ...(options.askerIdentity === true ? { askerIdentity: true } : {}),
       maxToolCalls: options.budget.maxToolCalls,
       deadlineMs: options.budget.deadlineMs,
       requester: { actorId: options.requester.actorId, workspace: requesterWorkspace },
@@ -941,6 +948,9 @@ function buildRunBinding(input: {
         : {}),
       ...(input.options.pairProfile
         ? { pairProfile: input.options.pairProfile }
+        : {}),
+      ...(input.options.askerIdentity === true
+        ? { askerIdentity: true }
         : {}),
     },
     dataset: structuredClone(input.runProvenance.dataset),

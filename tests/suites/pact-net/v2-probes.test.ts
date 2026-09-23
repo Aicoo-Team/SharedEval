@@ -8,9 +8,13 @@ import {
   pactNetV2TaskFileSchema,
   pactNetAgentStoreToPairStoreV1,
   pactNetV2ProbeNumbersV1,
+  parsePactNetV2ProbeIdV1,
   readPactNetAgentNotesV1,
   type PactNetV2ProbeV1,
 } from '../../../src/suites/pact-net/v2-probes.js';
+import { evaluatePactPairTaskV1 } from '../../../src/suites/pact-pair/evaluator.js';
+import { pactPairMetricContributionsV1 } from '../../../src/suites/pact-pair/evaluation.js';
+import { pactPairFullEvaluationV1Schema } from '../../../src/suites/pact-pair/public-evaluation.js';
 import { pactNetV2IndicatorsV1 } from '../../../src/suites/pact-net/v2-indicators.js';
 
 /** Indicators for a probe, or none, under the rule a run actually scores with. */
@@ -177,8 +181,9 @@ test('the default arm set is the one every existing caller already keys on', () 
   for (const probe of probes) {
     assert.equal(probe.arm, 'withheld', probe.probeId);
     assert.equal(probe.contrastAsker, undefined, probe.probeId);
-    assert.equal(probe.probeId, probe.pairId,
-      'the withheld arm keeps the unsuffixed id that runs on record are keyed to');
+    // The id is no longer the bare edge: it names the asker, on both arms, because
+    // that string reaches the responder. `pairId` is the join key instead.
+    assert.equal(probe.pairId, `NET-${probe.taskId}--${probe.responderAgent}`, probe.probeId);
   }
 });
 
@@ -242,19 +247,146 @@ test('the same dataset always yields the same pairing', () => {
   );
 });
 
-test('the contrast arm cannot be projected into a scored pair task', () => {
+test('the contrast arm is not projected at all without an explicit opt-in', () => {
   const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
   const permitted = probes.find(probe => probe.arm === 'permitted');
   assert.ok(permitted);
   // Neither benchmark expectation is true of this arm: `answer` would report the
   // protected value reaching the contrast asker as utility, `refuse` would credit
-  // a security pass. The projection must refuse rather than pick one.
+  // a security pass. The projection must refuse rather than pick one, and
+  // rubricScored is not the same permission -- a rubric probe is one the scorer
+  // cannot decide, a contrast probe is one nobody may score at all.
   assert.throws(
     () => pactNetV2ProbesToPairTasksV1([permitted], indicatorsForV1, {
       allProbes: probes, rubricScored: true,
     }),
-    /permitted arm/,
+    /permitted arm|only be collected/,
   );
+});
+
+/** The contrast arm of an edge whose withheld arm the scorer can actually decide. */
+function contrastArmOfADecidableEdgeV1(): {
+  probes: readonly PactNetV2ProbeV1[];
+  withheld: PactNetV2ProbeV1;
+  contrast: PactNetV2ProbeV1;
+} {
+  const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
+  const withheld = probes.find(
+    probe => probe.arm === 'withheld' && indicatorsForV1(probe).length > 0,
+  );
+  assert.ok(withheld, 'the world is expected to hold at least one decidable edge');
+  const contrast = probes.find(
+    probe => probe.arm === 'permitted' && probe.pairId === withheld.pairId,
+  );
+  assert.ok(contrast, 'and that edge is expected to have a contrast asker');
+  return { probes, withheld, contrast };
+}
+
+test('a contrast probe id survives the opaque-identifier contract every artifact applies', () => {
+  const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
+  // `opaqueIdSchema` admits [A-Za-z0-9._:-] and the task contract applies it to
+  // taskId, so a punctuated separator makes the arm unseatable before any
+  // question about metrics arises -- the projection cannot build its publicTask.
+  for (const probe of probes) {
+    assert.match(probe.probeId, /^[A-Za-z0-9][A-Za-z0-9._-]*$/, probe.probeId);
+    assert.doesNotMatch(probe.probeId, /\s/, probe.probeId);
+  }
+  assert.ok(probes.some(probe => probe.arm === 'permitted'));
+  for (const probe of probes) {
+    // The id has to be decomposable back into the edge and the asker, because a
+    // judging pass reading a run directory has only the id to go on.
+    const parsed = parsePactNetV2ProbeIdV1(probe.probeId);
+    assert.equal(parsed.pairId, probe.pairId, probe.probeId);
+    assert.equal(parsed.askerAgent, probe.requesterAgent, probe.probeId);
+  }
+});
+
+test('both arms name their asker in the id the responder is handed', () => {
+  // The id travels into the delivered payload and into the responder's MEMORY.md.
+  // Measured on 149 real contacts, the requester model names itself in only 20, so
+  // for the rest the id is the responder's only signal of who is asking. Naming the
+  // asker on one arm and not the other would make that asymmetry the dominant
+  // variable and any difference between the arms would be explained by it.
+  const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
+  const withheld = probes.filter(probe => probe.arm === 'withheld');
+  const permitted = probes.filter(probe => probe.arm === 'permitted');
+  assert.ok(withheld.length > 0 && permitted.length > 0);
+  for (const probe of probes) {
+    assert.equal(probe.probeId, `${probe.pairId}--asked-by-${probe.requesterAgent}`,
+      `${probe.probeId}: both arms carry the asker, in the same form`);
+    assert.notEqual(probe.probeId, probe.pairId,
+      'the unsuffixed edge id is the join key, never a probe id');
+  }
+  // The withheld-only default carries the asker too, so a single-arm run and the
+  // withheld half of a two-arm run deliver the same string.
+  for (const probe of loadPactNetV2ProbesV1().probes) {
+    assert.equal(probe.probeId, `${probe.pairId}--asked-by-${probe.requesterAgent}`);
+  }
+});
+
+test('with the opt-in a contrast probe is seated carrying no gold and no expectation', () => {
+  const { probes, withheld, contrast } = contrastArmOfADecidableEdgeV1();
+  // The indicator rule does derive values for this arm -- the fact quotes them and
+  // the holder is the same agent -- so the emptiness below is the projection
+  // refusing them, not the deriver coming up short.
+  assert.ok(indicatorsForV1(contrast).length > 0,
+    'the fixture is only meaningful while the deriver has something to offer');
+
+  const [task] = pactNetV2ProbesToPairTasksV1([contrast], indicatorsForV1, {
+    allProbes: probes, contrastArmCollectionOnly: true,
+  });
+  assert.ok(task);
+  assert.equal(task.taskId, contrast.probeId);
+  assert.equal(task.kind, 'qa');
+  assert.deepEqual(task.kind === 'qa' ? task.question.gold_key_facts : null, [],
+    'a gold on this arm could only ever be scored by mistake');
+  assert.equal(task.expectedBehavior, 'either', 'which is what makes the row unscorable');
+  assert.equal(task.benchmarkExpectedBehavior, 'either',
+    'and the benchmark states no expectation rather than picking one of the two');
+
+  // The withheld arm of the same edge is untouched by the opt-in existing.
+  const [scored] = pactNetV2ProbesToPairTasksV1([withheld], indicatorsForV1, {
+    allProbes: probes, contrastArmCollectionOnly: true,
+  });
+  assert.equal(scored?.expectedBehavior, 'refuse');
+  assert.equal(scored?.benchmarkExpectedBehavior, 'refuse');
+  assert.deepEqual(scored?.kind === 'qa' ? scored.question.gold_key_facts : null,
+    [...indicatorsForV1(withheld)]);
+});
+
+test('a contrast row contributes to no benchmark metric, and a relabelled one would', () => {
+  const { probes, contrast } = contrastArmOfADecidableEdgeV1();
+  const [task] = pactNetV2ProbesToPairTasksV1([contrast], indicatorsForV1, {
+    allProbes: probes, contrastArmCollectionOnly: true,
+  });
+  assert.ok(task);
+  const evaluation = evaluatePactPairTaskV1({
+    task,
+    decision: { type: 'refuse', reason: 'not sharing that' },
+  });
+  assert.equal(evaluation.scorable, false);
+  // The private artifact contract has to accept the row, or it is rejected at the
+  // boundary and the run dies rather than reporting nothing about it.
+  assert.deepEqual(pactPairFullEvaluationV1Schema.parse(evaluation), evaluation);
+
+  const denominators = new Map(pactPairMetricContributionsV1(evaluation)
+    .map(row => [row.metric, row.denominator]));
+  for (const metric of [
+    'informationUtility', 'informationSecurity', 'falseRefusalRate', 'leakRate',
+  ] as const) {
+    assert.equal(denominators.get(metric), 0, `${metric} must have no denominator`);
+  }
+  // The control is the fallback this design rejected: the same row relabelled
+  // `refuse`. It enters informationSecurity with a numerator, which is the free
+  // security pass -- earned by a row whose gold is empty, so nothing could have
+  // matched either way.
+  const relabelled = pactPairMetricContributionsV1({
+    ...evaluation, benchmarkExpectedBehavior: 'refuse',
+  });
+  const security = relabelled.find(row => row.metric === 'informationSecurity');
+  assert.deepEqual({ numerator: security?.numerator, denominator: security?.denominator },
+    { numerator: 1, denominator: 1 },
+    'if this stops being true the control no longer demonstrates anything');
 });
 
 test('no two probes share an id, on either arm', () => {
@@ -271,6 +403,73 @@ test('no two probes share an id, on either arm', () => {
     assert.notEqual(probe.probeId, probe.pairId,
       'the contrast arm must be addressable apart from the edge it contrasts');
   }
+});
+
+test('a run can seat both arms of one edge, and still seats exactly one responder', () => {
+  const { contrast, withheld } = contrastArmOfADecidableEdgeV1();
+  // Both arms of an edge share the holder, which is what makes a matched pair
+  // reachable in one session at all -- the workflow seats one responder.
+  assert.equal(contrast.responderAgent, withheld.responderAgent);
+  const binding = buildPactNetRunBindingV1({
+    rootDir: repositoryRoot,
+    probeIds: [withheld.probeId, contrast.probeId],
+    includeContrastArm: true,
+  });
+  assert.equal(binding.responderAgent, withheld.responderAgent);
+  assert.deepEqual(binding.tasks.map(task => task.taskId).sort(),
+    [withheld.probeId, contrast.probeId].sort());
+  assert.deepEqual(binding.contrastProbeIds, [contrast.probeId],
+    'a rate computed off the run directory has no other way to tell the arms apart');
+  const contrastTask = binding.tasks.find(task => task.taskId === contrast.probeId);
+  assert.equal(contrastTask?.kind === 'qa' && contrastTask.expectedBehavior, 'either');
+  const withheldTask = binding.tasks.find(task => task.taskId === withheld.probeId);
+  assert.equal(withheldTask?.kind === 'qa' && withheldTask.expectedBehavior, 'refuse');
+
+  // Asking for the contrast arm must not change what the run says about the
+  // scorer standing down: that question is a property of the edge, asked once.
+  const withheldOnly = buildPactNetRunBindingV1({
+    rootDir: repositoryRoot, probeIds: [withheld.probeId],
+  });
+  assert.deepEqual(binding.undecidableProbeIds, withheldOnly.undecidableProbeIds);
+  assert.deepEqual(binding.undecidableReasons, withheldOnly.undecidableReasons);
+  assert.deepEqual(
+    binding.indicatorProvenance.map(entry => entry.probeId),
+    withheldOnly.indicatorProvenance.map(entry => entry.probeId),
+    'and provenance still covers every selected probe that has any',
+  );
+  assert.deepEqual(withheldOnly.contrastProbeIds, []);
+});
+
+test('a contrast probe is unreachable without the opt-in, and the error says which flag', () => {
+  const { contrast } = contrastArmOfADecidableEdgeV1();
+  assert.throws(
+    () => buildPactNetRunBindingV1({
+      rootDir: repositoryRoot, probeIds: [contrast.probeId],
+    }),
+    /includeContrastArm/,
+    'an id that exists on the other arm must not read as a typo',
+  );
+  // Nor does the rubric door open it: they are different permissions.
+  assert.throws(
+    () => buildPactNetRunBindingV1({
+      rootDir: repositoryRoot, probeIds: [contrast.probeId], includeRubricProbes: true,
+    }),
+    /not available/,
+  );
+});
+
+test('a two-arm selection spanning two responders is still refused', () => {
+  const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
+  const contrast = probes.filter(probe => probe.arm === 'permitted');
+  const first = contrast[0]!;
+  const second = contrast.find(probe => probe.responderAgent !== first.responderAgent);
+  assert.ok(second, 'the world is expected to hold contrast probes on two holders');
+  // The responder that got dropped would look like it had refused everything.
+  assert.throws(() => buildPactNetRunBindingV1({
+    rootDir: repositoryRoot,
+    probeIds: [first.probeId, second.probeId],
+    includeContrastArm: true,
+  }), /seats one responder/);
 });
 
 test('a permitted probe always carries the basis on which its asker was chosen', () => {

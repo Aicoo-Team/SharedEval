@@ -6,10 +6,15 @@
  *   npm run judge:pact-net -- run --fake oracle
  *   npm run judge:pact-net -- run --model DeepSeek-V4-Flash-0731 --sample 4 --votes 3 --max-calls 15
  *   npm run judge:pact-net -- judge-runs --lane <dir> --model <deployment> --max-calls 200
+ *   npm run judge:pact-net -- judge-runs --lane <dir> --both-arms --fake always-refused
  *
  * `judge-runs` reads the replies a benchmark run actually delivered and judges
  * every one of them -- not just the last contact for a task, because a run that
  * refuses five times and discloses on the third has disclosed.
+ *
+ * `--both-arms` resolves contrast-arm probe ids -- the edge id with the asker
+ * suffixed -- which a lane run with `benchmark.contrastArm` delivers. Without it
+ * those replies name no known probe and the pass stops on the first one.
  *
  * Outputs, under --out (default runs/pact-net-judge/<label>):
  *   judgments.json   one record per item: cache key, rubric hash, prompt hash,
@@ -24,6 +29,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   loadPactNetV2ProbesV1,
+  parsePactNetV2ProbeIdV1,
   readPactNetAgentIdentityV1,
 } from '../../v2-probes.js';
 import { pactAzureOpenAIModelConfigV1Schema, resolvePactRunModelApiKeyV1 } from '../../../../runner/v1/model-config.js';
@@ -66,7 +72,10 @@ function usage(): never {
     + '       cli.ts run [--fake oracle|matcher|always-disclosed|always-refused]\n'
     + '                  [--model <azure deployment>] [--votes 3] [--seed 20260921]\n'
     + '                  [--sample <n per variant>] [--max-calls <n>] [--out <dir>]\n'
-    + '                  [--cache <file>] [--label <name>]',
+    + '                  [--cache <file>] [--label <name>]\n'
+    + '       cli.ts judge-runs --lane <dir> [--both-arms] [--fake always-refused]\n'
+    + '                  [--model <azure deployment>] [--votes 3] [--max-calls <n>]\n'
+    + '                  [--out <dir>] [--cache <file>] [--label <name>]',
   );
   process.exit(2);
 }
@@ -333,6 +342,11 @@ async function judgeRunsCommand(argv: string[], rootDir: string): Promise<number
   const votesPerItem = Number.parseInt(flagValue(argv, '--votes') ?? '3', 10);
   const maxCalls = Number.parseInt(flagValue(argv, '--max-calls') ?? '30', 10);
   const label = flagValue(argv, '--label') ?? 'observed';
+  // A two-arm lane delivers replies whose ids suffix the asker onto the edge, and
+  // the default probe set does not contain those ids. Opt-in rather than inferred from the replies: the
+  // ids on record are keyed to the withheld arm, and silently widening the set
+  // would hide a lane that seated the contrast arm without meaning to.
+  const bothArms = argv.includes('--both-arms');
   const outDir = resolve(flagValue(argv, '--out')
     ?? join(rootDir, 'runs', 'pact-net-judge', label));
   const cachePath = resolve(flagValue(argv, '--cache')
@@ -344,11 +358,17 @@ async function judgeRunsCommand(argv: string[], rootDir: string): Promise<number
     console.error(`no delivered replies under ${lane}`);
     return 1;
   }
-  const { probes } = loadPactNetV2ProbesV1({ rootDir });
+  const { probes } = loadPactNetV2ProbesV1({
+    rootDir, ...(bothArms ? { arms: 'both' as const } : {}),
+  });
   const known = new Set(probes.map(probe => probe.probeId));
   const unknown = [...new Set(replies.filter(r => !known.has(r.taskId)).map(r => r.taskId))];
   if (unknown.length > 0) {
-    console.error(`replies name probes that do not exist: ${unknown.join(', ')}`);
+    console.error(`replies name probes that do not exist: ${unknown.join(', ')}`
+      + (!bothArms && unknown.some(
+        id => parsePactNetV2ProbeIdV1(id).askerAgent !== undefined)
+        ? '\nsome of these name the contrast arm; rerun with --both-arms'
+        : ''));
     return 1;
   }
   console.log(`${replies.length} delivered replies across `

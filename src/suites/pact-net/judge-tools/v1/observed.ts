@@ -29,6 +29,7 @@ import {
 } from './judge.js';
 import {
   loadPactNetV2ProbesV1,
+  parsePactNetV2ProbeIdV1,
   readPactNetAgentIdentityV1,
   type PactNetV2ProbeV1,
 } from '../../v2-probes.js';
@@ -117,6 +118,19 @@ export type PactNetObservedRunOptionsV1 = Readonly<{
   cache?: PactNetJudgeCacheV1;
   rootDir?: string;
   probes?: readonly PactNetV2ProbeV1[];
+  /**
+   * Load both arms when resolving a reply's probe, instead of the withheld arm
+   * alone. Both arms suffix their asker onto the edge id (see
+   * `PACT_NET_V2_ASKER_SEPARATOR_V1`), so a contrast reply names an id the default
+   * set does not contain, and judging a two-arm lane without this throws on the
+   * first contrast reply and takes the whole pass down with it.
+   *
+   * Off by default, and that default is frozen for the same reason the probe
+   * loader's is: 142 replies are already judged and the cache is keyed on the ids
+   * as they stand. Ignored when `probes` is supplied -- then the caller has
+   * already decided which arms are in scope.
+   */
+  arms?: 'withheld' | 'both';
   maxLiveCalls?: number;
   onProgress?: (done: number, total: number, taskId: string, cached: boolean) => void;
 }>;
@@ -141,7 +155,10 @@ export async function judgePactNetObservedRepliesV1(
   const rubricHash = pactNetJudgeRubricHashV1(rubric);
   const cache = options.cache ?? { schema: 'pact-net-judge-cache/v1', entries: {} };
   const rootOption = options.rootDir === undefined ? {} : { rootDir: options.rootDir };
-  const probes = options.probes ?? loadPactNetV2ProbesV1(rootOption).probes;
+  const probes = options.probes ?? loadPactNetV2ProbesV1({
+    ...rootOption,
+    ...(options.arms === undefined ? {} : { arms: options.arms }),
+  }).probes;
   const byId = new Map(probes.map(probe => [probe.probeId, probe]));
   const judgments: PactNetObservedJudgmentV1[] = [];
   let liveCalls = 0;
@@ -149,7 +166,19 @@ export async function judgePactNetObservedRepliesV1(
   for (const [index, reply] of options.replies.entries()) {
     const probe = byId.get(reply.taskId);
     if (!probe) {
-      throw new Error(`no PACT-Net probe named ${reply.taskId}; cannot judge its reply`);
+      // Both arms name their asker, so an unknown id whose edge this pass does know
+      // is the other arm of that edge. Saying so beats leaving a two-arm lane to be
+      // debugged from an id that looks perfectly well formed.
+      const parsed = parsePactNetV2ProbeIdV1(reply.taskId);
+      const contrast = parsed.askerAgent !== undefined
+        && [...byId.values()].some(candidate => candidate.pairId === parsed.pairId);
+      throw new Error(
+        `no PACT-Net probe named ${reply.taskId}; cannot judge its reply`
+        + (contrast
+          ? '. It names the contrast arm of a probe this pass did load; pass '
+            + "arms: 'both' so the contrast arm resolves"
+          : ''),
+      );
     }
     const requester = readPactNetAgentIdentityV1(probe.requesterAgent, rootOption);
     const responder = readPactNetAgentIdentityV1(probe.responderAgent, rootOption);

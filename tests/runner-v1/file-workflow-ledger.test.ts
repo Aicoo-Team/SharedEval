@@ -2623,6 +2623,65 @@ test('serializes commit, repair, read, finalize, and close as one writer operati
   );
 });
 
+test('an unscorable row is still a counted evaluation row', async t => {
+  // The lane's completion predicate reads evaluationRows >= selectedTaskIds, so a
+  // row that entered no metric must still be a row. If it were dropped for being
+  // unscorable, every contrast run would read as incomplete and be relaunched to
+  // its retry limit, paying the whole model bill again each time.
+  const root = await temporaryRoot(t, 'unscorable-evaluation-row');
+  const runDirectory = join(root, 'run');
+  const runBinding = binding('files-multi', 'unscorable-evaluation-row', ['PAIR-Q-1']);
+  const evaluation = unscorableQaEvaluation('PAIR-Q-1');
+  const evidence = qaContactEvidence('denied');
+  evidence.fullEvaluations = [{
+    taskId: 'PAIR-Q-1', evaluation, metrics: metricRowsFor(evaluation),
+  }];
+  const row = transition('PAIR-Q-1', 'refused', 1, 'qa');
+  const publicEvaluation = toPublicEvaluation(evaluation);
+  row.result.publicEvaluation = publicEvaluation;
+  row.evaluation.publicEvaluation = publicEvaluation;
+  row.evaluation.metrics = metricRowsFor(evaluation);
+  const payload = heartbeatPayloadFor(runBinding, 1, [row], evidence);
+  payload.transitions[0]!.contactId = payload.contactAuthority!.contactId;
+  payload.transitions[0]!.result.contactStatus = 'denied';
+  const store = await openFileWorkflowLedgerV1({
+    runDirectory, binding: runBinding, retainPrivate: true,
+  });
+  await commitStartedHeartbeat(store, payload);
+  await store.finalize({
+    stopReason: 'all_terminal',
+    finalFiles: finalFilesFor(runBinding, 1, { 'PAIR-Q-1': 'refused' }),
+  });
+  await store.close();
+
+  const [summary, checkpoint, run] = await Promise.all([
+    json(join(runDirectory, 'summary.json')),
+    json(join(runDirectory, 'checkpoint.json')),
+    json(join(runDirectory, 'run.json')),
+  ]);
+  assert.deepEqual(
+    {
+      selectedTasks: summary.selectedTasks,
+      summaryEvaluations: summary.evaluationRows,
+      checkpointEvaluations: checkpoint.evaluationRows,
+      runEvaluations: run.evaluationRows,
+    },
+    {
+      selectedTasks: 1,
+      summaryEvaluations: 1,
+      checkpointEvaluations: 1,
+      runEvaluations: 1,
+    },
+  );
+  // Counted, and counted into nothing: every metric keeps an empty denominator,
+  // so the row is present without moving a rate.
+  assert.deepEqual(
+    summary.metrics.filter((metric: any) => metric.denominator !== 0),
+    [],
+  );
+  assert.equal(summary.metrics.length, PACT_PAIR_METRIC_NAMES_V1.length);
+});
+
 test('rejects a gap or identity edit in append-only writer claim history', async t => {
   for (const mutation of ['gap', 'identity'] as const) {
     const root = await temporaryRoot(t, `writer-claim-${mutation}`);
@@ -3012,6 +3071,33 @@ function fullQaEvaluation(
     minimumCorrectMatched: answered,
     matchedFacts: answered ? ['fact'] : [],
     missedFacts: answered ? [] : ['fact'],
+    leakedFacts: [],
+    leaked: false,
+    noLeak: true,
+    benchmarkLeaked: false,
+    benchmarkNoLeak: true,
+  };
+}
+
+/**
+ * The shape a PACT-Net contrast row evaluates to: the machine has no opinion and
+ * neither does the benchmark, so nothing about it is scorable.
+ */
+function unscorableQaEvaluation(taskId: string): PactPairQaEvaluationV1 {
+  return {
+    taskId,
+    kind: 'qa' as const,
+    actualDecision: 'refuse' as const,
+    scorable: false,
+    decisionCorrect: true,
+    correct: true,
+    reasons: ['PRIVATE_UNSCORABLE_QA_EVALUATION_SENTINEL'],
+    expectedBehavior: 'either' as const,
+    benchmarkExpectedBehavior: 'either' as const,
+    factMatch: false,
+    minimumCorrectMatched: false,
+    matchedFacts: [],
+    missedFacts: [],
     leakedFacts: [],
     leaked: false,
     noLeak: true,

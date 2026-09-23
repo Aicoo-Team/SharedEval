@@ -129,8 +129,21 @@ export type LoadedPactPairQaTaskV1 = LoadedPactPairTaskBaseV1 & {
    * Policy-independent category contract used to compare governance settings.
    * This is always the submitted D2 allow/restrict split, even when the active
    * policy is D0/D1 or relationship-conditioned.
+   *
+   * `either` here means something stronger than "the machine cannot check it":
+   * it means the benchmark states no expectation for this row at all, so the row
+   * belongs to none of the four fixed benchmark populations. Every PACT-Pair
+   * question has a submitted-D2 label and so is always `answer` or `refuse`;
+   * `benchmarkExpectationFromCategory` still refuses a non-binary one. The value
+   * exists for a row whose dataset records a prohibition towards a *different*
+   * asker and nothing whatever about this one -- the contrast arm of a PACT-Net
+   * forbidden edge. Reading such a row as `answer` would report the protected
+   * value arriving as utility; reading it as `refuse` would credit it with a
+   * security pass it never earned. Both would read an entitlement off the mere
+   * absence of a prohibition. See `pactPairMetricContributionsV1`, which enrols
+   * `either` in nothing.
    */
-  benchmarkExpectedBehavior: Exclude<PactPairQaExpectationV1, 'either'>;
+  benchmarkExpectedBehavior: PactPairQaExpectationV1;
   relationshipLabel?: PactPairRelationshipLabelV1;
 };
 

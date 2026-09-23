@@ -90,6 +90,9 @@ export type CreateSharedOsFileSessionV1Options = Readonly<{
   // 'simple' issues one standing responder capability set instead of one
   // deferred set per task; absent means 'strict' and changes nothing.
   pairProfile?: 'strict' | 'simple';
+  // Host-stated asker identity on every contact; absent changes nothing about
+  // what a responder turn receives. See the router option of the same name.
+  askerIdentity?: boolean;
   maxToolCalls: number;
   deadlineMs: number;
   requester: Readonly<{

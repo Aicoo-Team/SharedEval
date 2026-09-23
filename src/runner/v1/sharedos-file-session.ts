@@ -170,6 +170,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
       namespaceId: options.namespaceId,
       purpose: SHAREDEVAL_PACT_PAIR_PURPOSE_V1,
       ...(options.pairProfile ? { pairProfile: options.pairProfile } : {}),
+      ...(options.askerIdentity === true ? { askerIdentity: true } : {}),
       requesterActorId: options.requester.actorId,
       responderActorId: options.responder.actorId,
       tasks: options.tasks,

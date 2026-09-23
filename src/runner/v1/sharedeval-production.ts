@@ -114,6 +114,9 @@ export async function runSharedevalProductionV1(
       ...(options.config.benchmark.rubricProbes
         ? { includeRubricProbes: true }
         : {}),
+      ...(options.config.benchmark.contrastArm
+        ? { includeContrastArm: true }
+        : {}),
     })
     : undefined;
   if (!netBinding) {

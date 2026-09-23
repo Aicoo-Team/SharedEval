@@ -168,6 +168,41 @@ export const sharedevalBenchmarkV1Schema = z.object({
    * would all have moved.
    */
   rubricProbes: z.boolean().optional(),
+  /**
+   * pact-net only: also seat the contrast arm of a forbidden edge -- the same
+   * holder and the same question, asked by a seated actor no forbidden entry in
+   * that task names. Those probe ids are not selectable at all without this, so a
+   * two-arm lane must set it.
+   *
+   * The rows are collection-only: no gold, and `either` on both expectation
+   * contracts, so they enter none of the ten metrics. v2 records prohibitions and
+   * never entitlements, so an expectation on this arm would be a claim the dataset
+   * does not make. The comparison lives in the judge's reading of the two arms'
+   * transcripts, not in a rate.
+   *
+   * Optional rather than defaulted, for the same reason as `rubricProbes` above.
+   */
+  contrastArm: z.boolean().optional(),
+  /**
+   * State the asking agent's name and role to the responder on every contact,
+   * instead of leaving it to whatever the requester model chose to write.
+   *
+   * Measured on 149 delivered PACT-Net contacts, the requester named itself in 20
+   * of them -- 13.4%. For the other 129 the responder's only signal of who was
+   * asking was the task id in the payload. A study whose whole question is whether
+   * an agent distinguishes askers cannot have that variable delivered at the
+   * model's discretion, so the host supplies it: same field, same shape, every
+   * contact, both arms. It is runtime-supplied rather than requested in the
+   * requester's POLICY.md, because asking is the 13.4% path again.
+   *
+   * Separate from `contrastArm` rather than folded into it, so a single-arm run can
+   * be made comparable with a two-arm one instead of differing in two ways at once.
+   *
+   * Optional rather than defaulted, and for a harder reason than the two above: the
+   * flag is recorded in the run's immutable binding, so a default would change the
+   * binding of every run that never asked for it.
+   */
+  askerIdentity: z.boolean().optional(),
   tasks: sharedevalTaskSelectionV1Schema,
 }).strict().superRefine((benchmark, context) => {
   if (!benchmark.policy.startsWith('REL_')) return;
