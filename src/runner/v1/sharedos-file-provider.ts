@@ -416,10 +416,19 @@ class ActorOwnedFileProvider implements SharedOsFileProviderV1 {
     try {
       expectedVersion = decodeFileVersionV1(parsed.expectedVersion);
     } catch {
+      // The shape was right and only the version is wrong, so say which value
+      // is wrong and what it should have been. Sharing one message with the
+      // shape denial above leaves an actor that sent a read's sha256 here --
+      // the common mistake, since both travel in the same read result -- with
+      // nothing to correct, and it retries the identical payload until its
+      // turn is spent.
       return deniedResult(
         operation,
         'file_replace_input_invalid',
-        'MEMORY replacement requires exact content and canonical expectedVersion fields.',
+        'MEMORY replacement expectedVersion must be the decimal `version` string '
+          + 'from the latest files.read output, such as "0" or "3". Received '
+          + `${JSON.stringify(parsed.expectedVersion.slice(0, 24))}, which is not a `
+          + 'canonical version; a sha256 digest is not a version.',
       );
     }
     if (state.publicationCommitted) {

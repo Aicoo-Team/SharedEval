@@ -1134,3 +1134,38 @@ test('without the option every read still carries its bytes', async () => {
   }
   await provider.close();
 });
+
+test('a sha256 sent as expectedVersion is denied with what to send instead', async () => {
+  const requester = new FakeWorkspace('requester');
+  const provider = createProvider(requester, new FakeWorkspace('responder'));
+  await provider.invoke(readMemoryOperation('trace-ver', 'read-1'), neverAbort());
+
+  const sha = 'a'.repeat(64);
+  const denial = await provider.invoke(replaceOperation({
+    traceId: 'trace-ver',
+    operationId: 'replace-sha',
+    expectedVersion: sha,
+    content: 'requester:MEMORY.md:v1',
+  }), neverAbort());
+
+  assert.equal(denial.status, 'denied');
+  const message = denial.status === 'denied' ? denial.error.message : '';
+  // The actor must be able to tell this from a malformed-shape denial and fix
+  // it, so the message has to name the field, the form, and what it received.
+  assert.match(message, /expectedVersion/);
+  assert.match(message, /version/);
+  assert.match(message, /sha256/);
+  assert.ok(message.includes('aaaa'), 'echoes the offending value');
+
+  // A shape denial stays distinct, otherwise the two are indistinguishable again.
+  const shapeDenial = await provider.invoke({
+    ...replaceOperation({
+      traceId: 'trace-ver', operationId: 'replace-shape',
+      expectedVersion: '0', content: 'x',
+    }),
+    input: { content: 'x' },
+  }, neverAbort());
+  const shapeMessage = shapeDenial.status === 'denied' ? shapeDenial.error.message : '';
+  assert.notEqual(shapeMessage, message);
+  await provider.close();
+});
