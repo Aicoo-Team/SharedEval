@@ -203,6 +203,21 @@ function parseRunId(value: string): string {
   return value;
 }
 
+/** Every message in an error's cause chain, outermost first, with its error code. */
+export function describeFailureChainV1(error: unknown, limit = 6): string {
+  const lines: string[] = [];
+  let current: unknown = error;
+  for (let depth = 0; depth < limit && current !== undefined && current !== null; depth += 1) {
+    if (!(current instanceof Error)) { lines.push(String(current)); break; }
+    const code = (current as { errorCode?: unknown }).errorCode;
+    lines.push(depth === 0
+      ? `${current.message}${code === undefined ? '' : ` (${String(code)})`}`
+      : `  caused by: ${current.message}${code === undefined ? '' : ` (${String(code)})`}`);
+    current = current.cause;
+  }
+  return lines.join('\n');
+}
+
 function usage(): string {
   return 'Usage: npm run sharedeval -- [multi|single] --config <sharedeval-run.yaml> --run-id <id> [--task <id>|--tasks <id,...>] [--max-ticks <count>] [--check]\n';
 }
@@ -211,8 +226,13 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
   try {
     process.exitCode = await mainSharedevalV1();
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown failure';
-    process.stderr.write(`Sharedeval runner error: ${message}\n`);
+    // Print the cause chain, not just the outermost message. Several of the errors
+    // that reach here are deliberate wrappers -- `File-driven SharedOS session
+    // preparation failed` is one -- and their message alone says nothing about what
+    // went wrong. A batch that dies with an unattributable one-liner costs more than
+    // the few lines this takes: it has already happened twice on this project, once
+    // as `configuration is invalid` with no field named.
+    process.stderr.write(`Sharedeval runner error: ${describeFailureChainV1(error)}\n`);
     process.exitCode = 1;
   }
 }
