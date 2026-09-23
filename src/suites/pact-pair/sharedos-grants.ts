@@ -25,7 +25,21 @@ const QA_TASK_ID_PATTERN = /^PAIR-Q[1-9][0-9]*$/;
  * protected fact. Kept as its own pattern rather than loosening the pair one, so a
  * genuinely foreign task id is still refused.
  */
-const NET_QA_TASK_ID_PATTERN = /^NET-[A-Z]+-[0-9]+--[a-z][a-z0-9_]*$/;
+/**
+ * A PACT-Net disclosure probe id: the task, the holder, and -- since both arms of the
+ * paired design name their asker -- the asking agent.
+ *
+ * This is the tenth place the id shape is written down, and the shape is defined
+ * elsewhere: `PACT_NET_V2_ASKER_SEPARATOR_V1` in the pact-net suite. Importing it here
+ * would point pact-pair at pact-net, so the duplication stays -- but it is guarded
+ * rather than hidden: a test drives every id the probe loader actually produces through
+ * `validateTask`, so the next change to the shape fails here instead of at run time.
+ * The previous version admitted only `NET-<TASK>--<holder>` and rejected every probe
+ * the two-arm loader emits, which surfaced as "File-driven SharedOS session
+ * preparation failed" with no reason attached.
+ */
+const NET_QA_TASK_ID_PATTERN =
+  /^NET-[A-Z]+-[0-9]+--[a-z][a-z0-9_]*(?:--asked-by-[a-z][a-z0-9_]*)?$/;
 const ACTION_TASK_ID_PATTERN = /^PAIR-A[1-9][0-9]*$/;
 const CANONICAL_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const MAX_TICKS = 10_000;

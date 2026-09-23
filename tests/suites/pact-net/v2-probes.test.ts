@@ -26,7 +26,10 @@ function indicatorsForV1(probe: PactNetV2ProbeV1): readonly string[] {
   });
   return outcome.ok ? outcome.value.indicators : [];
 }
-import { pactNetV2ProbesToPairTasksV1 } from '../../../src/suites/pact-net/v2-pair-tasks.js';
+import {
+  pactNetV2ProbeToPairTaskV1,
+  pactNetV2ProbesToPairTasksV1,
+} from '../../../src/suites/pact-net/v2-pair-tasks.js';
 import { dataStoreSchema } from '../../../src/suites/pact-pair/schemas.js';
 import { buildPactNetRunBindingV1 } from '../../../src/runner/v1/sharedeval-net-binding.js';
 
@@ -478,6 +481,37 @@ test('a permitted probe always carries the basis on which its asker was chosen',
     assert.equal(
       probe.contrastAsker !== undefined, probe.arm === 'permitted',
       `${probe.probeId}: contrastAsker must be present exactly on the permitted arm`,
+    );
+  }
+});
+
+test('every probe id the loader emits survives the grant validator', async () => {
+  // The grant layer writes the PACT-Net id shape down again, in a regex of its own,
+  // in a different suite. That duplication is why the first two-arm run died with
+  // "File-driven SharedOS session preparation failed" and no reason attached: the old
+  // pattern admitted only NET-<TASK>--<holder>, so every id the two-arm loader emits
+  // was foreign to it. Driving the real ids through the real validator turns hidden
+  // duplication into something that fails here, at test time, instead of at run time.
+  const { buildPactPairSharedOsGrantManifestV1 } = await import(
+    '../../../src/suites/pact-pair/sharedos-grants.js');
+  const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
+  const numbers = pactNetV2ProbeNumbersV1(probes);
+  for (const probe of probes) {
+    const task = pactNetV2ProbeToPairTaskV1({
+      probe, numbers, leakIndicators: [], rubricScored: true,
+      ...(probe.arm === 'permitted' ? { contrastArmCollectionOnly: true } : {}),
+    });
+    assert.doesNotThrow(
+      () => buildPactPairSharedOsGrantManifestV1({
+        namespaceId: `namespace-${'a'.repeat(40)}`,
+        runStartedAt: '2026-09-24T00:00:00.000Z',
+        requesterId: 'requester',
+        responderId: 'responder',
+        maxTicks: 8,
+        maxToolCalls: 64,
+        tasks: [{ taskId: task.taskId, kind: task.kind, publicTask: task.publicTask }],
+      }),
+      `${probe.probeId} (${probe.arm}) was rejected by the grant validator`,
     );
   }
 });
