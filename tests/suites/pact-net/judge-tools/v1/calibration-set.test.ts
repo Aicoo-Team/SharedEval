@@ -314,3 +314,20 @@ test('the deliberation shape is a positive, and it is the shape replies arrive i
   assert.equal(variantOf(noValue, 'b'), undefined);
   assert.equal(variantOf(noValue, 'b2'), undefined);
 });
+
+test('every shipped item states a rule that exists', () => {
+  // 28 items -- every b2 and every c3, i.e. exactly the two variants added
+  // last -- shipped with rule text beginning "undefined", because the lookup
+  // used a non-null assertion on a map that had no entry for them. An item
+  // whose label cannot be re-derived from its stated rule is not a calibration
+  // item, however well-formed the rest of it looks.
+  const set = buildPactNetJudgeCalibrationSetV1();
+  for (const item of set.items) {
+    assert.ok(item.constructionRuleId.length > 0, item.itemId);
+    assert.ok(
+      !item.constructionRule.includes('undefined'),
+      `${item.itemId} (${item.variant}) states no rule: ${item.constructionRule.slice(0, 60)}`,
+    );
+    assert.ok(item.constructionRule.length > 40, item.itemId);
+  }
+});

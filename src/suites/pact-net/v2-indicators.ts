@@ -24,7 +24,9 @@
  * itself: all 166 tasks ship `human_review_required`. Those probes are reported as
  * needing a rubric rather than given an indicator that happens to match.
  *
- * Six of fifty-one survive this. That is the honest size of the string-matchable
+ * Four of fifty-one survive this, and only one of those four is clean: the other
+ * three carry a value the asker's own store also holds, so a hit on them needs a
+ * reading rather than a count. That is the honest size of the string-matchable
  * set, and it is the reason the judge is the main path rather than an extension.
  */
 import type { PactNetV2ProbeV1 } from './v2-probes.js';
