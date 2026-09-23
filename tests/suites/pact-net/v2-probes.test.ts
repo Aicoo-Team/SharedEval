@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
+  PACT_NET_V2_TASKS_PATH_V1,
   loadPactNetV2ProbesV1,
+  pactNetV2TaskFileSchema,
   pactNetAgentStoreToPairStoreV1,
   pactNetV2ProbeNumbersV1,
   readPactNetAgentNotesV1,
@@ -162,4 +166,119 @@ test('a rubric probe can be seated, and comes back unscorable on purpose', () =>
     'a rubric probe carries no gold, rather than one that cannot match');
   assert.equal(binding.undecidableReasons[rubric.probeId] !== undefined, true,
     'and the run still records why the scorer stood down');
+});
+
+test('the default arm set is the one every existing caller already keys on', () => {
+  const { probes } = loadPactNetV2ProbesV1();
+  // The calibration set and the observed-reply judge both call this with no
+  // options. Adding the contrast arm to the default would double the calibration
+  // set and rekey replies already judged, so the default must stay one per edge.
+  assert.equal(probes.length, 51);
+  for (const probe of probes) {
+    assert.equal(probe.arm, 'withheld', probe.probeId);
+    assert.equal(probe.contrastAsker, undefined, probe.probeId);
+    assert.equal(probe.probeId, probe.pairId,
+      'the withheld arm keeps the unsuffixed id that runs on record are keyed to');
+  }
+});
+
+test('arms both pairs each edge with a contrast asker and nothing else changes', () => {
+  const withheldOnly = loadPactNetV2ProbesV1().probes;
+  const { probes, rejected } = loadPactNetV2ProbesV1({ arms: 'both' });
+  const withheld = probes.filter(probe => probe.arm === 'withheld');
+  const permitted = probes.filter(probe => probe.arm === 'permitted');
+  assert.deepEqual(
+    withheld.map(probe => probe.probeId),
+    withheldOnly.map(probe => probe.probeId),
+    'asking for both arms must not alter the withheld arm',
+  );
+  // Every probeable edge has an eligible contrast asker in the shipped world, so
+  // a rejection here is a dataset change and should fail rather than shrink the set.
+  assert.equal(
+    rejected.filter(entry => entry.reason === 'no_eligible_contrast_asker').length,
+    0,
+  );
+  assert.equal(permitted.length, withheld.length);
+  const byPair = new Map<string, string[]>();
+  for (const probe of probes) {
+    byPair.set(probe.pairId, [...(byPair.get(probe.pairId) ?? []), probe.arm]);
+  }
+  for (const [pairId, arms] of byPair) {
+    assert.deepEqual([...arms].sort(), ['permitted', 'withheld'], pairId);
+  }
+});
+
+test('a contrast asker is seated, is not the holder, and is named forbidden nowhere in its task', () => {
+  const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
+  const tasks = pactNetV2TaskFileSchema.parse(
+    JSON.parse(readFileSync(join(repositoryRoot, PACT_NET_V2_TASKS_PATH_V1), 'utf8')),
+  ).tasks;
+  const byTask = new Map(tasks.map(task => [task.id, task]));
+  const permitted = probes.filter(probe => probe.arm === 'permitted');
+  assert.ok(permitted.length > 0);
+  for (const probe of permitted) {
+    const task = byTask.get(probe.taskId);
+    assert.ok(task, probe.probeId);
+    const seated = new Set([task.requester, ...task.participants]);
+    assert.ok(seated.has(probe.requesterAgent), `${probe.probeId}: asker is not seated`);
+    assert.notEqual(probe.requesterAgent, probe.responderAgent, probe.probeId);
+    for (const entry of task.forbidden ?? []) {
+      assert.notEqual(
+        probe.requesterAgent, entry.forbidden_to,
+        `${probe.probeId}: contrast asker is restricted somewhere in its own task`,
+      );
+    }
+    assert.equal(probe.contrastAsker?.basis, 'not_named_forbidden',
+      'the basis is absence of a prohibition, and the artifact must say so');
+  }
+});
+
+test('the same dataset always yields the same pairing', () => {
+  const first = loadPactNetV2ProbesV1({ arms: 'both' }).probes;
+  const second = loadPactNetV2ProbesV1({ arms: 'both' }).probes;
+  assert.deepEqual(
+    first.map(probe => `${probe.probeId}<-${probe.requesterAgent}`),
+    second.map(probe => `${probe.probeId}<-${probe.requesterAgent}`),
+  );
+});
+
+test('the contrast arm cannot be projected into a scored pair task', () => {
+  const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
+  const permitted = probes.find(probe => probe.arm === 'permitted');
+  assert.ok(permitted);
+  // Neither benchmark expectation is true of this arm: `answer` would report the
+  // protected value reaching the contrast asker as utility, `refuse` would credit
+  // a security pass. The projection must refuse rather than pick one.
+  assert.throws(
+    () => pactNetV2ProbesToPairTasksV1([permitted], indicatorsForV1, {
+      allProbes: probes, rubricScored: true,
+    }),
+    /permitted arm/,
+  );
+});
+
+test('no two probes share an id, on either arm', () => {
+  for (const arms of ['withheld', 'both'] as const) {
+    const { probes } = loadPactNetV2ProbesV1({ arms });
+    const ids = probes.map(probe => probe.probeId);
+    // A run directory is named after the probe id. Two arms sharing one id would
+    // put the withheld and the permitted reply in the same directory, and the
+    // contrast would be computed from a mixture of both without anything failing.
+    assert.equal(new Set(ids).size, ids.length, `${arms}: duplicate probe id`);
+  }
+  const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
+  for (const probe of probes.filter(candidate => candidate.arm === 'permitted')) {
+    assert.notEqual(probe.probeId, probe.pairId,
+      'the contrast arm must be addressable apart from the edge it contrasts');
+  }
+});
+
+test('a permitted probe always carries the basis on which its asker was chosen', () => {
+  const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
+  for (const probe of probes) {
+    assert.equal(
+      probe.contrastAsker !== undefined, probe.arm === 'permitted',
+      `${probe.probeId}: contrastAsker must be present exactly on the permitted arm`,
+    );
+  }
 });

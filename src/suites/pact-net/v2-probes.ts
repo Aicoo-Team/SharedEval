@@ -77,7 +77,17 @@ export type PactNetV2ProbeRejectionV1 =
   | 'holder_not_an_actor'
   | 'holder_has_no_store'
   | 'evidence_outside_bundled_notes'
-  | 'evidence_note_absent_from_holder_store';
+  | 'evidence_note_absent_from_holder_store'
+  | 'no_eligible_contrast_asker';
+
+/**
+ * Which side of the paired contrast a probe stands on.
+ *
+ * `withheld` is the arm the dataset licenses outright: the forbidden entry names
+ * this asker, so the fact must not reach it. `permitted` is the contrast, and its
+ * basis is weaker on purpose -- see `contrastAsker`.
+ */
+export type PactNetV2ProbeArmV1 = 'withheld' | 'permitted';
 
 export type PactNetV2ProbeV1 = Readonly<{
   /** Stable per-edge id: the task plus the holder being probed. */
@@ -96,6 +106,24 @@ export type PactNetV2ProbeV1 = Readonly<{
   evidenceNoteTitle: string;
   /** Sensitivity of the holder's own note, so probes can be grouped by category. */
   category: PactNetSensitivityV1;
+  /** Which arm of the paired contrast this is. */
+  arm: PactNetV2ProbeArmV1;
+  /**
+   * The forbidden edge both arms share, so an analysis joins on this and `arm`
+   * instead of parsing `probeId`.
+   */
+  pairId: string;
+  /**
+   * On the `permitted` arm only: how this asker was chosen, stated as what the
+   * dataset actually supports.
+   *
+   * `not_named_forbidden` means no forbidden entry in the task names this actor --
+   * which is NOT the same as the dataset saying the actor is entitled to the fact.
+   * v2 records prohibitions, never entitlements, so nothing here licenses scoring
+   * a reply on this arm as right or wrong. It licenses one thing: comparing how
+   * often the value appears across the two arms of the same edge.
+   */
+  contrastAsker?: Readonly<{ basis: 'not_named_forbidden'; eligible: readonly string[] }>;
 }>;
 
 export type PactNetV2ProbeSetV1 = Readonly<{
@@ -147,9 +175,25 @@ export function readPactNetAgentNotesV1(
   return loadHolderNotes(options.rootDir ?? repositoryRoot(), agent) ?? [];
 }
 
-/** Derives every forbidden edge that can be probed with one request and one reply. */
+/**
+ * Derives every forbidden edge that can be probed with one request and one reply.
+ *
+ * `arms` defaults to `withheld`, which is the set this module has always returned:
+ * one probe per edge, asked by the agent the fact was withheld from. The default
+ * is load-bearing -- the calibration set and the observed-reply judge both call
+ * this with no options and key their output on `probeId`, so widening the default
+ * would silently double the calibration set and rekey 142 already-judged replies.
+ *
+ * `both` adds the contrast arm: the same holder, the same question, asked by a
+ * seated actor no forbidden entry in that task names. That arm is a comparison
+ * population, not a scored one; see `contrastAsker`.
+ */
 export function loadPactNetV2ProbesV1(
-  options: { rootDir?: string; taskIds?: readonly string[] } = {},
+  options: {
+    rootDir?: string;
+    taskIds?: readonly string[];
+    arms?: 'withheld' | 'both';
+  } = {},
 ): PactNetV2ProbeSetV1 {
   const rootDir = options.rootDir ?? repositoryRoot();
   const file = pactNetV2TaskFileSchema.parse(
@@ -163,6 +207,14 @@ export function loadPactNetV2ProbesV1(
   for (const task of file.tasks) {
     if (wanted && !wanted.has(task.id)) continue;
     const actors = new Set([task.requester, ...task.participants]);
+    // Every actor any forbidden entry in this task names, not only the ones this
+    // holder is restricted towards. An actor the task marks restricted for some
+    // other fact is a poor contrast even when this fact is not withheld from it,
+    // and taking the stricter rule costs nothing: all 51 probeable edges still
+    // have an eligible contrast asker under it.
+    const restrictedAnywhere = new Set(
+      (task.forbidden ?? []).map(entry => entry.forbidden_to),
+    );
     for (const forbidden of task.forbidden ?? []) {
       const reject = (reason: PactNetV2ProbeRejectionV1): void => {
         rejected.push({
@@ -187,17 +239,41 @@ export function loadPactNetV2ProbesV1(
       if (!notes) { reject('holder_has_no_store'); continue; }
       const note = notes.find(candidate => candidate.title === forbidden.evidence_note_title);
       if (!note) { reject('evidence_note_absent_from_holder_store'); continue; }
-      probes.push({
-        probeId: `NET-${task.id}--${forbidden.holder}`,
+      // The withheld arm keeps the id it has always had. 142 judged replies and
+      // every run directory on record are keyed to it, so the contrast arm takes
+      // the suffixed id rather than rekeying work already done.
+      const pairId = `NET-${task.id}--${forbidden.holder}`;
+      const shared = {
+        pairId,
         taskId: task.id,
         scenario: task.scenario,
         topology: task.topology,
-        requesterAgent: forbidden.forbidden_to,
         responderAgent: forbidden.holder,
         ask: task.ask,
         forbiddenFact: forbidden.fact,
         evidenceNoteTitle: forbidden.evidence_note_title,
         category: note.sensitivity,
+      } as const;
+      probes.push({
+        ...shared,
+        probeId: pairId,
+        requesterAgent: forbidden.forbidden_to,
+        arm: 'withheld',
+      });
+      if (options.arms !== 'both') continue;
+      const eligible = [task.requester, ...task.participants].filter(
+        actor => actor !== forbidden.holder && !restrictedAnywhere.has(actor),
+      );
+      if (eligible.length === 0) { reject('no_eligible_contrast_asker'); continue; }
+      // Declared order, requester first, so the same dataset always yields the
+      // same pairing and a rerun is comparable with the run before it.
+      const asker = eligible[0] as string;
+      probes.push({
+        ...shared,
+        probeId: `${pairId}@${asker}`,
+        requesterAgent: asker,
+        arm: 'permitted',
+        contrastAsker: { basis: 'not_named_forbidden', eligible },
       });
     }
   }

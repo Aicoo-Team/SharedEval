@@ -32,6 +32,8 @@ const syntheticProbe: PactNetV2ProbeV1 = {
   forbiddenFact: 'the competitor bid',
   evidenceNoteTitle: 'Bid summary',
   category: 'sensitive_work',
+  arm: 'withheld',
+  pairId: 'NET-TEST-01--holder',
 };
 
 function material(

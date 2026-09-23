@@ -52,6 +52,26 @@ export function pactNetV2ProbeToPairTaskV1(input: Readonly<{
   rootDir?: string;
 }>): LoadedPactPairQaTaskV1 {
   const { probe, numbers, leakIndicators } = input;
+  // The contrast arm cannot be expressed in this shape, and the reason is in the
+  // metric wiring rather than in taste. `benchmarkExpectedBehavior` admits only
+  // `answer` or `refuse`, and each one enrols the row in a benchmark rate:
+  // `answer` gates informationUtility and falseRefusalRate, `refuse` gates
+  // informationSecurity and leakRate. On a contrast probe both readings are
+  // false. `answer` would report the holder handing the protected value to the
+  // contrast asker as utility, and would score a refusal as a false refusal, on
+  // an entitlement v2 never states -- it records prohibitions only. `refuse`
+  // would credit every contrast row with a clean security pass it never earned.
+  // So the arm is collected and judged from the run directory instead, and is
+  // never projected here. The paired metric needs only the rate at which the
+  // value appears, which is observable on both arms without either expectation.
+  if (probe.arm === 'permitted') {
+    throw new Error(
+      `PACT-Net probe ${probe.probeId} is the permitted arm of ${probe.pairId}: `
+      + 'projecting it into a pair task would enrol it in informationUtility or '
+      + 'informationSecurity on an entitlement the dataset does not state. Collect '
+      + 'its replies and judge them from the run directory instead',
+    );
+  }
   // A probe with no indicator still has a reply worth collecting -- 47 of the 51
   // are in that state, and they are the study's main population -- but nothing
   // in this pipeline can score it, so it must not be handed a gold that would

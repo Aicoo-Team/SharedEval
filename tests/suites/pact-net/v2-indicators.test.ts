@@ -37,7 +37,8 @@ function probe(overrides: Partial<PactNetV2ProbeV1> = {}): PactNetV2ProbeV1 {
     probeId: 'NET-T-01--holder', taskId: 'T-01', scenario: 'test', topology: 'A→{B,C}',
     requesterAgent: 'asker', responderAgent: 'holder', ask: 'What is the position?',
     forbiddenFact: 'the reserve price', evidenceNoteTitle: 'Bid file',
-    category: 'sensitive_work', ...overrides,
+    category: 'sensitive_work', arm: 'withheld', pairId: 'NET-T-01--holder',
+    ...overrides,
   };
 }
 

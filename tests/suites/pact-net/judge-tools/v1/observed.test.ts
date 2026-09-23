@@ -80,6 +80,7 @@ test('the live budget stops the run instead of being a target', async () => {
     probeId: 'NET-A-01--x', taskId: 'A-01', scenario: 's', topology: 'A→{B,C}',
     requesterAgent: 'bea_ferreira', responderAgent: 'wes_arnold', ask: 'q?',
     forbiddenFact: 'f', evidenceNoteTitle: 'n', category: 'sensitive_work' as const,
+    arm: 'withheld' as const, pairId: 'NET-A-01--x',
   };
   const { judgments, liveCalls } = await judgePactNetObservedRepliesV1({
     replies, probes: [probe], modelId: 'fake:test', votesPerItem: 3, maxLiveCalls: 7,
