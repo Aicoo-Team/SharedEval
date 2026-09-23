@@ -79,6 +79,16 @@ function promptTextOf(payload: unknown): string {
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
+/**
+ * What a requester turn keeps back from the responder turn nested inside it.
+ * A share governs a production budget; the floor is one provider round trip,
+ * because the requester's close is at minimum one model call and a share alone
+ * shrinks with the budget until it is not a reserve at all. @see
+ * responderTurnTimeoutMsV1 for why the ordering matters.
+ */
+const RESPONDER_TURN_RESERVE_SHARE_V1 = 0.1;
+const RESPONDER_TURN_RESERVE_FLOOR_MS_V1 = 5_000;
+
 export async function createSharedOsFileSessionV1(
   input: CreateSharedOsFileSessionV1Options,
 ): Promise<SharedOsFileSessionV1> {
@@ -111,6 +121,8 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
   private closing = false;
   private closed = false;
   private closePromise: Promise<void> | undefined;
+  /** When the requester turn now running expires. Turns are serialized. */
+  private requesterTurnDeadlineAtMs: number | undefined;
 
   private constructor(
     private readonly options: CreateSharedOsFileSessionV1Options,
@@ -245,6 +257,9 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
       this.options.requester.actorId,
     ]);
     const now = new Date().toISOString();
+    // The instant the file provider already treats as this turn's deadline. The
+    // runtime starts its own timer a few ms later, so this only under-estimates.
+    this.requesterTurnDeadlineAtMs = Date.parse(now) + this.options.deadlineMs;
     const context = this.context(
       this.options.requester.actorId,
       input.traceId,
@@ -442,6 +457,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
           ...taskHandlers.map(handler => structuredClone(handler.definition)),
         ],
         signal,
+        timeoutMs: this.responderTimeoutMs(),
       });
     } finally {
       this.responderUsageByTrace.set(
@@ -452,6 +468,15 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     return Object.freeze({
       context: structuredClone(input.context),
       execution: structuredClone(execution),
+    });
+  }
+
+  /** The fallback never fires: a responder turn only runs inside a requester one. */
+  private responderTimeoutMs(): number {
+    const nowMs = Date.now();
+    return responderTurnTimeoutMsV1({
+      turnDeadlineAtMs: this.requesterTurnDeadlineAtMs ?? nowMs + this.options.deadlineMs,
+      nowMs,
     });
   }
 
@@ -492,7 +517,9 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
     message: SoMessageEnvelope;
     tools: readonly SoToolDefinition[];
     signal: AbortSignal;
+    timeoutMs?: number;
   }>): Promise<SoExecutionResult> {
+    const timeoutMs = input.timeoutMs ?? this.options.deadlineMs;
     let eventSequence = 0;
     const runtime = new this.modules.runtime.StandardRuntime(input.driver);
     const executor = new this.modules.runtime.SharedOSExecutor(input.kernel, runtime, {
@@ -504,7 +531,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
       ]),
       defaultMaxSteps: this.options.maxToolCalls + 1,
       defaultMaxToolCalls: this.options.maxToolCalls,
-      defaultTimeoutMs: this.options.deadlineMs,
+      defaultTimeoutMs: timeoutMs,
     });
     const request: SoExecutionRequest = {
       version: '1',
@@ -516,7 +543,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
       options: {
         maxSteps: this.options.maxToolCalls + 1,
         maxToolCalls: this.options.maxToolCalls,
-        timeoutMs: this.options.deadlineMs,
+        timeoutMs,
       },
     };
     try {
@@ -664,6 +691,34 @@ export function unplaceableContactPolicyV1(
   pairProfile?: 'strict' | 'simple',
 ): SharedOsUnplaceableContactPolicyV1 {
   return pairProfile === 'simple' ? 'drop' : 'fatal';
+}
+
+/**
+ * How long a nested responder turn may run, so that the requester waiting on it
+ * outlives it and can record what happened.
+ *
+ * A responder turn runs inside the requester's `messages.request`, and the
+ * runtime derives its abort controller from the requester's signal. Given the
+ * same deadline the two expire together; the kernel then sees an aborted caller
+ * signal and rethrows instead of returning a failed tool result (SharedOS
+ * `message-tool.ts`), leaving the contact call with no result at all. That
+ * dangling call is what costs the whole run rather than the one contact.
+ *
+ * So the invariant is the ordering, not the margins: the answer is strictly
+ * less than the time remaining. Clamped positive, because a responder that
+ * starts with nothing left is cancelled at once — an outcome the requester can
+ * record, unlike an abort, which it cannot.
+ */
+export function responderTurnTimeoutMsV1(input: Readonly<{
+  turnDeadlineAtMs: number;
+  nowMs: number;
+}>): number {
+  const remainingMs = input.turnDeadlineAtMs - input.nowMs;
+  const reserveMs = Math.max(
+    RESPONDER_TURN_RESERVE_FLOOR_MS_V1,
+    Math.floor(remainingMs * RESPONDER_TURN_RESERVE_SHARE_V1),
+  );
+  return Math.max(1, remainingMs - reserveMs);
 }
 
 /**
