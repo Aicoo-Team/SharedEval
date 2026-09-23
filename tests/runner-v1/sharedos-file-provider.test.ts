@@ -1043,3 +1043,94 @@ test('re-delivering MEMORY after a publication does not reopen the one-publicati
   assert.equal(second.status, 'denied');
   await provider.close();
 });
+
+test('an elided read repeats the receipt without repeating the bytes, and never elides MEMORY', async () => {
+  const requester = new FakeWorkspace('requester');
+  const responder = new FakeWorkspace('responder');
+  const provider = createSharedOsFileProviderV1({
+    runId: 'run-1',
+    deadlineMs: DEADLINE_MS,
+    requester: { actorId: 'requester', workspace: requester },
+    responder: { actorId: 'responder', workspace: responder },
+    elideUnchangedReads: true,
+  });
+  const readPolicy = (operationId: string): SoResourceOperation => operation({
+    actorId: 'requester',
+    traceId: 'trace-elide',
+    operationId,
+    path: ['POLICY.md'],
+    action: 'read',
+  });
+
+  const first = await provider.invoke(readPolicy('read-1'), neverAbort());
+  assert.equal(first.status, 'succeeded');
+  const firstOutput = first.status === 'succeeded'
+    ? first.output as Record<string, unknown>
+    : {};
+  assert.equal(firstOutput.content, 'requester:POLICY.md:v0');
+  assert.equal(firstOutput.unchanged, undefined);
+
+  const second = await provider.invoke(readPolicy('read-2'), neverAbort());
+  assert.equal(second.status, 'succeeded');
+  const secondOutput = second.status === 'succeeded'
+    ? second.output as Record<string, unknown>
+    : {};
+  // The bytes are gone from the payload, and every field the run records is not.
+  assert.equal(secondOutput.content, undefined);
+  assert.equal(secondOutput.unchanged, true);
+  assert.equal(secondOutput.sha256, firstOutput.sha256);
+  assert.equal(secondOutput.version, firstOutput.version);
+  assert.equal(secondOutput.byteLength, firstOutput.byteLength);
+
+  // The read itself still reached the workspace, so its evidence is unchanged.
+  assert.equal(requester.reads.filter(read => read.path === 'POLICY.md').length, 2);
+  const receipts = await provider.readReceipts({
+    actorId: 'requester',
+    traceId: 'trace-elide',
+  });
+  assert.equal(receipts.filter(receipt => receipt.path === 'POLICY.md').length, 2);
+
+  // Content that moves is delivered again.
+  requester.version = 1;
+  const third = await provider.invoke(readPolicy('read-3'), neverAbort());
+  const thirdOutput = third.status === 'succeeded'
+    ? third.output as Record<string, unknown>
+    : {};
+  assert.equal(thirdOutput.content, 'requester:POLICY.md:v1');
+  assert.equal(thirdOutput.unchanged, undefined);
+
+  // MEMORY is never elided: the actor must see the text it is about to replace.
+  for (const operationId of ['read-memory-1', 'read-memory-2']) {
+    const result = await provider.invoke(
+      readMemoryOperation('trace-elide', operationId),
+      neverAbort(),
+    );
+    const output = result.status === 'succeeded'
+      ? result.output as Record<string, unknown>
+      : {};
+    assert.equal(output.content, 'requester:MEMORY.md:v0');
+    assert.equal(output.unchanged, undefined);
+  }
+  await provider.close();
+});
+
+test('without the option every read still carries its bytes', async () => {
+  const requester = new FakeWorkspace('requester');
+  const provider = createProvider(requester, new FakeWorkspace('responder'));
+  const readPolicy = (operationId: string): SoResourceOperation => operation({
+    actorId: 'requester',
+    traceId: 'trace-default',
+    operationId,
+    path: ['POLICY.md'],
+    action: 'read',
+  });
+  for (const operationId of ['read-1', 'read-2']) {
+    const result = await provider.invoke(readPolicy(operationId), neverAbort());
+    const output = result.status === 'succeeded'
+      ? result.output as Record<string, unknown>
+      : {};
+    assert.equal(output.content, 'requester:POLICY.md:v0');
+    assert.equal(output.unchanged, undefined);
+  }
+  await provider.close();
+});

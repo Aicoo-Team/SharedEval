@@ -216,6 +216,7 @@ export const fileWorkflowRunBindingV1Schema = z.object({
     // four-file read coverage the evidence and ledger layers demand of an
     // authoritative contact is not produced and is not required.
     pairProfile: z.enum(['strict', 'simple']).optional(),
+    elideUnchangedReads: z.boolean().optional(),
   }).strict(),
   dataset: datasetProvenanceSchema,
   goldSet: goldSetProvenanceSchema,

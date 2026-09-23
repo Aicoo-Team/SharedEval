@@ -90,6 +90,9 @@ export type CreateSharedOsFileSessionV1Options = Readonly<{
   // 'simple' issues one standing responder capability set instead of one
   // deferred set per task; absent means 'strict' and changes nothing.
   pairProfile?: 'strict' | 'simple';
+  // When set, a read of a file whose bytes an actor already holds this session
+  // returns its receipt without repeating the bytes. Absent changes nothing.
+  elideUnchangedReads?: boolean;
   maxToolCalls: number;
   deadlineMs: number;
   requester: Readonly<{

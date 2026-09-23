@@ -57,6 +57,7 @@ export const sharedevalWorkflowV1Schema = z
     // gives the responder one standing capability set for all tasks: PACT-Pair
     // measures the disclosure decision, not whether the datastore is reachable.
     pairProfile: z.enum(['strict', 'simple']).optional(),
+    elideUnchangedReads: z.boolean().optional(),
   })
   .strict()
   .superRefine(validateWorkflow);

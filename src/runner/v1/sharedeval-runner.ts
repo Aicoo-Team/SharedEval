@@ -109,6 +109,9 @@ export function runSharedevalPactPairFilesV1(
       ...(options.config.workflow.pairProfile
         ? { pairProfile: options.config.workflow.pairProfile }
         : {}),
+      ...(options.config.workflow.elideUnchangedReads
+        ? { elideUnchangedReads: true }
+        : {}),
       ...(options.config.workflow.multiTurn
         ? { multiTurn: structuredClone(options.config.workflow.multiTurn) }
         : {}),

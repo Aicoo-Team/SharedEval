@@ -112,6 +112,14 @@ export type CreateSharedOsFileProviderV1Options = Readonly<{
     actorId: string;
     workspace: FileWorkspacePortV1;
   }>;
+  /**
+   * When set, a read of a file whose bytes this actor was already handed in
+   * this session returns its receipt without repeating the bytes. The read
+   * still happens and still records the same evidence: only the payload the
+   * model re-reads is dropped. MEMORY is never elided, because the actor must
+   * see the text it is about to replace.
+   */
+  elideUnchangedReads?: boolean;
 }>;
 
 type ActorBinding = Readonly<{
@@ -180,6 +188,7 @@ export function createSharedOsFileProviderV1(
       actorId: options.responder.actorId,
       workspace: options.responder.workspace,
     }),
+    elideUnchangedReads: options.elideUnchangedReads === true,
   }));
 }
 
@@ -187,6 +196,8 @@ class ActorOwnedFileProvider implements SharedOsFileProviderV1 {
   readonly namespace = FILES_NAMESPACE;
   private readonly actors: ReadonlyMap<string, ActorBinding>;
   private readonly turns = new Map<string, TurnState>();
+  /** actorId + path -> sha256 of the bytes that actor was last handed. */
+  private readonly delivered = new Map<string, string>();
   private closed = false;
   private closePromise: Promise<void> | undefined;
 
@@ -359,11 +370,18 @@ class ActorOwnedFileProvider implements SharedOsFileProviderV1 {
           receipt: Object.freeze(structuredClone(result.receipt)),
         });
       }
+      const deliveredKey = `${validated.actorId}\u0000${validated.path}`;
+      const repeatsDeliveredBytes = this.options.elideUnchangedReads === true
+        && validated.path !== MEMORY_PATH
+        && this.delivered.get(deliveredKey) === result.receipt.sha256;
+      if (!repeatsDeliveredBytes) this.delivered.set(deliveredKey, result.receipt.sha256);
       return {
         status: 'succeeded',
         operationId: operation.operationId,
         output: {
-          content: result.content,
+          // The receipt is identical either way: this branch decides what the
+          // actor re-reads, never what the run records.
+          ...(repeatsDeliveredBytes ? { unchanged: true } : { content: result.content }),
           version: encodeFileVersionV1(result.receipt.version),
           sha256: result.receipt.sha256,
           byteLength: result.receipt.byteLength,
