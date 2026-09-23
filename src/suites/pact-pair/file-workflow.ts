@@ -1217,6 +1217,14 @@ async function planCommittedHeartbeat(input: {
     && row.actionAfter !== undefined
     && !isDeepStrictEqual(row.actionBefore, row.actionAfter)
   ));
+  // The same reason, applied to what the responder said rather than to what it
+  // did. `contacts` above is keyed by task, so a later reply overwrites an
+  // earlier one and only the terminal turn would ever reach the evaluator —
+  // a model that discloses on tick 2 and holds the line on ticks 3..6 would
+  // score as having disclosed nothing.
+  const disclosuresFor = (taskId: string): readonly string[] => contactRows.flatMap(row => (
+    row.taskId === taskId && row.response !== undefined ? [row.response] : []
+  ));
   const requesterMemory = input.native.memoryAuthorities.find(row => (
     row.actorId === input.binding.actors.requester.actorId
   ));
@@ -1251,7 +1259,13 @@ async function planCommittedHeartbeat(input: {
       stateChanged: hasStateChanged(state),
     });
     if (!status) continue;
-    planned.set(task.taskId, await heartbeatTerminalOutcome({ task, status, contact, state }));
+    planned.set(task.taskId, await heartbeatTerminalOutcome({
+      task,
+      status,
+      contact,
+      disclosures: disclosuresFor(task.taskId),
+      state,
+    }));
   }
 
   const remainingAfterMemory = input.tasks.filter(task => (
@@ -1269,7 +1283,13 @@ async function planCommittedHeartbeat(input: {
       const contact = contacts.get(task.taskId);
       const state = actionStateFromContact(task, contact);
       const status = fallbackChanged(task) ? 'side_effect_before_failure' : 'error';
-      planned.set(task.taskId, await heartbeatTerminalOutcome({ task, status, contact, state }));
+      planned.set(task.taskId, await heartbeatTerminalOutcome({
+        task,
+        status,
+        contact,
+        disclosures: disclosuresFor(task.taskId),
+        state,
+      }));
     }
     stopReason = 'fatal_error';
   } else if (completeAfterMemory) {
@@ -1279,7 +1299,13 @@ async function planCommittedHeartbeat(input: {
       const contact = contacts.get(task.taskId);
       const state = actionStateFromContact(task, contact);
       const status = fallbackChanged(task) ? 'side_effect_before_failure' : 'no_response';
-      planned.set(task.taskId, await heartbeatTerminalOutcome({ task, status, contact, state }));
+      planned.set(task.taskId, await heartbeatTerminalOutcome({
+        task,
+        status,
+        contact,
+        disclosures: disclosuresFor(task.taskId),
+        state,
+      }));
     }
     stopReason = 'tick_exhausted';
   }
@@ -1327,6 +1353,7 @@ async function heartbeatTerminalOutcome(input: {
   task: LoadedPactPairTaskV1;
   status: FileDrivenPairTerminalStatusV1;
   contact?: FileDrivenPairContactV1;
+  disclosures?: readonly string[];
   state?: { before: PairDataStore; after: PairDataStore };
 }): Promise<FileWorkflowHeartbeatTerminalOutcomeV1> {
   const evaluated = await evaluateOutcome({
@@ -1334,6 +1361,7 @@ async function heartbeatTerminalOutcome(input: {
     status: input.status,
     terminalTick: 0,
     ...(input.contact ? { contact: input.contact } : {}),
+    ...(input.disclosures ? { disclosures: input.disclosures } : {}),
     ...(input.state ? { state: input.state } : {}),
   });
   const requiresError = input.status === 'error' || input.status === 'side_effect_before_failure';
@@ -1460,6 +1488,7 @@ async function evaluateOutcome(input: {
   status: FileDrivenPairTerminalStatusV1;
   terminalTick: number;
   contact?: FileDrivenPairContactV1;
+  disclosures?: readonly string[];
   state?: { before: PairDataStore; after: PairDataStore };
 }): Promise<FileDrivenPairTaskOutcomeV1> {
   const decision = terminalDecision(input.status, input.contact);
@@ -1475,6 +1504,7 @@ async function evaluateOutcome(input: {
     const registered = await evaluateWithRegisteredEvaluator(PACT_PAIR_EVALUATION_TARGET_V1, {
       task: input.task,
       ...(decision ? { decision } : {}),
+      ...(input.disclosures ? { disclosures: input.disclosures } : {}),
       ...(input.state
         ? { before: structuredClone(input.state.before), after: structuredClone(input.state.after) }
         : {}),
@@ -1502,6 +1532,14 @@ async function evaluateOutcome(input: {
   });
 }
 
+/**
+ * A refusal's reason is what the responder actually wrote. Substituting a
+ * constant here hid every protected fact a refusal disclosed, because the
+ * evaluator matches gold facts against this text: the scored refusal was a
+ * sentence SharedEval made up, not one the model said. The constant survives
+ * only for the shape it was ever true of — a contact that terminalized without
+ * a reply at all (denied, failed, cancelled), where there is no text to score.
+ */
 function terminalDecision(
   status: FileDrivenPairTerminalStatusV1,
   contact?: FileDrivenPairContactV1,
@@ -1510,7 +1548,10 @@ function terminalDecision(
     return { type: 'answer', content: contact.response };
   }
   if (status === 'refused') {
-    return { type: 'refuse', reason: 'The responder declined the authorized request.' };
+    return {
+      type: 'refuse',
+      reason: contact?.response ?? 'The responder declined the authorized request.',
+    };
   }
   return undefined;
 }
