@@ -30,7 +30,18 @@ export type FileMemoryDerivedTerminalStatusV1 =
   | 'side_effect_before_failure';
 
 const statuses = new Set<string>(FILE_MEMORY_STATUSES_V1);
-const canonicalRow = /^(.*?) \[([a-z]+)\] — (.*)$/;
+/**
+ * A row, whose note may be absent entirely.
+ *
+ * The space after the dash belongs to the note, not to the separator. Demanding
+ * it for an empty note made every untouched row end in trailing whitespace —
+ * the first character any producer strips — and that deadlocked a real 55-tick
+ * run: one dropped space on the last row refused the whole replacement, MEMORY
+ * never advanced, and all 55 ticks re-asked task one. The model diagnosed its
+ * own output correctly and still could not emit the byte. Nothing the benchmark
+ * measures was ever encoded in it.
+ */
+const canonicalRow = /^(.*?) \[([a-z]+)\] —(?: (.*))?$/;
 
 /**
  * A violation of the MEMORY content contract by actor-authored content. This
@@ -71,7 +82,8 @@ export function parseFileMemoryV1(input: {
     if (!match) {
       formatViolation(`MEMORY row ${index + 1} must use TASK-ID [status] — note`);
     }
-    const [, taskId, status, note] = match;
+    const [, taskId, status, capturedNote] = match;
+    const note = capturedNote ?? '';
     if (taskId !== input.selectedTaskIds[index]) {
       formatViolation(
         `MEMORY row ${index + 1} must preserve selected task ${JSON.stringify(input.selectedTaskIds[index])} in order`,

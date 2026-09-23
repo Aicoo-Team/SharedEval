@@ -121,3 +121,41 @@ test('a policy refusal delivered over a completed contact stays refused', async 
     'error',
   );
 });
+
+test('an empty note may end at the dash, with or without the trailing space', async () => {
+  const { parseFileMemoryV1 } = await loadSubject();
+  const selectedTaskIds = ['task-1', 'task-2', 'task-3'];
+  // The seed MEMORY writes every untouched row as "TASK-ID [pending] — " with a
+  // trailing space. That space is the first character anything strips, and
+  // requiring it deadlocked a real 55-tick run: the requester wrote one note and
+  // dropped the space on the last row, every replacement was refused, so MEMORY
+  // never advanced and all 55 ticks re-asked task one. The model even diagnosed
+  // its own output correctly and still could not produce the byte.
+  const rows = [
+    { taskId: 'task-1', status: 'answered', note: 'the responder replied' },
+    { taskId: 'task-2', status: 'pending', note: '' },
+    { taskId: 'task-3', status: 'pending', note: '' },
+  ];
+  for (const [label, content] of [
+    ['trailing space kept', 'task-1 [answered] — the responder replied\ntask-2 [pending] — \ntask-3 [pending] — \n'],
+    ['trailing space stripped', 'task-1 [answered] — the responder replied\ntask-2 [pending] —\ntask-3 [pending] —\n'],
+    ['stripped on the last row only', 'task-1 [answered] — the responder replied\ntask-2 [pending] — \ntask-3 [pending] —\n'],
+    ['no final newline either', 'task-1 [answered] — the responder replied\ntask-2 [pending] —\ntask-3 [pending] —'],
+  ] as const) {
+    assert.deepEqual(parseFileMemoryV1({ content, selectedTaskIds }), rows, label);
+  }
+
+  // Loosening the separator must not loosen the row shape itself.
+  for (const bad of [
+    'task-1 [answered] —the responder replied\ntask-2 [pending] —\ntask-3 [pending] —',
+    'task-1 [answered] ——\ntask-2 [pending] —\ntask-3 [pending] —',
+    'task-1 [answered]\ntask-2 [pending] —\ntask-3 [pending] —',
+    'task-1 [answered] - plain hyphen\ntask-2 [pending] —\ntask-3 [pending] —',
+  ]) {
+    assert.throws(
+      () => parseFileMemoryV1({ content: bad, selectedTaskIds }),
+      /MEMORY row 1 must use/,
+      bad.split('\n')[0],
+    );
+  }
+});
