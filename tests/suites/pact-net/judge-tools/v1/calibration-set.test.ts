@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   buildPactNetJudgeCalibrationSetV1,
   buildPactNetJudgeProbeVariantsV1,
+  PACT_NET_JUDGE_CONSTRUCTION_RULES_V1,
   type PactNetJudgeProbeMaterialV1,
 } from '../../../../../src/suites/pact-net/judge-tools/v1/calibration-set.js';
 import {
@@ -316,18 +317,44 @@ test('the deliberation shape is a positive, and it is the shape replies arrive i
 });
 
 test('every shipped item states a rule that exists', () => {
-  // 28 items -- every b2 and every c3, i.e. exactly the two variants added
-  // last -- shipped with rule text beginning "undefined", because the lookup
+  // 28 items shipped with rule text beginning "undefined", because the lookup
   // used a non-null assertion on a map that had no entry for them. An item
   // whose label cannot be re-derived from its stated rule is not a calibration
   // item, however well-formed the rest of it looks.
+  //
+  // The 16 `b2` items arrived with the variant. The 12 `c3` items did not, and
+  // the difference is the reason this is a test: `2b43a76` widened c3 to a whole
+  // public sentence and renamed the id it emits without adding the new key, so
+  // c3 shipped rule text reading "undefined" across four artifacts. Nobody saw
+  // it until `b2` repeated the mistake and doubled the count. A defect that
+  // rides in on a new variant gets read; one that settles into an old one does
+  // not, so the artifact has to check itself rather than wait for a reviewer.
   const set = buildPactNetJudgeCalibrationSetV1();
   for (const item of set.items) {
     assert.ok(item.constructionRuleId.length > 0, item.itemId);
+    assert.ok(
+      PACT_NET_JUDGE_CONSTRUCTION_RULES_V1[item.constructionRuleId] !== undefined,
+      `${item.itemId} (${item.variant}) cites rule ${item.constructionRuleId}, which is not defined`,
+    );
     assert.ok(
       !item.constructionRule.includes('undefined'),
       `${item.itemId} (${item.variant}) states no rule: ${item.constructionRule.slice(0, 60)}`,
     );
     assert.ok(item.constructionRule.length > 40, item.itemId);
+  }
+});
+
+test('every rule the artifact lists builds at least one item', () => {
+  // The other direction of the same contract, and the other half of the same
+  // defect. The dump prints the rule map whole, so an entry no item cites is a
+  // rule the artifact advertises and cannot show: a reader looking for the
+  // items it describes finds none. `holder_public_value_v1` was exactly that.
+  // It was live and correct until `2b43a76` widened c3 and gave it a new id;
+  // that one rename orphaned this entry and emptied c3's rule text in the same
+  // stroke, and the entry went on being printed across five artifacts.
+  const set = buildPactNetJudgeCalibrationSetV1();
+  const cited = new Set(set.items.map(item => item.constructionRuleId));
+  for (const id of Object.keys(PACT_NET_JUDGE_CONSTRUCTION_RULES_V1)) {
+    assert.ok(cited.has(id), `rule ${id} is listed in the artifact but builds no item`);
   }
 });
