@@ -163,6 +163,7 @@ class SharedOsFileSession implements SharedOsFileSessionV1 {
       deadlineMs: options.deadlineMs,
       requester: options.requester,
       responder: options.responder,
+      elideUnchangedReads: options.elideUnchangedReads === true,
     });
     const fileHandlers = loaded.modules.os.createFileTools(fileProvider);
     let session: SharedOsFileSession | undefined;
