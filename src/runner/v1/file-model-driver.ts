@@ -274,6 +274,12 @@ export type OpenAICompatibleFileTurnDriverV1Options = Readonly<{
   environment?: Record<string, string | undefined>;
   servedModelLedger?: ServedModelConsistencyLedgerV1;
   rateLimitGate?: ProviderRateLimitGateV1;
+  /**
+   * Overrides the rate-limit wait. Real waits are minutes long by design, so a
+   * test that cannot replace them can only assert attempt counts -- which is
+   * why the delay policy above went untested while it was wrong.
+   */
+  sleep?: (delayMs: number, signal: AbortSignal) => Promise<void>;
   actorContext?: Readonly<{
     store: ActorContextStore;
     actorId: string;
@@ -356,6 +362,7 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
   readonly #providerRequests: FileProviderRequestTelemetryV1[] = [];
   readonly #servedModelLedger: ServedModelConsistencyLedgerV1 | undefined;
   readonly #rateLimitGate: ProviderRateLimitGateV1 | undefined;
+  readonly #sleep: (delayMs: number, signal: AbortSignal) => Promise<void>;
   readonly #actorContext: OpenAICompatibleFileTurnDriverV1Options['actorContext'];
   readonly #contextSessions = new Set<OpenAICompatibleFileTurnSessionV1>();
   #contextFailure: unknown;
@@ -365,6 +372,7 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
     this.#model = options.model;
     this.#servedModelLedger = options.servedModelLedger;
     this.#rateLimitGate = options.rateLimitGate;
+    this.#sleep = options.sleep ?? waitForProviderRateLimitV1;
     this.#actorContext = options.actorContext;
     this.#fetchImplementation = options.fetch ?? globalThis.fetch;
     if (typeof this.#fetchImplementation !== 'function') {
@@ -431,6 +439,7 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
         ? { servedModelLedger: this.#servedModelLedger }
         : {}),
       ...(this.#rateLimitGate ? { rateLimitGate: this.#rateLimitGate } : {}),
+      sleep: this.#sleep,
       ...(contextTurn && this.#actorContext ? {
         actorContext: {
           turn: contextTurn,
@@ -488,6 +497,7 @@ type SessionOptions = Readonly<{
   recordTelemetry: (telemetry: FileProviderRequestTelemetryV1) => void;
   servedModelLedger?: ServedModelConsistencyLedgerV1;
   rateLimitGate?: ProviderRateLimitGateV1;
+  sleep: (delayMs: number, signal: AbortSignal) => Promise<void>;
   actorContext?: Readonly<{
     turn: ActorContextTurn;
     input: ActorContextMessage;
@@ -511,6 +521,7 @@ class OpenAICompatibleFileTurnSessionV1 {
   readonly #recordTelemetry: SessionOptions['recordTelemetry'];
   readonly #servedModelLedger: ServedModelConsistencyLedgerV1 | undefined;
   readonly #rateLimitGate: ProviderRateLimitGateV1 | undefined;
+  readonly #sleep: (delayMs: number, signal: AbortSignal) => Promise<void>;
   readonly #messages: ProviderMessage[];
   #actorContext: SessionOptions['actorContext'];
   readonly #seenProviderCallIds = new Set<string>();
@@ -535,6 +546,7 @@ class OpenAICompatibleFileTurnSessionV1 {
     this.#recordTelemetry = options.recordTelemetry;
     this.#servedModelLedger = options.servedModelLedger;
     this.#rateLimitGate = options.rateLimitGate;
+    this.#sleep = options.sleep ?? waitForProviderRateLimitV1;
     this.#actorContext = options.actorContext;
     this.#messages = options.actorContext
       ? [...structuredClone(options.actorContext.turn.priorMessages), options.actorContext.input]
@@ -1006,7 +1018,7 @@ class OpenAICompatibleFileTurnSessionV1 {
               this.#rateLimitGate.block(delayMs);
               await this.#rateLimitGate.wait(signal);
             } else {
-              await waitForProviderRateLimitV1(delayMs, signal);
+              await this.#sleep(delayMs, signal);
             }
             continue;
           }
@@ -1243,29 +1255,52 @@ function throwIfAborted(signal: AbortSignal): void {
   if (signal.aborted) throw abortReason(signal);
 }
 
-function providerRateLimitDelayMs(response: Response, attempt: number): number {
-  const retryAfter = response.headers.get('retry-after')?.trim();
-  if (retryAfter) {
-    const seconds = Number(retryAfter);
-    if (Number.isFinite(seconds) && seconds >= 0) {
-      return Math.min(seconds * 1_000, MAX_PROVIDER_RATE_LIMIT_DELAY_MS_V1);
-    }
-    const at = Date.parse(retryAfter);
-    if (Number.isFinite(at)) {
-      return Math.min(
-        Math.max(at - Date.now(), 0),
-        MAX_PROVIDER_RATE_LIMIT_DELAY_MS_V1,
-      );
-    }
-  }
-  // Equal jitter on the synthetic backoff only: a server-stated Retry-After
-  // above is an instruction and is honored verbatim, but when concurrent tasks
-  // all invent the same linear backoff they re-collide on the same window.
+/** What the server asked us to wait, in ms, or undefined if it did not say. */
+export function providerStatedRetryAfterMsV1(retryAfter: string | null): number | undefined {
+  const value = retryAfter?.trim();
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1_000;
+  const at = Date.parse(value);
+  return Number.isFinite(at) ? Math.max(at - Date.now(), 0) : undefined;
+}
+
+/**
+ * How long to wait after a 429.
+ *
+ * Retry-After is advice about one request; a per-minute quota window is not.
+ * Azure answers a TPM window with `Retry-After: 1`, and honoring that verbatim
+ * spent the whole eight-attempt budget in twelve seconds -- every attempt still
+ * inside the window the first one was rejected in, so all eight returned 429.
+ * Measured on the B1 grid: every one of twelve responder contact failures had
+ * exactly one such exhausted 429 behind it, and each cost its task.
+ *
+ * So the server's number is a floor and our own backoff is the other floor;
+ * we wait for whichever is longer. Equal jitter on the synthetic half, because
+ * concurrent tasks that invent the same linear backoff re-collide on the same
+ * window.
+ */
+export function providerRateLimitDelayMsV1(
+  statedMs: number | undefined,
+  attempt: number,
+  random: () => number = Math.random,
+): number {
   const backoffMs = Math.min(
     DEFAULT_PROVIDER_RATE_LIMIT_DELAY_MS_V1 * attempt,
     MAX_PROVIDER_RATE_LIMIT_DELAY_MS_V1,
   );
-  return Math.floor(backoffMs / 2 + Math.random() * (backoffMs / 2));
+  const syntheticMs = Math.floor(backoffMs / 2 + random() * (backoffMs / 2));
+  return Math.min(
+    Math.max(statedMs ?? 0, syntheticMs),
+    MAX_PROVIDER_RATE_LIMIT_DELAY_MS_V1,
+  );
+}
+
+function providerRateLimitDelayMs(response: Response, attempt: number): number {
+  return providerRateLimitDelayMsV1(
+    providerStatedRetryAfterMsV1(response.headers.get('retry-after')),
+    attempt,
+  );
 }
 
 async function waitForProviderRateLimitV1(
