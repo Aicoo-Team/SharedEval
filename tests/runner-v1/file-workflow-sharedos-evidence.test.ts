@@ -608,6 +608,49 @@ test('requires complete requester and responder four-file reads for an accepted 
   }
 });
 
+test('a contact the router already refused for its read set is not charged twice', () => {
+  // Production shape, from run B1-r1s4 tick 7: the requester read only
+  // MEMORY.md and then contacted. The router priced that correctly -- the
+  // contact came back failed with CONTACT_REQUESTER_FILE_READ_REQUIRED, and the
+  // turn went on to write MEMORY and finish. The projector then asserted the
+  // same rule again and ended the whole run at evidence_projection, with six of
+  // eleven tasks already settled. One fact, one price.
+  const input: any = nativeQaInput('projector-read-set-already-charged');
+  const operations = input.turn.sourceEvidence.requesterFileOperations;
+  const index = operations.findIndex((operation: any) => (
+    operation.action === 'read' && operation.path === 'HEARTBEAT.md'
+  ));
+  const [removed] = operations.splice(index, 1);
+  input.turn.sourceEvidence.auditEvents = input.turn.sourceEvidence.auditEvents.filter(
+    (event: any) => event.operationId !== removed.operationId,
+  );
+  input.turn.requesterReads = input.turn.requesterReads.filter(
+    (receipt: any) => receipt.path !== 'HEARTBEAT.md',
+  );
+  input.turn.decision.toolSteps -= 1;
+  convertCompletedContactToFailed(input, 'CONTACT_REQUESTER_FILE_READ_REQUIRED');
+
+  const projected = projectFileWorkflowSharedOsEvidenceV1(input);
+  assert.equal(projected.currentContact?.authority.status, 'failed');
+  assert.equal(
+    projected.currentContact?.authority.errorCode,
+    'CONTACT_REQUESTER_FILE_READ_REQUIRED',
+  );
+
+  // The gate still stands for every other disposition: an incomplete read set
+  // behind a contact the router did NOT refuse for it is still fatal.
+  for (const errorCode of ['CONTACT_RESPONDER_FAILED', 'CONTACT_DUPLICATE_TASK']) {
+    const other: any = structuredClone(input);
+    other.turn.contact.errorCode = errorCode;
+    refreshAudit(other);
+    assert.throws(
+      () => projectFileWorkflowSharedOsEvidenceV1(other),
+      /one complete requester file read set/,
+      errorCode,
+    );
+  }
+});
+
 /**
  * The waiver half. Without it, deleting the 'simple' arm of the projector's
  * three gates leaves the suite green while every simple-profile heartbeat is

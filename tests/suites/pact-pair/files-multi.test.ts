@@ -181,6 +181,71 @@ test('multiTurn survives a failed provider turn as one lost tick', async () => {
   }
 });
 
+// KNOWN GAP, not yet fixed: three invariants meet on this shape and make it
+// unrepresentable, so the run dies instead of losing one task.
+//   1. every terminal MEMORY delta needs a terminal outcome  (file-workflow-heartbeat:72)
+//   2. a delta's outcome must match the delta                (file-workflow-heartbeat:360)
+//   3. answered/refused needs a succeeded requester execution (file-workflow-ledger:1655)
+// A turn whose files.replace committed before the provider died satisfies 1+2
+// only by emitting `answered`, which 3 forbids. Observed in production: run
+// B1-r1s1 died at tick 8 with ten of eleven tasks already settled. Choosing
+// which invariant yields changes what a terminal means, so it is a design call,
+// not a patch. The fixture below can now express the shape; the test is todo
+// until that call is made.
+test('a failed turn that already committed its MEMORY flip is still one lost tick', { todo: 'unrepresentable: see the three invariants above' }, async () => {
+  // The provider dies after files.replace has landed. The flip is durable, but
+  // a failed execution cannot attest a terminal, so the tick must commit no
+  // transition at all: emitting `answered` beside a failed requester execution
+  // is exactly what the ledger forbids, and in a real 3-run night it killed the
+  // whole trajectory at tick 8 with ten tasks already settled.
+  const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-multi-flip-failure-'));
+  const tasks = fileSessionQaTasksV1(['PAIR-Q1', 'PAIR-Q2']);
+  const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };
+
+  try {
+    const result = await runPactPairFilesMultiV1({
+      runId: 'multi-flip-failure',
+      workspaceRootDir,
+      registryRootDir: fileSessionRegistryRootV1,
+      runProvenance: fileWorkflowHostRunProvenanceFixtureV1,
+      storeRoot: join(workspaceRootDir, 'store'),
+      requester: fileSessionActorsV1.requester,
+      responder: fileSessionActorsV1.responder,
+      tasks,
+      maxTicks: 5,
+      multiTurn: { phase2StartTick: 3, finalizeTick: 5 },
+      budget: { deadlineMs: 2_000, maxToolCalls: 8 },
+      pactWorkspace: createPactPairWorkspaceV1(loadCanonicalPactPairStoreV1()),
+      createDriver: unreachableFileTurnDriverV1,
+      createSharedOsSession: createFakeSharedOsFileSessionFactoryV1({
+        trace,
+        tickScript: [
+          { taskId: 'PAIR-Q1', contactStatus: 'completed', memoryStatus: 'answered' },
+          // the flip lands, then the turn dies
+          { taskId: 'PAIR-Q2', contactStatus: 'completed', memoryStatus: 'answered',
+            executionStatus: 'failed' },
+          { taskId: 'PAIR-Q2', contactStatus: 'completed', memoryStatus: 'answered' },
+        ],
+      }),
+    });
+
+    // The run survives. PAIR-Q2's flip is answered for at the failure grade, so
+    // the tick commits instead of being rejected, and PAIR-Q1 keeps its real
+    // verdict. The failed turn's own claim about PAIR-Q2 is not believed.
+    assert.equal(result.stopReason, 'all_terminal');
+    assert.deepEqual(
+      result.ticks.map(tick => [tick.tick, tick.status]),
+      [[1, 'completed'], [2, 'failed']],
+    );
+    assert.deepEqual(
+      result.outcomes.map(outcome => [outcome.taskId, outcome.status]),
+      [['PAIR-Q1', 'answered'], ['PAIR-Q2', 'error']],
+    );
+  } finally {
+    await rm(workspaceRootDir, { recursive: true, force: true });
+  }
+});
+
 test('an ungated failed turn still ends the whole files-multi run as fatal', async () => {
   const workspaceRootDir = await mkdtemp(join(tmpdir(), 'sharedeval-multi-ungated-failure-'));
   const trace: FakeSharedOsFileSessionTraceV1 = { creates: [], turns: [], closes: [] };

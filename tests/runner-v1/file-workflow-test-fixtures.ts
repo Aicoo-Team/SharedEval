@@ -1365,9 +1365,13 @@ export function createFakeSharedOsFileSessionFactoryV1(input: {
               : `${task.taskId} [refused] — fake SharedOS reply`;
         });
         const nextMemory = `${rows.join('\n')}\n`;
-        const commitsMemory = requesterExecutionStatus === 'succeeded' && (
-          scriptEntry ? scriptEntry.memoryStatus !== undefined : !input.leaveTaskPending
-        );
+        // A script says what MEMORY does, independently of how the turn ends.
+        // Production can commit the CAS write and then lose the turn to a
+        // provider error, and a fixture that cannot express that shape is why
+        // the ledger's own invariant about it went untested.
+        const commitsMemory = scriptEntry
+          ? scriptEntry.memoryStatus !== undefined
+          : requesterExecutionStatus === 'succeeded' && !input.leaveTaskPending;
         if (commitsMemory) {
           const replacement = await options.requester.workspace.replaceMemory({
             actorId: options.requester.actorId,
