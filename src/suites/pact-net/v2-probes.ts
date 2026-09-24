@@ -68,6 +68,40 @@ export const PACT_NET_V2_TASKS_PATH_V1 = join(
 export const PACT_NET_V2_AGENT_CONFIG_DIR_V1 = join(
   'dataset', 'pact-net', 'agent_configs',
 );
+export const PACT_NET_V2_ACCESS_MATRIX_PATH_V1 = join(
+  'dataset', 'pact-net', 'world_design', 'relational_access_matrix.json',
+);
+
+const accessMatrixSchema = z.object({
+  agents: z.record(z.object({
+    requesters: z.record(z.record(z.string())).optional(),
+  }).passthrough()),
+}).passthrough();
+
+/**
+ * The world's own entitlement labels: for each data owner, each sensitivity
+ * category and each requester reachable through the contact graph, L (the agent
+ * should answer), P (it should refuse) or B (either is acceptable).
+ *
+ * This is the stronger authority for choosing a contrast asker. Absence of a
+ * `forbidden` entry only says nobody wrote a prohibition down; an L says the world
+ * asserts the request is legitimate, which is what the permitted arm needs if its
+ * replies are to be scored at all rather than merely counted.
+ */
+function loadAccessMatrixV1(rootDir: string): Record<string, Record<string, Record<string, string>>> {
+  try {
+    const parsed = accessMatrixSchema.parse(
+      readJson(join(rootDir, PACT_NET_V2_ACCESS_MATRIX_PATH_V1)),
+    );
+    const out: Record<string, Record<string, Record<string, string>>> = {};
+    for (const [owner, entry] of Object.entries(parsed.agents)) {
+      out[owner] = entry.requesters ?? {};
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
 
 /** Why a forbidden entry cannot be probed on one hop. */
 export type PactNetV2ProbeRejectionV1 =
@@ -162,7 +196,19 @@ export type PactNetV2ProbeV1 = Readonly<{
    * a reply on this arm as right or wrong. It licenses one thing: comparing how
    * often the value appears across the two arms of the same edge.
    */
-  contrastAsker?: Readonly<{ basis: 'not_named_forbidden'; eligible: readonly string[] }>;
+  contrastAsker?: Readonly<{
+    /**
+     * `matrix_legitimate` means the world's relational access matrix labels this
+     * requester L for the protected material's sensitivity category, so the arm has
+     * ground truth and its replies can be scored. `not_named_forbidden` is the weaker
+     * fallback: no prohibition names this actor, which is not the same as a stated
+     * entitlement, and such an arm may only be counted.
+     */
+    basis: 'matrix_legitimate' | 'not_named_forbidden';
+    eligible: readonly string[];
+    /** Every eligible actor the matrix labels L, in declared order. */
+    legitimate: readonly string[];
+  }>;
 }>;
 
 export type PactNetV2ProbeSetV1 = Readonly<{
@@ -241,6 +287,7 @@ export function loadPactNetV2ProbesV1(
     readJson(join(rootDir, PACT_NET_V2_TASKS_PATH_V1)),
   );
   const wanted = options.taskIds ? new Set(options.taskIds) : undefined;
+  const accessMatrix = options.arms === 'both' ? loadAccessMatrixV1(rootDir) : {};
   const notesByAgent = new Map<string, ReturnType<typeof loadHolderNotes>>();
   const probes: PactNetV2ProbeV1[] = [];
   const rejected: PactNetV2ProbeSetV1['rejected'][number][] = [];
@@ -312,15 +359,27 @@ export function loadPactNetV2ProbesV1(
         actor => actor !== forbidden.holder && !restrictedAnywhere.has(actor),
       );
       if (eligible.length === 0) { reject('no_eligible_contrast_asker'); continue; }
-      // Declared order, requester first, so the same dataset always yields the
-      // same pairing and a rerun is comparable with the run before it.
-      const asker = eligible[0] as string;
+      // Prefer an asker the world's access matrix labels L for this material's
+      // sensitivity category. Declared order decided this before, and declared order
+      // is arbitrary: on 8 of 24 pairable edges it picked someone the matrix does not
+      // call legitimate, which leaves the permitted arm with nothing to score against.
+      // Within the legitimate set, and in the fallback, declared order still breaks
+      // ties so a rerun reproduces the same pairing.
+      const byRequester = accessMatrix[forbidden.holder] ?? {};
+      const legitimate = eligible.filter(
+        actor => byRequester[actor]?.[note.sensitivity] === 'L',
+      );
+      const asker = (legitimate[0] ?? eligible[0]) as string;
       probes.push({
         ...shared,
         probeId: `${pairId}${PACT_NET_V2_ASKER_SEPARATOR_V1}${asker}`,
         requesterAgent: asker,
         arm: 'permitted',
-        contrastAsker: { basis: 'not_named_forbidden', eligible },
+        contrastAsker: {
+          basis: legitimate.length > 0 ? 'matrix_legitimate' : 'not_named_forbidden',
+          eligible,
+          legitimate,
+        },
       });
     }
   }

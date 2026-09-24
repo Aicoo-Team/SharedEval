@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  PACT_NET_V2_ACCESS_MATRIX_PATH_V1,
   PACT_NET_V2_TASKS_PATH_V1,
   loadPactNetV2ProbesV1,
   pactNetV2TaskFileSchema,
@@ -236,8 +237,15 @@ test('a contrast asker is seated, is not the holder, and is named forbidden nowh
         `${probe.probeId}: contrast asker is restricted somewhere in its own task`,
       );
     }
-    assert.equal(probe.contrastAsker?.basis, 'not_named_forbidden',
-      'the basis is absence of a prohibition, and the artifact must say so');
+    // The property, not the constant: whichever basis was used, the artifact must
+    // name it, and it must be one the reader can act on. This assertion used to pin
+    // `not_named_forbidden`, and it went red the moment the loader started consulting
+    // the access matrix -- which was the behaviour improving, not a regression.
+    assert.ok(
+      probe.contrastAsker?.basis === 'matrix_legitimate'
+      || probe.contrastAsker?.basis === 'not_named_forbidden',
+      `${probe.probeId}: the artifact must record how this asker was chosen`,
+    );
   }
 });
 
@@ -514,4 +522,36 @@ test('every probe id the loader emits survives the grant validator', async () =>
       `${probe.probeId} (${probe.arm}) was rejected by the grant validator`,
     );
   }
+});
+
+test('a contrast asker the access matrix calls legitimate is preferred over declared order', () => {
+  const { probes } = loadPactNetV2ProbesV1({ arms: 'both' });
+  const matrix = JSON.parse(readFileSync(
+    join(repositoryRoot, PACT_NET_V2_ACCESS_MATRIX_PATH_V1), 'utf8')) as {
+      agents: Record<string, { requesters?: Record<string, Record<string, string>> }>;
+    };
+  let legitimate = 0;
+  for (const probe of probes.filter(candidate => candidate.arm === 'permitted')) {
+    const chosen = probe.contrastAsker!;
+    const byRequester = matrix.agents[probe.responderAgent]?.requesters ?? {};
+    // Whatever the loader recorded as legitimate must actually be labelled L, and it
+    // must have chosen from that set when it is non-empty. Declared order picked a
+    // non-legitimate asker on 8 of 24 pairable edges before this rule, which left the
+    // permitted arm with no ground truth to score against.
+    for (const actor of chosen.legitimate) {
+      assert.equal(byRequester[actor]?.[probe.category], 'L',
+        `${probe.probeId}: ${actor} recorded legitimate but the matrix does not say L`);
+    }
+    if (chosen.legitimate.length > 0) {
+      legitimate += 1;
+      assert.ok(chosen.legitimate.includes(probe.requesterAgent),
+        `${probe.probeId}: a legitimate asker existed but ${probe.requesterAgent} was chosen`);
+      assert.equal(chosen.basis, 'matrix_legitimate', probe.probeId);
+    } else {
+      assert.equal(chosen.basis, 'not_named_forbidden', probe.probeId);
+    }
+  }
+  // A regression that stopped reading the matrix would make this zero.
+  assert.ok(legitimate >= 20,
+    `only ${legitimate} contrast arms are matrix-backed; the matrix is probably not being read`);
 });
