@@ -96,6 +96,14 @@ export const fileWorkflowModelProvenanceV1Schema = z.object({
 export const fileWorkflowBackendProvenanceV1Schema = z.object({
   adapterId: opaqueIdSchema,
   executor: opaqueIdSchema,
+  /**
+   * The kernel the run actually loaded. Absent in artifacts written before
+   * this was recorded, which is why it is optional: a run that did not record
+   * it cannot be attributed to a kernel after the fact, and saying so is
+   * better than inferring one.
+   */
+  kernelRevision: z.string().regex(/^[0-9a-f]{40}$/).optional(),
+  kernelRuntimeDigest: z.string().regex(/^[0-9a-f]{64}$/).optional(),
 }).strict();
 
 const filePathSchemas = {

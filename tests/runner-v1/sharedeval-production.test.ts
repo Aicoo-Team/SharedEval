@@ -110,7 +110,14 @@ test('composes explicit multi and single runs through one preloaded SharedOS fac
           resolvedModel: 'example-model',
         },
       },
-      backend: { adapterId: 'sharedos-runtime', executor: 'sharedos-executor' },
+      backend: {
+        adapterId: 'sharedos-runtime',
+        executor: 'sharedos-executor',
+        // These are the fake loader's own values above, so the assertion shows
+        // the run records the kernel it actually loaded rather than a constant.
+        kernelRevision: 'b'.repeat(40),
+        kernelRuntimeDigest: '4'.repeat(64),
+      },
     });
     assert.deepEqual(runnerInput.requester.references, {
       agent: { id: 'agents/tina/base/agent', version: '1.1.0' },
