@@ -146,7 +146,15 @@ export async function runSharedevalProductionV1(
   const runProvenance: FileWorkflowHostRunProvenanceV1 = deepFreeze({
     ...datasetAuthority,
     models: { requester: model, responder: model },
-    backend: { adapterId: 'sharedos-runtime', executor: 'sharedos-executor' },
+    backend: {
+      adapterId: 'sharedos-runtime',
+      executor: 'sharedos-executor',
+      // The loader already verified this checkout and holds its revision, so
+      // the run can name the kernel it ran on rather than leaving it to be
+      // reconstructed from a reflog afterwards.
+      kernelRevision: loaded.revision,
+      kernelRuntimeDigest: loaded.runtimeDigest,
+    },
   });
   const createDriver = dependencies.createDriver ?? createOpenAICompatibleFileTurnDriverV1;
   // One ledger and one rate-limit gate per run: providers may vary freely,
