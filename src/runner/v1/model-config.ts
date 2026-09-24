@@ -97,6 +97,13 @@ export const pactOpenAICompatibleModelConfigV1Schema = z
     providerRouting: pactProviderRoutingV1Schema.optional(),
     maxOutputTokens: z.number().int().safe().min(1).max(65_536).default(4_096),
     /**
+     * Which request field carries maxOutputTokens. Newer reasoning deployments
+     * reject `max_tokens` outright and require `max_completion_tokens`; the
+     * rejection is a 400 per call, so a run against one of them produces a
+     * verdict for nothing while still writing its evaluation rows.
+     */
+    maxOutputTokensField: z.enum(['max_tokens', 'max_completion_tokens']).optional(),
+    /**
      * Per-attempt provider deadline. Absent, the driver scales it from the
      * task budget; set it explicitly for models whose single generation is
      * long relative to that budget.
@@ -153,6 +160,13 @@ export const pactAzureOpenAIModelConfigV1Schema = z
     apiKeyEnv: z.literal(SHAREDEVAL_MODEL_API_KEY_ENV_V1),
     temperature: z.number().finite().min(0).max(2).optional(),
     maxOutputTokens: z.number().int().safe().min(1).max(65_536).default(4_096),
+    /**
+     * Which request field carries maxOutputTokens. Newer reasoning deployments
+     * reject `max_tokens` outright and require `max_completion_tokens`; the
+     * rejection is a 400 per call, so a run against one of them produces a
+     * verdict for nothing while still writing its evaluation rows.
+     */
+    maxOutputTokensField: z.enum(['max_tokens', 'max_completion_tokens']).optional(),
   })
   .strict();
 
