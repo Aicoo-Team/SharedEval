@@ -4028,6 +4028,7 @@
       ],
       "status": "active",
       "compatibleDatasets": [
+        "pact-net",
         "pact-pair"
       ],
       "compatibleWorkflowIds": [
@@ -4055,6 +4056,7 @@
       ],
       "status": "active",
       "compatibleDatasets": [
+        "pact-net",
         "pact-pair"
       ],
       "compatibleWorkflowIds": [
