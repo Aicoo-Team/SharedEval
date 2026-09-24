@@ -1545,3 +1545,37 @@ test('the driver really waits those amounts between rate-limit attempts', async 
   assert.equal(waits.length, 3);
   assert.ok(waits.every(ms => ms >= 7_500), JSON.stringify(waits));
 });
+
+test('maxOutputTokens travels in the field the deployment accepts', async () => {
+  for (const [field, expected] of [
+    [undefined, 'max_tokens'],
+    ['max_tokens', 'max_tokens'],
+    ['max_completion_tokens', 'max_completion_tokens'],
+  ] as const) {
+    const requests: ProviderRequest[] = [];
+    const model = pactModelConfigV1Schema.parse({
+      provider: 'openai-compatible',
+      baseUrl: 'https://api.example.com/v1',
+      apiKeyEnv: SHAREDEVAL_MODEL_API_KEY_ENV_V1,
+      model: 'example-model',
+      maxOutputTokens: 321,
+      ...(field === undefined ? {} : { maxOutputTokensField: field }),
+    });
+    const driver = createOpenAICompatibleFileTurnDriverV1({
+      model,
+      fetch: scriptedFetch([completion({ content: 'ok' })], requests),
+      environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+      sleep: async () => undefined,
+    });
+    const abort = new AbortController();
+    const session = await driver.open(turnRequest(), abort.signal);
+    await session.next({ type: 'start' }, abort.signal);
+
+    const body = requests[0]?.body as unknown as Record<string, unknown>;
+    // It has to arrive under exactly one name: a deployment that rejects the
+    // other one rejects a request carrying both.
+    assert.equal(body[expected], 321, `expected ${expected} to carry the value`);
+    const other = expected === 'max_tokens' ? 'max_completion_tokens' : 'max_tokens';
+    assert.equal(body[other], undefined, `${other} must not also be sent`);
+  }
+});

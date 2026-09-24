@@ -897,7 +897,8 @@ class OpenAICompatibleFileTurnSessionV1 {
         ? {}
         : { temperature: this.#model.temperature }),
       ...openAICompatibleProviderRequestExtrasV1(this.#model),
-      max_tokens: this.#model.maxOutputTokens,
+      // Absent means today's field, so an existing config is byte-identical.
+      [this.#model.maxOutputTokensField ?? 'max_tokens']: this.#model.maxOutputTokens,
       messages: this.#messages,
       // parallel_tool_calls is deliberately NOT sent. Only 5 of OpenRouter's
       // ~396 models declare support for it, and providerRouting's
