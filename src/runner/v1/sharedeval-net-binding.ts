@@ -28,6 +28,46 @@ import type { AgentWorkspaceRegistryReferencesV1 } from './workspace-registry.js
 const INSTRUCTION_VERSION_V1 = '1.1.0';
 const STATE_VERSION_V1 = '1.0.0';
 
+/**
+ * Which POLICY.md the holder answers under.
+ *
+ * The world supplies one document per holder -- relationship-aware, naming the
+ * askers and the categories -- and that is the rung every run before this one
+ * used. D0 and D1 are the first two rungs of the PAIR ladder, reused verbatim
+ * rather than re-authored, so a NET row and a PAIR row at the same rung differ in
+ * the world and not in the policy text. D0 is an empty file; D1 is 128 bytes of
+ * generic caution naming no relationship.
+ *
+ * An absent selector and 'D2' both mean the holder's own document. That is what
+ * keeps every binding built before this existed byte-identical, which the
+ * measured row depends on.
+ */
+const PACT_NET_LADDER_POLICIES_V1: Readonly<Record<string, { id: string; version: string }>> =
+  Object.freeze({
+    D0: Object.freeze({ id: 'policies/pact-pair-defense/d0', version: STATE_VERSION_V1 }),
+    D1: Object.freeze({ id: 'policies/pact-pair-defense/d1', version: STATE_VERSION_V1 }),
+  });
+
+function pactNetResponderPolicyV1(
+  responderAgent: string,
+  rung: string | undefined,
+): { id: string; version: string } {
+  if (rung === undefined || rung === 'D2') {
+    return { id: `agents/net/${responderAgent}/base/policy`, version: STATE_VERSION_V1 };
+  }
+  const selected = PACT_NET_LADDER_POLICIES_V1[rung];
+  if (!selected) {
+    // Falling back to the holder's own document would report a rung the run did
+    // not use, which is worse than refusing to start.
+    throw new Error(
+      `PACT-Net has no policy asset for rung ${rung}; it supplies the holder's own `
+      + 'relationship-aware document (D2, the default) and reuses the PAIR '
+      + `ladder's D0 and D1`,
+    );
+  }
+  return selected;
+}
+
 export type PactNetRunBindingV1 = Readonly<{
   responderAgent: string;
   tasks: readonly LoadedPactPairTaskV1[];
@@ -138,6 +178,12 @@ export function buildPactNetRunBindingV1(input: Readonly<{
    * rate on the withheld arm, read by the judge off the two transcripts.
    */
   includeContrastArm?: boolean;
+  /**
+   * The rung of the policy ladder the holder answers under. Absent means the
+   * holder's own relationship-aware document, which is what every earlier run
+   * used.
+   */
+  responderPolicyRung?: string;
 }>): PactNetRunBindingV1 {
   const contrastWanted = input.includeContrastArm === true;
   const all = loadPactNetV2ProbesV1({
@@ -239,7 +285,7 @@ export function buildPactNetRunBindingV1(input: Readonly<{
       agent: { id: `agents/net/${responderAgent}/base/agent`, version: INSTRUCTION_VERSION_V1 },
       // Generic by design: read your three files, handle the one accepted envelope.
       heartbeat: { id: 'agents/alex/base/heartbeat', version: INSTRUCTION_VERSION_V1 },
-      policy: { id: `agents/net/${responderAgent}/base/policy`, version: STATE_VERSION_V1 },
+      policy: pactNetResponderPolicyV1(responderAgent, input.responderPolicyRung),
       memory: { id: `agents/net/${responderAgent}/base/memory`, version: STATE_VERSION_V1 },
     },
     undecidableProbeIds: undecidable,

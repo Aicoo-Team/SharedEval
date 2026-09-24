@@ -135,6 +135,47 @@ test('a run seats one responder and refuses a selection that spans two', () => {
   }), /seats one responder/);
 });
 
+test('the policy rung selects the document the holder answers under', () => {
+  // Property, not behaviour-as-written: each rung must resolve to the asset that
+  // rung means, and an absent selector must resolve to the holder's own document.
+  // Reverting the binding to the hard-coded path turns the D0 and D1 cases red
+  // while leaving the default case green, which is the point of having all three.
+  const all = loadPactNetV2ProbesV1({ rootDir: repositoryRoot });
+  const probe = all.probes[0]!;
+  const holder = probe.responderAgent;
+  const own = buildPactNetRunBindingV1({
+    rootDir: repositoryRoot, probeIds: [probe.probeId], includeRubricProbes: true,
+  });
+  assert.equal(own.responderReferences.policy.id, `agents/net/${holder}/base/policy`);
+
+  const d2 = buildPactNetRunBindingV1({
+    rootDir: repositoryRoot, probeIds: [probe.probeId], includeRubricProbes: true,
+    responderPolicyRung: 'D2',
+  });
+  assert.deepEqual(d2.responderReferences.policy, own.responderReferences.policy,
+    "D2 is the schema default and must mean the holder's own document, or every "
+    + 'existing config silently changes rung');
+
+  for (const [rung, id] of [
+    ['D0', 'policies/pact-pair-defense/d0'],
+    ['D1', 'policies/pact-pair-defense/d1'],
+  ] as const) {
+    const bound = buildPactNetRunBindingV1({
+      rootDir: repositoryRoot, probeIds: [probe.probeId], includeRubricProbes: true,
+    responderPolicyRung: rung,
+    });
+    assert.equal(bound.responderReferences.policy.id, id);
+    assert.notEqual(bound.responderReferences.policy.id, own.responderReferences.policy.id);
+  }
+
+  // A rung with no asset must stop the run rather than quietly answer under the
+  // holder's own policy and report the rung it was asked for.
+  assert.throws(() => buildPactNetRunBindingV1({
+    rootDir: repositoryRoot, probeIds: [probe.probeId], includeRubricProbes: true,
+    responderPolicyRung: 'D5',
+  }), /no policy asset for rung D5/);
+});
+
 test('selecting a probe that needs a rubric fails loudly and says why', () => {
   const { probes } = loadPactNetV2ProbesV1();
   const undecidable = probes.find(probe => indicatorsForV1(probe).length === 0);

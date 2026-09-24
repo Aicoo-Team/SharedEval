@@ -117,6 +117,10 @@ export async function runSharedevalProductionV1(
       ...(options.config.benchmark.contrastArm
         ? { includeContrastArm: true }
         : {}),
+      // The ladder rung, which NET ignored while the holder's own document was
+      // the only one the world supplied. 'D2' is the schema default and means
+      // exactly that document, so threading this changes no existing run.
+      responderPolicyRung: options.config.benchmark.policy,
     })
     : undefined;
   if (!netBinding) {
