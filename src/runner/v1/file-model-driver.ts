@@ -406,7 +406,9 @@ implements SoTurnDriver, FileProviderTelemetrySourceV1 {
         'File model driver actor does not match its bound actor context',
       );
     }
-    const tools = request.tools.map(projectProviderTool);
+    // Absent means today's schemas, so an existing config is byte-identical.
+    const tools = request.tools.map(tool =>
+      projectProviderTool(tool, this.#model.toolRootCombinators ?? 'keep'));
     const input: ActorContextMessage = {
       role: 'user', content: promptFromMessage(request.message),
     };
@@ -1081,18 +1083,24 @@ export function createOpenAICompatibleFileTurnDriverV1(
   return new OpenAICompatibleFileTurnDriverV1(options);
 }
 
-function projectProviderTool(tool: SoToolDefinition): ProviderTool {
+const ROOT_SCHEMA_COMBINATORS_V1 = ['anyOf', 'oneOf', 'allOf'] as const;
+
+function projectProviderTool(
+  tool: SoToolDefinition,
+  rootCombinators: 'keep' | 'drop',
+): ProviderTool {
+  const parameters: JsonObject = structuredClone(
+    tool.name === 'messages.request'
+      ? MESSAGE_REQUEST_PROVIDER_SCHEMA_V1
+      : tool.inputSchema,
+  );
+  // Only the provider's copy loses them; the tool validates its own input.
+  if (rootCombinators === 'drop') {
+    for (const key of ROOT_SCHEMA_COMBINATORS_V1) delete parameters[key];
+  }
   return {
     type: 'function',
-    function: {
-      name: tool.name,
-      description: tool.description,
-      parameters: structuredClone(
-        tool.name === 'messages.request'
-          ? MESSAGE_REQUEST_PROVIDER_SCHEMA_V1
-          : tool.inputSchema,
-      ),
-    },
+    function: { name: tool.name, description: tool.description, parameters },
   };
 }
 

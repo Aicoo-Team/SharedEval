@@ -104,6 +104,14 @@ export const pactOpenAICompatibleModelConfigV1Schema = z
      */
     maxOutputTokensField: z.enum(['max_tokens', 'max_completion_tokens']).optional(),
     /**
+     * Whether a tool's root-level anyOf/oneOf/allOf reaches the provider. xAI
+     * deployments reject any tool whose parameter root carries one ("tool
+     * parameter root must be an object type"), a 400 per call, so every turn
+     * offered such a tool fails before the model runs. 'drop' sends the object
+     * schema without them; the tool still enforces them when it is called.
+     */
+    toolRootCombinators: z.enum(['keep', 'drop']).optional(),
+    /**
      * Per-attempt provider deadline. Absent, the driver scales it from the
      * task budget; set it explicitly for models whose single generation is
      * long relative to that budget.
@@ -167,6 +175,14 @@ export const pactAzureOpenAIModelConfigV1Schema = z
      * verdict for nothing while still writing its evaluation rows.
      */
     maxOutputTokensField: z.enum(['max_tokens', 'max_completion_tokens']).optional(),
+    /**
+     * Whether a tool's root-level anyOf/oneOf/allOf reaches the provider. xAI
+     * deployments reject any tool whose parameter root carries one ("tool
+     * parameter root must be an object type"), a 400 per call, so every turn
+     * offered such a tool fails before the model runs. 'drop' sends the object
+     * schema without them; the tool still enforces them when it is called.
+     */
+    toolRootCombinators: z.enum(['keep', 'drop']).optional(),
   })
   .strict();
 

@@ -1579,3 +1579,51 @@ test('maxOutputTokens travels in the field the deployment accepts', async () => 
     assert.equal(body[other], undefined, `${other} must not also be sent`);
   }
 });
+
+test('a root schema combinator reaches the provider unless the config drops it', async () => {
+  // PACT-Pair's edit_todo in miniature: an object root that also requires one
+  // of its optional fields. xAI rejects the whole request over that anyOf.
+  const editTool: SoToolDefinition = {
+    ...fileReadTool,
+    name: 'edit_todo',
+    inputSchema: {
+      type: 'object',
+      properties: { title: { type: 'string' }, priority: { type: 'integer' } },
+      required: ['title'],
+      anyOf: [{ required: ['priority'] }],
+      additionalProperties: false,
+    },
+  };
+  const declared = structuredClone(editTool.inputSchema);
+  const { anyOf: _anyOf, ...objectOnly } = declared;
+  for (const [setting, expected] of [
+    [undefined, declared],
+    ['keep', declared],
+    ['drop', objectOnly],
+  ] as const) {
+    const requests: ProviderRequest[] = [];
+    const model = pactModelConfigV1Schema.parse({
+      provider: 'openai-compatible',
+      baseUrl: 'https://api.example.com/v1',
+      apiKeyEnv: SHAREDEVAL_MODEL_API_KEY_ENV_V1,
+      model: 'example-model',
+      ...(setting === undefined ? {} : { toolRootCombinators: setting }),
+    });
+    const driver = createOpenAICompatibleFileTurnDriverV1({
+      model,
+      fetch: scriptedFetch([completion({ content: 'ok' })], requests),
+      environment: { SHAREDEVAL_MODEL_API_KEY: apiKey },
+      sleep: async () => undefined,
+    });
+    const abort = new AbortController();
+    const session = await driver.open(turnRequest({ tools: [editTool] }), abort.signal);
+    await session.next({ type: 'start' }, abort.signal);
+
+    const body = requests[0]?.body as unknown as {
+      tools: Array<{ function: { parameters: unknown } }>;
+    };
+    assert.deepEqual(body.tools[0]?.function.parameters, expected, `setting ${setting}`);
+    // Only the provider's copy changes; the tool keeps the constraint it enforces.
+    assert.deepEqual(editTool.inputSchema, declared);
+  }
+});
